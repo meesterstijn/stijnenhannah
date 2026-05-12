@@ -1,32 +1,65 @@
 import { useState } from "react";
-import { useLocalStorage } from "@/hooks/use-local-storage";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase, type GroceryItem } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Trash2, Plus, Check } from "lucide-react";
+import { Trash2, Plus, Check, Loader2 } from "lucide-react";
 
-type Item = { id: string; text: string; done: boolean };
+async function fetchItems(): Promise<GroceryItem[]> {
+  const { data, error } = await supabase
+    .from("groceries")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data;
+}
 
 export default function Boodschappen() {
-  const [items, setItems] = useLocalStorage<Item[]>("groceries", []);
+  const queryClient = useQueryClient();
   const [text, setText] = useState("");
+
+  const { data: items = [], isLoading } = useQuery({
+    queryKey: ["groceries"],
+    queryFn: fetchItems,
+  });
+
+  const addItem = useMutation({
+    mutationFn: async (text: string) => {
+      const { error } = await supabase.from("groceries").insert({ text, done: false });
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["groceries"] }),
+  });
+
+  const toggleItem = useMutation({
+    mutationFn: async ({ id, done }: { id: string; done: boolean }) => {
+      const { error } = await supabase.from("groceries").update({ done }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["groceries"] }),
+  });
+
+  const removeItem = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("groceries").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["groceries"] }),
+  });
+
+  const clearDone = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("groceries").delete().eq("done", true);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["groceries"] }),
+  });
 
   function add() {
     const t = text.trim();
     if (!t) return;
-    setItems([{ id: crypto.randomUUID(), text: t, done: false }, ...items]);
+    addItem.mutate(t);
     setText("");
-  }
-
-  function toggle(id: string) {
-    setItems(items.map((i) => (i.id === id ? { ...i, done: !i.done } : i)));
-  }
-
-  function remove(id: string) {
-    setItems(items.filter((i) => i.id !== id));
-  }
-
-  function clearDone() {
-    setItems(items.filter((i) => !i.done));
   }
 
   const open = items.filter((i) => !i.done);
@@ -55,13 +88,18 @@ export default function Boodschappen() {
       </form>
 
       <section className="rounded-2xl bg-card border border-border/60 divide-y divide-border/50 overflow-hidden">
-        {open.length === 0 && done.length === 0 && (
+        {isLoading && (
+          <div className="p-8 flex justify-center text-muted-foreground">
+            <Loader2 className="h-5 w-5 animate-spin" />
+          </div>
+        )}
+        {!isLoading && open.length === 0 && done.length === 0 && (
           <p className="p-8 text-center text-muted-foreground text-sm">
             Nog geen boodschappen — voeg er eentje toe ✨
           </p>
         )}
         {open.map((i) => (
-          <Row key={i.id} item={i} onToggle={toggle} onRemove={remove} />
+          <Row key={i.id} item={i} onToggle={(id) => toggleItem.mutate({ id, done: true })} onRemove={(id) => removeItem.mutate(id)} />
         ))}
       </section>
 
@@ -72,7 +110,7 @@ export default function Boodschappen() {
               Gehaald
             </h2>
             <button
-              onClick={clearDone}
+              onClick={() => clearDone.mutate()}
               className="text-xs text-muted-foreground hover:text-destructive transition-colors"
             >
               Wis lijst
@@ -80,7 +118,7 @@ export default function Boodschappen() {
           </div>
           <div className="rounded-2xl bg-card/60 border border-border/40 divide-y divide-border/40">
             {done.map((i) => (
-              <Row key={i.id} item={i} onToggle={toggle} onRemove={remove} />
+              <Row key={i.id} item={i} onToggle={(id) => toggleItem.mutate({ id, done: false })} onRemove={(id) => removeItem.mutate(id)} />
             ))}
           </div>
         </section>
@@ -92,7 +130,7 @@ export default function Boodschappen() {
 function Row({
   item, onToggle, onRemove,
 }: {
-  item: Item;
+  item: GroceryItem;
   onToggle: (id: string) => void;
   onRemove: (id: string) => void;
 }) {

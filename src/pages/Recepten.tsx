@@ -1,47 +1,58 @@
 import { useState } from "react";
-import { useLocalStorage } from "@/hooks/use-local-storage";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase, type Recipe } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from "@/components/ui/dialog";
-import { Plus, Clock, Users, Trash2, ChefHat } from "lucide-react";
+import { Plus, Clock, Users, Trash2, ChefHat, Loader2 } from "lucide-react";
 
-type Recipe = {
-  id: string;
-  title: string;
-  time: string;
-  servings: string;
-  ingredients: string;
-  steps: string;
-};
+const empty = { title: "", time: "", servings: "", ingredients: "", steps: "" };
 
-const empty: Omit<Recipe, "id"> = {
-  title: "",
-  time: "",
-  servings: "",
-  ingredients: "",
-  steps: "",
-};
+async function fetchRecipes(): Promise<Recipe[]> {
+  const { data, error } = await supabase
+    .from("recipes")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data;
+}
 
 export default function Recepten() {
-  const [recipes, setRecipes] = useLocalStorage<Recipe[]>("recipes", []);
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState<Omit<Recipe, "id">>(empty);
+  const [draft, setDraft] = useState(empty);
   const [view, setView] = useState<Recipe | null>(null);
 
-  function save() {
-    if (!draft.title.trim()) return;
-    setRecipes([{ ...draft, id: crypto.randomUUID() }, ...recipes]);
-    setDraft(empty);
-    setOpen(false);
-  }
+  const { data: recipes = [], isLoading } = useQuery({
+    queryKey: ["recipes"],
+    queryFn: fetchRecipes,
+  });
 
-  function remove(id: string) {
-    setRecipes(recipes.filter((r) => r.id !== id));
-    setView(null);
-  }
+  const addRecipe = useMutation({
+    mutationFn: async (recipe: typeof empty) => {
+      const { error } = await supabase.from("recipes").insert(recipe);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["recipes"] });
+      setDraft(empty);
+      setOpen(false);
+    },
+  });
+
+  const removeRecipe = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("recipes").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["recipes"] });
+      setView(null);
+    },
+  });
 
   return (
     <div className="space-y-8">
@@ -95,13 +106,22 @@ export default function Recepten() {
               />
             </div>
             <DialogFooter>
-              <Button onClick={save} className="rounded-xl">Opslaan</Button>
+              <Button
+                onClick={() => draft.title.trim() && addRecipe.mutate(draft)}
+                className="rounded-xl"
+              >
+                Opslaan
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       </header>
 
-      {recipes.length === 0 ? (
+      {isLoading ? (
+        <div className="flex justify-center text-muted-foreground py-12">
+          <Loader2 className="h-5 w-5 animate-spin" />
+        </div>
+      ) : recipes.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border/70 p-12 text-center">
           <ChefHat className="h-10 w-10 mx-auto text-muted-foreground" strokeWidth={1.4} />
           <p className="font-serif text-xl mt-4">Nog geen recepten</p>
@@ -175,7 +195,7 @@ export default function Recepten() {
               <DialogFooter>
                 <Button
                   variant="ghost"
-                  onClick={() => remove(view.id)}
+                  onClick={() => removeRecipe.mutate(view.id)}
                   className="text-destructive hover:text-destructive"
                 >
                   <Trash2 className="h-4 w-4" /> Verwijder
