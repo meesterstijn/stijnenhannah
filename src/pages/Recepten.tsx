@@ -59,6 +59,7 @@ export default function Recepten() {
   const [addingToList, setAddingToList] = useState(false);
   const [addedFeedback, setAddedFeedback] = useState(false);
   const [activeCategory, setActiveCategory] = useState<RecipeCategory | "Alles">("Alles");
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const { data: recipes = [], isLoading } = useQuery({
     queryKey: ["recipes"],
@@ -355,12 +356,12 @@ export default function Recepten() {
         </div>
       )}
 
-      <Dialog open={!!view} onOpenChange={(o) => !o && setView(null)}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+      <Dialog open={!!view} onOpenChange={(o) => { if (!o) { setView(null); setConfirmDelete(false); } }}>
+        <DialogContent className="w-full max-w-2xl max-h-[90vh] overflow-y-auto scrollbar-none sm:rounded-2xl">
           {view && (
             <>
               <DialogHeader>
-                <DialogTitle className="font-serif text-3xl">{view.title}</DialogTitle>
+                <DialogTitle className="font-serif text-2xl sm:text-3xl leading-snug">{view.title}</DialogTitle>
               </DialogHeader>
               <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
                 {view.time && (
@@ -397,25 +398,23 @@ export default function Recepten() {
                 )}
               </div>
               {view.ingredients && (
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-serif text-lg font-semibold">Ingrediënten</h3>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="rounded-xl text-xs"
-                      onClick={addAllToShoppingList}
-                      disabled={addingToList}
-                    >
-                      {addedFeedback ? (
-                        <><Check className="h-3.5 w-3.5 mr-1" /> Toegevoegd!</>
-                      ) : addingToList ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
-                      ) : (
-                        <><ShoppingBasket className="h-3.5 w-3.5 mr-1" /> Toevoegen aan boodschappenlijst</>
-                      )}
-                    </Button>
-                  </div>
+                <div className="space-y-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full rounded-xl text-xs"
+                    onClick={addAllToShoppingList}
+                    disabled={addingToList}
+                  >
+                    {addedFeedback ? (
+                      <><Check className="h-3.5 w-3.5 mr-1" /> Toegevoegd!</>
+                    ) : addingToList ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+                    ) : (
+                      <><ShoppingBasket className="h-3.5 w-3.5 mr-1" /> Toevoegen aan boodschappenlijst</>
+                    )}
+                  </Button>
+                  <h3 className="font-serif text-lg font-semibold">Ingrediënten</h3>
                   <ul className="space-y-1 text-sm">
                     {view.ingredients.split("\n").filter(Boolean).map((line, i) => (
                       <li key={i} className="flex gap-2">
@@ -432,13 +431,36 @@ export default function Recepten() {
                 </div>
               )}
               <DialogFooter>
-                <Button
-                  variant="ghost"
-                  onClick={() => removeRecipe.mutate(view.id)}
-                  className="text-destructive hover:text-destructive"
-                >
-                  <Trash2 className="h-4 w-4" /> Verwijder
-                </Button>
+                {confirmDelete ? (
+                  <div className="flex items-center gap-3 w-full sm:justify-end">
+                    <span className="text-sm text-muted-foreground">Weet je het zeker?</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="rounded-xl"
+                      onClick={() => setConfirmDelete(false)}
+                    >
+                      Annuleer
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="rounded-xl"
+                      onClick={() => removeRecipe.mutate(view.id)}
+                      disabled={removeRecipe.isPending}
+                    >
+                      {removeRecipe.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Ja, verwijder"}
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    onClick={() => setConfirmDelete(true)}
+                    className="text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" /> Verwijder
+                  </Button>
+                )}
               </DialogFooter>
             </>
           )}
