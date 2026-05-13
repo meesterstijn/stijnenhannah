@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase, type Recipe } from "@/lib/supabase";
-import { getHistory, removeFromHistory, parseItem, saveToHistory } from "@/lib/history";
+import { saveToHistory } from "@/lib/history";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from "@/components/ui/dialog";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { HistoryPicker } from "@/components/history-picker";
 import {
   Plus, Clock, Users, Trash2, ChefHat, Loader2, X, Check, ShoppingBasket,
 } from "lucide-react";
@@ -363,134 +363,13 @@ export default function Recepten() {
         </DialogContent>
       </Dialog>
 
-      <IngredientPickerSheet
+      <HistoryPicker
         open={pickerOpen}
         onOpenChange={setPickerOpen}
         onAdd={addIngredientFromHistory}
+        title="Kies ingrediënten"
       />
     </div>
   );
 }
 
-function IngredientPickerSheet({
-  open,
-  onOpenChange,
-  onAdd,
-}: {
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-  onAdd: (names: string[]) => void;
-}) {
-  const [history, setHistory] = useState<string[]>([]);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [deleteMode, setDeleteMode] = useState(false);
-  const [toDelete, setToDelete] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    if (open) {
-      setHistory(getHistory());
-      setSelected(new Set());
-      setDeleteMode(false);
-      setToDelete(new Set());
-    }
-  }, [open]);
-
-  function toggleSelect(item: string) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      next.has(item) ? next.delete(item) : next.add(item);
-      return next;
-    });
-  }
-
-  function toggleToDelete(item: string) {
-    setToDelete((prev) => {
-      const next = new Set(prev);
-      next.has(item) ? next.delete(item) : next.add(item);
-      return next;
-    });
-  }
-
-  function confirmDelete() {
-    toDelete.forEach(removeFromHistory);
-    setHistory((prev) => prev.filter((h) => !toDelete.has(h)));
-    setToDelete(new Set());
-    setDeleteMode(false);
-  }
-
-  return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="top" className="rounded-b-2xl max-h-[80vh] flex flex-col">
-        <SheetHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <SheetTitle>Kies ingrediënten</SheetTitle>
-            {history.length > 0 && (
-              deleteMode ? (
-                <div className="flex gap-2">
-                  <Button variant="ghost" size="sm" className="rounded-xl text-xs"
-                    onClick={() => { setDeleteMode(false); setToDelete(new Set()); }}>
-                    Annuleer
-                  </Button>
-                  <Button variant="destructive" size="sm" className="rounded-xl text-xs"
-                    disabled={toDelete.size === 0} onClick={confirmDelete}>
-                    Verwijder {toDelete.size > 0 ? toDelete.size : ""}
-                  </Button>
-                </div>
-              ) : (
-                <Button variant="outline" size="sm"
-                  className="rounded-xl text-xs text-muted-foreground"
-                  onClick={() => setDeleteMode(true)}>
-                  <Trash2 className="h-3.5 w-3.5 mr-1" /> Beheer lijst
-                </Button>
-              )
-            )}
-          </div>
-        </SheetHeader>
-        {history.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-8">
-            Nog geen geschiedenis — voeg eerst boodschappen toe via de boodschappenlijst.
-          </p>
-        ) : (
-          <>
-            <div className="flex-1 overflow-y-auto">
-              <div className="grid grid-cols-3 md:grid-cols-6 gap-3 py-2">
-                {history.map((item) => {
-                  const isSelected = !deleteMode && selected.has(item);
-                  const isMarkedDelete = deleteMode && toDelete.has(item);
-                  return (
-                    <button
-                      key={item}
-                      onClick={() => deleteMode ? toggleToDelete(item) : toggleSelect(item)}
-                      className={`px-3 py-4 rounded-2xl border text-sm font-medium text-center transition-colors leading-tight ${
-                        isMarkedDelete
-                          ? "bg-destructive border-destructive text-destructive-foreground"
-                          : isSelected
-                          ? "bg-primary border-primary text-primary-foreground"
-                          : "bg-card border-border text-foreground"
-                      }`}
-                    >
-                      {item}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            {!deleteMode && (
-              <div className="pt-4 pb-2">
-                <Button
-                  className="w-full rounded-xl"
-                  disabled={selected.size === 0}
-                  onClick={() => onAdd(Array.from(selected))}
-                >
-                  {selected.size === 0
-                    ? "Selecteer ingrediënten"
-                    : `Voeg ${selected.size} toe`}
-                </Button>
-              </div>
-            )}
-          </>
-        )}
-      </SheetContent>
-    </Sheet>
-  );
-}
