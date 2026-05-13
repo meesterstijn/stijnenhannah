@@ -189,7 +189,7 @@ export default function Boodschappen() {
 
   return (
     <div className="max-w-5xl mx-auto">
-      <div className="lg:grid lg:grid-cols-[1fr_320px] lg:gap-8 lg:items-start">
+      <div className="lg:grid lg:grid-cols-[1fr_320px] lg:gap-8 lg:items-start flex flex-col gap-10 lg:flex-none lg:gap-0">
       <div className="space-y-6">
       <header>
         <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Lijstje</p>
