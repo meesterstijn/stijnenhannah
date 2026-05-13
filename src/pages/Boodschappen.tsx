@@ -198,6 +198,23 @@ export default function Boodschappen() {
           }}
           className="flex gap-2"
         >
+          {items.length > 0 && (
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={() => clearAll.mutate()}
+              disabled={clearAll.isPending}
+              className="rounded-xl shrink-0 text-muted-foreground hover:text-destructive hover:border-destructive/50 transition-colors"
+              aria-label="Wis alles"
+            >
+              {clearAll.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
+            </Button>
+          )}
           <div className="relative flex-1">
             <Input
               ref={inputRef}
@@ -233,23 +250,6 @@ export default function Boodschappen() {
           >
             <Plus className="h-4 w-4" />
           </Button>
-          {items.length > 0 && (
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              onClick={() => clearAll.mutate()}
-              disabled={clearAll.isPending}
-              className="rounded-xl shrink-0 text-muted-foreground hover:text-destructive hover:border-destructive/50 transition-colors"
-              aria-label="Wis alles"
-            >
-              {clearAll.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Trash2 className="h-4 w-4" />
-              )}
-            </Button>
-          )}
         </form>
         {saveError && (
           <p className="mt-2 text-sm text-destructive">Kon niet opslaan: {saveError}</p>
@@ -378,9 +378,11 @@ function ItemRow({
     <div className="flex items-center gap-2 px-4 py-3 select-none group">
       <button
         onClick={onRemove}
-        className="h-5 w-5 rounded-full border-2 border-border flex-shrink-0 hover:border-destructive active:border-destructive transition-colors"
+        className="h-5 w-5 rounded-full border-2 border-border flex-shrink-0 hover:border-destructive hover:text-destructive active:border-destructive transition-colors flex items-center justify-center text-muted-foreground/50"
         aria-label="Verwijder"
-      />
+      >
+        <X className="h-2.5 w-2.5" />
+      </button>
       <div className="flex-1 min-w-0">
         <span className="text-base">{parsedName}</span>
         {priceResult && (
