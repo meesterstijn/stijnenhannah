@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { WeatherWidget } from "@/components/weather-widget";
 import { useLocalStorage } from "@/hooks/use-local-storage";
-import { ShoppingBasket, CalendarDays, BookHeart, ArrowRight } from "lucide-react";
+import { ShoppingBasket, BookHeart, Camera, ArrowRight } from "lucide-react";
 
 type GroceryItem = { id: string; text: string; done: boolean };
 type WeekPlan = Record<string, string>;
@@ -30,12 +30,6 @@ export default function Home() {
         <p className="text-sm uppercase tracking-[0.2em] text-muted-foreground">
           {today.toLocaleDateString("nl-NL", { weekday: "long", day: "numeric", month: "long" })}
         </p>
-        <h1 className="font-serif text-4xl sm:text-5xl font-semibold mt-2">
-          {greeting}, lieverds
-        </h1>
-        <p className="text-muted-foreground mt-3 max-w-xl">
-          Welkom in jullie kleine digitale huiskamer. Hier vinden jullie alles bij elkaar.
-        </p>
       </section>
 
       <section className="grid gap-6 md:grid-cols-2">
@@ -63,16 +57,16 @@ export default function Home() {
           desc={openItems.length ? `${openItems.length} nog te halen` : "Lijst is leeg"}
         />
         <QuickCard
-          to="/weekmenu"
-          icon={CalendarDays}
-          title="Weekmenu"
-          desc={`${Object.values(plan).filter(Boolean).length} van 7 dagen ingevuld`}
-        />
-        <QuickCard
           to="/recepten"
           icon={BookHeart}
           title="Recepten"
           desc="Bewaar wat jullie graag eten"
+        />
+        <QuickCard
+          to="/fotografie"
+          icon={Camera}
+          title="Fotografie"
+          desc="Jullie mooiste momenten"
         />
       </section>
     </div>
