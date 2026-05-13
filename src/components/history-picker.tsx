@@ -4,12 +4,10 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetClose } from "@/comp
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Trash2, Check, Plus, Settings, X } from "lucide-react";
-import {
-  getHistory, removeFromHistory,
-} from "@/lib/history";
+import { getHistory, removeFromHistory } from "@/lib/history";
 import {
   getCategories, saveCategories, getAssignments, assignCategory,
-  type Category,
+  removeAssignmentsForCategory, type Category,
 } from "@/lib/categories";
 
 type Props = {
@@ -23,13 +21,23 @@ type Mode = "pick" | "delete" | "manage";
 
 export function HistoryPicker({ open, onOpenChange, onAdd, title = "Eerder toegevoegd" }: Props) {
   const queryClient = useQueryClient();
+
   const { data: history = [] } = useQuery({
     queryKey: ["product_history"],
     queryFn: getHistory,
     enabled: open,
   });
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [assignments, setAssignments] = useState<Record<string, string>>({});
+  const { data: categories = [] } = useQuery({
+    queryKey: ["product_categories"],
+    queryFn: getCategories,
+    enabled: open,
+  });
+  const { data: assignments = {} } = useQuery({
+    queryKey: ["product_assignments"],
+    queryFn: getAssignments,
+    enabled: open,
+  });
+
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [mode, setMode] = useState<Mode>("pick");
@@ -38,20 +46,12 @@ export function HistoryPicker({ open, onOpenChange, onAdd, title = "Eerder toege
 
   useEffect(() => {
     if (open) {
-      setCategories(getCategories());
-      setAssignments(getAssignments());
       setSelected(new Set());
       setMode("pick");
       setToDelete(new Set());
       setActiveCategory("all");
     }
   }, [open]);
-
-  function reload() {
-    setCategories(getCategories());
-    setAssignments(getAssignments());
-    queryClient.invalidateQueries({ queryKey: ["product_history"] });
-  }
 
   function toggleSelect(item: string) {
     setSelected((prev) => {
@@ -76,30 +76,25 @@ export function HistoryPicker({ open, onOpenChange, onAdd, title = "Eerder toege
     queryClient.invalidateQueries({ queryKey: ["product_history"] });
   }
 
-  function handleAssign(product: string, categoryId: string) {
-    assignCategory(product, categoryId === "none" ? null : categoryId);
-    setAssignments(getAssignments());
+  async function handleAssign(product: string, categoryId: string) {
+    await assignCategory(product, categoryId === "none" ? null : categoryId);
+    queryClient.invalidateQueries({ queryKey: ["product_assignments"] });
   }
 
-  function addCategory() {
+  async function addCategory() {
     const name = newCatName.trim();
     if (!name) return;
     const id = name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
-    const updated = [...categories, { id, name }];
-    saveCategories(updated);
-    setCategories(updated);
+    await saveCategories([...categories, { id, name }]);
+    queryClient.invalidateQueries({ queryKey: ["product_categories"] });
     setNewCatName("");
   }
 
-  function removeCategory(id: string) {
-    const updated = categories.filter((c) => c.id !== id);
-    saveCategories(updated);
-    setCategories(updated);
-    // unassign products from this category
-    const a = getAssignments();
-    Object.keys(a).forEach((k) => { if (a[k] === id) delete a[k]; });
-    localStorage.setItem("product_category_assignments", JSON.stringify(a));
-    setAssignments({ ...a });
+  async function removeCategory(id: string) {
+    await saveCategories(categories.filter((c) => c.id !== id));
+    await removeAssignmentsForCategory(id);
+    queryClient.invalidateQueries({ queryKey: ["product_categories"] });
+    queryClient.invalidateQueries({ queryKey: ["product_assignments"] });
   }
 
   const visibleItems =
@@ -170,7 +165,6 @@ export function HistoryPicker({ open, onOpenChange, onAdd, title = "Eerder toege
           />
         ) : (
           <>
-            {/* Category tab bar */}
             {categories.length > 0 && history.length > 0 && (
               <div className="shrink-0 flex gap-2 overflow-x-auto pb-2 -mx-6 px-6 scrollbar-none">
                 {[{ id: "all", name: "Alles" }, ...categories].map((cat) => (
@@ -253,7 +247,6 @@ function ManageCategories({
 }) {
   return (
     <div className="flex-1 overflow-y-auto space-y-6 pb-4">
-      {/* Add category */}
       <div className="space-y-2">
         <p className="text-sm font-medium">Categorieën</p>
         <div className="flex gap-2">
@@ -282,7 +275,6 @@ function ManageCategories({
         </div>
       </div>
 
-      {/* Assign products */}
       {history.length > 0 && (
         <div className="space-y-2">
           <p className="text-sm font-medium">Producten indelen</p>

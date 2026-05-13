@@ -181,15 +181,6 @@ export default function Boodschappen() {
     <div>
       <div className="lg:grid lg:grid-cols-[1fr_320px] lg:gap-8 lg:items-start flex flex-col gap-10 lg:flex-none lg:gap-0">
       <div className="space-y-6">
-      <header>
-        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Lijstje</p>
-        <h1 className="font-serif text-4xl font-semibold mt-2">Boodschappen</h1>
-        <p className="text-muted-foreground mt-2">
-          {isLoading ? "…" : `${items.length} items`}
-          {hasPrices && ` · totaal €${total.toFixed(2)}`}
-        </p>
-      </header>
-
       <div className="relative">
         <form
           onSubmit={(e) => {
@@ -295,6 +286,11 @@ export default function Boodschappen() {
         onOpenChange={setSheetOpen}
         onAdd={addFromHistory}
       />
+      {!isLoading && items.length > 0 && (
+        <p className="text-sm text-muted-foreground">
+          {items.length} items{hasPrices && ` · totaal €${total.toFixed(2)}`}
+        </p>
+      )}
       </div>
 
       <SupermarktLinks />
