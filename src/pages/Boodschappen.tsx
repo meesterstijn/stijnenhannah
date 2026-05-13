@@ -3,15 +3,35 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase, type GroceryItem } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Loader2, X } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Plus, Loader2, X, Trash2, Check } from "lucide-react";
 
 const HISTORY_KEY = "boodschappen_history";
 const TWEAKWISE_URL =
   "https://gateway.tweakwisenavigator.com/navigation-search/ed681b01";
 
+function parseItem(raw: string): { name: string; qty: number } {
+  const text = raw.trim();
+  const prefix = text.match(/^(\d+)[xX]?\s+(.+)$/);
+  if (prefix) return { qty: parseInt(prefix[1]), name: prefix[2].trim() };
+  const suffix = text.match(/^(.+?)\s+(\d+)[xX]?$/);
+  if (suffix) return { qty: parseInt(suffix[2]), name: suffix[1].trim() };
+  return { qty: 1, name: text };
+}
+
 function getHistory(): string[] {
   try {
-    return JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+    const raw: string[] = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+    const seen = new Set<string>();
+    const result: string[] = [];
+    for (const entry of raw) {
+      const name = parseItem(entry).name;
+      if (!seen.has(name.toLowerCase())) {
+        seen.add(name.toLowerCase());
+        result.push(name);
+      }
+    }
+    return result;
   } catch {
     return [];
   }
@@ -26,17 +46,6 @@ function saveToHistory(item: string) {
     ...history.filter((h) => h.toLowerCase() !== normalized.toLowerCase()),
   ].slice(0, 100);
   localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
-}
-
-function parseItem(raw: string): { name: string; qty: number } {
-  const text = raw.trim();
-  // "3x kaas" or "3 kaas"
-  const prefix = text.match(/^(\d+)[xX]?\s+(.+)$/);
-  if (prefix) return { qty: parseInt(prefix[1]), name: prefix[2].trim() };
-  // "kaas 3x" or "kaas 3"
-  const suffix = text.match(/^(.+?)\s+(\d+)[xX]?$/);
-  if (suffix) return { qty: parseInt(suffix[2]), name: suffix[1].trim() };
-  return { qty: 1, name: text };
 }
 
 type PriceResult = { unitPrice: number; foundTitle: string } | null;
@@ -72,6 +81,8 @@ export default function Boodschappen() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [prices, setPrices] = useState<Record<string, PriceResult>>({});
   const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const inputRef = useRef<HTMLInputElement>(null);
 
   const { data: items = [], isLoading } = useQuery({
@@ -96,6 +107,14 @@ export default function Boodschappen() {
   const removeItem = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("groceries").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["groceries"] }),
+  });
+
+  const updateItem = useMutation({
+    mutationFn: async ({ id, text }: { id: string; text: string }) => {
+      const { error } = await supabase.from("groceries").update({ text }).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["groceries"] }),
@@ -171,9 +190,31 @@ export default function Boodschappen() {
     const t = (itemText ?? text).trim();
     if (!t) return;
     addItem.mutate(t);
-    saveToHistory(t);
+    saveToHistory(parseItem(t).name);
     setText("");
     setShowSuggestions(false);
+  }
+
+  function openHistory() {
+    setSelected(new Set());
+    setSheetOpen(true);
+  }
+
+  function toggleSelect(item: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(item) ? next.delete(item) : next.add(item);
+      return next;
+    });
+  }
+
+  async function addSelected() {
+    for (const item of selected) {
+      await supabase.from("groceries").insert({ text: item, done: false });
+    }
+    queryClient.invalidateQueries({ queryKey: ["groceries"] });
+    setSheetOpen(false);
+    setSelected(new Set());
   }
 
   const hasPrices = items.some((i) => prices[i.id] != null);
@@ -230,35 +271,36 @@ export default function Boodschappen() {
             )}
           </div>
           <Button
-            type="submit"
-            size="lg"
+            type="button"
+            size="icon"
             className="rounded-xl shrink-0"
-            disabled={addItem.isPending}
+            onClick={openHistory}
+            aria-label="Kies uit geschiedenis"
           >
-            {addItem.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Plus className="h-4 w-4" />
-            )}
-            <span className="hidden sm:inline ml-1">Voeg toe</span>
+            <Plus className="h-4 w-4" />
           </Button>
+          {items.length > 0 && (
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={() => clearAll.mutate()}
+              disabled={clearAll.isPending}
+              className="rounded-xl shrink-0 text-muted-foreground hover:text-destructive hover:border-destructive/50 transition-colors"
+              aria-label="Wis alles"
+            >
+              {clearAll.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
+            </Button>
+          )}
         </form>
         {saveError && (
           <p className="mt-2 text-sm text-destructive">Kon niet opslaan: {saveError}</p>
         )}
       </div>
-
-      {items.length > 0 && (
-        <div className="flex justify-end">
-          <button
-            onClick={() => clearAll.mutate()}
-            disabled={clearAll.isPending}
-            className="text-xs text-muted-foreground hover:text-destructive transition-colors"
-          >
-            {clearAll.isPending ? "Bezig…" : "Wis alles"}
-          </button>
-        </div>
-      )}
 
       <section className="rounded-2xl bg-card border border-border/60 divide-y divide-border/50 overflow-hidden">
         {isLoading && (
@@ -271,48 +313,182 @@ export default function Boodschappen() {
             Nog geen boodschappen — voeg er eentje toe ✨
           </p>
         )}
-        {items.map((i) => (
-          <ItemRow
-            key={i.id}
-            item={i}
-            priceResult={prices[i.id]}
-            loadingPrice={loadingIds.has(i.id)}
-            onRemove={() => removeItem.mutate(i.id)}
-          />
-        ))}
+        {items.map((i) => {
+          const { name, qty } = parseItem(i.text);
+          return (
+            <ItemRow
+              key={i.id}
+              item={i}
+              parsedName={name}
+              parsedQty={qty}
+              priceResult={prices[i.id]}
+              loadingPrice={loadingIds.has(i.id)}
+              onRemove={() => removeItem.mutate(i.id)}
+              onQtyChange={(newQty) => {
+                if (newQty <= 0) {
+                  removeItem.mutate(i.id);
+                } else {
+                  const newText = newQty === 1 ? name : `${newQty}x ${name}`;
+                  updateItem.mutate({ id: i.id, text: newText });
+                }
+              }}
+            />
+          );
+        })}
       </section>
+      <HistorySheet
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        selected={selected}
+        onToggle={toggleSelect}
+        onAdd={addSelected}
+      />
     </div>
+  );
+}
+
+function removeFromHistory(item: string) {
+  const raw: string[] = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+  const updated = raw.filter((e) => parseItem(e).name.toLowerCase() !== item.toLowerCase());
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
+}
+
+function HistorySheet({
+  open,
+  onOpenChange,
+  selected,
+  onToggle,
+  onAdd,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  selected: Set<string>;
+  onToggle: (item: string) => void;
+  onAdd: () => void;
+}) {
+  const [history, setHistory] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (open) setHistory(getHistory());
+  }, [open]);
+
+  function handleRemove(item: string) {
+    removeFromHistory(item);
+    setHistory((prev) => prev.filter((h) => h !== item));
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="bottom" className="rounded-t-2xl max-h-[80vh] flex flex-col">
+        <SheetHeader className="pb-2">
+          <SheetTitle>Eerder toegevoegd</SheetTitle>
+        </SheetHeader>
+        {history.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">
+            Nog geen geschiedenis — voeg eerst boodschappen toe via het invoerveld.
+          </p>
+        ) : (
+          <>
+            <div className="flex-1 overflow-y-auto divide-y divide-border/50 -mx-6 px-6">
+              {history.map((item) => {
+                const isSelected = selected.has(item);
+                return (
+                  <div key={item} className="flex items-center gap-3 py-3.5">
+                    <button
+                      onClick={() => onToggle(item)}
+                      className={`flex items-center gap-3 flex-1 text-left transition-colors ${
+                        isSelected ? "text-foreground" : "text-muted-foreground"
+                      }`}
+                    >
+                      <div
+                        className={`h-5 w-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                          isSelected ? "bg-primary border-primary" : "border-border"
+                        }`}
+                      >
+                        {isSelected && <Check className="h-3 w-3 text-primary-foreground" strokeWidth={3} />}
+                      </div>
+                      <span className="text-base">{item}</span>
+                    </button>
+                    <button
+                      onClick={() => handleRemove(item)}
+                      className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground/40 hover:text-destructive transition-colors flex-shrink-0"
+                      aria-label={`Verwijder ${item} uit geschiedenis`}
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="pt-4 pb-2">
+              <Button
+                className="w-full rounded-xl"
+                disabled={selected.size === 0}
+                onClick={onAdd}
+              >
+                {selected.size === 0
+                  ? "Selecteer boodschappen"
+                  : `Voeg ${selected.size} toe`}
+              </Button>
+            </div>
+          </>
+        )}
+      </SheetContent>
+    </Sheet>
   );
 }
 
 function ItemRow({
   item,
+  parsedName,
+  parsedQty,
   priceResult,
   loadingPrice,
   onRemove,
+  onQtyChange,
 }: {
   item: GroceryItem;
+  parsedName: string;
+  parsedQty: number;
   priceResult?: PriceResult;
   loadingPrice: boolean;
   onRemove: () => void;
+  onQtyChange: (qty: number) => void;
 }) {
-  const { qty } = parseItem(item.text);
-  const lineTotal = priceResult ? priceResult.unitPrice * qty : null;
+  const lineTotal = priceResult ? priceResult.unitPrice * parsedQty : null;
 
   return (
-    <div
-      className="flex items-center gap-3 px-4 py-4 active:bg-accent/50 cursor-pointer select-none group"
-      onClick={onRemove}
-    >
-      <div className="h-5 w-5 rounded-full border-2 border-border flex-shrink-0 group-active:border-destructive transition-colors" />
+    <div className="flex items-center gap-2 px-4 py-3 select-none group">
+      <button
+        onClick={onRemove}
+        className="h-5 w-5 rounded-full border-2 border-border flex-shrink-0 hover:border-destructive active:border-destructive transition-colors"
+        aria-label="Verwijder"
+      />
       <div className="flex-1 min-w-0">
-        <span className="text-base">{item.text}</span>
+        <span className="text-base">{parsedName}</span>
         {priceResult && (
           <p className="text-xs text-muted-foreground truncate">{priceResult.foundTitle}</p>
         )}
       </div>
-      <div className="text-right flex-shrink-0">
-        {loadingPrice && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+      <div className="flex items-center gap-1 flex-shrink-0">
+        <button
+          onClick={(e) => { e.stopPropagation(); onQtyChange(parsedQty - 1); }}
+          className="h-7 w-7 rounded-lg border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors text-sm font-medium"
+          aria-label="Minder"
+        >
+          −
+        </button>
+        <span className="w-6 text-center text-sm tabular-nums">{parsedQty}</span>
+        <button
+          onClick={(e) => { e.stopPropagation(); onQtyChange(parsedQty + 1); }}
+          className="h-7 w-7 rounded-lg border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors text-sm font-medium"
+          aria-label="Meer"
+        >
+          +
+        </button>
+      </div>
+      <div className="text-right flex-shrink-0 w-14">
+        {loadingPrice && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground ml-auto" />}
         {lineTotal != null && (
           <span className="text-sm font-medium tabular-nums">€{lineTotal.toFixed(2)}</span>
         )}
@@ -320,7 +496,6 @@ function ItemRow({
           <span className="text-xs text-muted-foreground">—</span>
         )}
       </div>
-      <X className="h-4 w-4 text-muted-foreground/30 group-hover:text-destructive/60 transition-colors flex-shrink-0" />
     </div>
   );
 }
