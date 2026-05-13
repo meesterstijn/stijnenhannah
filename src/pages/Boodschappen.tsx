@@ -367,21 +367,72 @@ function HistorySheet({
   onAdd: () => void;
 }) {
   const [history, setHistory] = useState<string[]>([]);
+  const [deleteMode, setDeleteMode] = useState(false);
+  const [toDelete, setToDelete] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    if (open) setHistory(getHistory());
+    if (open) {
+      setHistory(getHistory());
+      setDeleteMode(false);
+      setToDelete(new Set());
+    }
   }, [open]);
 
-  function handleRemove(item: string) {
-    removeFromHistory(item);
-    setHistory((prev) => prev.filter((h) => h !== item));
+  function toggleToDelete(item: string) {
+    setToDelete((prev) => {
+      const next = new Set(prev);
+      next.has(item) ? next.delete(item) : next.add(item);
+      return next;
+    });
+  }
+
+  function confirmDelete() {
+    toDelete.forEach(removeFromHistory);
+    setHistory((prev) => prev.filter((h) => !toDelete.has(h)));
+    setToDelete(new Set());
+    setDeleteMode(false);
   }
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="rounded-t-2xl max-h-[80vh] flex flex-col">
+      <SheetContent side="top" className="rounded-b-2xl max-h-[80vh] flex flex-col">
         <SheetHeader className="pb-2">
-          <SheetTitle>Eerder toegevoegd</SheetTitle>
+          <div className="flex items-center justify-between">
+            <SheetTitle>Eerder toegevoegd</SheetTitle>
+            {history.length > 0 && (
+              deleteMode ? (
+                <div className="flex gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="rounded-xl text-xs"
+                    onClick={() => { setDeleteMode(false); setToDelete(new Set()); }}
+                  >
+                    Annuleer
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="rounded-xl text-xs"
+                    disabled={toDelete.size === 0}
+                    onClick={confirmDelete}
+                  >
+                    Verwijder {toDelete.size > 0 ? toDelete.size : ""}
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-xl text-xs text-muted-foreground"
+                  onClick={() => setDeleteMode(true)}
+                >
+                  <Trash2 className="h-3.5 w-3.5 mr-1" />
+                  Beheer lijst
+                </Button>
+              )
+            )}
+          </div>
         </SheetHeader>
         {history.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-8">
@@ -389,48 +440,42 @@ function HistorySheet({
           </p>
         ) : (
           <>
-            <div className="flex-1 overflow-y-auto divide-y divide-border/50 -mx-6 px-6">
-              {history.map((item) => {
-                const isSelected = selected.has(item);
-                return (
-                  <div key={item} className="flex items-center gap-3 py-3.5">
+            <div className="flex-1 overflow-y-auto">
+              <div className="grid grid-cols-3 md:grid-cols-6 gap-3 py-2">
+                {history.map((item) => {
+                  const isSelected = !deleteMode && selected.has(item);
+                  const isMarkedDelete = deleteMode && toDelete.has(item);
+                  return (
                     <button
-                      onClick={() => onToggle(item)}
-                      className={`flex items-center gap-3 flex-1 text-left transition-colors ${
-                        isSelected ? "text-foreground" : "text-muted-foreground"
+                      key={item}
+                      onClick={() => deleteMode ? toggleToDelete(item) : onToggle(item)}
+                      className={`px-3 py-4 rounded-2xl border text-sm font-medium text-center transition-colors leading-tight ${
+                        isMarkedDelete
+                          ? "bg-destructive border-destructive text-destructive-foreground"
+                          : isSelected
+                          ? "bg-primary border-primary text-primary-foreground"
+                          : "bg-card border-border text-foreground"
                       }`}
                     >
-                      <div
-                        className={`h-5 w-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-                          isSelected ? "bg-primary border-primary" : "border-border"
-                        }`}
-                      >
-                        {isSelected && <Check className="h-3 w-3 text-primary-foreground" strokeWidth={3} />}
-                      </div>
-                      <span className="text-base">{item}</span>
+                      {item}
                     </button>
-                    <button
-                      onClick={() => handleRemove(item)}
-                      className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground/40 hover:text-destructive transition-colors flex-shrink-0"
-                      aria-label={`Verwijder ${item} uit geschiedenis`}
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-            <div className="pt-4 pb-2">
-              <Button
-                className="w-full rounded-xl"
-                disabled={selected.size === 0}
-                onClick={onAdd}
-              >
-                {selected.size === 0
-                  ? "Selecteer boodschappen"
-                  : `Voeg ${selected.size} toe`}
-              </Button>
-            </div>
+            {!deleteMode && (
+              <div className="pt-4 pb-2">
+                <Button
+                  className="w-full rounded-xl"
+                  disabled={selected.size === 0}
+                  onClick={onAdd}
+                >
+                  {selected.size === 0
+                    ? "Selecteer boodschappen"
+                    : `Voeg ${selected.size} toe`}
+                </Button>
+              </div>
+            )}
           </>
         )}
       </SheetContent>
