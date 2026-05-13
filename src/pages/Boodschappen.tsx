@@ -5,7 +5,7 @@ import { parseItem, getHistory, saveToHistory } from "@/lib/history";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { HistoryPicker } from "@/components/history-picker";
-import { Plus, Loader2, X, Trash2 } from "lucide-react";
+import { Plus, Loader2, Trash2 } from "lucide-react";
 
 const TWEAKWISE_URL =
   "https://gateway.tweakwisenavigator.com/navigation-search/ed681b01";
@@ -375,24 +375,17 @@ function ItemRow({
   const lineTotal = priceResult ? priceResult.unitPrice * parsedQty : null;
 
   return (
-    <div className="flex items-center gap-2 px-4 py-3 select-none group">
-      <button
-        onClick={onRemove}
-        className="h-5 w-5 rounded-full border-2 border-border flex-shrink-0 hover:border-destructive hover:text-destructive active:border-destructive transition-colors flex items-center justify-center text-muted-foreground/50"
-        aria-label="Verwijder"
-      >
-        <X className="h-2.5 w-2.5" />
-      </button>
-      <div className="flex-1 min-w-0">
+    <div
+      onClick={onRemove}
+      className="flex items-stretch gap-2 px-4 select-none cursor-pointer hover:bg-accent/40 transition-colors"
+    >
+      <div className="flex-1 min-w-0 py-3">
         <span className="text-base">{parsedName}</span>
-        {priceResult && (
-          <p className="text-xs text-muted-foreground truncate">{priceResult.foundTitle}</p>
-        )}
       </div>
-      <div className="flex items-center gap-1 flex-shrink-0">
+      <div className="flex items-center gap-1 flex-shrink-0 py-2" onClick={(e) => e.stopPropagation()}>
         <button
           onClick={(e) => { e.stopPropagation(); onQtyChange(parsedQty - 1); }}
-          className="h-7 w-7 rounded-lg border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors text-sm font-medium"
+          className="self-stretch w-10 rounded-lg border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors text-base font-medium"
           aria-label="Minder"
         >
           −
@@ -400,13 +393,13 @@ function ItemRow({
         <span className="w-6 text-center text-sm tabular-nums">{parsedQty}</span>
         <button
           onClick={(e) => { e.stopPropagation(); onQtyChange(parsedQty + 1); }}
-          className="h-7 w-7 rounded-lg border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors text-sm font-medium"
+          className="self-stretch w-10 rounded-lg border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors text-base font-medium"
           aria-label="Meer"
         >
           +
         </button>
       </div>
-      <div className="text-right flex-shrink-0 w-14">
+      <div className="text-right flex-shrink-0 w-14 flex flex-col items-end justify-center">
         {loadingPrice && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground ml-auto" />}
         {lineTotal != null && (
           <span className="text-sm font-medium tabular-nums">€{lineTotal.toFixed(2)}</span>
