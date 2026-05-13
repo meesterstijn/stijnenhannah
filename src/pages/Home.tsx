@@ -1,28 +1,23 @@
 import { Link } from "react-router-dom";
 import { WeatherWidget } from "@/components/weather-widget";
-import { useLocalStorage } from "@/hooks/use-local-storage";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
 import { ShoppingBasket, BookHeart, Camera, ArrowRight } from "lucide-react";
 
 type GroceryItem = { id: string; text: string; done: boolean };
-type WeekPlan = Record<string, string>;
-
-const dayKeys = ["ma", "di", "wo", "do", "vr", "za", "zo"];
 
 export default function Home() {
-  const [items] = useLocalStorage<GroceryItem[]>("groceries", []);
-  const [plan] = useLocalStorage<WeekPlan>("weekplan", {});
   const today = new Date();
-  const todayIdx = (today.getDay() + 6) % 7;
-  const todayKey = dayKeys[todayIdx];
-  const todayMeal = plan[todayKey];
+
+  const { data: items = [] } = useQuery<GroceryItem[]>({
+    queryKey: ["groceries"],
+    queryFn: async () => {
+      const { data } = await supabase.from("groceries").select("*");
+      return data ?? [];
+    },
+  });
 
   const openItems = items.filter((i) => !i.done);
-  const greeting =
-    today.getHours() < 12
-      ? "Goeiemorgen"
-      : today.getHours() < 18
-        ? "Goeiemiddag"
-        : "Goeienavond";
 
   return (
     <div className="space-y-10">
@@ -32,24 +27,8 @@ export default function Home() {
         </p>
       </section>
 
-      <section className="grid gap-6 md:grid-cols-2">
-        <WeatherWidget />
-
-        <Link
-          to="/weekmenu"
-          className="rounded-2xl bg-card border border-border/60 p-6 shadow-sm hover:shadow-md transition-shadow group"
-        >
-          <p className="text-xs uppercase tracking-widest text-muted-foreground">Vanavond eten</p>
-          <p className="font-serif text-3xl font-semibold mt-2">
-            {todayMeal || "Nog niets gepland"}
-          </p>
-          <p className="text-sm text-muted-foreground mt-2">
-            {todayMeal ? "Eet smakelijk samen 🍷" : "Plan iets lekkers in het weekmenu →"}
-          </p>
-        </Link>
-      </section>
-
       <section className="grid gap-4 sm:grid-cols-3">
+        <WeatherWidget />
         <QuickCard
           to="/boodschappen"
           icon={ShoppingBasket}

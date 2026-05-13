@@ -1,11 +1,10 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
-import { Home, ShoppingBasket, CalendarDays, BookHeart, Camera, LogOut } from "lucide-react";
+import { Home, ShoppingBasket, BookHeart, Camera, LogOut } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 const nav = [
   { to: "/", label: "Thuis", icon: Home },
   { to: "/boodschappen", label: "Boodschappen", icon: ShoppingBasket },
-  { to: "/weekmenu", label: "Weekmenu", icon: CalendarDays },
   { to: "/recepten", label: "Recepten", icon: BookHeart },
   { to: "/fotografie", label: "Fotografie", icon: Camera },
 ] as const;

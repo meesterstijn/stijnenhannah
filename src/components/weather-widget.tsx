@@ -60,15 +60,7 @@ export function WeatherWidget() {
       }
     }
 
-    if (!navigator.geolocation) {
-      load(52.37, 4.89, "Amsterdam");
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => load(pos.coords.latitude, pos.coords.longitude, "Bij jullie"),
-      () => load(52.37, 4.89, "Amsterdam"),
-      { timeout: 4000 },
-    );
+    load(51.7722, 4.6156, "'s-Gravendeel");
     return () => {
       cancelled = true;
     };
@@ -85,25 +77,23 @@ export function WeatherWidget() {
   const Icon = iconFor(data.code);
 
   return (
-    <div className="rounded-2xl bg-gradient-to-br from-accent/40 to-secondary/60 border border-border/50 p-6 shadow-sm">
-      <div className="flex items-start justify-between gap-4">
+    <div className="rounded-2xl bg-gradient-to-br from-accent/40 to-secondary/60 border border-border/50 p-5 shadow-sm flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-2">
         <div>
-          <p className="text-xs uppercase tracking-widest text-muted-foreground">
-            {data.city}
-          </p>
-          <p className="font-serif text-5xl font-semibold mt-2">{data.temp}°</p>
-          <p className="text-sm text-muted-foreground mt-1">{descFor(data.code)}</p>
+          <p className="text-xs uppercase tracking-widest text-muted-foreground">{data.city}</p>
+          <p className="font-serif text-3xl font-semibold mt-1">{data.temp}°</p>
+          <p className="text-sm text-muted-foreground">{descFor(data.code)}</p>
         </div>
-        <Icon className="h-14 w-14 text-primary" strokeWidth={1.5} />
+        <Icon className="h-10 w-10 text-primary" strokeWidth={1.5} />
       </div>
-      <div className="mt-5 grid grid-cols-3 gap-2 pt-4 border-t border-border/40">
+      <div className="grid grid-cols-3 gap-1 pt-3 border-t border-border/40">
         {data.daily.map((d) => {
           const DI = iconFor(d.code);
           const day = new Date(d.date).toLocaleDateString("nl-NL", { weekday: "short" });
           return (
             <div key={d.date} className="text-center">
               <p className="text-xs text-muted-foreground capitalize">{day}</p>
-              <DI className="h-5 w-5 mx-auto my-1 text-primary/80" strokeWidth={1.5} />
+              <DI className="h-4 w-4 mx-auto my-1 text-primary/80" strokeWidth={1.5} />
               <p className="text-xs">
                 <span className="font-medium">{d.max}°</span>{" "}
                 <span className="text-muted-foreground">{d.min}°</span>

@@ -5,7 +5,6 @@ import { SiteLayout } from "@/components/site-layout";
 import Login from "@/pages/Login";
 import Home from "@/pages/Home";
 import Boodschappen from "@/pages/Boodschappen";
-import Weekmenu from "@/pages/Weekmenu";
 import Recepten from "@/pages/Recepten";
 import Fotografie from "@/pages/Fotografie";
 import { Link } from "react-router-dom";
@@ -59,7 +58,6 @@ function AppRoutes() {
       <Route element={<SiteLayout />}>
         <Route path="/" element={<Home />} />
         <Route path="/boodschappen" element={<Boodschappen />} />
-        <Route path="/weekmenu" element={<Weekmenu />} />
         <Route path="/recepten" element={<Recepten />} />
         <Route path="/fotografie" element={<Fotografie />} />
         <Route path="*" element={<NotFound />} />
