@@ -34,7 +34,10 @@ function textToIngredients(text: string): Ingredient[] {
     });
 }
 
-const empty = { title: "", time: "", servings: "", ingredients: "", steps: "" };
+const RECIPE_CATEGORIES = ["Brood", "Gebak", "Gerechten"] as const;
+type RecipeCategory = typeof RECIPE_CATEGORIES[number];
+
+const empty = { title: "", time: "", servings: "", ingredients: "", steps: "", category: "Gerechten" };
 
 async function fetchRecipes(): Promise<Recipe[]> {
   const { data, error } = await supabase
@@ -55,6 +58,7 @@ export default function Recepten() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [addingToList, setAddingToList] = useState(false);
   const [addedFeedback, setAddedFeedback] = useState(false);
+  const [activeCategory, setActiveCategory] = useState<RecipeCategory | "Alles">("Alles");
 
   const { data: recipes = [], isLoading } = useQuery({
     queryKey: ["recipes"],
@@ -90,6 +94,21 @@ export default function Recepten() {
       queryClient.invalidateQueries({ queryKey: ["recipes"] });
       setView(null);
     },
+  });
+
+  const [categoryError, setCategoryError] = useState<string | null>(null);
+
+  const updateCategory = useMutation({
+    mutationFn: async ({ id, category }: { id: string; category: string }) => {
+      const { error } = await supabase.from("recipes").update({ category }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: (_, { category }) => {
+      queryClient.invalidateQueries({ queryKey: ["recipes"] });
+      setView((prev) => prev ? { ...prev, category } : null);
+      setCategoryError(null);
+    },
+    onError: (err: Error) => setCategoryError(err.message),
   });
 
   function handleOpenDialog(val: boolean) {
@@ -161,6 +180,22 @@ export default function Recepten() {
                 value={draft.title}
                 onChange={(e) => setDraft({ ...draft, title: e.target.value })}
               />
+              <div className="flex gap-2">
+                {RECIPE_CATEGORIES.map((cat) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setDraft({ ...draft, category: cat })}
+                    className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+                      draft.category === cat
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-card text-muted-foreground border-border hover:text-foreground"
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <Input
                   placeholder="Tijd (bv. 30 min)"
@@ -257,6 +292,24 @@ export default function Recepten() {
         </Dialog>
       </header>
 
+      {!isLoading && recipes.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto scrollbar-none">
+          {(["Alles", ...RECIPE_CATEGORIES] as const).map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setActiveCategory(cat)}
+              className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+                activeCategory === cat
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-card text-muted-foreground border-border hover:text-foreground"
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      )}
+
       {isLoading ? (
         <div className="flex justify-center text-muted-foreground py-12">
           <Loader2 className="h-5 w-5 animate-spin" />
@@ -271,23 +324,30 @@ export default function Recepten() {
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {recipes.map((r) => (
+          {recipes
+            .filter((r) => activeCategory === "Alles" || r.category === activeCategory)
+            .map((r) => (
             <button
               key={r.id}
               onClick={() => setView(r)}
-              className="text-left rounded-2xl bg-card border border-border/60 p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all"
+              className="text-left rounded-2xl bg-card border border-border/60 p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all flex flex-col gap-3"
             >
-              <p className="font-serif text-xl font-semibold">{r.title}</p>
-              <div className="flex gap-4 mt-3 text-xs text-muted-foreground">
-                {r.time && (
-                  <span className="flex items-center gap-1">
-                    <Clock className="h-3.5 w-3.5" /> {r.time}
-                  </span>
-                )}
-                {r.servings && (
-                  <span className="flex items-center gap-1">
-                    <Users className="h-3.5 w-3.5" /> {r.servings}
-                  </span>
+              <p className="font-serif text-xl font-semibold leading-snug">{r.title}</p>
+              <div className="flex items-center justify-between gap-2 mt-auto">
+                <div className="flex gap-3 text-xs text-muted-foreground">
+                  {r.time && (
+                    <span className="flex items-center gap-1">
+                      <Clock className="h-3.5 w-3.5" /> {r.time}
+                    </span>
+                  )}
+                  {r.servings && (
+                    <span className="flex items-center gap-1">
+                      <Users className="h-3.5 w-3.5" /> {r.servings}
+                    </span>
+                  )}
+                </div>
+                {r.category && activeCategory === "Alles" && (
+                  <span className="text-xs text-muted-foreground/70">{r.category}</span>
                 )}
               </div>
             </button>
@@ -302,7 +362,7 @@ export default function Recepten() {
               <DialogHeader>
                 <DialogTitle className="font-serif text-3xl">{view.title}</DialogTitle>
               </DialogHeader>
-              <div className="flex gap-4 text-sm text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
                 {view.time && (
                   <span className="flex items-center gap-1.5">
                     <Clock className="h-4 w-4" /> {view.time}
@@ -312,6 +372,28 @@ export default function Recepten() {
                   <span className="flex items-center gap-1.5">
                     <Users className="h-4 w-4" /> {view.servings} personen
                   </span>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex gap-2 flex-wrap">
+                  {RECIPE_CATEGORIES.map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => updateCategory.mutate({ id: view.id, category: cat })}
+                      disabled={updateCategory.isPending}
+                      className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                        view.category === cat
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-card text-muted-foreground border-border hover:text-foreground"
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+                {categoryError && (
+                  <p className="text-xs text-destructive">{categoryError}</p>
                 )}
               </div>
               {view.ingredients && (

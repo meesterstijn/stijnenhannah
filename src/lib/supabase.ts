@@ -24,5 +24,6 @@ export type Recipe = {
   servings: string;
   ingredients: string;
   steps: string;
+  category: string;
   created_at: string;
 };

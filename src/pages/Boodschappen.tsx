@@ -173,7 +173,7 @@ export default function Boodschappen() {
   }, 0);
 
   return (
-    <div className="max-w-5xl mx-auto">
+    <div>
       <div className="lg:grid lg:grid-cols-[1fr_320px] lg:gap-8 lg:items-start flex flex-col gap-10 lg:flex-none lg:gap-0">
       <div className="space-y-6">
       <header>
@@ -181,7 +181,7 @@ export default function Boodschappen() {
         <h1 className="font-serif text-4xl font-semibold mt-2">Boodschappen</h1>
         <p className="text-muted-foreground mt-2">
           {isLoading ? "…" : `${items.length} items`}
-          {hasPrices && ` · totaal ±€${total.toFixed(2)}`}
+          {hasPrices && ` · totaal €${total.toFixed(2)}`}
         </p>
       </header>
 
@@ -200,7 +200,7 @@ export default function Boodschappen() {
               onChange={(e) => handleTextChange(e.target.value)}
               onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
               onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
-              placeholder="Bijv. 3x kaas, 1L melk, brood…"
+              placeholder=""
               className="bg-card"
               autoComplete="off"
             />
