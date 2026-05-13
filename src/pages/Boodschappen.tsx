@@ -46,6 +46,11 @@ export default function Boodschappen() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const { data: historyItems = [] } = useQuery({
+    queryKey: ["product_history"],
+    queryFn: getHistory,
+  });
+
   const { data: items = [], isLoading } = useQuery({
     queryKey: ["groceries"],
     queryFn: fetchItems,
@@ -129,8 +134,7 @@ export default function Boodschappen() {
     setText(value);
     const trimmed = value.trim();
     if (trimmed) {
-      const history = getHistory();
-      const matches = history
+      const matches = historyItems
         .filter((h) => h.toLowerCase().startsWith(trimmed.toLowerCase()))
         .slice(0, 6);
       setSuggestions(matches);
@@ -147,11 +151,12 @@ export default function Boodschappen() {
     inputRef.current?.focus();
   }
 
-  function add(itemText?: string) {
+  async function add(itemText?: string) {
     const t = (itemText ?? text).trim();
     if (!t) return;
     addItem.mutate(t);
-    saveToHistory(parseItem(t).name);
+    await saveToHistory(parseItem(t).name);
+    queryClient.invalidateQueries({ queryKey: ["product_history"] });
     setText("");
     setShowSuggestions(false);
   }

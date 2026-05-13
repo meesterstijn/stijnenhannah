@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetClose } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,7 +22,12 @@ type Props = {
 type Mode = "pick" | "delete" | "manage";
 
 export function HistoryPicker({ open, onOpenChange, onAdd, title = "Eerder toegevoegd" }: Props) {
-  const [history, setHistory] = useState<string[]>([]);
+  const queryClient = useQueryClient();
+  const { data: history = [] } = useQuery({
+    queryKey: ["product_history"],
+    queryFn: getHistory,
+    enabled: open,
+  });
   const [categories, setCategories] = useState<Category[]>([]);
   const [assignments, setAssignments] = useState<Record<string, string>>({});
   const [activeCategory, setActiveCategory] = useState<string>("all");
@@ -32,7 +38,6 @@ export function HistoryPicker({ open, onOpenChange, onAdd, title = "Eerder toege
 
   useEffect(() => {
     if (open) {
-      setHistory(getHistory());
       setCategories(getCategories());
       setAssignments(getAssignments());
       setSelected(new Set());
@@ -43,9 +48,9 @@ export function HistoryPicker({ open, onOpenChange, onAdd, title = "Eerder toege
   }, [open]);
 
   function reload() {
-    setHistory(getHistory());
     setCategories(getCategories());
     setAssignments(getAssignments());
+    queryClient.invalidateQueries({ queryKey: ["product_history"] });
   }
 
   function toggleSelect(item: string) {
@@ -64,11 +69,11 @@ export function HistoryPicker({ open, onOpenChange, onAdd, title = "Eerder toege
     });
   }
 
-  function confirmDelete() {
-    toDelete.forEach(removeFromHistory);
+  async function confirmDelete() {
+    await Promise.all(Array.from(toDelete).map(removeFromHistory));
     setToDelete(new Set());
     setMode("pick");
-    reload();
+    queryClient.invalidateQueries({ queryKey: ["product_history"] });
   }
 
   function handleAssign(product: string, categoryId: string) {
@@ -194,7 +199,7 @@ export function HistoryPicker({ open, onOpenChange, onAdd, title = "Eerder toege
               </p>
             ) : (
               <div className="flex-1 overflow-y-auto">
-                <div className="grid grid-cols-3 md:grid-cols-6 gap-3 py-2">
+                <div className="flex flex-wrap gap-3 py-2">
                   {visibleItems.map((item) => {
                     const isSelected = mode === "pick" && selected.has(item);
                     const isMarkedDelete = mode === "delete" && toDelete.has(item);

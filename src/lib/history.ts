@@ -1,4 +1,4 @@
-const HISTORY_KEY = "boodschappen_history";
+import { supabase } from "./supabase";
 
 export function parseItem(raw: string): { name: string; qty: number } {
   const text = raw.trim();
@@ -9,16 +9,21 @@ export function parseItem(raw: string): { name: string; qty: number } {
   return { qty: 1, name: text };
 }
 
-export function getHistory(): string[] {
+export async function getHistory(): Promise<string[]> {
   try {
-    const raw: string[] = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+    const { data, error } = await supabase
+      .from("product_history")
+      .select("name")
+      .order("created_at", { ascending: false })
+      .limit(100);
+    if (error) return [];
     const seen = new Set<string>();
     const result: string[] = [];
-    for (const entry of raw) {
-      const name = parseItem(entry).name;
-      if (!seen.has(name.toLowerCase())) {
-        seen.add(name.toLowerCase());
-        result.push(name);
+    for (const row of data) {
+      const lower = row.name.toLowerCase();
+      if (!seen.has(lower)) {
+        seen.add(lower);
+        result.push(row.name);
       }
     }
     return result;
@@ -27,21 +32,13 @@ export function getHistory(): string[] {
   }
 }
 
-export function saveToHistory(item: string) {
+export async function saveToHistory(item: string) {
   const normalized = item.trim();
   if (!normalized) return;
-  const history = getHistory();
-  const updated = [
-    normalized,
-    ...history.filter((h) => h.toLowerCase() !== normalized.toLowerCase()),
-  ].slice(0, 100);
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
+  await supabase.from("product_history").delete().ilike("name", normalized);
+  await supabase.from("product_history").insert({ name: normalized });
 }
 
-export function removeFromHistory(item: string) {
-  const raw: string[] = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
-  const updated = raw.filter(
-    (e) => parseItem(e).name.toLowerCase() !== item.toLowerCase()
-  );
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
+export async function removeFromHistory(item: string) {
+  await supabase.from("product_history").delete().ilike("name", item.trim());
 }
