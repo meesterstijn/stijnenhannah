@@ -1,52 +1,14 @@
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase, type GroceryItem } from "@/lib/supabase";
+import { parseItem, getHistory, saveToHistory, removeFromHistory } from "@/lib/history";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Plus, Loader2, X, Trash2, Check } from "lucide-react";
 
-const HISTORY_KEY = "boodschappen_history";
 const TWEAKWISE_URL =
   "https://gateway.tweakwisenavigator.com/navigation-search/ed681b01";
-
-function parseItem(raw: string): { name: string; qty: number } {
-  const text = raw.trim();
-  const prefix = text.match(/^(\d+)[xX]?\s+(.+)$/);
-  if (prefix) return { qty: parseInt(prefix[1]), name: prefix[2].trim() };
-  const suffix = text.match(/^(.+?)\s+(\d+)[xX]?$/);
-  if (suffix) return { qty: parseInt(suffix[2]), name: suffix[1].trim() };
-  return { qty: 1, name: text };
-}
-
-function getHistory(): string[] {
-  try {
-    const raw: string[] = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
-    const seen = new Set<string>();
-    const result: string[] = [];
-    for (const entry of raw) {
-      const name = parseItem(entry).name;
-      if (!seen.has(name.toLowerCase())) {
-        seen.add(name.toLowerCase());
-        result.push(name);
-      }
-    }
-    return result;
-  } catch {
-    return [];
-  }
-}
-
-function saveToHistory(item: string) {
-  const history = getHistory();
-  const normalized = item.trim();
-  if (!normalized) return;
-  const updated = [
-    normalized,
-    ...history.filter((h) => h.toLowerCase() !== normalized.toLowerCase()),
-  ].slice(0, 100);
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
-}
 
 type PriceResult = { unitPrice: number; foundTitle: string } | null;
 
@@ -403,12 +365,6 @@ function SupermarktLinks() {
       </div>
     </aside>
   );
-}
-
-function removeFromHistory(item: string) {
-  const raw: string[] = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
-  const updated = raw.filter((e) => parseItem(e).name.toLowerCase() !== item.toLowerCase());
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
 }
 
 function HistorySheet({

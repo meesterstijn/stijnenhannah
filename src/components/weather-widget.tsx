@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Cloud, CloudRain, Sun, CloudSnow, CloudLightning, Loader2 } from "lucide-react";
+import { Cloud, CloudRain, Sun, CloudSnow, CloudLightning } from "lucide-react";
 
 type Weather = {
   temp: number;
@@ -66,11 +66,31 @@ export function WeatherWidget() {
     };
   }, []);
 
-  if (error) return <div className="text-sm text-muted-foreground">{error}</div>;
+  if (error) return (
+    <div className="rounded-2xl border border-border/50 p-5 flex items-center justify-center text-sm text-muted-foreground h-[148px]">
+      Weer kon niet geladen worden
+    </div>
+  );
   if (!data)
     return (
-      <div className="flex items-center gap-2 text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" /> Weer laden…
+      <div className="rounded-2xl bg-gradient-to-br from-accent/40 to-secondary/60 border border-border/50 p-5 flex flex-col gap-3 animate-pulse">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex flex-col gap-2">
+            <div className="h-3 w-24 rounded bg-muted-foreground/20" />
+            <div className="h-8 w-16 rounded bg-muted-foreground/20" />
+            <div className="h-3 w-20 rounded bg-muted-foreground/20" />
+          </div>
+          <div className="h-10 w-10 rounded-full bg-muted-foreground/20" />
+        </div>
+        <div className="grid grid-cols-3 gap-1 pt-3 border-t border-border/40">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="flex flex-col items-center gap-1">
+              <div className="h-3 w-8 rounded bg-muted-foreground/20" />
+              <div className="h-4 w-4 rounded bg-muted-foreground/20" />
+              <div className="h-3 w-10 rounded bg-muted-foreground/20" />
+            </div>
+          ))}
+        </div>
       </div>
     );
 
