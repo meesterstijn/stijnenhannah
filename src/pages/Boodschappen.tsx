@@ -226,7 +226,9 @@ export default function Boodschappen() {
   }, 0);
 
   return (
-    <div className="max-w-lg mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto">
+      <div className="lg:grid lg:grid-cols-[1fr_320px] lg:gap-8 lg:items-start">
+      <div className="space-y-6">
       <header>
         <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Lijstje</p>
         <h1 className="font-serif text-4xl font-semibold mt-2">Boodschappen</h1>
@@ -273,7 +275,7 @@ export default function Boodschappen() {
           <Button
             type="button"
             size="icon"
-            className="rounded-xl shrink-0"
+            className="rounded-md shrink-0"
             onClick={openHistory}
             aria-label="Kies uit geschiedenis"
           >
@@ -343,7 +345,63 @@ export default function Boodschappen() {
         onToggle={toggleSelect}
         onAdd={addSelected}
       />
+      </div>
+
+      <SupermarktLinks />
+      </div>
     </div>
+  );
+}
+
+const SUPERMARKTEN = [
+  {
+    name: "Hoogvliet",
+    url: "https://www.hoogvliet.com/aanbiedingen",
+    bg: "bg-[#00a0e2]",
+    text: "text-white",
+  },
+  {
+    name: "Albert Heijn",
+    url: "https://www.ah.nl/bonus",
+    bg: "bg-[#00a0e2]",
+    text: "text-white",
+  },
+  {
+    name: "Jumbo",
+    url: "https://www.jumbo.com/aanbiedingen",
+    bg: "bg-[#ffd800]",
+    text: "text-[#1a1a1a]",
+  },
+  {
+    name: "Lidl",
+    url: "https://www.lidl.nl/aanbiedingen",
+    bg: "bg-[#0050aa]",
+    text: "text-white",
+  },
+];
+
+function SupermarktLinks() {
+  return (
+    <aside className="space-y-4">
+      <div>
+        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Folder</p>
+        <h2 className="font-serif text-2xl font-semibold mt-1">Aanbiedingen</h2>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        {SUPERMARKTEN.map((s) => (
+          <a
+            key={s.name}
+            href={s.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`${s.bg} ${s.text} rounded-2xl p-5 flex flex-col justify-between min-h-[90px] font-semibold text-base hover:opacity-90 active:opacity-80 transition-opacity`}
+          >
+            <span>{s.name}</span>
+            <span className="text-xs font-normal opacity-70 mt-2">Bekijk folder →</span>
+          </a>
+        ))}
+      </div>
+    </aside>
   );
 }
 
