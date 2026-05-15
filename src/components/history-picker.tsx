@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetClose } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Trash2, Check, Plus, Settings, X } from "lucide-react";
+import { Trash2, Check, Plus, Settings, X, LayoutList } from "lucide-react";
 import { getHistory, removeFromHistory } from "@/lib/history";
 import {
   getCategories, saveCategories, getAssignments, assignCategory,
@@ -109,18 +109,20 @@ export function HistoryPicker({ open, onOpenChange, onAdd, title = "Eerder toege
       <SheetContent side="top" className="rounded-b-2xl max-h-[85vh] flex flex-col [&>button.absolute]:hidden">
         <SheetHeader className="pb-2 shrink-0">
           <div className="flex items-center justify-between gap-2">
-            <SheetTitle>{mode === "manage" ? "Categorieën beheren" : title}</SheetTitle>
+            <SheetTitle className="hidden sm:block">{mode === "manage" ? "Categorieën beheren" : title}</SheetTitle>
             <div className="flex gap-2">
               {mode === "pick" && (
                 <>
                   <Button variant="outline" size="sm" className="rounded-xl text-xs text-muted-foreground"
                     onClick={() => setMode("manage")}>
-                    <Settings className="h-3.5 w-3.5 mr-1" /> Categorieën
+                    <LayoutList className="h-3.5 w-3.5 sm:mr-1" />
+                    <span className="hidden sm:inline">Categorieën</span>
                   </Button>
                   {history.length > 0 && (
                     <Button variant="outline" size="sm" className="rounded-xl text-xs text-muted-foreground"
                       onClick={() => setMode("delete")}>
-                      <Trash2 className="h-3.5 w-3.5 mr-1" /> Beheer lijst
+                      <Settings className="h-3.5 w-3.5 sm:mr-1" />
+                      <span className="hidden sm:inline">Beheer lijst</span>
                     </Button>
                   )}
                 </>

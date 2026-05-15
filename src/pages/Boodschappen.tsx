@@ -41,8 +41,6 @@ export default function Boodschappen() {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [prices, setPrices] = useState<Record<string, PriceResult>>({});
-  const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
   const [sheetOpen, setSheetOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -95,40 +93,8 @@ export default function Boodschappen() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["groceries"] });
-      setPrices({});
-      setLoadingIds(new Set());
     },
   });
-
-  useEffect(() => {
-    const missing = items.filter((i) => !(i.id in prices) && !loadingIds.has(i.id));
-    if (missing.length === 0) return;
-
-    setLoadingIds((prev) => {
-      const next = new Set(prev);
-      missing.forEach((i) => next.add(i.id));
-      return next;
-    });
-
-    Promise.all(
-      missing.map(async (item) => {
-        const { name } = parseItem(item.text);
-        const result = await searchHoogvliet(name);
-        return { id: item.id, result };
-      })
-    ).then((results) => {
-      setPrices((prev) => {
-        const next = { ...prev };
-        for (const { id, result } of results) next[id] = result;
-        return next;
-      });
-      setLoadingIds((prev) => {
-        const next = new Set(prev);
-        results.forEach(({ id }) => next.delete(id));
-        return next;
-      });
-    });
-  }, [items]);
 
   function handleTextChange(value: string) {
     setText(value);
@@ -168,14 +134,6 @@ export default function Boodschappen() {
     queryClient.invalidateQueries({ queryKey: ["groceries"] });
     setSheetOpen(false);
   }
-
-  const hasPrices = items.some((i) => prices[i.id] != null);
-  const total = items.reduce((sum, item) => {
-    const p = prices[item.id];
-    if (!p) return sum;
-    const { qty } = parseItem(item.text);
-    return sum + p.unitPrice * qty;
-  }, 0);
 
   return (
     <div>
@@ -266,8 +224,6 @@ export default function Boodschappen() {
               item={i}
               parsedName={name}
               parsedQty={qty}
-              priceResult={prices[i.id]}
-              loadingPrice={loadingIds.has(i.id)}
               onRemove={() => removeItem.mutate(i.id)}
               onQtyChange={(newQty) => {
                 if (newQty <= 0) {
@@ -286,11 +242,6 @@ export default function Boodschappen() {
         onOpenChange={setSheetOpen}
         onAdd={addFromHistory}
       />
-      {!isLoading && items.length > 0 && (
-        <p className="text-sm text-muted-foreground">
-          {items.length} items{hasPrices && ` · totaal €${total.toFixed(2)}`}
-        </p>
-      )}
       </div>
 
       <SupermarktLinks />
@@ -355,21 +306,15 @@ function ItemRow({
   item,
   parsedName,
   parsedQty,
-  priceResult,
-  loadingPrice,
   onRemove,
   onQtyChange,
 }: {
   item: GroceryItem;
   parsedName: string;
   parsedQty: number;
-  priceResult?: PriceResult;
-  loadingPrice: boolean;
   onRemove: () => void;
   onQtyChange: (qty: number) => void;
 }) {
-  const lineTotal = priceResult ? priceResult.unitPrice * parsedQty : null;
-
   return (
     <div
       onClick={onRemove}
@@ -394,15 +339,6 @@ function ItemRow({
         >
           +
         </button>
-      </div>
-      <div className="text-right flex-shrink-0 w-14 flex flex-col items-end justify-center">
-        {loadingPrice && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground ml-auto" />}
-        {lineTotal != null && (
-          <span className="text-sm font-medium tabular-nums">€{lineTotal.toFixed(2)}</span>
-        )}
-        {priceResult === null && !loadingPrice && (
-          <span className="text-xs text-muted-foreground">—</span>
-        )}
       </div>
     </div>
   );

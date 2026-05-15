@@ -19,19 +19,23 @@ type Ingredient = { name: string; amount: string };
 function ingredientsToText(list: Ingredient[]): string {
   return list
     .filter((i) => i.name.trim())
-    .map((i) => (i.amount.trim() ? `${i.amount.trim()} ${i.name.trim()}` : i.name.trim()))
+    .map((i) => (i.amount.trim() ? `${i.amount.trim()}\t${i.name.trim()}` : i.name.trim()))
     .join("\n");
 }
 
 function textToIngredients(text: string): Ingredient[] {
-  return text
-    .split("\n")
-    .filter(Boolean)
-    .map((line) => {
-      const m = line.match(/^([0-9][^\s]*\s+|[0-9]+\s+)?(.+)$/);
-      if (m && m[1]) return { amount: m[1].trim(), name: m[2].trim() };
-      return { amount: "", name: line.trim() };
-    });
+  return text.split("\n").filter(Boolean).map((line) => {
+    const tab = line.indexOf("\t");
+    if (tab !== -1) return { amount: line.slice(0, tab).trim(), name: line.slice(tab + 1).trim() };
+    const m = line.match(/^([0-9][^\s]*\s+|[0-9]+\s+)?(.+)$/);
+    if (m && m[1]) return { amount: m[1].trim(), name: m[2].trim() };
+    return { amount: "", name: line.trim() };
+  });
+}
+
+function ingredientDisplayLine(line: string): string {
+  const tab = line.indexOf("\t");
+  return tab !== -1 ? `${line.slice(0, tab)} ${line.slice(tab + 1)}` : line;
 }
 
 const RECIPE_CATEGORIES = ["Brood", "Gebak", "Gerechten"] as const;
@@ -145,9 +149,9 @@ export default function Recepten() {
   async function addAllToShoppingList() {
     if (!view?.ingredients) return;
     setAddingToList(true);
-    const lines = view.ingredients.split("\n").filter(Boolean);
-    for (const line of lines) {
-      await supabase.from("groceries").insert({ text: line, done: false });
+    const ingredients = textToIngredients(view.ingredients);
+    for (const { name } of ingredients) {
+      if (name.trim()) await supabase.from("groceries").insert({ text: name.trim(), done: false });
     }
     queryClient.invalidateQueries({ queryKey: ["groceries"] });
     setAddingToList(false);
@@ -418,7 +422,7 @@ export default function Recepten() {
                   <ul className="space-y-1 text-sm">
                     {view.ingredients.split("\n").filter(Boolean).map((line, i) => (
                       <li key={i} className="flex gap-2">
-                        <span className="text-primary">·</span> {line}
+                        <span className="text-primary">·</span> {ingredientDisplayLine(line)}
                       </li>
                     ))}
                   </ul>
