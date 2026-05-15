@@ -2,22 +2,32 @@ import { Link } from "react-router-dom";
 import { WeatherWidget } from "@/components/weather-widget";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { ShoppingBasket, BookHeart, Camera, ArrowRight } from "lucide-react";
+import { ShoppingBasket, BookHeart, Camera, ArrowRight, ListTodo } from "lucide-react";
 
 type GroceryItem = { id: string; text: string; done: boolean };
+type Todo = { id: string; done: boolean };
 
 export default function Home() {
   const today = new Date();
 
-  const { data: items = [] } = useQuery<GroceryItem[]>({
+  const { data: items = [] } = useQuery({
     queryKey: ["groceries"],
-    queryFn: async () => {
-      const { data } = await supabase.from("groceries").select("*");
-      return data ?? [];
+    queryFn: async (): Promise<GroceryItem[]> => {
+      const { data } = await supabase.from("groceries").select("id, done");
+      return (data ?? []) as GroceryItem[];
+    },
+  });
+
+  const { data: todos = [] } = useQuery({
+    queryKey: ["todos"],
+    queryFn: async (): Promise<Todo[]> => {
+      const { data } = await supabase.from("todos").select("id, done");
+      return (data ?? []) as Todo[];
     },
   });
 
   const openItems = items.filter((i) => !i.done);
+  const openTodos = todos.filter((t) => !t.done);
 
   return (
     <div className="space-y-10">
@@ -42,6 +52,12 @@ export default function Home() {
           desc="Bewaar wat jullie graag eten"
         />
         <QuickCard
+          to="/todo"
+          icon={ListTodo}
+          title="To-do"
+          desc={openTodos.length ? `${openTodos.length} nog te doen` : "Alles gedaan"}
+        />
+        <QuickCard
           to="/fotografie"
           icon={Camera}
           title="Fotografie"
@@ -63,10 +79,10 @@ function QuickCard({
   return (
     <Link
       to={to}
-      className="group rounded-2xl bg-card border border-border/60 p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all flex flex-col gap-3"
+      className="group rounded-2xl bg-card border border-border/60 p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all flex flex-col gap-3 min-h-[200px]"
     >
       <Icon className="h-7 w-7 text-primary" strokeWidth={1.6} />
-      <div>
+      <div className="flex-1">
         <p className="font-serif text-xl font-semibold">{title}</p>
         <p className="text-sm text-muted-foreground mt-0.5">{desc}</p>
       </div>

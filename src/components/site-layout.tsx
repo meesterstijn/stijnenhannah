@@ -1,10 +1,11 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
-import { Home, ShoppingBasket, BookHeart, NotebookPen } from "lucide-react";
+import { Home, ShoppingBasket, BookHeart, NotebookPen, ListTodo } from "lucide-react";
 
 const nav = [
   { to: "/boodschappen", label: "Boodschappen", icon: ShoppingBasket },
   { to: "/recepten", label: "Recepten", icon: BookHeart },
   { to: "/notities", label: "Notities", icon: NotebookPen },
+  { to: "/todo", label: "To-do", icon: ListTodo },
 ] as const;
 
 export function SiteLayout() {

@@ -8,6 +8,7 @@ import Boodschappen from "@/pages/Boodschappen";
 import Recepten from "@/pages/Recepten";
 import Fotografie from "@/pages/Fotografie";
 import Notities from "@/pages/Notities";
+import Todo from "@/pages/Todo";
 import { Link } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 
@@ -62,6 +63,7 @@ function AppRoutes() {
         <Route path="/recepten" element={<Recepten />} />
         <Route path="/fotografie" element={<Fotografie />} />
         <Route path="/notities" element={<Notities />} />
+        <Route path="/todo" element={<Todo />} />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>

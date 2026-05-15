@@ -67,13 +67,13 @@ export function WeatherWidget() {
   }, []);
 
   if (error) return (
-    <div className="rounded-2xl border border-border/50 p-5 flex items-center justify-center text-sm text-muted-foreground h-[148px]">
+    <div className="rounded-2xl border border-border/50 p-5 flex items-center justify-center text-sm text-muted-foreground min-h-[148px]">
       Weer kon niet geladen worden
     </div>
   );
   if (!data)
     return (
-      <div className="rounded-2xl bg-gradient-to-br from-accent/40 to-secondary/60 border border-border/50 p-5 flex flex-col gap-3 animate-pulse">
+      <div className="rounded-2xl bg-gradient-to-br from-accent/40 to-secondary/60 border border-border/50 p-5 flex flex-col gap-3 animate-pulse min-h-[148px]">
         <div className="flex items-center justify-between gap-2">
           <div className="flex flex-col gap-2">
             <div className="h-3 w-24 rounded bg-muted-foreground/20" />
