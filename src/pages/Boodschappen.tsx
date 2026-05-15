@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase, type GroceryItem } from "@/lib/supabase";
 import { parseItem, getHistory, saveToHistory } from "@/lib/history";
+import { getCategories, getAssignments } from "@/lib/categories";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { HistoryPicker } from "@/components/history-picker";
@@ -53,6 +54,39 @@ export default function Boodschappen() {
     queryKey: ["groceries"],
     queryFn: fetchItems,
   });
+
+  const { data: categories = [] } = useQuery({
+    queryKey: ["product_categories"],
+    queryFn: getCategories,
+  });
+
+  const { data: assignments = {} } = useQuery({
+    queryKey: ["product_assignments"],
+    queryFn: getAssignments,
+  });
+
+  const grouped = useMemo(() => {
+    const assigned = new Set<string>();
+    const result: { catId: string | null; catName: string | null; items: GroceryItem[] }[] = [];
+
+    for (const cat of categories) {
+      const catItems = items.filter((i) => {
+        const key = parseItem(i.text).name.toLowerCase();
+        return assignments[key] === cat.id;
+      });
+      if (catItems.length > 0) {
+        catItems.forEach((i) => assigned.add(i.id));
+        result.push({ catId: cat.id, catName: cat.name, items: catItems });
+      }
+    }
+
+    const unassigned = items.filter((i) => !assigned.has(i.id));
+    if (unassigned.length > 0) {
+      result.push({ catId: null, catName: null, items: unassigned });
+    }
+
+    return result;
+  }, [items, categories, assignments]);
 
   const addItem = useMutation({
     mutationFn: async (itemText: string) => {
@@ -205,7 +239,7 @@ export default function Boodschappen() {
         )}
       </div>
 
-      <section className="rounded-2xl bg-card border border-border/60 divide-y divide-border/50 overflow-hidden">
+      <section className="rounded-2xl bg-card border border-border/60 overflow-hidden">
         {isLoading && (
           <div className="p-8 flex justify-center text-muted-foreground">
             <Loader2 className="h-5 w-5 animate-spin" />
@@ -216,26 +250,39 @@ export default function Boodschappen() {
             Nog geen boodschappen — voeg er eentje toe ✨
           </p>
         )}
-        {items.map((i) => {
-          const { name, qty } = parseItem(i.text);
-          return (
-            <ItemRow
-              key={i.id}
-              item={i}
-              parsedName={name}
-              parsedQty={qty}
-              onRemove={() => removeItem.mutate(i.id)}
-              onQtyChange={(newQty) => {
-                if (newQty <= 0) {
-                  removeItem.mutate(i.id);
-                } else {
-                  const newText = newQty === 1 ? name : `${newQty}x ${name}`;
-                  updateItem.mutate({ id: i.id, text: newText });
-                }
-              }}
-            />
-          );
-        })}
+        {grouped.map((group, gi) => (
+          <div key={group.catId ?? "none"}>
+            {group.catName ? (
+              <div className={`px-4 py-2 text-xs font-medium text-muted-foreground bg-muted/30 border-b border-border/50${gi > 0 ? " border-t border-border/50" : ""}`}>
+                {group.catName}
+              </div>
+            ) : gi > 0 ? (
+              <div className="border-t border-border/50" />
+            ) : null}
+            <div className="divide-y divide-border/50">
+              {group.items.map((i) => {
+                const { name, qty } = parseItem(i.text);
+                return (
+                  <ItemRow
+                    key={i.id}
+                    item={i}
+                    parsedName={name}
+                    parsedQty={qty}
+                    onRemove={() => removeItem.mutate(i.id)}
+                    onQtyChange={(newQty) => {
+                      if (newQty <= 0) {
+                        removeItem.mutate(i.id);
+                      } else {
+                        const newText = newQty === 1 ? name : `${newQty}x ${name}`;
+                        updateItem.mutate({ id: i.id, text: newText });
+                      }
+                    }}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </section>
       <HistoryPicker
         open={sheetOpen}

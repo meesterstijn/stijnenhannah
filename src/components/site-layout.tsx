@@ -1,9 +1,10 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
-import { Home, ShoppingBasket, BookHeart } from "lucide-react";
+import { Home, ShoppingBasket, BookHeart, NotebookPen } from "lucide-react";
 
 const nav = [
   { to: "/boodschappen", label: "Boodschappen", icon: ShoppingBasket },
   { to: "/recepten", label: "Recepten", icon: BookHeart },
+  { to: "/notities", label: "Notities", icon: NotebookPen },
 ] as const;
 
 export function SiteLayout() {
