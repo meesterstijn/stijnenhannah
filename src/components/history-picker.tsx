@@ -109,20 +109,18 @@ export function HistoryPicker({ open, onOpenChange, onAdd, title = "Eerder toege
       <SheetContent side="top" className="rounded-b-2xl max-h-[85vh] flex flex-col [&>button.absolute]:hidden">
         <SheetHeader className="pb-2 shrink-0">
           <div className="flex items-center justify-between gap-2">
-            <SheetTitle className="hidden sm:block">{mode === "manage" ? "Categorieën beheren" : title}</SheetTitle>
+            <SheetTitle className="hidden">{mode === "manage" ? "Categorieën beheren" : title}</SheetTitle>
             <div className="flex gap-2">
               {mode === "pick" && (
                 <>
                   <Button variant="outline" size="sm" className="rounded-xl text-xs text-muted-foreground"
                     onClick={() => setMode("manage")}>
-                    <LayoutList className="h-3.5 w-3.5 sm:mr-1" />
-                    <span className="hidden sm:inline">Categorieën</span>
+                    <LayoutList className="h-3.5 w-3.5" />
                   </Button>
                   {history.length > 0 && (
                     <Button variant="outline" size="sm" className="rounded-xl text-xs text-muted-foreground"
                       onClick={() => setMode("delete")}>
-                      <Settings className="h-3.5 w-3.5 sm:mr-1" />
-                      <span className="hidden sm:inline">Beheer lijst</span>
+                      <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   )}
                 </>
