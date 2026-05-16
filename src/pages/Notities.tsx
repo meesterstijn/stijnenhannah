@@ -280,6 +280,7 @@ export default function Notities() {
           side="bottom"
           className="rounded-t-2xl flex flex-col [&>button.absolute]:hidden p-0"
           style={{ height: "85svh" }}
+          onOpenAutoFocus={(e) => e.preventDefault()}
         >
           <div className="flex items-center gap-2 px-5 pt-5 pb-3 shrink-0">
             <input
