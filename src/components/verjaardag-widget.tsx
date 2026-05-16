@@ -33,7 +33,7 @@ export function VerjaarDagWidget() {
   const sorted = [...birthdays]
     .map((b) => ({ ...b, days: nextOccurrence(b.day, b.month) }))
     .sort((a, b) => a.days - b.days)
-    .slice(0, 3);
+    .slice(0, 2);
 
   return (
     <Link
