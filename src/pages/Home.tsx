@@ -3,7 +3,7 @@ import { WeatherWidget } from "@/components/weather-widget";
 import { BijbelWidget } from "@/components/bijbel-widget";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { ShoppingBasket, BookHeart, Camera, ArrowRight, ListTodo } from "lucide-react";
+import { ShoppingBasket, BookHeart, Camera, ArrowRight, ListTodo, NotebookPen } from "lucide-react";
 
 type GroceryItem = { id: string; text: string; done: boolean };
 type Todo = { id: string; done: boolean };
@@ -51,12 +51,18 @@ export default function Home() {
           desc={openTodos.length ? `${openTodos.length} nog te doen` : "Alles gedaan"}
         />
         <QuickCard
+          to="/notities"
+          icon={NotebookPen}
+          title="Notities"
+          desc="Schrijf het op"
+        />
+        <BijbelWidget />
+        <QuickCard
           to="/fotografie"
           icon={Camera}
           title="Fotografie"
           desc="Jullie mooiste momenten"
         />
-        <BijbelWidget />
       </section>
     </div>
   );
@@ -73,7 +79,7 @@ function QuickCard({
   return (
     <Link
       to={to}
-      className="group rounded-2xl bg-card border border-border/60 p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all flex flex-col gap-3 min-h-[200px]"
+      className="group rounded-2xl bg-card border border-border/60 p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all flex flex-col gap-3 sm:min-h-[200px]"
     >
       <Icon className="h-7 w-7 text-primary" strokeWidth={1.6} />
       <div className="flex-1">

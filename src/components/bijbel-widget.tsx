@@ -24,7 +24,7 @@ export function BijbelWidget() {
 
   if (isLoading) {
     return (
-      <div className="rounded-2xl bg-gradient-to-br from-amber-50/60 to-orange-50/40 dark:from-amber-950/30 dark:to-orange-950/20 border border-border/60 p-5 flex flex-col gap-3 animate-pulse min-h-[200px]">
+      <div className="rounded-2xl bg-gradient-to-br from-amber-50/60 to-orange-50/40 dark:from-amber-950/30 dark:to-orange-950/20 border border-border/60 p-5 flex flex-col gap-3 animate-pulse sm:min-h-[200px]">
         <div className="h-5 w-5 rounded bg-muted-foreground/20" />
         <div className="space-y-2 flex-1">
           <div className="h-3 w-full rounded bg-muted-foreground/20" />
@@ -38,7 +38,7 @@ export function BijbelWidget() {
 
   if (isError || !data) {
     return (
-      <div className="rounded-2xl border border-border/60 p-5 flex flex-col justify-between min-h-[200px]">
+      <div className="rounded-2xl border border-border/60 p-5 flex flex-col justify-between sm:min-h-[200px]">
         <BookOpen className="h-5 w-5 text-primary/60" strokeWidth={1.6} />
         <p className="text-sm text-muted-foreground">Tekst kon niet geladen worden.</p>
         <a
@@ -61,7 +61,7 @@ export function BijbelWidget() {
       href="https://www.debijbel.nl"
       target="_blank"
       rel="noopener noreferrer"
-      className="group rounded-2xl bg-gradient-to-br from-amber-50/60 to-orange-50/40 dark:from-amber-950/30 dark:to-orange-950/20 border border-border/60 p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all flex flex-col gap-3 min-h-[200px]"
+      className="group rounded-2xl bg-gradient-to-br from-amber-50/60 to-orange-50/40 dark:from-amber-950/30 dark:to-orange-950/20 border border-border/60 p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all flex flex-col gap-3 sm:min-h-[200px]"
     >
       <div className="flex items-center justify-between">
         <BookOpen className="h-5 w-5 text-amber-700 dark:text-amber-400" strokeWidth={1.6} />
