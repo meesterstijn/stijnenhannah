@@ -1,9 +1,7 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
-import { Home, ShoppingBasket, BookHeart, NotebookPen, ListTodo } from "lucide-react";
+import { Home, NotebookPen, ListTodo } from "lucide-react";
 
 const nav = [
-  { to: "/boodschappen", label: "Boodschappen", icon: ShoppingBasket },
-  { to: "/recepten", label: "Recepten", icon: BookHeart },
   { to: "/notities", label: "Notities", icon: NotebookPen },
   { to: "/todo", label: "To-do", icon: ListTodo },
 ] as const;
@@ -18,6 +16,9 @@ export function SiteLayout() {
           <Link to="/" className="flex items-center gap-2 group">
             <Home className="h-5 w-5" />
             <span className="font-serif text-xl font-semibold tracking-tight">Ons Huisje</span>
+            <span className="hidden md:inline text-xs text-muted-foreground font-sans font-normal ml-1 capitalize">
+              {new Date().toLocaleDateString("nl-NL", { weekday: "long", day: "numeric", month: "long" })}
+            </span>
           </Link>
           <nav className="ml-auto flex items-center gap-1 sm:gap-2">
             {nav.map((item) => {

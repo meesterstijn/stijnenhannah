@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { Cloud, CloudRain, Sun, CloudSnow, CloudLightning } from "lucide-react";
 
 type Weather = {
@@ -97,7 +98,7 @@ export function WeatherWidget() {
   const Icon = iconFor(data.code);
 
   return (
-    <div className="rounded-2xl bg-gradient-to-br from-accent/40 to-secondary/60 border border-border/50 p-5 shadow-sm flex flex-col gap-3">
+    <Link to="/weer" className="rounded-2xl bg-gradient-to-br from-accent/40 to-secondary/60 border border-border/50 p-5 shadow-sm flex flex-col gap-3 hover:shadow-md hover:-translate-y-0.5 transition-all">
       <div className="flex items-center justify-between gap-2">
         <div>
           <p className="text-xs uppercase tracking-widest text-muted-foreground">{data.city}</p>
@@ -122,6 +123,6 @@ export function WeatherWidget() {
           );
         })}
       </div>
-    </div>
+    </Link>
   );
 }

@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { WeatherWidget } from "@/components/weather-widget";
+import { BijbelWidget } from "@/components/bijbel-widget";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { ShoppingBasket, BookHeart, Camera, ArrowRight, ListTodo } from "lucide-react";
@@ -8,8 +9,6 @@ type GroceryItem = { id: string; text: string; done: boolean };
 type Todo = { id: string; done: boolean };
 
 export default function Home() {
-  const today = new Date();
-
   const { data: items = [] } = useQuery({
     queryKey: ["groceries"],
     queryFn: async (): Promise<GroceryItem[]> => {
@@ -31,12 +30,6 @@ export default function Home() {
 
   return (
     <div className="space-y-10">
-      <section>
-        <p className="text-sm uppercase tracking-[0.2em] text-muted-foreground">
-          {today.toLocaleDateString("nl-NL", { weekday: "long", day: "numeric", month: "long" })}
-        </p>
-      </section>
-
       <section className="grid gap-4 sm:grid-cols-3">
         <WeatherWidget />
         <QuickCard
@@ -63,6 +56,7 @@ export default function Home() {
           title="Fotografie"
           desc="Jullie mooiste momenten"
         />
+        <BijbelWidget />
       </section>
     </div>
   );
