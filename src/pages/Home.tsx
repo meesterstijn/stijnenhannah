@@ -3,6 +3,7 @@ import { WeatherWidget } from "@/components/weather-widget";
 import { BijbelWidget } from "@/components/bijbel-widget";
 import { VerjaarDagWidget } from "@/components/verjaardag-widget";
 import { SnelleLinksWidget } from "@/components/snelle-links-widget";
+import { SchoonmaakWidget } from "@/components/schoonmaak-widget";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { ShoppingBasket, BookHeart, Camera, ArrowRight, ListTodo, NotebookPen } from "lucide-react";
@@ -34,8 +35,8 @@ export default function Home() {
     <div className="space-y-10">
       <section className="grid gap-4 sm:grid-cols-3">
         <WeatherWidget />
-        <BijbelWidget />
         <SnelleLinksWidget />
+        <BijbelWidget />
         <QuickCard
           to="/todo"
           icon={ListTodo}
@@ -49,6 +50,7 @@ export default function Home() {
           desc="Schrijf het op"
         />
         <VerjaarDagWidget />
+        <SchoonmaakWidget />
         <QuickCard
           to="/boodschappen"
           icon={ShoppingBasket}

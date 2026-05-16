@@ -11,6 +11,7 @@ import Notities from "@/pages/Notities";
 import Todo from "@/pages/Todo";
 import Weer from "@/pages/Weer";
 import Verjaardagen from "@/pages/Verjaardagen";
+import Schoonmaak from "@/pages/Schoonmaak";
 import { Link } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 
@@ -68,6 +69,7 @@ function AppRoutes() {
         <Route path="/todo" element={<Todo />} />
         <Route path="/weer" element={<Weer />} />
         <Route path="/verjaardagen" element={<Verjaardagen />} />
+        <Route path="/schoonmaak" element={<Schoonmaak />} />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>
