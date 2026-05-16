@@ -52,15 +52,21 @@ export function VerjaarDagWidget() {
           <p className="text-sm text-muted-foreground mt-1">Nog geen verjaardagen</p>
         )}
         {sorted.length > 0 && (
-          <ul className="mt-2 space-y-1">
-            {sorted.map((b) => (
-              <li key={b.id} className="flex items-center justify-between gap-2">
-                <span className="text-sm truncate">{b.name}</span>
-                <span className={`text-xs shrink-0 ${b.days === 0 ? "text-primary font-semibold" : "text-muted-foreground"}`}>
-                  {b.days === 0 ? "Vandaag! 🎂" : b.days === 1 ? "Morgen" : `${b.day} ${MONTHS[b.month - 1]}`}
-                </span>
-              </li>
-            ))}
+          <ul className="mt-2 space-y-2">
+            {sorted.map((b) => {
+              const nextYear = new Date().getFullYear() + (b.days === 0 ? 0 : (new Date(new Date().getFullYear(), b.month - 1, b.day) < new Date() ? 1 : 0));
+              const age = b.year ? nextYear - b.year : null;
+              const daysLabel = b.days === 0 ? "Vandaag! 🎂" : b.days === 1 ? "Morgen" : `Over ${b.days} dagen`;
+              return (
+                <li key={b.id} className="flex items-start justify-between gap-2">
+                  <span className="text-sm font-medium leading-tight">{b.name}</span>
+                  <div className={`text-right shrink-0 ${b.days <= 1 ? "text-primary font-semibold" : "text-muted-foreground"}`}>
+                    <p className="text-xs">{daysLabel}</p>
+                    {age && <p className="text-xs">{b.days === 0 ? `${age} jaar` : `wordt ${age}`}</p>}
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
