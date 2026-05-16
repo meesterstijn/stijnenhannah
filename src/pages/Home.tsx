@@ -11,7 +11,7 @@ type Todo = { id: string; done: boolean };
 
 export default function Home() {
   const { data: items = [] } = useQuery({
-    queryKey: ["groceries"],
+    queryKey: ["groceries", "home-count"],
     queryFn: async (): Promise<GroceryItem[]> => {
       const { data } = await supabase.from("groceries").select("id, done");
       return (data ?? []) as GroceryItem[];
@@ -19,7 +19,7 @@ export default function Home() {
   });
 
   const { data: todos = [] } = useQuery({
-    queryKey: ["todos"],
+    queryKey: ["todos", "home-count"],
     queryFn: async (): Promise<Todo[]> => {
       const { data } = await supabase.from("todos").select("id, done");
       return (data ?? []) as Todo[];
