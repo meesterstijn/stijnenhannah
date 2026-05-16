@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { WeatherWidget } from "@/components/weather-widget";
 import { BijbelWidget } from "@/components/bijbel-widget";
 import { VerjaarDagWidget } from "@/components/verjaardag-widget";
+import { SnelleLinksWidget } from "@/components/snelle-links-widget";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { ShoppingBasket, BookHeart, Camera, ArrowRight, ListTodo, NotebookPen } from "lucide-react";
@@ -33,18 +34,8 @@ export default function Home() {
     <div className="space-y-10">
       <section className="grid gap-4 sm:grid-cols-3">
         <WeatherWidget />
-        <QuickCard
-          to="/boodschappen"
-          icon={ShoppingBasket}
-          title="Boodschappen"
-          desc={openItems.length ? `${openItems.length} nog te halen` : "Lijst is leeg"}
-        />
-        <QuickCard
-          to="/recepten"
-          icon={BookHeart}
-          title="Recepten"
-          desc="Bewaar wat jullie graag eten"
-        />
+        <BijbelWidget />
+        <SnelleLinksWidget />
         <QuickCard
           to="/todo"
           icon={ListTodo}
@@ -58,7 +49,18 @@ export default function Home() {
           desc="Schrijf het op"
         />
         <VerjaarDagWidget />
-        <BijbelWidget />
+        <QuickCard
+          to="/boodschappen"
+          icon={ShoppingBasket}
+          title="Boodschappen"
+          desc={openItems.length ? `${openItems.length} nog te halen` : "Lijst is leeg"}
+        />
+        <QuickCard
+          to="/recepten"
+          icon={BookHeart}
+          title="Recepten"
+          desc="Bewaar wat jullie graag eten"
+        />
         <QuickCard
           to="/fotografie"
           icon={Camera}
