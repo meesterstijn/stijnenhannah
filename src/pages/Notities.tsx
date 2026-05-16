@@ -143,7 +143,7 @@ export default function Notities() {
       <div className="hidden lg:flex rounded-2xl border border-border/60 bg-card overflow-hidden" style={{ minHeight: 520 }}>
         {/* Left: list */}
         <div className="w-[260px] shrink-0 border-r border-border/60 flex flex-col">
-          <div className="px-4 py-3 flex items-center justify-end border-b border-border/40 shrink-0">
+          <div className="px-4 h-14 flex items-center justify-end border-b border-border/40 shrink-0">
             <Button size="sm" onClick={startNewDesktop} className="rounded-xl h-8 text-xs gap-1 px-2.5">
               <Plus className="h-3.5 w-3.5" />
               Nieuw
@@ -176,12 +176,12 @@ export default function Notities() {
         <div className="flex-1 min-w-0 flex flex-col">
           {isEditing ? (
             <>
-              <div className="flex items-center gap-2 px-5 py-3 border-b border-border/40 shrink-0">
+              <div className="flex items-center gap-2 px-5 h-14 border-b border-border/40 shrink-0">
                 <input
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="Titel..."
-                  className="flex-1 min-w-0 text-base font-semibold bg-transparent focus:outline-none placeholder:text-muted-foreground/40"
+                  className="flex-1 min-w-0 h-8 text-base font-semibold bg-transparent focus:outline-none placeholder:text-muted-foreground/40"
                 />
                 {activeNote && !confirmDelete && (
                   <Button
