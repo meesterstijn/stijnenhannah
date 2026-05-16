@@ -13,6 +13,12 @@ export default defineConfig({
     VitePWA({
       registerType: "autoUpdate",
       includeAssets: ["icon.svg"],
+      workbox: {
+        skipWaiting: true,
+        clientsClaim: true,
+        navigateFallback: "/stijnenhannah/index.html",
+        navigateFallbackDenylist: [/^\/api/],
+      },
       manifest: {
         name: "Ons Huisje",
         short_name: "Ons Huisje",

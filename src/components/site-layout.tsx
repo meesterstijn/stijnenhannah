@@ -1,5 +1,6 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { Home, NotebookPen, ListTodo } from "lucide-react";
+import { ErrorBoundary } from "@/components/error-boundary";
 
 const nav = [
   { to: "/notities", label: "Notities", icon: NotebookPen },
@@ -43,7 +44,9 @@ export function SiteLayout() {
         </div>
       </header>
       <main className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 py-8 sm:py-12">
-        <Outlet />
+        <ErrorBoundary>
+          <Outlet />
+        </ErrorBoundary>
       </main>
 
     </div>

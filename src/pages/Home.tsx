@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { WeatherWidget } from "@/components/weather-widget";
 import { BijbelWidget } from "@/components/bijbel-widget";
+import { VerjaarDagWidget } from "@/components/verjaardag-widget";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { ShoppingBasket, BookHeart, Camera, ArrowRight, ListTodo, NotebookPen } from "lucide-react";
@@ -56,6 +57,7 @@ export default function Home() {
           title="Notities"
           desc="Schrijf het op"
         />
+        <VerjaarDagWidget />
         <BijbelWidget />
         <QuickCard
           to="/fotografie"
