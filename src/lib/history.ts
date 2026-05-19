@@ -9,10 +9,10 @@ export function parseItem(raw: string): { name: string; qty: number } {
   return { qty: 1, name: text };
 }
 
-export async function getHistory(): Promise<string[]> {
+export async function getHistory(table = "product_history"): Promise<string[]> {
   try {
     const { data, error } = await supabase
-      .from("product_history")
+      .from(table)
       .select("name")
       .order("created_at", { ascending: false })
       .limit(100);
@@ -32,13 +32,19 @@ export async function getHistory(): Promise<string[]> {
   }
 }
 
-export async function saveToHistory(item: string) {
+export async function saveToHistory(item: string, table = "product_history") {
   const normalized = item.trim();
   if (!normalized) return;
-  await supabase.from("product_history").delete().ilike("name", normalized);
-  await supabase.from("product_history").insert({ name: normalized });
+  await supabase.from(table).delete().ilike("name", normalized);
+  await supabase.from(table).insert({ name: normalized });
 }
 
-export async function removeFromHistory(item: string) {
-  await supabase.from("product_history").delete().ilike("name", item.trim());
+export async function removeFromHistory(item: string, table = "product_history") {
+  await supabase.from(table).delete().ilike("name", item.trim());
+}
+
+export async function updateInHistory(oldName: string, newName: string, table = "product_history") {
+  const normalized = newName.trim();
+  if (!normalized || normalized === oldName) return;
+  await supabase.from(table).update({ name: normalized }).ilike("name", oldName.trim());
 }

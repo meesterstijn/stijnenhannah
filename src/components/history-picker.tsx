@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetClose } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Trash2, Check, Plus, Settings, X, LayoutList } from "lucide-react";
-import { getHistory, removeFromHistory } from "@/lib/history";
+import { Trash2, Pencil, Plus, X, LayoutList } from "lucide-react";
+import { getHistory, removeFromHistory, updateInHistory } from "@/lib/history";
 import {
   getCategories, saveCategories, getAssignments, assignCategory,
   removeAssignmentsForCategory, type Category,
@@ -15,16 +15,17 @@ type Props = {
   onOpenChange: (v: boolean) => void;
   onAdd: (names: string[]) => void;
   title?: string;
+  historyTable?: string;
 };
 
 type Mode = "pick" | "delete" | "manage";
 
-export function HistoryPicker({ open, onOpenChange, onAdd, title = "Eerder toegevoegd" }: Props) {
+export function HistoryPicker({ open, onOpenChange, onAdd, title = "Eerder toegevoegd", historyTable = "product_history" }: Props) {
   const queryClient = useQueryClient();
 
   const { data: history = [] } = useQuery({
-    queryKey: ["product_history"],
-    queryFn: getHistory,
+    queryKey: [historyTable],
+    queryFn: () => getHistory(historyTable),
     enabled: open,
   });
   const { data: categories = [] } = useQuery({
@@ -43,6 +44,9 @@ export function HistoryPicker({ open, onOpenChange, onAdd, title = "Eerder toege
   const [mode, setMode] = useState<Mode>("pick");
   const [toDelete, setToDelete] = useState<Set<string>>(new Set());
   const [newCatName, setNewCatName] = useState("");
+  const [editingItem, setEditingItem] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const editInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open) {
@@ -50,8 +54,23 @@ export function HistoryPicker({ open, onOpenChange, onAdd, title = "Eerder toege
       setMode("pick");
       setToDelete(new Set());
       setActiveCategory("all");
+      setEditingItem(null);
     }
   }, [open]);
+
+  useEffect(() => {
+    if (editingItem !== null) {
+      editInputRef.current?.focus();
+      editInputRef.current?.select();
+    }
+  }, [editingItem]);
+
+  async function commitEdit() {
+    if (!editingItem) return;
+    await updateInHistory(editingItem, editValue, historyTable);
+    queryClient.invalidateQueries({ queryKey: [historyTable] });
+    setEditingItem(null);
+  }
 
   function toggleSelect(item: string) {
     setSelected((prev) => {
@@ -70,10 +89,10 @@ export function HistoryPicker({ open, onOpenChange, onAdd, title = "Eerder toege
   }
 
   async function confirmDelete() {
-    await Promise.all(Array.from(toDelete).map(removeFromHistory));
+    await Promise.all(Array.from(toDelete).map((item) => removeFromHistory(item, historyTable)));
     setToDelete(new Set());
     setMode("pick");
-    queryClient.invalidateQueries({ queryKey: ["product_history"] });
+    queryClient.invalidateQueries({ queryKey: [historyTable] });
   }
 
   async function handleAssign(product: string, categoryId: string) {
@@ -197,20 +216,50 @@ export function HistoryPicker({ open, onOpenChange, onAdd, title = "Eerder toege
                   {visibleItems.map((item) => {
                     const isSelected = mode === "pick" && selected.has(item);
                     const isMarkedDelete = mode === "delete" && toDelete.has(item);
+                    const isEditing = editingItem === item;
+
+                    if (isEditing) {
+                      return (
+                        <div key={item} className="px-3 py-2 rounded-2xl border border-primary bg-card flex items-center gap-1">
+                          <input
+                            ref={editInputRef}
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            onBlur={commitEdit}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") { e.preventDefault(); commitEdit(); }
+                              if (e.key === "Escape") setEditingItem(null);
+                            }}
+                            className="bg-transparent text-sm font-medium focus:outline-none w-28"
+                          />
+                        </div>
+                      );
+                    }
+
                     return (
-                      <button
-                        key={item}
-                        onClick={() => mode === "delete" ? toggleToDelete(item) : toggleSelect(item)}
-                        className={`px-3 py-4 rounded-2xl border text-sm font-medium text-center transition-colors leading-tight ${
-                          isMarkedDelete
-                            ? "bg-destructive border-destructive text-destructive-foreground"
-                            : isSelected
-                            ? "bg-primary border-primary text-primary-foreground"
-                            : "bg-card border-border text-foreground"
-                        }`}
-                      >
-                        {item}
-                      </button>
+                      <div key={item} className="relative group">
+                        <button
+                          onClick={() => mode === "delete" ? toggleToDelete(item) : toggleSelect(item)}
+                          className={`px-3 py-4 rounded-2xl border text-sm font-medium text-center transition-colors leading-tight ${
+                            isMarkedDelete
+                              ? "bg-destructive border-destructive text-destructive-foreground"
+                              : isSelected
+                              ? "bg-primary border-primary text-primary-foreground"
+                              : "bg-card border-border text-foreground"
+                          }`}
+                        >
+                          {item}
+                        </button>
+                        {mode === "pick" && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setEditValue(item); setEditingItem(item); }}
+                            className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-muted border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                            aria-label="Bewerk"
+                          >
+                            <Pencil className="h-2.5 w-2.5" />
+                          </button>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
