@@ -117,13 +117,14 @@ export type NowPlaying = {
   trackName: string;
   artistName: string;
   albumArt: string | null;
+  volume: number;
 } | null;
 
 export async function getNowPlaying(): Promise<NowPlaying> {
   const token = await getAccessToken();
   if (!token) return null;
 
-  const res = await fetch("https://api.spotify.com/v1/me/player/currently-playing", {
+  const res = await fetch("https://api.spotify.com/v1/me/player", {
     headers: { Authorization: `Bearer ${token}` },
   });
 
@@ -136,7 +137,17 @@ export async function getNowPlaying(): Promise<NowPlaying> {
     trackName: data.item.name,
     artistName: data.item.artists.map((a: { name: string }) => a.name).join(", "),
     albumArt: data.item.album.images.at(-1)?.url ?? null,
+    volume: data.device?.volume_percent ?? 50,
   };
+}
+
+export async function setVolume(volumePercent: number): Promise<void> {
+  const token = await getAccessToken();
+  if (!token) return;
+  await fetch(`https://api.spotify.com/v1/me/player/volume?volume_percent=${Math.round(volumePercent)}`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${token}` },
+  });
 }
 
 export async function togglePlayback(isPlaying: boolean): Promise<void> {
