@@ -1,13 +1,29 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { QRCodeSVG } from "qrcode.react";
-import { Wifi, X } from "lucide-react";
+import { Wifi, X, Loader2 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
-const SSID = "WiFiesta";
-const PASSWORD = "JezusisKoning";
-const WIFI_STRING = `WIFI:T:WPA;S:${SSID};P:${PASSWORD};;`;
+async function fetchWifiSettings(): Promise<{ ssid: string; password: string }> {
+  const { data, error } = await supabase
+    .from("app_settings")
+    .select("key, value")
+    .in("key", ["wifi_ssid", "wifi_password"]);
+  if (error) throw error;
+  const map = Object.fromEntries((data ?? []).map((r) => [r.key, r.value]));
+  return { ssid: map.wifi_ssid ?? "", password: map.wifi_password ?? "" };
+}
 
 export function WifiWidget() {
   const [open, setOpen] = useState(false);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["wifi_settings"],
+    queryFn: fetchWifiSettings,
+    enabled: open,
+  });
+
+  const wifiString = data ? `WIFI:T:WPA;S:${data.ssid};P:${data.password};;` : "";
 
   return (
     <>
@@ -17,7 +33,7 @@ export function WifiWidget() {
       >
         <Wifi className="h-5 w-5 text-primary shrink-0" strokeWidth={1.6} />
         <div className="flex-1 min-w-0">
-          <p className="font-serif text-base font-semibold leading-tight">Gastnetwerk</p>
+          <p className="font-serif text-base font-semibold leading-tight">Wifi</p>
           <p className="text-xs text-muted-foreground mt-0.5 leading-tight">Toon QR code</p>
         </div>
       </button>
@@ -33,7 +49,7 @@ export function WifiWidget() {
           >
             <div className="flex items-center justify-between w-full">
               <div>
-                <p className="font-serif text-xl font-semibold">{SSID}</p>
+                <p className="font-serif text-xl font-semibold">{data?.ssid ?? "Wifi"}</p>
                 <p className="text-sm text-muted-foreground mt-0.5">Scan om te verbinden</p>
               </div>
               <button
@@ -43,8 +59,15 @@ export function WifiWidget() {
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <QRCodeSVG value={WIFI_STRING} size={240} bgColor="transparent" fgColor="currentColor" className="text-foreground" />
-            <p className="text-xs text-muted-foreground">{PASSWORD}</p>
+
+            {isLoading ? (
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            ) : (
+              <>
+                <QRCodeSVG value={wifiString} size={240} bgColor="transparent" fgColor="currentColor" className="text-foreground" />
+                <p className="text-xs text-muted-foreground">{data?.password}</p>
+              </>
+            )}
           </div>
         </div>
       )}
