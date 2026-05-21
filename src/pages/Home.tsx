@@ -6,6 +6,7 @@ import { SnelleLinksWidget } from "@/components/snelle-links-widget";
 import { SchoonmaakWidget } from "@/components/schoonmaak-widget";
 import { VakantieWidget } from "@/components/vakantie-widget";
 import { SpotifyWidget } from "@/components/spotify-widget";
+import { WifiWidget } from "@/components/wifi-widget";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { ShoppingBasket, BookHeart, Camera, ArrowRight, ListTodo, NotebookPen } from "lucide-react";
@@ -76,6 +77,7 @@ export default function Home() {
           title="Fotografie"
           desc="Jullie mooiste momenten"
         />
+        <WifiWidget />
       </section>
     </div>
   );
