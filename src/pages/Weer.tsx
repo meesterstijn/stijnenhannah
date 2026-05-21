@@ -144,7 +144,7 @@ export default function Weer() {
   const CurrentIcon = data ? iconFor(data.current.code) : Cloud;
 
   return (
-    <div className="space-y-8 max-w-2xl">
+    <div className="space-y-8 max-w-2xl mx-auto">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <Link to="/" className="text-muted-foreground hover:text-foreground transition-colors">
