@@ -1,5 +1,7 @@
-const CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID as string;
-const REDIRECT_URI = import.meta.env.VITE_SPOTIFY_REDIRECT_URI as string;
+const CLIENT_ID = "1cdc4c9420e94ef7b38c7af7c09b43dc";
+const REDIRECT_URI = window.location.hostname === "localhost"
+  ? `${window.location.protocol}//${window.location.host}/`
+  : "https://meesterstijn.github.io/stijnenhannah/";
 const SCOPES = [
   "user-read-currently-playing",
   "user-read-playback-state",
