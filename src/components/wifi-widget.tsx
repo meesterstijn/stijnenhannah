@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { QRCodeSVG } from "qrcode.react";
+import QRCodeStyling from "qr-code-styling";
 import { Wifi, X, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
@@ -14,8 +14,20 @@ async function fetchWifiSettings(): Promise<{ ssid: string; password: string }> 
   return { ssid: map.wifi_ssid ?? "", password: map.wifi_password ?? "" };
 }
 
+const qrCode = new QRCodeStyling({
+  width: 240,
+  height: 240,
+  type: "svg",
+  dotsOptions: { type: "rounded", color: "#000000" },
+  cornersSquareOptions: { type: "extra-rounded", color: "#000000" },
+  cornersDotOptions: { type: "dot", color: "#000000" },
+  backgroundOptions: { color: "#f8f3e6" },
+  qrOptions: { errorCorrectionLevel: "M" },
+});
+
 export function WifiWidget() {
   const [open, setOpen] = useState(false);
+  const qrRef = useRef<HTMLDivElement>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["wifi_settings"],
@@ -24,6 +36,13 @@ export function WifiWidget() {
   });
 
   const wifiString = data ? `WIFI:T:WPA;S:${data.ssid};P:${data.password};;` : "";
+
+  useEffect(() => {
+    if (!open || !data || !qrRef.current) return;
+    qrCode.update({ data: wifiString });
+    qrRef.current.innerHTML = "";
+    qrCode.append(qrRef.current);
+  }, [open, data, wifiString]);
 
   return (
     <>
@@ -44,7 +63,7 @@ export function WifiWidget() {
           onClick={() => setOpen(false)}
         >
           <div
-            className="bg-card rounded-3xl p-8 flex flex-col items-center gap-5 shadow-2xl mx-4"
+            className="bg-background rounded-3xl p-8 flex flex-col items-center gap-5 shadow-2xl mx-4"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between w-full">
@@ -64,7 +83,7 @@ export function WifiWidget() {
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             ) : (
               <>
-                <QRCodeSVG value={wifiString} size={240} bgColor="transparent" fgColor="currentColor" className="text-foreground" />
+                <div ref={qrRef} />
                 <p className="text-xs text-muted-foreground">{data?.password}</p>
               </>
             )}
