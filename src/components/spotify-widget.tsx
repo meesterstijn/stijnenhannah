@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Music, Play, Pause, SkipForward, LogOut, Volume2 } from "lucide-react";
+import { Music, Play, Pause, SkipBack, SkipForward, LogOut, Volume2 } from "lucide-react";
 import {
   initiateSpotifyLogin,
   isSpotifyConnected,
@@ -97,6 +97,14 @@ export function SpotifyWidget() {
         <div className="flex items-center gap-1 shrink-0">
           {nowPlaying && (
             <>
+              <button
+                onClick={(e) => { e.preventDefault(); if (!actionPending) { setActionPending(true); skipTrack("previous").then(() => setTimeout(() => { fetchNowPlaying(); setActionPending(false); }, 700)); } }}
+                disabled={actionPending}
+                className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent/40 transition-colors"
+                aria-label="Vorige"
+              >
+                <SkipBack className="h-3.5 w-3.5" />
+              </button>
               <button
                 onClick={handleToggle}
                 disabled={actionPending}
