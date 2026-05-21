@@ -9,9 +9,10 @@ type CleaningTask = {
   interval_days: number;
 };
 
-function daysSince(dateStr: string | null): number | null {
-  if (!dateStr) return null;
-  return Math.floor((Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24));
+function daysUntilDue(dateStr: string | null, intervalDays: number): number {
+  if (!dateStr) return 0;
+  const daysSince = Math.floor((Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24));
+  return intervalDays - daysSince;
 }
 
 export function SchoonmaakWidget() {
@@ -26,15 +27,18 @@ export function SchoonmaakWidget() {
     },
   });
 
-  const overdue = tasks.filter((t) => {
-    const days = daysSince(t.last_done_at);
-    return days === null || days >= t.interval_days;
-  });
+  const withDays = tasks.map((t) => ({ ...t, daysLeft: daysUntilDue(t.last_done_at, t.interval_days) }));
+  const overdue = withDays.filter((t) => t.daysLeft <= 0);
+  const soonest = withDays.filter((t) => t.daysLeft > 0).sort((a, b) => a.daysLeft - b.daysLeft)[0];
 
   const desc =
-    overdue.length === 0
-      ? "Alles bijgewerkt"
-      : `${overdue.length} ${overdue.length === 1 ? "taak" : "taken"} te doen`;
+    overdue.length > 0
+      ? `${overdue.length} ${overdue.length === 1 ? "taak" : "taken"} te doen`
+      : soonest
+      ? soonest.daysLeft === 1
+        ? "Morgen weer aan de beurt"
+        : `Volgende over ${soonest.daysLeft} dagen`
+      : "Alles bijgewerkt";
 
   return (
     <Link

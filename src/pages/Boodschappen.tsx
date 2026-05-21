@@ -5,6 +5,7 @@ import { parseItem, getHistory, saveToHistory } from "@/lib/history";
 import { getCategories, getAssignments } from "@/lib/categories";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { HistoryPicker } from "@/components/history-picker";
 import { Plus, Loader2, Trash2 } from "lucide-react";
 
@@ -168,21 +169,38 @@ function GroceryList({ tableName, title, historyTable = "product_history" }: { t
             className="flex gap-2"
           >
             {items.length > 0 && (
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={() => clearAll.mutate()}
-                disabled={clearAll.isPending}
-                className="rounded-xl shrink-0 text-muted-foreground hover:text-destructive hover:border-destructive/50 transition-colors"
-                aria-label="Wis alles"
-              >
-                {clearAll.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Trash2 className="h-4 w-4" />
-                )}
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    disabled={clearAll.isPending}
+                    className="rounded-xl shrink-0 text-muted-foreground hover:text-destructive hover:border-destructive/50 transition-colors"
+                    aria-label="Wis alles"
+                  >
+                    {clearAll.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Lijst leegmaken?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Alle {items.length} producten worden verwijderd. Dit kan niet ongedaan worden gemaakt.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Annuleer</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => clearAll.mutate()}>
+                      Verwijder alles
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             )}
             <div className="relative flex-1">
               <Input

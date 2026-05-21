@@ -1,7 +1,9 @@
+import { useEffect } from "react";
 import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { SiteLayout } from "@/components/site-layout";
+import { handleSpotifyCallback } from "@/lib/spotify";
 import Login from "@/pages/Login";
 import Home from "@/pages/Home";
 import Boodschappen from "@/pages/Boodschappen";
@@ -78,10 +80,29 @@ function AppRoutes() {
   );
 }
 
+function SpotifyCallbackHandler() {
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    const state = params.get("state");
+    if (code && state === "spotify_auth") {
+      handleSpotifyCallback(code).then((success) => {
+        if (success) {
+          window.location.replace(window.location.pathname);
+        } else {
+          window.history.replaceState({}, "", window.location.pathname);
+        }
+      });
+    }
+  }, []);
+  return null;
+}
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
+        <SpotifyCallbackHandler />
         <HashRouter>
           <AppRoutes />
         </HashRouter>

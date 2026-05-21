@@ -5,12 +5,13 @@ import { VerjaarDagWidget } from "@/components/verjaardag-widget";
 import { SnelleLinksWidget } from "@/components/snelle-links-widget";
 import { SchoonmaakWidget } from "@/components/schoonmaak-widget";
 import { VakantieWidget } from "@/components/vakantie-widget";
+import { SpotifyWidget } from "@/components/spotify-widget";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { ShoppingBasket, BookHeart, Camera, ArrowRight, ListTodo, NotebookPen } from "lucide-react";
 
 type GroceryItem = { id: string; text: string; done: boolean };
-type Todo = { id: string; done: boolean };
+type Todo = { id: string; text: string; done: boolean; created_at: string };
 
 export default function Home() {
   const { data: items = [] } = useQuery({
@@ -24,13 +25,14 @@ export default function Home() {
   const { data: todos = [] } = useQuery({
     queryKey: ["todos", "home-count"],
     queryFn: async (): Promise<Todo[]> => {
-      const { data } = await supabase.from("todos").select("id, done");
+      const { data } = await supabase.from("todos").select("id, text, done, created_at").order("created_at", { ascending: true });
       return (data ?? []) as Todo[];
     },
   });
 
   const openItems = items.filter((i) => !i.done);
   const openTodos = todos.filter((t) => !t.done);
+  const firstTodo = openTodos[0];
 
   return (
     <div className="space-y-4">
@@ -56,7 +58,7 @@ export default function Home() {
           to="/todo"
           icon={ListTodo}
           title="To-do"
-          desc={openTodos.length ? `${openTodos.length} nog te doen` : "Alles gedaan"}
+          desc={firstTodo ? firstTodo.text : "Alles gedaan"}
         />
         <QuickCard
           to="/recepten"
@@ -64,6 +66,7 @@ export default function Home() {
           title="Recepten"
           desc="Bewaar wat jullie graag eten"
         />
+        <SpotifyWidget />
         <VerjaarDagWidget />
         <SchoonmaakWidget />
         <VakantieWidget />

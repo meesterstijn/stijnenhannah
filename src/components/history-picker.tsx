@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetClose } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -116,12 +116,31 @@ export function HistoryPicker({ open, onOpenChange, onAdd, title = "Eerder toege
     queryClient.invalidateQueries({ queryKey: ["product_assignments"] });
   }
 
-  const visibleItems =
+  const categoryOrder = Object.fromEntries(categories.map((c, i) => [c.id, i]));
+
+  const PALETTE = ["#DAA464", "#DEC384", "#E8DDB4"];
+
+  function chipStyle(categoryId: string | undefined): React.CSSProperties {
+    if (!categoryId) return {};
+    const idx = categoryOrder[categoryId];
+    if (idx === undefined) return {};
+    return { backgroundColor: PALETTE[idx % 3], borderColor: PALETTE[idx % 3], color: "#5a3e1b" };
+  }
+
+  const visibleItems = (
     activeCategory === "all"
       ? history
       : activeCategory === "none"
       ? history.filter((h) => !assignments[h.toLowerCase()])
-      : history.filter((h) => assignments[h.toLowerCase()] === activeCategory);
+      : history.filter((h) => assignments[h.toLowerCase()] === activeCategory)
+  ).slice().sort((a, b) => {
+    const catA = assignments[a.toLowerCase()];
+    const catB = assignments[b.toLowerCase()];
+    const orderA = catA !== undefined ? (categoryOrder[catA] ?? 999) : 999;
+    const orderB = catB !== undefined ? (categoryOrder[catB] ?? 999) : 999;
+    if (orderA !== orderB) return orderA - orderB;
+    return a.localeCompare(b, "nl");
+  });
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -245,8 +264,9 @@ export function HistoryPicker({ open, onOpenChange, onAdd, title = "Eerder toege
                               ? "bg-destructive border-destructive text-destructive-foreground"
                               : isSelected
                               ? "bg-primary border-primary text-primary-foreground"
-                              : "bg-card border-border text-foreground"
+                              : ""
                           }`}
+                          style={!isMarkedDelete && !isSelected ? chipStyle(assignments[item.toLowerCase()]) : undefined}
                         >
                           {item}
                         </button>

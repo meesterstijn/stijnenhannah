@@ -26,15 +26,12 @@ function daysSince(dateStr: string | null): number | null {
   return Math.floor((Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24));
 }
 
-function formatDaysAgo(days: number): string {
-  if (days === 0) return "Vandaag";
-  if (days === 1) return "Gisteren";
-  if (days < 7) return `${days} dagen geleden`;
-  if (days < 14) return "1 week geleden";
-  if (days < 30) return `${Math.floor(days / 7)} weken geleden`;
-  if (days < 60) return "1 maand geleden";
-  if (days < 365) return `${Math.floor(days / 30)} maanden geleden`;
-  return `${Math.floor(days / 365)} jaar geleden`;
+function formatDaysLeft(days: number, interval: number): string {
+  const left = interval - days;
+  if (left < 0) return `${Math.abs(left)} dagen te laat`;
+  if (left === 0) return "Vandaag te doen";
+  if (left === 1) return "Morgen";
+  return `Nog ${left} dagen`;
 }
 
 function statusDot(days: number | null, interval: number): string {
@@ -133,7 +130,7 @@ export default function Schoonmaak() {
                   <p className="text-sm font-medium">{task.name}</p>
                   {!editMode && (
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {days === null ? "Nog niet gedaan" : formatDaysAgo(days)}
+                      {days === null ? "Nog niet gedaan" : formatDaysLeft(days, task.interval_days)}
                     </p>
                   )}
                   {editMode && (
