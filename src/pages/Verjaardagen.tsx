@@ -142,7 +142,7 @@ export default function Verjaardagen() {
   const canSave = name.trim() && day && parseInt(day) >= 1 && parseInt(day) <= 31;
 
   return (
-    <div className="space-y-6 max-w-xl">
+    <div className="space-y-6 max-w-xl mx-auto">
       <div className="flex items-end justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Overzicht</p>
