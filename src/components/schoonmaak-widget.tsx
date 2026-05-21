@@ -39,14 +39,14 @@ export function SchoonmaakWidget() {
   return (
     <Link
       to="/schoonmaak"
-      className="group rounded-2xl bg-card border border-border/60 p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all flex items-center gap-4 sm:min-h-[200px]"
+      className="group rounded-2xl bg-card border border-border/60 p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all flex items-center gap-3 sm:min-h-[100px]"
     >
-      <Sparkles className="h-7 w-7 text-primary shrink-0" strokeWidth={1.6} />
+      <Sparkles className="h-5 w-5 text-primary shrink-0" strokeWidth={1.6} />
       <div className="flex-1 min-w-0">
-        <p className="font-serif text-xl font-semibold">Schoonmaak</p>
-        <p className="text-sm text-muted-foreground mt-0.5">{desc}</p>
+        <p className="font-serif text-base font-semibold leading-tight">Schoonmaak</p>
+        <p className="text-xs text-muted-foreground mt-0.5 leading-tight">{desc}</p>
       </div>
-      <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0 group-hover:text-primary transition-colors" />
+      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground shrink-0 group-hover:text-primary transition-colors" />
     </Link>
   );
 }

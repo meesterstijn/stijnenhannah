@@ -38,38 +38,26 @@ export function VerjaarDagWidget() {
   return (
     <Link
       to="/verjaardagen"
-      className="group rounded-2xl bg-card border border-border/60 p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all flex flex-col gap-3 sm:min-h-[200px]"
+      className="group rounded-2xl bg-card border border-border/60 p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all flex items-center gap-3 sm:min-h-[100px]"
     >
-      <div className="flex items-center justify-between">
-        <Cake className="h-7 w-7 text-primary" strokeWidth={1.6} />
-        <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-      </div>
-
-      <div className="flex-1">
-        <p className="font-serif text-xl font-semibold">Verjaardagen</p>
-        {isLoading && <p className="text-sm text-muted-foreground mt-1">Laden…</p>}
+      <Cake className="h-5 w-5 text-primary shrink-0" strokeWidth={1.6} />
+      <div className="flex-1 min-w-0">
+        <p className="font-serif text-base font-semibold leading-tight">Verjaardagen</p>
+        {isLoading && <p className="text-xs text-muted-foreground mt-0.5">Laden…</p>}
         {!isLoading && birthdays.length === 0 && (
-          <p className="text-sm text-muted-foreground mt-1">Nog geen verjaardagen</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Nog geen verjaardagen</p>
         )}
-        {sorted.length > 0 && (
-          <ul className="mt-2 space-y-2">
-            {sorted.map((b) => {
-              const nextYear = new Date().getFullYear() + (b.days === 0 ? 0 : (new Date(new Date().getFullYear(), b.month - 1, b.day) < new Date() ? 1 : 0));
-              const age = b.year ? nextYear - b.year : null;
-              const daysLabel = b.days === 0 ? "Vandaag! 🎂" : b.days === 1 ? "Morgen" : `Over ${b.days} dagen`;
-              return (
-                <li key={b.id} className="flex items-start justify-between gap-2">
-                  <span className="text-sm font-medium leading-tight">{b.name}</span>
-                  <div className={`text-right shrink-0 ${b.days <= 1 ? "text-primary font-semibold" : "text-muted-foreground"}`}>
-                    <p className="text-xs">{daysLabel}</p>
-                    {age && <p className="text-xs">{b.days === 0 ? `${age} jaar` : `wordt ${age}`}</p>}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+        {sorted.length > 0 && (() => {
+          const b = sorted[0];
+          const daysLabel = b.days === 0 ? "Vandaag! 🎂" : b.days === 1 ? "Morgen" : `Over ${b.days} dagen`;
+          return (
+            <p className={`text-xs mt-0.5 leading-tight truncate ${b.days <= 1 ? "text-primary font-semibold" : "text-muted-foreground"}`}>
+              {b.name} · {daysLabel}
+            </p>
+          );
+        })()}
       </div>
+      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground shrink-0 group-hover:text-primary transition-colors" />
     </Link>
   );
 }
