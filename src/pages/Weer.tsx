@@ -57,7 +57,7 @@ async function loadWeather(lat: number, lon: number, city: string): Promise<Weat
     `&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code` +
     `&hourly=temperature_2m,weather_code,precipitation_probability` +
     `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max` +
-    `&timezone=auto&forecast_days=7`
+    `&timezone=auto&forecast_days=16`
   );
   const j = await res.json();
 
@@ -242,7 +242,7 @@ export default function Weer() {
 
           {/* Daily */}
           <div className="rounded-2xl bg-card border border-border/60 overflow-hidden">
-            <p className="text-xs uppercase tracking-widest text-muted-foreground px-5 pt-5 pb-3">7-daagse voorspelling</p>
+            <p className="text-xs uppercase tracking-widest text-muted-foreground px-5 pt-5 pb-3">16-daagse voorspelling</p>
             <div className="divide-y divide-border/50">
               {data.daily.map((d, i) => {
                 const DIcon = iconFor(d.code);
