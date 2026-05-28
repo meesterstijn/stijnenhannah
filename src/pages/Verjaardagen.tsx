@@ -5,7 +5,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Sheet, SheetContent, SheetClose } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Trash2, Loader2, X, Cake } from "lucide-react";
+import { Plus, Trash2, Loader2, X, Cake, Heart, Flower2 } from "lucide-react";
+
+type EntryType = "verjaardag" | "trouwdag" | "sterfdag";
 
 type Birthday = {
   id: string;
@@ -14,6 +16,7 @@ type Birthday = {
   month: number;
   year: number | null;
   notes: string;
+  type: EntryType;
 };
 
 type BirthdayWithNext = Birthday & { next: Date; daysUntil: number };
@@ -22,6 +25,40 @@ const MONTHS = [
   "januari","februari","maart","april","mei","juni",
   "juli","augustus","september","oktober","november","december",
 ];
+
+const TYPE_CONFIG: Record<EntryType, {
+  label: string;
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  iconColor: string;
+  todayEmoji: string;
+  yearLabel: string;
+  ageLabel: (age: number) => string;
+}> = {
+  verjaardag: {
+    label: "Verjaardag",
+    icon: Cake,
+    iconColor: "text-primary",
+    todayEmoji: "🎂",
+    yearLabel: "Geboortejaar",
+    ageLabel: (age) => `wordt ${age}`,
+  },
+  trouwdag: {
+    label: "Trouwdag",
+    icon: Heart,
+    iconColor: "text-rose-400",
+    todayEmoji: "💍",
+    yearLabel: "Trouwjaar",
+    ageLabel: (age) => `${age} jaar getrouwd`,
+  },
+  sterfdag: {
+    label: "Sterfdag",
+    icon: Flower2,
+    iconColor: "text-muted-foreground",
+    todayEmoji: "🕯️",
+    yearLabel: "Sterfjaar",
+    ageLabel: (age) => `${age} jaar geleden`,
+  },
+};
 
 async function fetchBirthdays(): Promise<Birthday[]> {
   const { data, error } = await supabase
@@ -46,15 +83,12 @@ function sortedByNext(birthdays: Birthday[]): BirthdayWithNext[] {
     .sort((a, b) => a.daysUntil - b.daysUntil);
 }
 
-function daysLabel(days: number): { text: string; highlight: boolean } {
-  if (days === 0) return { text: "Vandaag! 🎂", highlight: true };
+function daysLabel(days: number, type: EntryType): { text: string; highlight: boolean } {
+  const emoji = TYPE_CONFIG[type].todayEmoji;
+  if (days === 0) return { text: `Vandaag! ${emoji}`, highlight: true };
   if (days === 1) return { text: "Morgen", highlight: true };
   if (days === 2) return { text: "Overmorgen", highlight: false };
   return { text: `Over ${days} dagen`, highlight: false };
-}
-
-function turningAge(year: number, nextDate: Date): number {
-  return nextDate.getFullYear() - year;
 }
 
 export default function Verjaardagen() {
@@ -63,6 +97,7 @@ export default function Verjaardagen() {
 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editing, setEditing] = useState<Birthday | null>(null);
+  const [type, setType] = useState<EntryType>("verjaardag");
   const [name, setName] = useState("");
   const [day, setDay] = useState("");
   const [month, setMonth] = useState("1");
@@ -86,6 +121,7 @@ export default function Verjaardagen() {
         month: parseInt(month),
         year: year ? parseInt(year) : null,
         notes,
+        type,
         created_by: session?.user.id,
       };
       if (editing) {
@@ -117,6 +153,7 @@ export default function Verjaardagen() {
 
   function openNew() {
     setEditing(null);
+    setType("verjaardag");
     setName("");
     setDay("");
     setMonth("1");
@@ -129,6 +166,7 @@ export default function Verjaardagen() {
 
   function openEdit(b: Birthday) {
     setEditing(b);
+    setType(b.type ?? "verjaardag");
     setName(b.name);
     setDay(String(b.day));
     setMonth(String(b.month));
@@ -140,13 +178,14 @@ export default function Verjaardagen() {
   }
 
   const canSave = name.trim() && day && parseInt(day) >= 1 && parseInt(day) <= 31;
+  const currentConfig = TYPE_CONFIG[type];
 
   return (
     <div className="space-y-6 max-w-xl mx-auto">
       <div className="flex items-end justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Overzicht</p>
-          <h1 className="font-serif text-3xl font-semibold mt-1">Verjaardagen</h1>
+          <h1 className="font-serif text-3xl font-semibold mt-1">Kalender</h1>
         </div>
         <Button onClick={openNew} className="rounded-xl gap-2 mb-1">
           <Plus className="h-4 w-4" />
@@ -162,15 +201,18 @@ export default function Verjaardagen() {
 
       {!isLoading && birthdays.length === 0 && (
         <p className="text-sm text-muted-foreground text-center py-12">
-          Nog geen verjaardagen — voeg er een toe.
+          Nog geen items — voeg er een toe.
         </p>
       )}
 
       {sorted.length > 0 && (
         <div className="rounded-2xl border border-border/60 bg-card overflow-hidden divide-y divide-border/50">
           {sorted.map((b) => {
-            const { text, highlight } = daysLabel(b.daysUntil);
-            const age = b.year ? turningAge(b.year, b.next) : null;
+            const entryType = (b.type ?? "verjaardag") as EntryType;
+            const config = TYPE_CONFIG[entryType];
+            const Icon = config.icon;
+            const { text, highlight } = daysLabel(b.daysUntil, entryType);
+            const age = b.year ? (b.next.getFullYear() - b.year) : null;
             return (
               <button
                 key={b.id}
@@ -180,14 +222,17 @@ export default function Verjaardagen() {
                 }`}
               >
                 <div className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center ${
-                  b.daysUntil === 0 ? "bg-primary text-primary-foreground" : "bg-muted"
+                  b.daysUntil === 0 ? "bg-primary/10" : "bg-muted"
                 }`}>
-                  <Cake className="h-4.5 w-4.5 h-[18px] w-[18px]" strokeWidth={1.6} />
+                  <Icon className={`h-[18px] w-[18px] ${b.daysUntil === 0 ? "text-primary" : config.iconColor}`} strokeWidth={1.6} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm leading-tight">{b.name}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold text-sm leading-tight">{b.name}</p>
+                    <span className="text-xs text-muted-foreground/60 font-normal">{config.label}</span>
+                  </div>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {b.day} {MONTHS[b.month - 1]}{age ? ` · wordt ${age}` : ""}
+                    {b.day} {MONTHS[b.month - 1]}{age ? ` · ${config.ageLabel(age)}` : ""}
                   </p>
                 </div>
                 <span className={`text-xs shrink-0 font-medium ${highlight ? "text-primary" : "text-muted-foreground"}`}>
@@ -199,7 +244,6 @@ export default function Verjaardagen() {
         </div>
       )}
 
-      {/* Sheet: add / edit */}
       <Sheet open={sheetOpen} onOpenChange={(v) => { setSheetOpen(v); setConfirmDelete(false); }}>
         <SheetContent
           side="bottom"
@@ -207,10 +251,9 @@ export default function Verjaardagen() {
           style={{ height: "85svh" }}
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
-          {/* Header */}
           <div className="flex items-center gap-3 px-5 pt-5 pb-4 border-b border-border/40 shrink-0">
             <p className="flex-1 font-semibold text-base">
-              {editing ? editing.name : "Nieuwe verjaardag"}
+              {editing ? editing.name : `Nieuwe ${currentConfig.label.toLowerCase()}`}
             </p>
             <div className="flex items-center gap-1 shrink-0">
               {editing && !confirmDelete && (
@@ -240,6 +283,31 @@ export default function Verjaardagen() {
           </div>
 
           <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+            {/* Type toggle */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Type</label>
+              <div className="flex gap-2">
+                {(Object.entries(TYPE_CONFIG) as [EntryType, typeof TYPE_CONFIG[EntryType]][]).map(([key, cfg]) => {
+                  const Icon = cfg.icon;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setType(key)}
+                      className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border text-sm font-medium transition-colors ${
+                        type === key
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-card border-border text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      <Icon className="h-4 w-4" strokeWidth={1.6} />
+                      {cfg.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Name */}
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Naam</label>
@@ -276,10 +344,10 @@ export default function Verjaardagen() {
               </div>
             </div>
 
-            {/* Year (optional) */}
+            {/* Year */}
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Geboortejaar <span className="normal-case font-normal">(optioneel, voor leeftijd)</span>
+                {currentConfig.yearLabel} <span className="normal-case font-normal">(optioneel)</span>
               </label>
               <Input
                 type="number"
@@ -294,11 +362,11 @@ export default function Verjaardagen() {
 
             {/* Notes */}
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Cadeautips & ideeën</label>
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Notities</label>
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Schrijf hier cadeautips of ideeën..."
+                placeholder="Schrijf hier notities..."
                 rows={6}
                 className="w-full resize-none rounded-xl border border-input bg-card px-3 py-2 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-ring"
               />

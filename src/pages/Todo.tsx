@@ -84,7 +84,7 @@ export default function Todo() {
   const done = todos.filter((t) => t.done);
 
   return (
-    <div className="space-y-6 max-w-xl">
+    <div className="space-y-6 max-w-xl mx-auto">
       <div className="flex items-end justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Overzicht</p>
