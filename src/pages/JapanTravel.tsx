@@ -27,18 +27,13 @@ const LANG_PAIRS = [
   { label: "NL → ES", from: "NL", to: "ES" },
 ];
 
-let cachedDeepLKey: string | null = null;
-
-async function getDeepLKey(): Promise<string> {
-  if (cachedDeepLKey) return cachedDeepLKey;
-  const { data, error } = await supabase
-    .from("app_settings")
-    .select("value")
-    .eq("key", "deepl_api_key")
-    .single();
-  if (error || !data?.value) throw new Error("DeepL sleutel niet ingesteld");
-  cachedDeepLKey = data.value as string;
-  return cachedDeepLKey;
+async function translateText(text: string, from: string, to: string): Promise<string> {
+  const { data, error } = await supabase.functions.invoke("translate", {
+    body: { text, source_lang: from, target_lang: to },
+  });
+  if (error) throw new Error(error.message);
+  if (data?.error) throw new Error(data.error);
+  return data.translations[0].text as string;
 }
 
 function speakJapanese(text: string) {
@@ -64,24 +59,6 @@ function speakJapanese(text: string) {
   }
 }
 
-async function translateText(text: string, from: string, to: string): Promise<string> {
-  const apiKey = await getDeepLKey();
-  const endpoint = apiKey.endsWith(":fx")
-    ? "https://api-free.deepl.com/v2/translate"
-    : "https://api.deepl.com/v2/translate";
-  const res = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      "Authorization": `DeepL-Auth-Key ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ text: [text], source_lang: from, target_lang: to }),
-  });
-  if (!res.ok) throw new Error(`DeepL fout (${res.status})`);
-  const json = await res.json();
-  return json.translations[0].text as string;
-}
-
 export function JapanTravel({ onBack }: { onBack: () => void }) {
   const [tab, setTab] = useState<"zinnen" | "vertaler">("zinnen");
   const [showPhrase, setShowPhrase] = useState<TravelPhrase | null>(null);
@@ -100,6 +77,15 @@ export function JapanTravel({ onBack }: { onBack: () => void }) {
   const [result, setResult] = useState<{ text: string; romaji: string } | null>(null);
   const [transError, setTransError] = useState<string | null>(null);
   const queryClient = useQueryClient();
+
+  const { data: usage } = useQuery({
+    queryKey: ["deepl-usage"],
+    enabled: tab === "vertaler",
+    queryFn: async () => {
+      const { data } = await supabase.functions.invoke("translate", { body: { action: "usage" } });
+      return data as { character_count: number; character_limit: number } | null;
+    },
+  });
 
   const { data: phrases = [], isLoading } = useQuery({
     queryKey: ["travel_phrases"],
@@ -180,8 +166,9 @@ export function JapanTravel({ onBack }: { onBack: () => void }) {
       const converted = toRomaji(text);
       const romaji = converted !== text ? converted : "";
       setResult({ text, romaji });
-    } catch {
-      setTransError("Vertaling mislukt. Probeer opnieuw.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setTransError(`Vertaling mislukt: ${msg}`);
     } finally {
       setTranslating(false);
     }
@@ -332,6 +319,21 @@ export function JapanTravel({ onBack }: { onBack: () => void }) {
               {result.romaji && (
                 <p className="text-sm text-muted-foreground italic leading-relaxed">{result.romaji}</p>
               )}
+            </div>
+          )}
+
+          {usage && (
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>DeepL tekens</span>
+                <span>{usage.character_count.toLocaleString("nl")} / {usage.character_limit.toLocaleString("nl")}</span>
+              </div>
+              <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-primary transition-all"
+                  style={{ width: `${Math.min(100, (usage.character_count / usage.character_limit) * 100)}%` }}
+                />
+              </div>
             </div>
           )}
         </div>
