@@ -39,7 +39,7 @@ export default function Home() {
     <div className="space-y-4">
       <section className="grid gap-4 sm:grid-cols-3">
         <WeatherWidget />
-        <SnelleLinksWidget />
+        <div className="hidden sm:block"><SnelleLinksWidget /></div>
         <BijbelWidget />
       </section>
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
