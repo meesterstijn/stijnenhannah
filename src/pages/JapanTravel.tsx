@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetClose } from "@/components/ui/sheet";
-import { ArrowLeft, Plus, Trash2, Pencil, X, Loader2, Languages } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Pencil, X, Loader2, Languages, Volume2 } from "lucide-react";
 import { toRomaji } from "wanakana";
 
 type TravelPhrase = {
@@ -16,35 +16,84 @@ type TravelPhrase = {
   sort_order: number;
 };
 
-const CATEGORIES = ["Bestellen", "Eten", "Betalen", "OV", "Regelen", "Hulp"];
+const DEFAULT_CATEGORIES = ["Bestellen", "Eten", "Betalen", "OV", "Regelen", "Hulp"];
 
 const LANG_PAIRS = [
-  { label: "NL → JA", from: "nl", to: "ja" },
-  { label: "JA → NL", from: "ja", to: "nl" },
-  { label: "NL → EN", from: "nl", to: "en" },
-  { label: "NL → DE", from: "nl", to: "de" },
-  { label: "NL → FR", from: "nl", to: "fr" },
-  { label: "NL → ES", from: "nl", to: "es" },
+  { label: "NL → JA", from: "NL", to: "JA" },
+  { label: "JA → NL", from: "JA", to: "NL" },
+  { label: "NL → EN", from: "NL", to: "EN-GB" },
+  { label: "NL → DE", from: "NL", to: "DE" },
+  { label: "NL → FR", from: "NL", to: "FR" },
+  { label: "NL → ES", from: "NL", to: "ES" },
 ];
 
+let cachedDeepLKey: string | null = null;
+
+async function getDeepLKey(): Promise<string> {
+  if (cachedDeepLKey) return cachedDeepLKey;
+  const { data, error } = await supabase
+    .from("app_settings")
+    .select("value")
+    .eq("key", "deepl_api_key")
+    .single();
+  if (error || !data?.value) throw new Error("DeepL sleutel niet ingesteld");
+  cachedDeepLKey = data.value as string;
+  return cachedDeepLKey;
+}
+
+function speakJapanese(text: string) {
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = "ja-JP";
+  utterance.rate = 0.85;
+  utterance.pitch = 1;
+
+  const doSpeak = () => {
+    const voices = window.speechSynthesis.getVoices();
+    const voice =
+      voices.find((v) => v.lang === "ja-JP") ??
+      voices.find((v) => v.lang.startsWith("ja"));
+    if (voice) utterance.voice = voice;
+    window.speechSynthesis.speak(utterance);
+  };
+
+  if (window.speechSynthesis.getVoices().length > 0) {
+    doSpeak();
+  } else {
+    window.speechSynthesis.onvoiceschanged = doSpeak;
+  }
+}
+
 async function translateText(text: string, from: string, to: string): Promise<string> {
-  const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${from}|${to}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error("API error");
+  const apiKey = await getDeepLKey();
+  const endpoint = apiKey.endsWith(":fx")
+    ? "https://api-free.deepl.com/v2/translate"
+    : "https://api.deepl.com/v2/translate";
+  const res = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Authorization": `DeepL-Auth-Key ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ text: [text], source_lang: from, target_lang: to }),
+  });
+  if (!res.ok) throw new Error(`DeepL fout (${res.status})`);
   const json = await res.json();
-  if (json.responseStatus !== 200) throw new Error("Vertaling niet gelukt");
-  return json.responseData.translatedText as string;
+  return json.translations[0].text as string;
 }
 
 export function JapanTravel({ onBack }: { onBack: () => void }) {
   const [tab, setTab] = useState<"zinnen" | "vertaler">("zinnen");
   const [showPhrase, setShowPhrase] = useState<TravelPhrase | null>(null);
+  const [speaking, setSpeaking] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editing, setEditing] = useState<TravelPhrase | null>(null);
   const [newNl, setNewNl] = useState("");
   const [newJp, setNewJp] = useState("");
   const [newRomaji, setNewRomaji] = useState("");
   const [newCategory, setNewCategory] = useState("Bestellen");
+  const [isNewCat, setIsNewCat] = useState(false);
+  const [newCatName, setNewCatName] = useState("");
   const [inputText, setInputText] = useState("");
   const [langPair, setLangPair] = useState(LANG_PAIRS[0]);
   const [translating, setTranslating] = useState(false);
@@ -64,9 +113,15 @@ export function JapanTravel({ onBack }: { onBack: () => void }) {
     },
   });
 
+  const categories = [
+    ...new Set([...DEFAULT_CATEGORIES, ...phrases.map((p) => p.category)]),
+  ];
+
   function openNew() {
     setEditing(null);
-    setNewNl(""); setNewJp(""); setNewRomaji(""); setNewCategory("Bestellen");
+    setNewNl(""); setNewJp(""); setNewRomaji("");
+    setNewCategory(categories[0] ?? "Bestellen");
+    setIsNewCat(false); setNewCatName("");
     setSheetOpen(true);
   }
 
@@ -76,13 +131,16 @@ export function JapanTravel({ onBack }: { onBack: () => void }) {
     setNewJp(phrase.phrase_jp);
     setNewRomaji(phrase.phrase_romaji);
     setNewCategory(phrase.category);
+    setIsNewCat(false); setNewCatName("");
     setSheetOpen(true);
   }
+
+  const activeCategory = isNewCat ? newCatName.trim() : newCategory;
 
   const savePhrase = useMutation({
     mutationFn: async () => {
       const payload = {
-        category: newCategory,
+        category: activeCategory,
         phrase_nl: newNl.trim(),
         phrase_jp: newJp.trim(),
         phrase_romaji: newRomaji.trim(),
@@ -93,7 +151,7 @@ export function JapanTravel({ onBack }: { onBack: () => void }) {
       } else {
         const { error } = await supabase.from("travel_phrases").insert({
           ...payload,
-          sort_order: phrases.filter((p) => p.category === newCategory).length + 1,
+          sort_order: phrases.filter((p) => p.category === activeCategory).length + 1,
         });
         if (error) throw error;
       }
@@ -169,7 +227,7 @@ export function JapanTravel({ onBack }: { onBack: () => void }) {
           </div>
         ) : (
           <div className="space-y-4">
-            {CATEGORIES.map((cat) => {
+            {categories.map((cat) => {
               const catPhrases = phrases.filter((p) => p.category === cat);
               if (catPhrases.length === 0) return null;
               return (
@@ -180,22 +238,37 @@ export function JapanTravel({ onBack }: { onBack: () => void }) {
                   <div className="divide-y divide-border/40">
                     {catPhrases.map((phrase) => (
                       <div key={phrase.id} className="group flex items-start gap-3 px-5 py-4">
+                        <button
+                          onClick={() => {
+                            setSpeaking(phrase.id);
+                            const u = new SpeechSynthesisUtterance(phrase.phrase_jp);
+                            u.lang = "ja-JP"; u.rate = 0.85;
+                            u.onend = () => setSpeaking(null);
+                            const doSpeak = () => {
+                              const v = window.speechSynthesis.getVoices();
+                              const voice = v.find((x) => x.lang === "ja-JP") ?? v.find((x) => x.lang.startsWith("ja"));
+                              if (voice) u.voice = voice;
+                              window.speechSynthesis.cancel();
+                              window.speechSynthesis.speak(u);
+                            };
+                            window.speechSynthesis.getVoices().length > 0
+                              ? doSpeak()
+                              : (window.speechSynthesis.onvoiceschanged = doSpeak);
+                          }}
+                          className={`shrink-0 mt-1 transition-colors ${speaking === phrase.id ? "text-primary" : "text-muted-foreground/50 hover:text-primary"}`}
+                        >
+                          <Volume2 className="h-4 w-4" />
+                        </button>
                         <button className="flex-1 text-left" onClick={() => setShowPhrase(phrase)}>
                           <p className="text-xs text-muted-foreground mb-1">{phrase.phrase_nl}</p>
                           <p className="text-xl font-medium leading-snug">{phrase.phrase_jp}</p>
                           <p className="text-xs text-muted-foreground/70 italic mt-1">{phrase.phrase_romaji}</p>
                         </button>
                         <div className="flex flex-col gap-1.5 opacity-0 group-hover:opacity-100 transition-all shrink-0 mt-1">
-                          <button
-                            onClick={() => openEdit(phrase)}
-                            className="text-muted-foreground/50 hover:text-primary transition-colors"
-                          >
+                          <button onClick={() => openEdit(phrase)} className="text-muted-foreground/50 hover:text-primary transition-colors">
                             <Pencil className="h-3.5 w-3.5" />
                           </button>
-                          <button
-                            onClick={() => deletePhrase.mutate(phrase.id)}
-                            className="text-muted-foreground/50 hover:text-destructive transition-colors"
-                          >
+                          <button onClick={() => deletePhrase.mutate(phrase.id)} className="text-muted-foreground/50 hover:text-destructive transition-colors">
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
@@ -278,7 +351,14 @@ export function JapanTravel({ onBack }: { onBack: () => void }) {
           </button>
           <p className="text-xs text-muted-foreground uppercase tracking-widest mb-10">{showPhrase.phrase_nl}</p>
           <p className="text-5xl sm:text-6xl font-medium leading-relaxed mb-8">{showPhrase.phrase_jp}</p>
-          <p className="text-base text-muted-foreground italic">{showPhrase.phrase_romaji}</p>
+          <p className="text-base text-muted-foreground italic mb-10">{showPhrase.phrase_romaji}</p>
+          <button
+            onClick={(e) => { e.stopPropagation(); speakJapanese(showPhrase.phrase_jp); }}
+            className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-muted hover:bg-accent transition-colors text-sm font-medium"
+          >
+            <Volume2 className="h-4 w-4" />
+            Uitspreken
+          </button>
         </div>
       )}
 
@@ -304,12 +384,29 @@ export function JapanTravel({ onBack }: { onBack: () => void }) {
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Categorie</label>
               <select
-                value={newCategory}
-                onChange={(e) => setNewCategory(e.target.value)}
+                value={isNewCat ? "__new__" : newCategory}
+                onChange={(e) => {
+                  if (e.target.value === "__new__") {
+                    setIsNewCat(true);
+                  } else {
+                    setIsNewCat(false);
+                    setNewCategory(e.target.value);
+                  }
+                }}
                 className="w-full rounded-xl border border-input bg-card px-3 py-2 text-sm"
               >
-                {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+                <option value="__new__">+ Nieuwe categorie…</option>
               </select>
+              {isNewCat && (
+                <Input
+                  value={newCatName}
+                  onChange={(e) => setNewCatName(e.target.value)}
+                  placeholder="Naam nieuwe categorie…"
+                  className="bg-card"
+                  autoFocus
+                />
+              )}
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Nederlands</label>
@@ -327,7 +424,7 @@ export function JapanTravel({ onBack }: { onBack: () => void }) {
           <div className="px-5 pt-2 pb-6 shrink-0 border-t border-border/40">
             <Button
               className="w-full rounded-xl"
-              disabled={!newNl.trim() || !newJp.trim() || savePhrase.isPending}
+              disabled={!newNl.trim() || !newJp.trim() || !activeCategory || savePhrase.isPending}
               onClick={() => savePhrase.mutate()}
             >
               {savePhrase.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : editing ? "Opslaan" : "Toevoegen"}
