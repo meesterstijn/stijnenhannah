@@ -42,7 +42,7 @@ export function VerjaarDagWidget() {
     >
       <Cake className="h-5 w-5 text-primary shrink-0" strokeWidth={1.6} />
       <div className="flex-1 min-w-0">
-        <p className="font-serif text-base font-semibold leading-tight">Verjaardagen</p>
+        <p className="font-serif text-base font-semibold leading-tight truncate">Verjaardagen</p>
         {isLoading && <p className="text-xs text-muted-foreground mt-0.5">Laden…</p>}
         {!isLoading && birthdays.length === 0 && (
           <p className="text-xs text-muted-foreground mt-0.5">Nog geen verjaardagen</p>

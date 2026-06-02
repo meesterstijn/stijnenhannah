@@ -47,8 +47,8 @@ export function SchoonmaakWidget() {
     >
       <Sparkles className="h-5 w-5 text-primary shrink-0" strokeWidth={1.6} />
       <div className="flex-1 min-w-0">
-        <p className="font-serif text-base font-semibold leading-tight">Schoonmaak</p>
-        <p className="text-xs text-muted-foreground mt-0.5 leading-tight">{desc}</p>
+        <p className="font-serif text-base font-semibold leading-tight truncate">Schoonmaak</p>
+        <p className="text-xs text-muted-foreground mt-0.5 leading-tight truncate">{desc}</p>
       </div>
       <ArrowRight className="h-3.5 w-3.5 text-muted-foreground shrink-0 group-hover:text-primary transition-colors" />
     </Link>
