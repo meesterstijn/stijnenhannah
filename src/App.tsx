@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
+import { HashRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { SiteLayout } from "@/components/site-layout";
@@ -40,6 +40,12 @@ function NotFound() {
       </div>
     </div>
   );
+}
+
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+  return null;
 }
 
 function AppRoutes() {
@@ -104,6 +110,7 @@ export default function App() {
       <AuthProvider>
         <SpotifyCallbackHandler />
         <HashRouter>
+          <ScrollToTop />
           <AppRoutes />
         </HashRouter>
       </AuthProvider>

@@ -2,9 +2,12 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Check, Loader2, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { ArrowLeft, Check, Loader2, Plus, RotateCcw, Trash2, Luggage, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { JapanTravel } from "./JapanTravel";
+
+type View = "home" | "paklijst" | "japan";
 
 type PackingItem = {
   id: string;
@@ -24,16 +27,53 @@ const PERSONS: { key: Person; label: string }[] = [
 
 const CATEGORIES = ["Documenten", "Kleding", "Toilettas", "Elektronica", "Overig"];
 
-async function fetchItems(): Promise<PackingItem[]> {
-  const { data, error } = await supabase
-    .from("packing_items")
-    .select("*")
-    .order("position", { ascending: true });
-  if (error) throw error;
-  return data ?? [];
+export default function Vakantie() {
+  const [view, setView] = useState<View>("home");
+
+  if (view === "paklijst") return <PackingListView onBack={() => setView("home")} />;
+  if (view === "japan") return <JapanTravel onBack={() => setView("home")} />;
+
+  return (
+    <div className="max-w-lg mx-auto space-y-6">
+      <div className="flex items-center gap-3">
+        <Link to="/" className="text-muted-foreground hover:text-foreground transition-colors">
+          <ArrowLeft className="h-5 w-5" />
+        </Link>
+        <h1 className="font-serif text-2xl font-semibold flex-1">Vakantie</h1>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <button
+          onClick={() => setView("paklijst")}
+          className="rounded-2xl bg-card border border-border/60 p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all flex items-center gap-4 text-left"
+        >
+          <div className="h-10 w-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
+            <Luggage className="h-5 w-5 text-primary" strokeWidth={1.6} />
+          </div>
+          <div className="min-w-0">
+            <p className="font-serif text-base font-semibold">Paklijst</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Inpakken voor de reis</p>
+          </div>
+        </button>
+
+        <button
+          onClick={() => setView("japan")}
+          className="rounded-2xl bg-card border border-border/60 p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all flex items-center gap-4 text-left"
+        >
+          <div className="h-10 w-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
+            <Globe className="h-5 w-5 text-primary" strokeWidth={1.6} />
+          </div>
+          <div className="min-w-0">
+            <p className="font-serif text-base font-semibold">Japan</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Zinnen &amp; vertaler</p>
+          </div>
+        </button>
+      </div>
+    </div>
+  );
 }
 
-export default function Vakantie() {
+function PackingListView({ onBack }: { onBack: () => void }) {
   const queryClient = useQueryClient();
   const [person, setPerson] = useState<Person>("stijn");
   const [newText, setNewText] = useState("");
@@ -41,7 +81,14 @@ export default function Vakantie() {
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ["packing_items"],
-    queryFn: fetchItems,
+    queryFn: async (): Promise<PackingItem[]> => {
+      const { data, error } = await supabase
+        .from("packing_items")
+        .select("*")
+        .order("position", { ascending: true });
+      if (error) throw error;
+      return data ?? [];
+    },
   });
 
   const checkedKey = person === "stijn" ? "checked_stijn" : "checked_hannah";
@@ -111,10 +158,13 @@ export default function Vakantie() {
   return (
     <div className="max-w-lg mx-auto space-y-6">
       <div className="flex items-center gap-3">
-        <Link to="/" className="text-muted-foreground hover:text-foreground transition-colors">
+        <button
+          onClick={onBack}
+          className="text-muted-foreground hover:text-foreground transition-colors"
+        >
           <ArrowLeft className="h-5 w-5" />
-        </Link>
-        <h1 className="font-serif text-2xl font-semibold flex-1">Vakantie</h1>
+        </button>
+        <h1 className="font-serif text-2xl font-semibold flex-1">Paklijst</h1>
         {checked > 0 && (
           <button
             onClick={() => resetAll.mutate()}
@@ -127,7 +177,6 @@ export default function Vakantie() {
         )}
       </div>
 
-      {/* Persoon toggle */}
       <div className="flex gap-1 p-1 rounded-xl bg-muted w-fit">
         {PERSONS.map((p) => (
           <button
@@ -144,7 +193,6 @@ export default function Vakantie() {
         ))}
       </div>
 
-      {/* Voortgang */}
       {total > 0 && (
         <div className="flex items-center gap-3">
           <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
@@ -207,7 +255,6 @@ export default function Vakantie() {
         </div>
       )}
 
-      {/* Nieuw item */}
       <div className="rounded-2xl bg-card border border-border/60 shadow-sm p-5 space-y-3">
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Nieuw item</p>
         <div className="flex gap-2">
