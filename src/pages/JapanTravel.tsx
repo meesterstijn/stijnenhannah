@@ -315,7 +315,17 @@ export function JapanTravel({ onBack }: { onBack: () => void }) {
 
           {result && (
             <div className="rounded-2xl bg-card border border-border/60 p-5 space-y-3">
-              <p className="text-2xl font-medium leading-relaxed">{result.text}</p>
+              <div className="flex items-start gap-3">
+                <p className="text-2xl font-medium leading-relaxed flex-1">{result.text}</p>
+                {langPair.to === "JA" && (
+                  <button
+                    onClick={() => speakJapanese(result.text)}
+                    className="mt-1 shrink-0 h-9 w-9 rounded-xl flex items-center justify-center bg-accent/40 hover:bg-accent transition-colors"
+                  >
+                    <Volume2 className="h-4 w-4 text-muted-foreground" />
+                  </button>
+                )}
+              </div>
               {result.romaji && (
                 <p className="text-sm text-muted-foreground italic leading-relaxed">{result.romaji}</p>
               )}
