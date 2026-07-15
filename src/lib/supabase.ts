@@ -44,3 +44,53 @@ export type DailyPromptRun = {
   response: string;
   created_at: string;
 };
+
+export type Plant = {
+  id: string;
+  name: string;
+  species: string | null;
+  fun_fact: string | null;
+  location: string | null;
+  lifecycle: string | null;
+  size_cm: number | null;
+  sun_needs: string | null;
+  season_notes: string | null;
+  water_notes: string | null;
+  water_tags: string[];
+  water_interval_days: number | null;
+  last_watered_at: string | null;
+  last_water_reminder_sent_at: string | null;
+  feeding_notes: string | null;
+  soil_notes: string | null;
+  temperature_notes: string | null;
+  humidity_notes: string | null;
+  winter_hardiness: string | null;
+  winter_notes: string | null;
+  pruning_notes: string | null;
+  pest_notes: string | null;
+  toxic_to_humans: boolean;
+  toxic_to_cats: boolean;
+  toxicity_notes: string | null;
+  sow_months: string[];
+  sow_week: string | null;
+  sow_notes: string | null;
+  bloom_months: string[];
+  bloom_week: string | null;
+  bloom_notes: string | null;
+  propagation_methods: string[];
+  propagation_notes: string | null;
+  harvest_notes: string | null;
+  harvest_months: string[];
+  harvest_week: string | null;
+  photo_url: string | null;
+  reminders_enabled: boolean;
+  created_at: string;
+};
+
+export type PlantPhoto = {
+  id: string;
+  plant_id: string;
+  photo_url: string;
+  note: string | null;
+  taken_at: string;
+};

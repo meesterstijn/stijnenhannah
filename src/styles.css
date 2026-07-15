@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400&family=Inter:wght@300;400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400&family=Inter:wght@300;400;500;600;700&family=Pixelify+Sans:wght@400;500;600;700&display=swap");
 @import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
@@ -148,13 +148,293 @@
     color: var(--color-foreground);
     font-family: var(--font-sans);
     background-image:
-      radial-gradient(circle at 15% 10%, oklch(0.92 0.06 60 / 0.5), transparent 50%),
-      radial-gradient(circle at 85% 90%, oklch(0.88 0.05 30 / 0.4), transparent 55%);
+      radial-gradient(
+        circle at 15% 10%,
+        oklch(0.92 0.06 60 / 0.5),
+        transparent 50%
+      ),
+      radial-gradient(
+        circle at 85% 90%,
+        oklch(0.88 0.05 30 / 0.4),
+        transparent 55%
+      );
     background-attachment: fixed;
   }
 
-  h1, h2, h3, .font-serif {
+  h1,
+  h2,
+  h3,
+  .font-serif {
     font-family: var(--font-serif);
     letter-spacing: -0.02em;
   }
+}
+
+/*
+ * "Tuinieren" page theme — a farm-sim-inspired look (warm wood panels,
+ * parchment insets, gold accents) built from scratch to match a reference
+ * screenshot, scoped entirely under .tuinieren-theme so it never leaks
+ * into the rest of the app's design system.
+ */
+.tuinieren-theme {
+  --sv-wood-dark: #6b3f1f;
+  --sv-wood-mid: #e8a44c;
+  --sv-wood-light: #f2bc74;
+  --sv-cream: #f8edd2;
+  --sv-cream-dark: #e9d7ac;
+  --sv-text: #4a2e1a;
+  --sv-gold: #d99a24;
+  --sv-green: #4c7a3d;
+  --sv-green-dark: #35592a;
+  --sv-terracotta: #b5502f;
+
+  padding: 1.25rem;
+  color: var(--sv-text);
+}
+
+.tuinieren-theme:not(.sv-dialog)::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: url("/stijnenhannah/1269904.png") center / cover no-repeat;
+
+}
+
+@media (min-width: 640px) {
+  .tuinieren-theme {
+    padding: 2rem;
+  }
+}
+
+/* Let the Tuinieren sky backdrop show through the site navbar seamlessly,
+   without affecting the navbar on any other page. */
+body:has(.tuinieren-theme) header {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  border-color: transparent !important;
+  color: #f8f0da;
+}
+
+body:has(.tuinieren-theme) header .text-muted-foreground {
+  color: #e8dcc0 !important;
+}
+
+body:has(.tuinieren-theme) header a,
+body:has(.tuinieren-theme) header span {
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.45);
+}
+
+.tuinieren-theme .sv-title-tag {
+  display: inline-block;
+  background: var(--sv-cream);
+  border: 3px solid var(--sv-wood-dark);
+  border-radius: 8px;
+  padding: 0.5rem 1.25rem;
+  color: var(--sv-text);
+  box-shadow: inset 0 1px 2px rgba(59, 33, 12, 0.15);
+}
+
+.tuinieren-theme .sv-heading {
+  font-family: "Pixelify Sans", var(--font-serif), serif;
+  color: var(--sv-text);
+  letter-spacing: 0.01em;
+}
+
+.tuinieren-theme .sv-panel {
+  background-image: linear-gradient(
+    180deg,
+    #f6c583 0%,
+    var(--sv-wood-mid) 55%,
+    #c07f2e 100%
+  );
+  border: 4px solid var(--sv-wood-dark);
+  border-radius: 16px;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.3),
+    inset 0 -4px 8px rgba(0, 0, 0, 0.25),
+    0 4px 10px rgba(59, 33, 12, 0.25);
+  color: var(--sv-text);
+}
+
+.tuinieren-theme .sv-inset {
+  background: var(--sv-cream);
+  border: 3px solid var(--sv-wood-dark);
+  border-radius: 10px;
+  box-shadow: inset 0 2px 4px rgba(59, 33, 12, 0.2);
+  color: var(--sv-text);
+}
+
+.tuinieren-theme .sv-button {
+  font-family: "Pixelify Sans", var(--font-serif), serif;
+  background: linear-gradient(
+    180deg,
+    var(--sv-wood-light) 0%,
+    var(--sv-wood-mid) 100%
+  );
+  border: 3px solid var(--sv-wood-dark);
+  border-radius: 12px;
+  color: var(--sv-text);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.3);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    0 3px 0 var(--sv-wood-dark),
+    0 4px 6px rgba(59, 33, 12, 0.3);
+  transition:
+    transform 0.08s ease,
+    box-shadow 0.08s ease;
+}
+
+.tuinieren-theme .sv-button:hover {
+  filter: brightness(1.06);
+}
+
+.tuinieren-theme .sv-button:active {
+  transform: translateY(2px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 1px 0 var(--sv-wood-dark),
+    0 2px 3px rgba(59, 33, 12, 0.3);
+}
+
+.tuinieren-theme .sv-button:disabled {
+  filter: grayscale(0.4) brightness(0.9);
+  cursor: not-allowed;
+  transform: none;
+}
+
+.tuinieren-theme .sv-button-destructive {
+  background: linear-gradient(180deg, #e2734f 0%, var(--sv-terracotta) 100%);
+}
+
+.tuinieren-theme .sv-chip {
+  font-family: "Inter", var(--font-sans), sans-serif;
+  background: var(--sv-cream);
+  border: 2px solid var(--sv-wood-dark);
+  border-radius: 999px;
+  color: var(--sv-text);
+  box-shadow: inset 0 1px 2px rgba(59, 33, 12, 0.12);
+  transition:
+    transform 0.08s ease,
+    filter 0.08s ease;
+}
+
+.tuinieren-theme .sv-chip:hover {
+  filter: brightness(0.97);
+}
+
+.tuinieren-theme .sv-chip.active {
+  background: linear-gradient(
+    180deg,
+    var(--sv-wood-light) 0%,
+    var(--sv-wood-mid) 100%
+  );
+  color: var(--sv-text);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.3);
+  border-color: var(--sv-wood-dark);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 2px 4px rgba(59, 33, 12, 0.25);
+}
+
+.tuinieren-theme .sv-chip.active.warn {
+  background: linear-gradient(180deg, #e2734f 0%, var(--sv-terracotta) 100%);
+}
+
+.tuinieren-theme .sv-button-ghost {
+  background: transparent;
+  border: 2px solid var(--sv-wood-dark);
+  color: var(--sv-wood-dark);
+  box-shadow: none;
+  text-shadow: none;
+}
+
+.tuinieren-theme .sv-button-ghost:hover {
+  background: rgba(92, 52, 23, 0.08);
+}
+
+.tuinieren-theme .sv-button-ghost:active {
+  transform: translateY(1px);
+  box-shadow: none;
+}
+
+.tuinieren-theme .sv-muted {
+  color: var(--sv-wood-dark);
+  opacity: 0.75;
+}
+
+.tuinieren-theme .sv-destructive-text {
+  color: var(--sv-terracotta);
+}
+
+.tuinieren-theme .sv-icon-slot {
+  background: linear-gradient(
+    180deg,
+    var(--sv-cream) 0%,
+    var(--sv-cream-dark) 100%
+  );
+  border: 2px solid var(--sv-wood-dark);
+  border-radius: 8px;
+  box-shadow: inset 0 1px 2px rgba(59, 33, 12, 0.15);
+  color: var(--sv-wood-dark);
+}
+
+.tuinieren-theme .sv-badge-overdue {
+  background: linear-gradient(180deg, #e2734f 0%, var(--sv-terracotta) 100%);
+  border: 2px solid var(--sv-wood-dark);
+  color: #fff8ea;
+  text-shadow: 0 1px 1px rgba(59, 33, 12, 0.5);
+}
+
+.tuinieren-theme .sv-badge-ok {
+  background: var(--sv-cream);
+  border: 2px solid var(--sv-wood-dark);
+  color: var(--sv-text);
+}
+
+.tuinieren-theme.sv-dialog {
+  background: linear-gradient(
+    180deg,
+    #f6c583 0%,
+    var(--sv-wood-mid) 55%,
+    #c07f2e 100%
+  );
+  border: 5px solid var(--sv-wood-dark) !important;
+  border-radius: 18px !important;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.3),
+    inset 0 -4px 8px rgba(0, 0, 0, 0.25),
+    0 10px 30px rgba(59, 33, 12, 0.4) !important;
+  color: var(--sv-text);
+}
+
+.tuinieren-theme .sv-dialog-inner {
+  background: var(--sv-cream);
+  border: 3px solid var(--sv-wood-dark);
+  border-radius: 12px;
+  box-shadow: inset 0 2px 4px rgba(59, 33, 12, 0.15);
+}
+
+.tuinieren-theme input,
+.tuinieren-theme textarea,
+.tuinieren-theme select {
+  background: var(--sv-cream) !important;
+  border: 2px solid var(--sv-wood-dark) !important;
+  border-radius: 8px !important;
+  color: var(--sv-text) !important;
+  box-shadow: inset 0 1px 3px rgba(59, 33, 12, 0.18) !important;
+}
+
+.tuinieren-theme input::placeholder,
+.tuinieren-theme textarea::placeholder {
+  color: #9c7c53;
+}
+
+.tuinieren-theme input:focus,
+.tuinieren-theme textarea:focus,
+.tuinieren-theme select:focus {
+  outline: none !important;
+  box-shadow:
+    inset 0 1px 3px rgba(59, 33, 12, 0.18),
+    0 0 0 3px rgba(217, 154, 36, 0.4) !important;
 }

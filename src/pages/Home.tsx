@@ -17,6 +17,7 @@ import {
   NotebookPen,
   CalendarDays,
   Sparkles,
+  Sprout,
 } from "lucide-react";
 
 type GroceryItem = { id: string; text: string; done: boolean };
@@ -97,6 +98,12 @@ export default function Home() {
           icon={Sparkles}
           title="Dagvraag"
           desc="Elke dag een antwoord van Gemini"
+        />
+        <QuickCard
+          to="/tuinieren"
+          icon={Sprout}
+          title="Tuinieren"
+          desc="Houd de verzorging van je planten bij"
         />
         <SpotifyWidget />
         <VerjaarDagWidget />
