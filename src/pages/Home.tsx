@@ -40,7 +40,7 @@ export default function Home() {
       <section className="grid gap-4 sm:grid-cols-3">
         <WeatherWidget />
         <div className="hidden sm:block"><SnelleLinksWidget /></div>
-        <BijbelWidget />
+        <div className="hidden sm:block"><BijbelWidget /></div>
       </section>
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <QuickCard

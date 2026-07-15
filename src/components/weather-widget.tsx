@@ -74,7 +74,7 @@ export function WeatherWidget() {
   );
   if (!data)
     return (
-      <div className="rounded-2xl bg-gradient-to-br from-accent/40 to-secondary/60 border border-border/50 p-5 flex flex-col gap-3 animate-pulse sm:min-h-[148px]">
+      <div className="rounded-2xl bg-gradient-to-br from-accent/40 to-secondary/60 border border-border/50 p-3 sm:p-5 flex flex-col gap-3 animate-pulse sm:min-h-[148px]">
         <div className="flex items-center justify-between gap-2">
           <div className="flex flex-col gap-2">
             <div className="h-3 w-24 rounded bg-muted-foreground/20" />
@@ -83,7 +83,7 @@ export function WeatherWidget() {
           </div>
           <div className="h-10 w-10 rounded-full bg-muted-foreground/20" />
         </div>
-        <div className="grid grid-cols-3 gap-1 pt-3 border-t border-border/40">
+        <div className="hidden sm:grid grid-cols-3 gap-1 pt-3 border-t border-border/40">
           {[0, 1, 2].map((i) => (
             <div key={i} className="flex flex-col items-center gap-1">
               <div className="h-3 w-8 rounded bg-muted-foreground/20" />
@@ -98,16 +98,16 @@ export function WeatherWidget() {
   const Icon = iconFor(data.code);
 
   return (
-    <Link to="/weer" className="rounded-2xl bg-gradient-to-br from-accent/40 to-secondary/60 border border-border/50 p-5 shadow-sm flex flex-col gap-3 hover:shadow-md hover:-translate-y-0.5 transition-all">
+    <Link to="/weer" className="rounded-2xl bg-gradient-to-br from-accent/40 to-secondary/60 border border-border/50 p-3 sm:p-5 shadow-sm flex flex-col gap-2 sm:gap-3 hover:shadow-md hover:-translate-y-0.5 transition-all">
       <div className="flex items-center justify-between gap-2">
         <div>
           <p className="text-xs uppercase tracking-widest text-muted-foreground">{data.city}</p>
-          <p className="font-serif text-3xl font-semibold mt-1">{data.temp}°</p>
+          <p className="font-serif text-2xl sm:text-3xl font-semibold mt-1">{data.temp}°</p>
           <p className="text-sm text-muted-foreground">{descFor(data.code)}</p>
         </div>
-        <Icon className="h-10 w-10 text-primary" strokeWidth={1.5} />
+        <Icon className="h-8 w-8 sm:h-10 sm:w-10 text-primary" strokeWidth={1.5} />
       </div>
-      <div className="grid grid-cols-3 gap-1 pt-3 border-t border-border/40">
+      <div className="hidden sm:grid grid-cols-3 gap-1 pt-3 border-t border-border/40">
         {data.daily.map((d) => {
           const DI = iconFor(d.code);
           const day = new Date(d.date).toLocaleDateString("nl-NL", { weekday: "short" });
