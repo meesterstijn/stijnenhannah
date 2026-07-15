@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { Sparkles, ArrowRight } from "lucide-react";
+import { Sparkles } from "lucide-react";
 
 type CleaningTask = {
   id: string;
@@ -50,7 +50,6 @@ export function SchoonmaakWidget() {
         <p className="font-serif text-base font-semibold leading-tight truncate">Schoonmaak</p>
         <p className="text-xs text-muted-foreground mt-0.5 leading-tight truncate">{desc}</p>
       </div>
-      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground shrink-0 group-hover:text-primary transition-colors" />
     </Link>
   );
 }

@@ -1,5 +1,11 @@
 import { useEffect } from "react";
-import { HashRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import {
+  HashRouter,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+} from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { SiteLayout } from "@/components/site-layout";
@@ -9,6 +15,7 @@ import Home from "@/pages/Home";
 import Boodschappen from "@/pages/Boodschappen";
 import Recepten from "@/pages/Recepten";
 import Weekmenu from "@/pages/Weekmenu";
+import Dagvraag from "@/pages/Dagvraag";
 import Fotografie from "@/pages/Fotografie";
 import Notities from "@/pages/Notities";
 import Todo from "@/pages/Todo";
@@ -26,7 +33,9 @@ function NotFound() {
     <div className="flex min-h-[60vh] items-center justify-center px-4">
       <div className="max-w-md text-center">
         <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Pagina niet gevonden</h2>
+        <h2 className="mt-4 text-xl font-semibold text-foreground">
+          Pagina niet gevonden
+        </h2>
         <p className="mt-2 text-sm text-muted-foreground">
           Deze pagina bestaat niet of is verplaatst.
         </p>
@@ -45,7 +54,9 @@ function NotFound() {
 
 function ScrollToTop() {
   const { pathname } = useLocation();
-  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
   return null;
 }
 
@@ -75,6 +86,7 @@ function AppRoutes() {
         <Route path="/boodschappen" element={<Boodschappen />} />
         <Route path="/recepten" element={<Recepten />} />
         <Route path="/weekmenu" element={<Weekmenu />} />
+        <Route path="/dagvraag" element={<Dagvraag />} />
         <Route path="/fotografie" element={<Fotografie />} />
         <Route path="/notities" element={<Notities />} />
         <Route path="/todo" element={<Todo />} />

@@ -5,7 +5,17 @@ import { parseItem, getHistory, saveToHistory } from "@/lib/history";
 import { getCategories, getAssignments } from "@/lib/categories";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { HistoryPicker } from "@/components/history-picker";
 import { Plus, Loader2, Trash2 } from "lucide-react";
 
@@ -18,7 +28,15 @@ async function fetchItems(tableName: string): Promise<GroceryItem[]> {
   return data;
 }
 
-function GroceryList({ tableName, title, historyTable = "product_history" }: { tableName: string; title?: string; historyTable?: string }) {
+function GroceryList({
+  tableName,
+  title,
+  historyTable = "product_history",
+}: {
+  tableName: string;
+  title?: string;
+  historyTable?: string;
+}) {
   const queryClient = useQueryClient();
   const [text, setText] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
@@ -49,7 +67,11 @@ function GroceryList({ tableName, title, historyTable = "product_history" }: { t
 
   const grouped = useMemo(() => {
     const assigned = new Set<string>();
-    const result: { catId: string | null; catName: string | null; items: GroceryItem[] }[] = [];
+    const result: {
+      catId: string | null;
+      catName: string | null;
+      items: GroceryItem[];
+    }[] = [];
 
     for (const cat of categories) {
       const catItems = items.filter((i) => {
@@ -69,6 +91,22 @@ function GroceryList({ tableName, title, historyTable = "product_history" }: { t
 
     return result;
   }, [items, categories, assignments]);
+
+  const categoryOrder = useMemo(
+    () => Object.fromEntries(categories.map((c, i) => [c.id, i])),
+    [categories],
+  );
+
+  function sortByCategory(names: string[]): string[] {
+    return [...names].sort((a, b) => {
+      const catA = assignments[a.toLowerCase()];
+      const catB = assignments[b.toLowerCase()];
+      const orderA = catA !== undefined ? (categoryOrder[catA] ?? 999) : 999;
+      const orderB = catB !== undefined ? (categoryOrder[catB] ?? 999) : 999;
+      if (orderA !== orderB) return orderA - orderB;
+      return a.localeCompare(b, "nl");
+    });
+  }
 
   const addItem = useMutation({
     mutationFn: async (itemText: string) => {
@@ -94,7 +132,10 @@ function GroceryList({ tableName, title, historyTable = "product_history" }: { t
 
   const updateItem = useMutation({
     mutationFn: async ({ id, text }: { id: string; text: string }) => {
-      const { error } = await supabase.from(tableName).update({ text }).eq("id", id);
+      const { error } = await supabase
+        .from(tableName)
+        .update({ text })
+        .eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [tableName] }),
@@ -116,9 +157,11 @@ function GroceryList({ tableName, title, historyTable = "product_history" }: { t
     setText(value);
     const trimmed = value.trim();
     if (trimmed) {
-      const matches = historyItems
-        .filter((h) => h.toLowerCase().startsWith(trimmed.toLowerCase()))
-        .slice(0, 6);
+      const matches = sortByCategory(
+        historyItems.filter((h) =>
+          h.toLowerCase().startsWith(trimmed.toLowerCase()),
+        ),
+      ).slice(0, 6);
       setSuggestions(matches);
       setShowSuggestions(matches.length > 0);
     } else {
@@ -155,7 +198,9 @@ function GroceryList({ tableName, title, historyTable = "product_history" }: { t
     <div className="space-y-4">
       {title && (
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Boodschappen</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+            Boodschappen
+          </p>
           <h2 className="font-serif text-2xl font-semibold mt-1">{title}</h2>
         </div>
       )}
@@ -190,7 +235,8 @@ function GroceryList({ tableName, title, historyTable = "product_history" }: { t
                   <AlertDialogHeader>
                     <AlertDialogTitle>Lijst leegmaken?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Alle {items.length} producten worden verwijderd. Dit kan niet ongedaan worden gemaakt.
+                      Alle {items.length} producten worden verwijderd. Dit kan
+                      niet ongedaan worden gemaakt.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -208,7 +254,9 @@ function GroceryList({ tableName, title, historyTable = "product_history" }: { t
                 value={text}
                 onChange={(e) => handleTextChange(e.target.value)}
                 onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-                onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+                onFocus={() =>
+                  suggestions.length > 0 && setShowSuggestions(true)
+                }
                 placeholder=""
                 className="bg-card"
                 autoComplete="off"
@@ -239,7 +287,9 @@ function GroceryList({ tableName, title, historyTable = "product_history" }: { t
             </Button>
           </form>
           {saveError && (
-            <p className="mt-2 text-sm text-destructive">Kon niet opslaan: {saveError}</p>
+            <p className="mt-2 text-sm text-destructive">
+              Kon niet opslaan: {saveError}
+            </p>
           )}
         </div>
 
@@ -257,7 +307,9 @@ function GroceryList({ tableName, title, historyTable = "product_history" }: { t
           {grouped.map((group, gi) => (
             <div key={group.catId ?? "none"}>
               {group.catName ? (
-                <div className={`px-4 py-2 text-xs font-medium text-muted-foreground bg-muted/30 border-b border-border/50${gi > 0 ? " border-t border-border/50" : ""}`}>
+                <div
+                  className={`px-4 py-2 text-xs font-medium text-muted-foreground bg-muted/30 border-b border-border/50${gi > 0 ? " border-t border-border/50" : ""}`}
+                >
                   {group.catName}
                 </div>
               ) : gi > 0 ? (
@@ -277,7 +329,8 @@ function GroceryList({ tableName, title, historyTable = "product_history" }: { t
                         if (newQty <= 0) {
                           removeItem.mutate(i.id);
                         } else {
-                          const newText = newQty === 1 ? name : `${newQty}x ${name}`;
+                          const newText =
+                            newQty === 1 ? name : `${newQty}x ${name}`;
                           updateItem.mutate({ id: i.id, text: newText });
                         }
                       }}
@@ -306,7 +359,11 @@ export default function Boodschappen() {
         <div className="space-y-10">
           <GroceryList tableName="groceries" />
           <div className="border-t border-border/40 pt-10">
-            <GroceryList tableName="groceries_upfront" title="Upfront" historyTable="product_history_upfront" />
+            <GroceryList
+              tableName="groceries_upfront"
+              title="Upfront"
+              historyTable="product_history_upfront"
+            />
           </div>
         </div>
         <SupermarktLinks />
@@ -347,7 +404,9 @@ function SupermarktLinks() {
   return (
     <aside className="space-y-4">
       <div>
-        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Folder</p>
+        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+          Folder
+        </p>
         <h2 className="font-serif text-2xl font-semibold mt-1">Aanbiedingen</h2>
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -360,7 +419,9 @@ function SupermarktLinks() {
             className={`${s.className} rounded-2xl p-5 flex flex-col justify-between min-h-[90px] font-semibold text-base hover:opacity-90 active:opacity-80 transition-opacity`}
           >
             <span>{s.name}</span>
-            <span className="text-xs font-normal opacity-70 mt-2">Bekijk folder →</span>
+            <span className="text-xs font-normal opacity-70 mt-2">
+              Bekijk folder →
+            </span>
           </a>
         ))}
       </div>
@@ -389,17 +450,28 @@ function ItemRow({
       <div className="flex-1 min-w-0 py-3">
         <span className="text-base">{parsedName}</span>
       </div>
-      <div className="flex items-center gap-1 flex-shrink-0 py-2" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="flex items-center gap-1 flex-shrink-0 py-2"
+        onClick={(e) => e.stopPropagation()}
+      >
         <button
-          onClick={(e) => { e.stopPropagation(); onQtyChange(parsedQty - 1); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onQtyChange(parsedQty - 1);
+          }}
           className="self-stretch w-10 rounded-lg border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors text-base font-medium"
           aria-label="Minder"
         >
           −
         </button>
-        <span className="w-6 text-center text-sm tabular-nums">{parsedQty}</span>
+        <span className="w-6 text-center text-sm tabular-nums">
+          {parsedQty}
+        </span>
         <button
-          onClick={(e) => { e.stopPropagation(); onQtyChange(parsedQty + 1); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onQtyChange(parsedQty + 1);
+          }}
           className="self-stretch w-10 rounded-lg border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors text-base font-medium"
           aria-label="Meer"
         >

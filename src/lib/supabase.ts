@@ -28,3 +28,19 @@ export type Recipe = {
   category: string;
   created_at: string;
 };
+
+export type DailyPrompt = {
+  id: string;
+  prompt: string;
+  hour: number;
+  minute: number;
+  updated_at: string;
+};
+
+export type DailyPromptRun = {
+  id: string;
+  run_date: string;
+  prompt: string;
+  response: string;
+  created_at: string;
+};

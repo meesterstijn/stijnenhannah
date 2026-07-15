@@ -13,15 +13,21 @@ export function SiteLayout() {
   return (
     <div className="min-h-screen flex flex-col">
       <header className="border-b border-border/60 backdrop-blur-sm bg-background/70 sticky top-0 z-40">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-4">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 grid grid-cols-[auto_1fr_auto] items-center gap-4">
           <Link to="/" className="flex items-center gap-2 group">
             <Home className="h-5 w-5" />
-            <span className="font-serif text-xl font-semibold tracking-tight">Ons Huisje</span>
-            <span className="hidden md:inline text-xs text-muted-foreground font-sans font-normal ml-1 capitalize">
-              {new Date().toLocaleDateString("nl-NL", { weekday: "long", day: "numeric", month: "long" })}
+            <span className="font-serif text-xl font-semibold tracking-tight">
+              Ons Huisje
             </span>
           </Link>
-          <nav className="ml-auto flex items-center gap-1 sm:gap-2">
+          <span className="hidden md:block text-center text-xs text-muted-foreground font-sans font-normal capitalize">
+            {new Date().toLocaleDateString("nl-NL", {
+              weekday: "long",
+              day: "numeric",
+              month: "long",
+            })}
+          </span>
+          <nav className="flex items-center gap-1 sm:gap-2 justify-self-end">
             {nav.map((item) => {
               const active = pathname === item.to;
               const Icon = item.icon;
@@ -48,7 +54,6 @@ export function SiteLayout() {
           <Outlet />
         </ErrorBoundary>
       </main>
-
     </div>
   );
 }

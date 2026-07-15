@@ -9,7 +9,15 @@ import { SpotifyWidget } from "@/components/spotify-widget";
 import { WifiWidget } from "@/components/wifi-widget";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { ShoppingBasket, BookHeart, Camera, ArrowRight, ListTodo, NotebookPen, CalendarDays } from "lucide-react";
+import {
+  ShoppingBasket,
+  BookHeart,
+  Camera,
+  ListTodo,
+  NotebookPen,
+  CalendarDays,
+  Sparkles,
+} from "lucide-react";
 
 type GroceryItem = { id: string; text: string; done: boolean };
 type Todo = { id: string; text: string; done: boolean; created_at: string };
@@ -26,7 +34,10 @@ export default function Home() {
   const { data: todos = [] } = useQuery({
     queryKey: ["todos", "home-count"],
     queryFn: async (): Promise<Todo[]> => {
-      const { data } = await supabase.from("todos").select("id, text, done, created_at").order("created_at", { ascending: true });
+      const { data } = await supabase
+        .from("todos")
+        .select("id, text, done, created_at")
+        .order("created_at", { ascending: true });
       return (data ?? []) as Todo[];
     },
   });
@@ -39,15 +50,23 @@ export default function Home() {
     <div className="space-y-4">
       <section className="grid gap-4 sm:grid-cols-3">
         <WeatherWidget />
-        <div className="hidden sm:block"><SnelleLinksWidget /></div>
-        <div className="hidden sm:block"><BijbelWidget /></div>
+        <div className="hidden sm:block">
+          <SnelleLinksWidget />
+        </div>
+        <div className="hidden sm:block">
+          <BijbelWidget />
+        </div>
       </section>
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <QuickCard
           to="/boodschappen"
           icon={ShoppingBasket}
           title="Boodschappen"
-          desc={openItems.length ? `${openItems.length} nog te halen` : "Lijst is leeg"}
+          desc={
+            openItems.length
+              ? `${openItems.length} nog te halen`
+              : "Lijst is leeg"
+          }
         />
         <QuickCard
           to="/notities"
@@ -73,6 +92,12 @@ export default function Home() {
           title="Weekmenu"
           desc="Plan de week en genereer je lijst"
         />
+        <QuickCard
+          to="/dagvraag"
+          icon={Sparkles}
+          title="Dagvraag"
+          desc="Elke dag een antwoord van Gemini"
+        />
         <SpotifyWidget />
         <VerjaarDagWidget />
         <SchoonmaakWidget />
@@ -90,7 +115,10 @@ export default function Home() {
 }
 
 function QuickCard({
-  to, icon: Icon, title, desc,
+  to,
+  icon: Icon,
+  title,
+  desc,
 }: {
   to: string;
   icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
@@ -104,10 +132,13 @@ function QuickCard({
     >
       <Icon className="h-5 w-5 text-primary shrink-0" strokeWidth={1.6} />
       <div className="flex-1 min-w-0">
-        <p className="font-serif text-base font-semibold leading-tight truncate">{title}</p>
-        <p className="text-xs text-muted-foreground mt-0.5 leading-tight truncate">{desc}</p>
+        <p className="font-serif text-base font-semibold leading-tight truncate">
+          {title}
+        </p>
+        <p className="text-xs text-muted-foreground mt-0.5 leading-tight truncate">
+          {desc}
+        </p>
       </div>
-      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground shrink-0 group-hover:text-primary transition-colors" />
     </Link>
   );
 }

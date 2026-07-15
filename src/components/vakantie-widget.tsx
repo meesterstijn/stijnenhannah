@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { Luggage, ArrowRight } from "lucide-react";
+import { Luggage } from "lucide-react";
 
 type PackingItem = { id: string; checked_stijn: boolean; checked_hannah: boolean };
 
@@ -36,7 +36,6 @@ export function VakantieWidget() {
         <p className="font-serif text-base font-semibold leading-tight truncate">Vakantie</p>
         <p className="text-xs text-muted-foreground mt-0.5 leading-tight truncate">{desc}</p>
       </div>
-      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground shrink-0 group-hover:text-primary transition-colors" />
     </Link>
   );
 }

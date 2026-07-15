@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { Cake, ArrowRight } from "lucide-react";
+import { Cake } from "lucide-react";
 
 type Birthday = { id: string; name: string; day: number; month: number; year: number | null };
 
@@ -57,7 +57,6 @@ export function VerjaarDagWidget() {
           );
         })()}
       </div>
-      <ArrowRight className="h-3.5 w-3.5 text-muted-foreground shrink-0 group-hover:text-primary transition-colors" />
     </Link>
   );
 }
