@@ -1,13 +1,31 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetClose } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetClose,
+} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Trash2, Pencil, Plus, X, LayoutList } from "lucide-react";
+import {
+  Trash2,
+  Pencil,
+  Plus,
+  X,
+  LayoutList,
+  ChevronUp,
+  ChevronDown,
+} from "lucide-react";
 import { getHistory, removeFromHistory, updateInHistory } from "@/lib/history";
 import {
-  getCategories, saveCategories, getAssignments, assignCategory,
-  removeAssignmentsForCategory, type Category,
+  getCategories,
+  saveCategories,
+  getAssignments,
+  assignCategory,
+  removeAssignmentsForCategory,
+  type Category,
 } from "@/lib/categories";
 
 type Props = {
@@ -20,7 +38,13 @@ type Props = {
 
 type Mode = "pick" | "delete" | "manage";
 
-export function HistoryPicker({ open, onOpenChange, onAdd, title = "Eerder toegevoegd", historyTable = "product_history" }: Props) {
+export function HistoryPicker({
+  open,
+  onOpenChange,
+  onAdd,
+  title = "Eerder toegevoegd",
+  historyTable = "product_history",
+}: Props) {
   const queryClient = useQueryClient();
 
   const { data: history = [] } = useQuery({
@@ -89,7 +113,9 @@ export function HistoryPicker({ open, onOpenChange, onAdd, title = "Eerder toege
   }
 
   async function confirmDelete() {
-    await Promise.all(Array.from(toDelete).map((item) => removeFromHistory(item, historyTable)));
+    await Promise.all(
+      Array.from(toDelete).map((item) => removeFromHistory(item, historyTable)),
+    );
     setToDelete(new Set());
     setMode("pick");
     queryClient.invalidateQueries({ queryKey: [historyTable] });
@@ -103,7 +129,10 @@ export function HistoryPicker({ open, onOpenChange, onAdd, title = "Eerder toege
   async function addCategory() {
     const name = newCatName.trim();
     if (!name) return;
-    const id = name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+    const id = name
+      .toLowerCase()
+      .replace(/\s+/g, "-")
+      .replace(/[^a-z0-9-]/g, "");
     await saveCategories([...categories, { id, name }]);
     queryClient.invalidateQueries({ queryKey: ["product_categories"] });
     setNewCatName("");
@@ -116,48 +145,64 @@ export function HistoryPicker({ open, onOpenChange, onAdd, title = "Eerder toege
     queryClient.invalidateQueries({ queryKey: ["product_assignments"] });
   }
 
-  const categoryOrder = Object.fromEntries(categories.map((c, i) => [c.id, i]));
-
-  const PALETTE = ["#DAA464", "#DEC384", "#E8DDB4"];
-
-  function chipStyle(categoryId: string | undefined): React.CSSProperties {
-    if (!categoryId) return {};
-    const idx = categoryOrder[categoryId];
-    if (idx === undefined) return {};
-    return { backgroundColor: PALETTE[idx % 3], borderColor: PALETTE[idx % 3], color: "#5a3e1b" };
+  async function moveCategory(id: string, direction: -1 | 1) {
+    const idx = categories.findIndex((c) => c.id === id);
+    const newIdx = idx + direction;
+    if (idx === -1 || newIdx < 0 || newIdx >= categories.length) return;
+    const reordered = [...categories];
+    [reordered[idx], reordered[newIdx]] = [reordered[newIdx], reordered[idx]];
+    await saveCategories(reordered);
+    queryClient.invalidateQueries({ queryKey: ["product_categories"] });
   }
+
+  const categoryOrder = Object.fromEntries(categories.map((c, i) => [c.id, i]));
 
   const visibleItems = (
     activeCategory === "all"
       ? history
       : activeCategory === "none"
-      ? history.filter((h) => !assignments[h.toLowerCase()])
-      : history.filter((h) => assignments[h.toLowerCase()] === activeCategory)
-  ).slice().sort((a, b) => {
-    const catA = assignments[a.toLowerCase()];
-    const catB = assignments[b.toLowerCase()];
-    const orderA = catA !== undefined ? (categoryOrder[catA] ?? 999) : 999;
-    const orderB = catB !== undefined ? (categoryOrder[catB] ?? 999) : 999;
-    if (orderA !== orderB) return orderA - orderB;
-    return a.localeCompare(b, "nl");
-  });
+        ? history.filter((h) => !assignments[h.toLowerCase()])
+        : history.filter((h) => assignments[h.toLowerCase()] === activeCategory)
+  )
+    .slice()
+    .sort((a, b) => {
+      const catA = assignments[a.toLowerCase()];
+      const catB = assignments[b.toLowerCase()];
+      const orderA = catA !== undefined ? (categoryOrder[catA] ?? 999) : 999;
+      const orderB = catB !== undefined ? (categoryOrder[catB] ?? 999) : 999;
+      if (orderA !== orderB) return orderA - orderB;
+      return a.localeCompare(b, "nl");
+    });
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="top" className="rounded-b-2xl max-h-[85vh] flex flex-col [&>button.absolute]:hidden">
+      <SheetContent
+        side="top"
+        className="rounded-b-2xl max-h-[85vh] flex flex-col [&>button.absolute]:hidden"
+      >
         <SheetHeader className="pb-2 shrink-0">
           <div className="flex items-center justify-between gap-2">
-            <SheetTitle className="hidden">{mode === "manage" ? "Categorieën beheren" : title}</SheetTitle>
+            <SheetTitle className="hidden">
+              {mode === "manage" ? "Categorieën beheren" : title}
+            </SheetTitle>
             <div className="flex gap-2">
               {mode === "pick" && (
                 <>
-                  <Button variant="outline" size="sm" className="rounded-xl text-xs text-muted-foreground"
-                    onClick={() => setMode("manage")}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl text-xs text-muted-foreground"
+                    onClick={() => setMode("manage")}
+                  >
                     <LayoutList className="h-3.5 w-3.5" />
                   </Button>
                   {history.length > 0 && (
-                    <Button variant="outline" size="sm" className="rounded-xl text-xs text-muted-foreground"
-                      onClick={() => setMode("delete")}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-xl text-xs text-muted-foreground"
+                      onClick={() => setMode("delete")}
+                    >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   )}
@@ -165,24 +210,44 @@ export function HistoryPicker({ open, onOpenChange, onAdd, title = "Eerder toege
               )}
               {mode === "delete" && (
                 <>
-                  <Button variant="ghost" size="sm" className="rounded-xl text-xs"
-                    onClick={() => { setMode("pick"); setToDelete(new Set()); }}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="rounded-xl text-xs"
+                    onClick={() => {
+                      setMode("pick");
+                      setToDelete(new Set());
+                    }}
+                  >
                     Annuleer
                   </Button>
-                  <Button variant="destructive" size="sm" className="rounded-xl text-xs"
-                    disabled={toDelete.size === 0} onClick={confirmDelete}>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="rounded-xl text-xs"
+                    disabled={toDelete.size === 0}
+                    onClick={confirmDelete}
+                  >
                     Verwijder {toDelete.size > 0 ? toDelete.size : ""}
                   </Button>
                 </>
               )}
               {mode === "manage" && (
-                <Button variant="ghost" size="sm" className="rounded-xl text-xs"
-                  onClick={() => setMode("pick")}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="rounded-xl text-xs"
+                  onClick={() => setMode("pick")}
+                >
                   Terug
                 </Button>
               )}
               <SheetClose asChild>
-                <Button variant="ghost" size="icon" className="rounded-xl h-8 w-8 text-muted-foreground hover:text-foreground shrink-0">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-xl h-8 w-8 text-muted-foreground hover:text-foreground shrink-0"
+                >
                   <X className="h-4 w-4" />
                 </Button>
               </SheetClose>
@@ -199,6 +264,7 @@ export function HistoryPicker({ open, onOpenChange, onAdd, title = "Eerder toege
             onNewCatNameChange={setNewCatName}
             onAddCategory={addCategory}
             onRemoveCategory={removeCategory}
+            onMoveCategory={moveCategory}
             onAssign={handleAssign}
           />
         ) : (
@@ -234,19 +300,26 @@ export function HistoryPicker({ open, onOpenChange, onAdd, title = "Eerder toege
                 <div className="flex flex-wrap gap-3 py-2">
                   {visibleItems.map((item) => {
                     const isSelected = mode === "pick" && selected.has(item);
-                    const isMarkedDelete = mode === "delete" && toDelete.has(item);
+                    const isMarkedDelete =
+                      mode === "delete" && toDelete.has(item);
                     const isEditing = editingItem === item;
 
                     if (isEditing) {
                       return (
-                        <div key={item} className="px-3 py-2 rounded-2xl border border-primary bg-card flex items-center gap-1">
+                        <div
+                          key={item}
+                          className="px-3 py-2 rounded-2xl border border-primary bg-card flex items-center gap-1"
+                        >
                           <input
                             ref={editInputRef}
                             value={editValue}
                             onChange={(e) => setEditValue(e.target.value)}
                             onBlur={commitEdit}
                             onKeyDown={(e) => {
-                              if (e.key === "Enter") { e.preventDefault(); commitEdit(); }
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                commitEdit();
+                              }
                               if (e.key === "Escape") setEditingItem(null);
                             }}
                             className="bg-transparent text-sm font-medium focus:outline-none w-28"
@@ -258,21 +331,28 @@ export function HistoryPicker({ open, onOpenChange, onAdd, title = "Eerder toege
                     return (
                       <div key={item} className="relative group">
                         <button
-                          onClick={() => mode === "delete" ? toggleToDelete(item) : toggleSelect(item)}
+                          onClick={() =>
+                            mode === "delete"
+                              ? toggleToDelete(item)
+                              : toggleSelect(item)
+                          }
                           className={`px-3 py-4 rounded-2xl border text-sm font-medium text-center transition-colors leading-tight ${
                             isMarkedDelete
                               ? "bg-destructive border-destructive text-destructive-foreground"
                               : isSelected
-                              ? "bg-primary border-primary text-primary-foreground"
-                              : ""
+                                ? "bg-primary border-primary text-primary-foreground"
+                                : "bg-card border-border text-foreground hover:border-foreground/30"
                           }`}
-                          style={!isMarkedDelete && !isSelected ? chipStyle(assignments[item.toLowerCase()]) : undefined}
                         >
                           {item}
                         </button>
                         {mode === "pick" && (
                           <button
-                            onClick={(e) => { e.stopPropagation(); setEditValue(item); setEditingItem(item); }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditValue(item);
+                              setEditingItem(item);
+                            }}
                             className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-muted border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
                             aria-label="Bewerk"
                           >
@@ -288,9 +368,14 @@ export function HistoryPicker({ open, onOpenChange, onAdd, title = "Eerder toege
 
             {mode === "pick" && history.length > 0 && (
               <div className="pt-4 pb-2 shrink-0">
-                <Button className="w-full rounded-xl" disabled={selected.size === 0}
-                  onClick={() => onAdd(Array.from(selected))}>
-                  {selected.size === 0 ? "Selecteer producten" : `Voeg ${selected.size} toe`}
+                <Button
+                  className="w-full rounded-xl"
+                  disabled={selected.size === 0}
+                  onClick={() => onAdd(Array.from(selected))}
+                >
+                  {selected.size === 0
+                    ? "Selecteer producten"
+                    : `Voeg ${selected.size} toe`}
                 </Button>
               </div>
             )}
@@ -302,8 +387,15 @@ export function HistoryPicker({ open, onOpenChange, onAdd, title = "Eerder toege
 }
 
 function ManageCategories({
-  categories, history, assignments, newCatName,
-  onNewCatNameChange, onAddCategory, onRemoveCategory, onAssign,
+  categories,
+  history,
+  assignments,
+  newCatName,
+  onNewCatNameChange,
+  onAddCategory,
+  onRemoveCategory,
+  onMoveCategory,
+  onAssign,
 }: {
   categories: Category[];
   history: string[];
@@ -312,6 +404,7 @@ function ManageCategories({
   onNewCatNameChange: (v: string) => void;
   onAddCategory: () => void;
   onRemoveCategory: (id: string) => void;
+  onMoveCategory: (id: string, direction: -1 | 1) => void;
   onAssign: (product: string, categoryId: string) => void;
 }) {
   return (
@@ -326,19 +419,53 @@ function ManageCategories({
             placeholder="Nieuwe categorie..."
             className="text-sm"
           />
-          <Button size="icon" onClick={onAddCategory} className="shrink-0 rounded-xl">
+          <Button
+            size="icon"
+            onClick={onAddCategory}
+            className="shrink-0 rounded-xl"
+          >
             <Plus className="h-4 w-4" />
           </Button>
         </div>
-        <div className="flex flex-wrap gap-2 pt-1">
-          {categories.map((cat) => (
-            <div key={cat.id}
-              className="flex items-center gap-1 pl-3 pr-1 py-1.5 rounded-xl border border-border bg-card text-sm">
-              <span>{cat.name}</span>
-              <button onClick={() => onRemoveCategory(cat.id)}
-                className="h-5 w-5 flex items-center justify-center rounded-lg text-muted-foreground/50 hover:text-destructive transition-colors">
-                <svg width="10" height="10" viewBox="0 0 10 10"><path d="M1 1l8 8M9 1L1 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-              </button>
+        <div className="space-y-1.5 pt-1">
+          {categories.map((cat, i) => (
+            <div
+              key={cat.id}
+              className="flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-xl border border-border bg-card text-sm"
+            >
+              <span className="flex-1 min-w-0 truncate">{cat.name}</span>
+              <div className="flex items-center gap-0.5 shrink-0">
+                <button
+                  onClick={() => onMoveCategory(cat.id, -1)}
+                  disabled={i === 0}
+                  aria-label="Omhoog"
+                  className="h-6 w-6 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground disabled:opacity-25 disabled:hover:text-muted-foreground transition-colors"
+                >
+                  <ChevronUp className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={() => onMoveCategory(cat.id, 1)}
+                  disabled={i === categories.length - 1}
+                  aria-label="Omlaag"
+                  className="h-6 w-6 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground disabled:opacity-25 disabled:hover:text-muted-foreground transition-colors"
+                >
+                  <ChevronDown className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={() => onRemoveCategory(cat.id)}
+                  aria-label="Verwijder"
+                  className="h-6 w-6 flex items-center justify-center rounded-lg text-muted-foreground/50 hover:text-destructive transition-colors"
+                >
+                  <svg width="10" height="10" viewBox="0 0 10 10">
+                    <path
+                      d="M1 1l8 8M9 1L1 9"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -351,7 +478,10 @@ function ManageCategories({
             {history.map((product) => {
               const current = assignments[product.toLowerCase()] ?? "none";
               return (
-                <div key={product} className="flex items-center justify-between gap-3 py-2 border-b border-border/40 last:border-0">
+                <div
+                  key={product}
+                  className="flex items-center justify-between gap-3 py-2 border-b border-border/40 last:border-0"
+                >
                   <span className="text-sm">{product}</span>
                   <select
                     value={current}
@@ -360,7 +490,9 @@ function ManageCategories({
                   >
                     <option value="none">— geen —</option>
                     {categories.map((cat) => (
-                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </option>
                     ))}
                   </select>
                 </div>

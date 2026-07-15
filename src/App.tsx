@@ -8,6 +8,7 @@ import Login from "@/pages/Login";
 import Home from "@/pages/Home";
 import Boodschappen from "@/pages/Boodschappen";
 import Recepten from "@/pages/Recepten";
+import Weekmenu from "@/pages/Weekmenu";
 import Fotografie from "@/pages/Fotografie";
 import Notities from "@/pages/Notities";
 import Todo from "@/pages/Todo";
@@ -73,6 +74,7 @@ function AppRoutes() {
         <Route path="/" element={<Home />} />
         <Route path="/boodschappen" element={<Boodschappen />} />
         <Route path="/recepten" element={<Recepten />} />
+        <Route path="/weekmenu" element={<Weekmenu />} />
         <Route path="/fotografie" element={<Fotografie />} />
         <Route path="/notities" element={<Notities />} />
         <Route path="/todo" element={<Todo />} />

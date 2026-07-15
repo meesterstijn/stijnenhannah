@@ -15,6 +15,7 @@ export type GroceryItem = {
 export type WeekPlanRow = {
   day: string;
   meal: string;
+  recipe_id: string | null;
 };
 
 export type Recipe = {

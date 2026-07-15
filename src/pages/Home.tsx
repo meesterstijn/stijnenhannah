@@ -9,7 +9,7 @@ import { SpotifyWidget } from "@/components/spotify-widget";
 import { WifiWidget } from "@/components/wifi-widget";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { ShoppingBasket, BookHeart, Camera, ArrowRight, ListTodo, NotebookPen } from "lucide-react";
+import { ShoppingBasket, BookHeart, Camera, ArrowRight, ListTodo, NotebookPen, CalendarDays } from "lucide-react";
 
 type GroceryItem = { id: string; text: string; done: boolean };
 type Todo = { id: string; text: string; done: boolean; created_at: string };
@@ -66,6 +66,12 @@ export default function Home() {
           icon={BookHeart}
           title="Recepten"
           desc="Bewaar wat jullie graag eten"
+        />
+        <QuickCard
+          to="/weekmenu"
+          icon={CalendarDays}
+          title="Weekmenu"
+          desc="Plan de week en genereer je lijst"
         />
         <SpotifyWidget />
         <VerjaarDagWidget />

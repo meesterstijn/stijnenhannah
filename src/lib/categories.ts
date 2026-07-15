@@ -35,7 +35,7 @@ export async function getCategories(): Promise<Category[]> {
     const { data, error } = await supabase
       .from("product_categories")
       .select("id, name")
-      .order("created_at", { ascending: true });
+      .order("sort_order", { ascending: true });
     if (error || !data || data.length === 0) return DEFAULT_CATEGORIES;
     return data;
   } catch {
@@ -46,7 +46,9 @@ export async function getCategories(): Promise<Category[]> {
 export async function saveCategories(cats: Category[]) {
   await supabase.from("product_categories").delete().neq("id", "");
   if (cats.length > 0) {
-    await supabase.from("product_categories").insert(cats);
+    await supabase
+      .from("product_categories")
+      .insert(cats.map((c, i) => ({ ...c, sort_order: i })));
   }
 }
 
@@ -62,20 +64,30 @@ export async function getAssignments(): Promise<Record<string, string>> {
   }
 }
 
-export async function assignCategory(product: string, categoryId: string | null) {
+export async function assignCategory(
+  product: string,
+  categoryId: string | null,
+) {
   const key = product.toLowerCase();
   if (categoryId === null) {
     await supabase.from("product_assignments").delete().eq("product", key);
   } else {
-    await supabase.from("product_assignments").upsert({ product: key, category_id: categoryId });
+    await supabase
+      .from("product_assignments")
+      .upsert({ product: key, category_id: categoryId });
   }
 }
 
 export async function removeAssignmentsForCategory(categoryId: string) {
-  await supabase.from("product_assignments").delete().eq("category_id", categoryId);
+  await supabase
+    .from("product_assignments")
+    .delete()
+    .eq("category_id", categoryId);
 }
 
-export async function getCategoryForProduct(product: string): Promise<string | null> {
+export async function getCategoryForProduct(
+  product: string,
+): Promise<string | null> {
   const { data } = await supabase
     .from("product_assignments")
     .select("category_id")

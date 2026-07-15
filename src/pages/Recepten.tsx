@@ -10,38 +10,16 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from "@/components/ui/dialog";
 import { HistoryPicker } from "@/components/history-picker";
+import { KitchenTimer } from "@/components/kitchen-timer";
+import {
+  type Ingredient,
+  ingredientsToText,
+  textToIngredients,
+  ingredientDisplayLine,
+} from "@/lib/ingredients";
 import {
   Plus, Clock, Users, Trash2, ChefHat, Loader2, X, Check, ShoppingBasket, Pencil,
 } from "lucide-react";
-
-type Ingredient = { name: string; amount: string };
-
-function ingredientsToText(list: Ingredient[]): string {
-  return list
-    .filter((i) => i.name.trim())
-    .map((i) => (i.amount.trim() ? `${i.amount.trim()}\t${i.name.trim()}` : i.name.trim()))
-    .join("\n");
-}
-
-function textToIngredients(text: string): Ingredient[] {
-  return text
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const cleaned = line.replace(/^[-•*●▪◦]\s*/, "");
-      const tab = cleaned.indexOf("\t");
-      if (tab !== -1) return { amount: cleaned.slice(0, tab).trim(), name: cleaned.slice(tab + 1).trim() };
-      const m = cleaned.match(/^([0-9][^\s]*\s+|[0-9]+\s+)?(.+)$/);
-      if (m && m[1]) return { amount: m[1].trim(), name: m[2].trim() };
-      return { amount: "", name: cleaned };
-    });
-}
-
-function ingredientDisplayLine(line: string): string {
-  const tab = line.indexOf("\t");
-  return tab !== -1 ? `${line.slice(0, tab)} ${line.slice(tab + 1)}` : line;
-}
 
 const RECIPE_CATEGORIES = ["Brood", "Gebak", "Gerechten"] as const;
 type RecipeCategory = typeof RECIPE_CATEGORIES[number];
@@ -407,6 +385,12 @@ export default function Recepten() {
           </DialogContent>
         </Dialog>
       </header>
+
+      <div className="grid grid-cols-3 gap-2 sm:gap-4">
+        <KitchenTimer defaultLabel="Timer 1" storageKey="kitchen-timer-label-1" />
+        <KitchenTimer defaultLabel="Timer 2" storageKey="kitchen-timer-label-2" />
+        <KitchenTimer defaultLabel="Timer 3" storageKey="kitchen-timer-label-3" />
+      </div>
 
       {!isLoading && recipes.length > 0 && (
         <div className="flex gap-2 overflow-x-auto scrollbar-none">
