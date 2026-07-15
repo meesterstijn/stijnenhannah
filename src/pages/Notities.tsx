@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
+import { enablePushNotifications, getPushPermissionState, pushSupported } from "@/lib/push";
 import { Sheet, SheetContent, SheetClose } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Loader2, X } from "lucide-react";
+import { Plus, Trash2, Loader2, X, Bell, BellOff } from "lucide-react";
 
 type Note = {
   id: string;
@@ -12,7 +13,101 @@ type Note = {
   content: string;
   created_at: string;
   updated_at: string;
+  remind_at: string | null;
+  reminder_sent_at: string | null;
 };
+
+function hasActiveReminder(note: Note): boolean {
+  return !!note.remind_at && !note.reminder_sent_at;
+}
+
+function toDatetimeLocal(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function fromDatetimeLocal(value: string): string | null {
+  if (!value) return null;
+  return new Date(value).toISOString();
+}
+
+function todayLocalDateStr(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
+const MINUTES = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, "0"));
+
+/** Date + 24-hour time picker (native datetime-local silently switches to AM/PM based on OS locale — this doesn't). */
+function ReminderPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [datePart, timePart] = value ? value.split("T") : ["", ""];
+  const [hh, mm] = timePart ? timePart.split(":") : ["", ""];
+
+  function update(date: string, hour: string, minute: string) {
+    onChange(date && hour && minute ? `${date}T${hour}:${minute}` : "");
+  }
+
+  const selectClass =
+    "text-xs bg-transparent border border-border/60 rounded-md px-1.5 py-1 focus:outline-none text-muted-foreground";
+
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      {value ? (
+        <Bell className="h-3.5 w-3.5 text-primary shrink-0" />
+      ) : (
+        <BellOff className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+      )}
+      <input
+        type="date"
+        value={datePart}
+        onChange={(e) => update(e.target.value, hh || "09", mm || "00")}
+        className={`${selectClass} [color-scheme:light] dark:[color-scheme:dark]`}
+      />
+      <select
+        value={hh}
+        onChange={(e) => update(datePart || todayLocalDateStr(), e.target.value, mm || "00")}
+        className={selectClass}
+      >
+        <option value="" disabled>
+          uu
+        </option>
+        {HOURS.map((h) => (
+          <option key={h} value={h}>
+            {h}
+          </option>
+        ))}
+      </select>
+      <span className="text-xs text-muted-foreground">:</span>
+      <select
+        value={mm}
+        onChange={(e) => update(datePart || todayLocalDateStr(), hh || "09", e.target.value)}
+        className={selectClass}
+      >
+        <option value="" disabled>
+          mm
+        </option>
+        {MINUTES.map((m) => (
+          <option key={m} value={m}>
+            {m}
+          </option>
+        ))}
+      </select>
+      {value && (
+        <button
+          type="button"
+          onClick={() => onChange("")}
+          className="text-muted-foreground hover:text-destructive transition-colors"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      )}
+    </div>
+  );
+}
 
 async function fetchNotes(): Promise<Note[]> {
   const { data, error } = await supabase
@@ -41,9 +136,32 @@ export default function Notities() {
   const [isNew, setIsNew] = useState(false);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [remindAt, setRemindAt] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+
+  const [pushState, setPushState] = useState<NotificationPermission | "unsupported">("unsupported");
+  const [pushLoading, setPushLoading] = useState(false);
+  const [pushError, setPushError] = useState<string | null>(null);
+
+  useEffect(() => {
+    getPushPermissionState().then(setPushState);
+  }, []);
+
+  async function handleEnablePush() {
+    if (!session?.user.id) return;
+    setPushLoading(true);
+    setPushError(null);
+    try {
+      await enablePushNotifications(session.user.id);
+      setPushState("granted");
+    } catch (err) {
+      setPushError((err as Error).message);
+    } finally {
+      setPushLoading(false);
+    }
+  }
 
   const { data: notes = [], isLoading, error: fetchError } = useQuery({
     queryKey: ["notes"],
@@ -52,16 +170,25 @@ export default function Notities() {
 
   const saveNote = useMutation({
     mutationFn: async () => {
+      const remind_at = fromDatetimeLocal(remindAt);
       if (activeNote) {
+        const reminderChanged = remind_at !== activeNote.remind_at;
         const { error } = await supabase
           .from("notes")
-          .update({ title, content, updated_at: new Date().toISOString() })
+          .update({
+            title,
+            content,
+            remind_at,
+            updated_at: new Date().toISOString(),
+            // A new/changed reminder time should be eligible to fire again.
+            ...(reminderChanged ? { reminder_sent_at: null } : {}),
+          })
           .eq("id", activeNote.id);
         if (error) throw error;
       } else {
         const { error } = await supabase
           .from("notes")
-          .insert({ title, content, created_by: session?.user.id });
+          .insert({ title, content, remind_at, created_by: session?.user.id });
         if (error) throw error;
       }
     },
@@ -90,6 +217,7 @@ export default function Notities() {
       setIsNew(false);
       setTitle("");
       setContent("");
+      setRemindAt("");
       setConfirmDelete(false);
       setSheetOpen(false);
     },
@@ -100,6 +228,7 @@ export default function Notities() {
     setIsNew(false);
     setTitle(note.title);
     setContent(note.content);
+    setRemindAt(toDatetimeLocal(note.remind_at));
     setConfirmDelete(false);
     setSaveError(null);
   }
@@ -114,6 +243,7 @@ export default function Notities() {
     setIsNew(true);
     setTitle("");
     setContent("");
+    setRemindAt("");
     setConfirmDelete(false);
     setSaveError(null);
   }
@@ -139,6 +269,32 @@ export default function Notities() {
         </p>
       )}
 
+      {pushState !== "granted" && pushState !== "unsupported" && (
+        <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-card px-4 py-3">
+          <Bell className="h-4 w-4 text-muted-foreground shrink-0" />
+          <p className="flex-1 text-sm text-muted-foreground">
+            Zet meldingen aan om herinneringen op je telefoon te ontvangen.
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            className="rounded-xl text-xs shrink-0"
+            onClick={handleEnablePush}
+            disabled={pushLoading}
+          >
+            {pushLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Inschakelen"}
+          </Button>
+        </div>
+      )}
+      {pushError && (
+        <p className="text-sm text-destructive bg-destructive/10 rounded-xl px-4 py-3">{pushError}</p>
+      )}
+      {pushState === "unsupported" && (
+        <p className="text-xs text-muted-foreground px-1">
+          Meldingen worden niet ondersteund in deze browser. Voeg de site toe aan je beginscherm (Safari: "Zet op beginscherm") om ze op je telefoon te kunnen gebruiken.
+        </p>
+      )}
+
       {/* ── Desktop: two-panel ── */}
       <div className="hidden lg:flex rounded-2xl border border-border/60 bg-card overflow-hidden" style={{ minHeight: 520 }}>
         {/* Left: list */}
@@ -161,7 +317,10 @@ export default function Notities() {
                   activeNote?.id === note.id ? "bg-accent/60" : ""
                 }`}
               >
-                <p className="font-semibold text-sm leading-tight truncate">
+                <p className="font-semibold text-sm leading-tight truncate flex items-center gap-1.5">
+                  {hasActiveReminder(note) && (
+                    <Bell className="h-3 w-3 text-primary shrink-0" />
+                  )}
                   {note.title || (
                     <span className="text-muted-foreground font-normal italic">Zonder titel</span>
                   )}
@@ -207,6 +366,9 @@ export default function Notities() {
                     </Button>
                   </>
                 )}
+              </div>
+              <div className="px-5 py-2.5 border-b border-border/40 shrink-0">
+                <ReminderPicker value={remindAt} onChange={setRemindAt} />
               </div>
               <textarea
                 value={content}
@@ -258,7 +420,10 @@ export default function Notities() {
               onClick={() => selectNoteMobile(note)}
               className="w-full text-left rounded-2xl border border-border/60 bg-card p-5 hover:border-border transition-all space-y-1"
             >
-              <p className="font-semibold text-base leading-tight">
+              <p className="font-semibold text-base leading-tight flex items-center gap-1.5">
+                {hasActiveReminder(note) && (
+                  <Bell className="h-3.5 w-3.5 text-primary shrink-0" />
+                )}
                 {note.title || (
                   <span className="text-muted-foreground italic font-normal">Zonder titel</span>
                 )}
@@ -316,6 +481,9 @@ export default function Notities() {
             </div>
           </div>
           <div className="border-t border-border/40" />
+          <div className="px-5 py-2.5 border-b border-border/40 shrink-0">
+            <ReminderPicker value={remindAt} onChange={setRemindAt} />
+          </div>
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}

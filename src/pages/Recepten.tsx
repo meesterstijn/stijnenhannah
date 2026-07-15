@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type Dispatch, type SetStateAction } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase, type Recipe } from "@/lib/supabase";
 import { saveToHistory } from "@/lib/history";
@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { HistoryPicker } from "@/components/history-picker";
 import {
-  Plus, Clock, Users, Trash2, ChefHat, Loader2, X, Check, ShoppingBasket,
+  Plus, Clock, Users, Trash2, ChefHat, Loader2, X, Check, ShoppingBasket, Pencil,
 } from "lucide-react";
 
 type Ingredient = { name: string; amount: string };
@@ -24,13 +24,18 @@ function ingredientsToText(list: Ingredient[]): string {
 }
 
 function textToIngredients(text: string): Ingredient[] {
-  return text.split("\n").filter(Boolean).map((line) => {
-    const tab = line.indexOf("\t");
-    if (tab !== -1) return { amount: line.slice(0, tab).trim(), name: line.slice(tab + 1).trim() };
-    const m = line.match(/^([0-9][^\s]*\s+|[0-9]+\s+)?(.+)$/);
-    if (m && m[1]) return { amount: m[1].trim(), name: m[2].trim() };
-    return { amount: "", name: line.trim() };
-  });
+  return text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const cleaned = line.replace(/^[-•*●▪◦]\s*/, "");
+      const tab = cleaned.indexOf("\t");
+      if (tab !== -1) return { amount: cleaned.slice(0, tab).trim(), name: cleaned.slice(tab + 1).trim() };
+      const m = cleaned.match(/^([0-9][^\s]*\s+|[0-9]+\s+)?(.+)$/);
+      if (m && m[1]) return { amount: m[1].trim(), name: m[2].trim() };
+      return { amount: "", name: cleaned };
+    });
 }
 
 function ingredientDisplayLine(line: string): string {
@@ -42,6 +47,141 @@ const RECIPE_CATEGORIES = ["Brood", "Gebak", "Gerechten"] as const;
 type RecipeCategory = typeof RECIPE_CATEGORIES[number];
 
 const empty = { title: "", time: "", servings: "", ingredients: "", steps: "", category: "Gerechten" };
+
+function CategoryPicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (cat: RecipeCategory) => void;
+}) {
+  return (
+    <div className="flex gap-2">
+      {RECIPE_CATEGORIES.map((cat) => (
+        <button
+          key={cat}
+          type="button"
+          onClick={() => onChange(cat)}
+          className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+            value === cat
+              ? "bg-primary text-primary-foreground border-primary"
+              : "bg-card text-muted-foreground border-border hover:text-foreground"
+          }`}
+        >
+          {cat}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function IngredientsEditor({
+  ingredients,
+  setIngredients,
+  onPickFromHistory,
+}: {
+  ingredients: Ingredient[];
+  setIngredients: Dispatch<SetStateAction<Ingredient[]>>;
+  onPickFromHistory: () => void;
+}) {
+  const [bulkText, setBulkText] = useState("");
+
+  function updateIngredient(index: number, field: "name" | "amount", value: string) {
+    setIngredients((prev) => prev.map((item, i) => (i === index ? { ...item, [field]: value } : item)));
+  }
+
+  function removeIngredient(index: number) {
+    setIngredients((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function processBulk() {
+    const parsed = textToIngredients(bulkText).filter((i) => i.name.trim());
+    if (parsed.length === 0) return;
+    setIngredients((prev) => [...prev, ...parsed]);
+    setBulkText("");
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium">Ingrediënten</p>
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="rounded-lg text-xs"
+            onClick={onPickFromHistory}
+          >
+            <Plus className="h-3.5 w-3.5 mr-1" />
+            Kies uit lijst
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="rounded-lg text-xs"
+            onClick={() => setIngredients((prev) => [...prev, { name: "", amount: "" }])}
+          >
+            <Plus className="h-3.5 w-3.5 mr-1" />
+            Voeg toe
+          </Button>
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <Textarea
+          placeholder={"Plak hier in één keer alle ingrediënten, bv:\n200g bloem\n2 eieren\n1 el suiker"}
+          rows={3}
+          value={bulkText}
+          onChange={(e) => setBulkText(e.target.value)}
+          className="text-sm"
+        />
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          className="rounded-lg text-xs w-full"
+          onClick={processBulk}
+          disabled={!bulkText.trim()}
+        >
+          Verwerk geplakte tekst
+        </Button>
+      </div>
+
+      {ingredients.length === 0 && (
+        <p className="text-xs text-muted-foreground py-2">
+          Nog geen ingrediënten — plak een lijst hierboven, kies uit je lijst, of typ hieronder.
+        </p>
+      )}
+
+      <div className="space-y-2">
+        {ingredients.map((ing, i) => (
+          <div key={i} className="flex gap-2 items-center">
+            <Input
+              value={ing.amount}
+              onChange={(e) => updateIngredient(i, "amount", e.target.value)}
+              placeholder="200g / 2x / 1L"
+              className="w-28 shrink-0 text-sm"
+            />
+            <Input
+              value={ing.name}
+              onChange={(e) => updateIngredient(i, "name", e.target.value)}
+              placeholder="product"
+              className="flex-1 text-sm"
+            />
+            <button
+              onClick={() => removeIngredient(i)}
+              className="text-muted-foreground hover:text-destructive transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 async function fetchRecipes(): Promise<Recipe[]> {
   const { data, error } = await supabase
@@ -60,10 +200,14 @@ export default function Recepten() {
   const [ingredientList, setIngredientList] = useState<Ingredient[]>([]);
   const [view, setView] = useState<Recipe | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerTarget, setPickerTarget] = useState<"add" | "edit">("add");
   const [addingToList, setAddingToList] = useState(false);
   const [addedFeedback, setAddedFeedback] = useState(false);
   const [activeCategory, setActiveCategory] = useState<RecipeCategory | "Alles">("Alles");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [editDraft, setEditDraft] = useState(empty);
+  const [editIngredients, setEditIngredients] = useState<Ingredient[]>([]);
 
   const { data: recipes = [], isLoading } = useQuery({
     queryKey: ["recipes"],
@@ -101,6 +245,20 @@ export default function Recepten() {
     },
   });
 
+  const updateRecipe = useMutation({
+    mutationFn: async ({ id, ...fields }: { id: string } & typeof empty) => {
+      const { error } = await supabase.from("recipes").update(fields).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: (_, { id, ...fields }) => {
+      queryClient.invalidateQueries({ queryKey: ["recipes"] });
+      setView((prev) => (prev && prev.id === id ? { ...prev, ...fields } : prev));
+      setEditMode(false);
+      setSaveError(null);
+    },
+    onError: (err: Error) => setSaveError(err.message),
+  });
+
   const [categoryError, setCategoryError] = useState<string | null>(null);
 
   const updateCategory = useMutation({
@@ -122,21 +280,18 @@ export default function Recepten() {
   }
 
   function addIngredientFromHistory(names: string[]) {
-    setIngredientList((prev) => [
-      ...prev,
-      ...names.map((name) => ({ name, amount: "" })),
-    ]);
+    const additions = names.map((name) => ({ name, amount: "" }));
+    if (pickerTarget === "edit") {
+      setEditIngredients((prev) => [...prev, ...additions]);
+    } else {
+      setIngredientList((prev) => [...prev, ...additions]);
+    }
     setPickerOpen(false);
   }
 
-  function updateIngredient(index: number, field: "name" | "amount", value: string) {
-    setIngredientList((prev) =>
-      prev.map((item, i) => (i === index ? { ...item, [field]: value } : item))
-    );
-  }
-
-  function removeIngredient(index: number) {
-    setIngredientList((prev) => prev.filter((_, i) => i !== index));
+  function openPicker(target: "add" | "edit") {
+    setPickerTarget(target);
+    setPickerOpen(true);
   }
 
   function handleSave() {
@@ -144,6 +299,28 @@ export default function Recepten() {
     ingredientList.forEach((i) => { if (i.name.trim()) saveToHistory(i.name.trim()); });
     const ingredients = ingredientsToText(ingredientList);
     addRecipe.mutate({ ...draft, ingredients });
+  }
+
+  function startEdit() {
+    if (!view) return;
+    setEditDraft({
+      title: view.title,
+      time: view.time || "",
+      servings: view.servings || "",
+      ingredients: view.ingredients || "",
+      steps: view.steps || "",
+      category: view.category || "Gerechten",
+    });
+    setEditIngredients(textToIngredients(view.ingredients || ""));
+    setSaveError(null);
+    setEditMode(true);
+  }
+
+  function handleSaveEdit() {
+    if (!view || !editDraft.title.trim()) return;
+    editIngredients.forEach((i) => { if (i.name.trim()) saveToHistory(i.name.trim()); });
+    const ingredients = ingredientsToText(editIngredients);
+    updateRecipe.mutate({ id: view.id, ...editDraft, ingredients });
   }
 
   async function addAllToShoppingList() {
@@ -185,22 +362,10 @@ export default function Recepten() {
                 value={draft.title}
                 onChange={(e) => setDraft({ ...draft, title: e.target.value })}
               />
-              <div className="flex gap-2">
-                {RECIPE_CATEGORIES.map((cat) => (
-                  <button
-                    key={cat}
-                    type="button"
-                    onClick={() => setDraft({ ...draft, category: cat })}
-                    className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-colors ${
-                      draft.category === cat
-                        ? "bg-primary text-primary-foreground border-primary"
-                        : "bg-card text-muted-foreground border-border hover:text-foreground"
-                    }`}
-                  >
-                    {cat}
-                  </button>
-                ))}
-              </div>
+              <CategoryPicker
+                value={draft.category}
+                onChange={(cat) => setDraft({ ...draft, category: cat })}
+              />
               <div className="grid grid-cols-2 gap-3">
                 <Input
                   placeholder="Tijd (bv. 30 min)"
@@ -214,65 +379,11 @@ export default function Recepten() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium">Ingrediënten</p>
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="rounded-lg text-xs"
-                      onClick={() => setPickerOpen(true)}
-                    >
-                      <Plus className="h-3.5 w-3.5 mr-1" />
-                      Kies uit lijst
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="rounded-lg text-xs"
-                      onClick={() => setIngredientList((prev) => [...prev, { name: "", amount: "" }])}
-                    >
-                      <Plus className="h-3.5 w-3.5 mr-1" />
-                      Voeg toe
-                    </Button>
-                  </div>
-                </div>
-
-                {ingredientList.length === 0 && (
-                  <p className="text-xs text-muted-foreground py-2">
-                    Nog geen ingrediënten — kies uit je lijst of typ hieronder.
-                  </p>
-                )}
-
-                <div className="space-y-2">
-                  {ingredientList.map((ing, i) => (
-                    <div key={i} className="flex gap-2 items-center">
-                      <Input
-                        value={ing.amount}
-                        onChange={(e) => updateIngredient(i, "amount", e.target.value)}
-                        placeholder="200g / 2x / 1L"
-                        className="w-28 shrink-0 text-sm"
-                      />
-                      <Input
-                        value={ing.name}
-                        onChange={(e) => updateIngredient(i, "name", e.target.value)}
-                        placeholder="product"
-                        className="flex-1 text-sm"
-                      />
-                      <button
-                        onClick={() => removeIngredient(i)}
-                        className="text-muted-foreground hover:text-destructive transition-colors"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-
-              </div>
+              <IngredientsEditor
+                ingredients={ingredientList}
+                setIngredients={setIngredientList}
+                onPickFromHistory={() => openPicker("add")}
+              />
 
               <Textarea
                 placeholder="Bereiding"
@@ -360,9 +471,70 @@ export default function Recepten() {
         </div>
       )}
 
-      <Dialog open={!!view} onOpenChange={(o) => { if (!o) { setView(null); setConfirmDelete(false); } }}>
+      <Dialog open={!!view} onOpenChange={(o) => { if (!o) { setView(null); setConfirmDelete(false); setEditMode(false); } }}>
         <DialogContent className="w-full max-w-2xl max-h-[90vh] overflow-y-auto scrollbar-none sm:rounded-2xl">
-          {view && (
+          {view && editMode ? (
+            <>
+              <DialogHeader>
+                <DialogTitle className="font-serif text-2xl sm:text-3xl leading-snug">Recept bewerken</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <Input
+                  placeholder="Naam van het gerecht"
+                  value={editDraft.title}
+                  onChange={(e) => setEditDraft({ ...editDraft, title: e.target.value })}
+                />
+                <CategoryPicker
+                  value={editDraft.category}
+                  onChange={(cat) => setEditDraft({ ...editDraft, category: cat })}
+                />
+                <div className="grid grid-cols-2 gap-3">
+                  <Input
+                    placeholder="Tijd (bv. 30 min)"
+                    value={editDraft.time}
+                    onChange={(e) => setEditDraft({ ...editDraft, time: e.target.value })}
+                  />
+                  <Input
+                    placeholder="Personen (bv. 2)"
+                    value={editDraft.servings}
+                    onChange={(e) => setEditDraft({ ...editDraft, servings: e.target.value })}
+                  />
+                </div>
+
+                <IngredientsEditor
+                  ingredients={editIngredients}
+                  setIngredients={setEditIngredients}
+                  onPickFromHistory={() => openPicker("edit")}
+                />
+
+                <Textarea
+                  placeholder="Bereiding"
+                  rows={5}
+                  value={editDraft.steps}
+                  onChange={(e) => setEditDraft({ ...editDraft, steps: e.target.value })}
+                />
+              </div>
+              {saveError && (
+                <p className="text-sm text-destructive">{saveError}</p>
+              )}
+              <DialogFooter>
+                <Button
+                  variant="ghost"
+                  className="rounded-xl"
+                  onClick={() => { setEditMode(false); setSaveError(null); }}
+                >
+                  Annuleer
+                </Button>
+                <Button
+                  onClick={handleSaveEdit}
+                  disabled={!editDraft.title.trim() || updateRecipe.isPending}
+                  className="rounded-xl"
+                >
+                  {updateRecipe.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Opslaan"}
+                </Button>
+              </DialogFooter>
+            </>
+          ) : view ? (
             <>
               <DialogHeader>
                 <DialogTitle className="font-serif text-2xl sm:text-3xl leading-snug">{view.title}</DialogTitle>
@@ -457,17 +629,22 @@ export default function Recepten() {
                     </Button>
                   </div>
                 ) : (
-                  <Button
-                    variant="ghost"
-                    onClick={() => setConfirmDelete(true)}
-                    className="text-destructive hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" /> Verwijder
-                  </Button>
+                  <div className="flex w-full items-center justify-between">
+                    <Button
+                      variant="ghost"
+                      onClick={() => setConfirmDelete(true)}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" /> Verwijder
+                    </Button>
+                    <Button variant="outline" className="rounded-xl" onClick={startEdit}>
+                      <Pencil className="h-4 w-4" /> Bewerken
+                    </Button>
+                  </div>
                 )}
               </DialogFooter>
             </>
-          )}
+          ) : null}
         </DialogContent>
       </Dialog>
 
