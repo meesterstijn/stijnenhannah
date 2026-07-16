@@ -2,22 +2,22 @@
   <defs>
     <linearGradient id="vert" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#FA950D"/>
-      <stop offset="50%" stop-color="#B34E00"/>
+      <stop offset="50%" stop-color="#B14E00"/>
       <stop offset="100%" stop-color="#713214"/>
     </linearGradient>
     <linearGradient id="horiz" x1="1" y1="0" x2="0" y2="0">
       <stop offset="0%" stop-color="#FA950D"/>
-      <stop offset="50%" stop-color="#B34E00"/>
+      <stop offset="50%" stop-color="#B14E00"/>
       <stop offset="100%" stop-color="#713214"/>
     </linearGradient>
   </defs>
-  <rect x="0" y="0" width="20" height="20" fill="#B34E00"/>
-  <rect x="40" y="0" width="20" height="20" fill="#B34E00"/>
-  <rect x="0" y="40" width="20" height="20" fill="#B34E00"/>
-  <rect x="40" y="40" width="20" height="20" fill="#B34E00"/>
+  <rect x="0" y="0" width="20" height="20" fill="#B14E00"/>
+  <rect x="40" y="0" width="20" height="20" fill="#B14E00"/>
+  <rect x="0" y="40" width="20" height="20" fill="#B14E00"/>
+  <rect x="40" y="40" width="20" height="20" fill="#B14E00"/>
   <rect x="20" y="0" width="20" height="20" fill="url(#vert)"/>
   <rect x="20" y="40" width="20" height="20" fill="url(#vert)"/>
   <rect x="0" y="20" width="20" height="20" fill="url(#horiz)"/>
   <rect x="40" y="20" width="20" height="20" fill="url(#horiz)"/>
-  <rect x="20" y="20" width="20" height="20" fill="#B34E00"/>
+  <rect x="20" y="20" width="20" height="20" fill="#B14E00"/>
 </svg>
