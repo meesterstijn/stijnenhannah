@@ -2,10 +2,19 @@ import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
-import { enablePushNotifications, getPushPermissionState, pushSupported } from "@/lib/push";
+import {
+  enablePushNotifications,
+  getPushPermissionState,
+  pushSupported,
+} from "@/lib/push";
+import {
+  ReminderPicker,
+  toDatetimeLocal,
+  fromDatetimeLocal,
+} from "@/components/reminder-picker";
 import { Sheet, SheetContent, SheetClose } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Loader2, X, Bell, BellOff } from "lucide-react";
+import { Plus, Trash2, Loader2, X, Bell } from "lucide-react";
 
 type Note = {
   id: string;
@@ -19,94 +28,6 @@ type Note = {
 
 function hasActiveReminder(note: Note): boolean {
   return !!note.remind_at && !note.reminder_sent_at;
-}
-
-function toDatetimeLocal(iso: string | null): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
-function fromDatetimeLocal(value: string): string | null {
-  if (!value) return null;
-  return new Date(value).toISOString();
-}
-
-function todayLocalDateStr(): string {
-  const d = new Date();
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
-const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
-const MINUTES = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, "0"));
-
-/** Date + 24-hour time picker (native datetime-local silently switches to AM/PM based on OS locale — this doesn't). */
-function ReminderPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const [datePart, timePart] = value ? value.split("T") : ["", ""];
-  const [hh, mm] = timePart ? timePart.split(":") : ["", ""];
-
-  function update(date: string, hour: string, minute: string) {
-    onChange(date && hour && minute ? `${date}T${hour}:${minute}` : "");
-  }
-
-  const selectClass =
-    "text-xs bg-transparent border border-border/60 rounded-md px-1.5 py-1 focus:outline-none text-muted-foreground";
-
-  return (
-    <div className="flex items-center gap-2 flex-wrap">
-      {value ? (
-        <Bell className="h-3.5 w-3.5 text-primary shrink-0" />
-      ) : (
-        <BellOff className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-      )}
-      <input
-        type="date"
-        value={datePart}
-        onChange={(e) => update(e.target.value, hh || "09", mm || "00")}
-        className={`${selectClass} [color-scheme:light] dark:[color-scheme:dark]`}
-      />
-      <select
-        value={hh}
-        onChange={(e) => update(datePart || todayLocalDateStr(), e.target.value, mm || "00")}
-        className={selectClass}
-      >
-        <option value="" disabled>
-          uu
-        </option>
-        {HOURS.map((h) => (
-          <option key={h} value={h}>
-            {h}
-          </option>
-        ))}
-      </select>
-      <span className="text-xs text-muted-foreground">:</span>
-      <select
-        value={mm}
-        onChange={(e) => update(datePart || todayLocalDateStr(), hh || "09", e.target.value)}
-        className={selectClass}
-      >
-        <option value="" disabled>
-          mm
-        </option>
-        {MINUTES.map((m) => (
-          <option key={m} value={m}>
-            {m}
-          </option>
-        ))}
-      </select>
-      {value && (
-        <button
-          type="button"
-          onClick={() => onChange("")}
-          className="text-muted-foreground hover:text-destructive transition-colors"
-        >
-          <X className="h-3.5 w-3.5" />
-        </button>
-      )}
-    </div>
-  );
 }
 
 async function fetchNotes(): Promise<Note[]> {
@@ -141,7 +62,9 @@ export default function Notities() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
-  const [pushState, setPushState] = useState<NotificationPermission | "unsupported">("unsupported");
+  const [pushState, setPushState] = useState<
+    NotificationPermission | "unsupported"
+  >("unsupported");
   const [pushLoading, setPushLoading] = useState(false);
   const [pushError, setPushError] = useState<string | null>(null);
 
@@ -163,7 +86,11 @@ export default function Notities() {
     }
   }
 
-  const { data: notes = [], isLoading, error: fetchError } = useQuery({
+  const {
+    data: notes = [],
+    isLoading,
+    error: fetchError,
+  } = useQuery({
     queryKey: ["notes"],
     queryFn: fetchNotes,
   });
@@ -259,7 +186,9 @@ export default function Notities() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Persoonlijk</p>
+        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+          Persoonlijk
+        </p>
         <h1 className="font-serif text-3xl font-semibold mt-1">Notities</h1>
       </div>
 
@@ -282,32 +211,49 @@ export default function Notities() {
             onClick={handleEnablePush}
             disabled={pushLoading}
           >
-            {pushLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Inschakelen"}
+            {pushLoading ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              "Inschakelen"
+            )}
           </Button>
         </div>
       )}
       {pushError && (
-        <p className="text-sm text-destructive bg-destructive/10 rounded-xl px-4 py-3">{pushError}</p>
+        <p className="text-sm text-destructive bg-destructive/10 rounded-xl px-4 py-3">
+          {pushError}
+        </p>
       )}
       {pushState === "unsupported" && (
         <p className="text-xs text-muted-foreground px-1">
-          Meldingen worden niet ondersteund in deze browser. Voeg de site toe aan je beginscherm (Safari: "Zet op beginscherm") om ze op je telefoon te kunnen gebruiken.
+          Meldingen worden niet ondersteund in deze browser. Voeg de site toe
+          aan je beginscherm (Safari: "Zet op beginscherm") om ze op je telefoon
+          te kunnen gebruiken.
         </p>
       )}
 
       {/* ── Desktop: two-panel ── */}
-      <div className="hidden lg:flex rounded-2xl border border-border/60 bg-card overflow-hidden" style={{ minHeight: 520 }}>
+      <div
+        className="hidden lg:flex rounded-2xl border border-border/60 bg-card overflow-hidden"
+        style={{ minHeight: 520 }}
+      >
         {/* Left: list */}
         <div className="w-[260px] shrink-0 border-r border-border/60 flex flex-col">
           <div className="px-4 h-14 flex items-center justify-end border-b border-border/40 shrink-0">
-            <Button size="sm" onClick={startNewDesktop} className="rounded-xl h-8 text-xs gap-1 px-2.5">
+            <Button
+              size="sm"
+              onClick={startNewDesktop}
+              className="rounded-xl h-8 text-xs gap-1 px-2.5"
+            >
               <Plus className="h-3.5 w-3.5" />
               Nieuw
             </Button>
           </div>
           <div className="flex-1 overflow-y-auto divide-y divide-border/40">
             {!isLoading && notes.length === 0 && (
-              <p className="px-4 py-6 text-sm text-muted-foreground">Nog geen notities.</p>
+              <p className="px-4 py-6 text-sm text-muted-foreground">
+                Nog geen notities.
+              </p>
             )}
             {notes.map((note) => (
               <button
@@ -322,10 +268,14 @@ export default function Notities() {
                     <Bell className="h-3 w-3 text-primary shrink-0" />
                   )}
                   {note.title || (
-                    <span className="text-muted-foreground font-normal italic">Zonder titel</span>
+                    <span className="text-muted-foreground font-normal italic">
+                      Zonder titel
+                    </span>
                   )}
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">{formatDate(note.updated_at)}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {formatDate(note.updated_at)}
+                </p>
               </button>
             ))}
           </div>
@@ -355,14 +305,28 @@ export default function Notities() {
                 )}
                 {confirmDelete && (
                   <>
-                    <Button type="button" variant="ghost" size="sm" className="rounded-xl text-xs"
-                      onClick={() => setConfirmDelete(false)}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="rounded-xl text-xs"
+                      onClick={() => setConfirmDelete(false)}
+                    >
                       Annuleer
                     </Button>
-                    <Button type="button" variant="destructive" size="sm" className="rounded-xl text-xs"
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      className="rounded-xl text-xs"
                       disabled={deleteNote.isPending}
-                      onClick={() => deleteNote.mutate(activeNote!.id)}>
-                      {deleteNote.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Verwijder"}
+                      onClick={() => deleteNote.mutate(activeNote!.id)}
+                    >
+                      {deleteNote.isPending ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        "Verwijder"
+                      )}
                     </Button>
                   </>
                 )}
@@ -377,7 +341,9 @@ export default function Notities() {
                 className="flex-1 resize-none bg-transparent text-sm leading-relaxed focus:outline-none px-5 py-4"
               />
               {saveError && (
-                <p className="px-5 pb-1 text-xs text-destructive shrink-0">{saveError}</p>
+                <p className="px-5 pb-1 text-xs text-destructive shrink-0">
+                  {saveError}
+                </p>
               )}
               <div className="px-5 py-3 border-t border-border/40 shrink-0">
                 <Button
@@ -387,7 +353,11 @@ export default function Notities() {
                 >
                   {saveNote.isPending ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : activeNote ? "Opslaan" : "Toevoegen"}
+                  ) : activeNote ? (
+                    "Opslaan"
+                  ) : (
+                    "Toevoegen"
+                  )}
                 </Button>
               </div>
             </>
@@ -411,7 +381,9 @@ export default function Notities() {
           </div>
         )}
         {!isLoading && notes.length === 0 && (
-          <p className="text-center py-12 text-sm text-muted-foreground">Nog geen notities.</p>
+          <p className="text-center py-12 text-sm text-muted-foreground">
+            Nog geen notities.
+          </p>
         )}
         <div className="space-y-3">
           {notes.map((note) => (
@@ -425,7 +397,9 @@ export default function Notities() {
                   <Bell className="h-3.5 w-3.5 text-primary shrink-0" />
                 )}
                 {note.title || (
-                  <span className="text-muted-foreground italic font-normal">Zonder titel</span>
+                  <span className="text-muted-foreground italic font-normal">
+                    Zonder titel
+                  </span>
                 )}
               </p>
               {note.content && (
@@ -433,14 +407,22 @@ export default function Notities() {
                   {note.content}
                 </p>
               )}
-              <p className="text-xs text-muted-foreground/50 pt-1">{formatDate(note.updated_at)}</p>
+              <p className="text-xs text-muted-foreground/50 pt-1">
+                {formatDate(note.updated_at)}
+              </p>
             </button>
           ))}
         </div>
       </div>
 
       {/* ── Mobile: bottom sheet editor ── */}
-      <Sheet open={sheetOpen} onOpenChange={(v) => { setSheetOpen(v); setConfirmDelete(false); }}>
+      <Sheet
+        open={sheetOpen}
+        onOpenChange={(v) => {
+          setSheetOpen(v);
+          setConfirmDelete(false);
+        }}
+      >
         <SheetContent
           side="bottom"
           className="rounded-t-2xl flex flex-col [&>button.absolute]:hidden p-0"
@@ -456,25 +438,49 @@ export default function Notities() {
             />
             <div className="flex items-center gap-1 shrink-0">
               {activeNote && !confirmDelete && (
-                <Button type="button" variant="ghost" size="icon"
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
                   className="h-8 w-8 rounded-xl text-muted-foreground hover:text-destructive"
-                  onClick={() => setConfirmDelete(true)}>
+                  onClick={() => setConfirmDelete(true)}
+                >
                   <Trash2 className="h-4 w-4" />
                 </Button>
               )}
               {confirmDelete && (
                 <>
-                  <Button type="button" variant="ghost" size="sm" className="rounded-xl text-xs"
-                    onClick={() => setConfirmDelete(false)}>Annuleer</Button>
-                  <Button type="button" variant="destructive" size="sm" className="rounded-xl text-xs"
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="rounded-xl text-xs"
+                    onClick={() => setConfirmDelete(false)}
+                  >
+                    Annuleer
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    className="rounded-xl text-xs"
                     disabled={deleteNote.isPending}
-                    onClick={() => deleteNote.mutate(activeNote!.id)}>
-                    {deleteNote.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Verwijder"}
+                    onClick={() => deleteNote.mutate(activeNote!.id)}
+                  >
+                    {deleteNote.isPending ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      "Verwijder"
+                    )}
                   </Button>
                 </>
               )}
               <SheetClose asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl text-muted-foreground hover:text-foreground">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-xl text-muted-foreground hover:text-foreground"
+                >
                   <X className="h-4 w-4" />
                 </Button>
               </SheetClose>
@@ -491,7 +497,9 @@ export default function Notities() {
             className="flex-1 resize-none bg-transparent text-sm leading-relaxed focus:outline-none px-5 py-4 overflow-y-auto"
           />
           {saveError && (
-            <p className="px-5 pb-2 text-xs text-destructive shrink-0">{saveError}</p>
+            <p className="px-5 pb-2 text-xs text-destructive shrink-0">
+              {saveError}
+            </p>
           )}
           <div className="px-5 pt-2 pb-6 shrink-0">
             <Button
@@ -501,7 +509,11 @@ export default function Notities() {
             >
               {saveNote.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
-              ) : activeNote ? "Opslaan" : "Toevoegen"}
+              ) : activeNote ? (
+                "Opslaan"
+              ) : (
+                "Toevoegen"
+              )}
             </Button>
           </div>
         </SheetContent>

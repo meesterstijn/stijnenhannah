@@ -71,6 +71,7 @@ export type Plant = {
   toxic_to_humans: boolean;
   toxic_to_cats: boolean;
   toxicity_notes: string | null;
+  general_notes: string | null;
   sow_months: string[];
   sow_week: string | null;
   sow_notes: string | null;

@@ -43,17 +43,6 @@ const PROPAGATION_OPTIONS = [
   "Knollen / bollen",
 ] as const;
 
-const WATER_TAG_OPTIONS = [
-  "Aarde laten opdrogen tussen beurten",
-  "Constant vochtig houden",
-  "Van onderaf water geven",
-  "Niet op de bladeren sproeien",
-  "Regenwater / kalkarm water",
-  "Extra besproeien voor luchtvochtigheid",
-  "'s Winters droger houden",
-  "Goed laten uitlekken",
-] as const;
-
 const MONTH_OPTIONS = [
   "januari",
   "februari",
@@ -85,6 +74,14 @@ function warnChipClass(active: boolean): string {
   return `sv-chip px-3 py-1.5 text-sm font-medium${active ? " active warn" : ""}`;
 }
 
+function SectionHeading({ children }: { children: string }) {
+  return (
+    <p className="text-sm font-semibold uppercase tracking-wide sv-heading">
+      {children}
+    </p>
+  );
+}
+
 type PlantDraft = {
   name: string;
   species: string;
@@ -95,7 +92,6 @@ type PlantDraft = {
   sun_needs: string;
   season_notes: string;
   water_notes: string;
-  water_tags: string[];
   water_interval_days: string;
   last_watered_at: string;
   feeding_notes: string;
@@ -120,6 +116,7 @@ type PlantDraft = {
   harvest_notes: string;
   harvest_months: string[];
   harvest_week: string;
+  general_notes: string;
   photo_url: string;
   reminders_enabled: boolean;
 };
@@ -134,7 +131,6 @@ const emptyDraft: PlantDraft = {
   sun_needs: "",
   season_notes: "",
   water_notes: "",
-  water_tags: [],
   water_interval_days: "",
   last_watered_at: "",
   feeding_notes: "",
@@ -159,6 +155,7 @@ const emptyDraft: PlantDraft = {
   harvest_notes: "",
   harvest_months: [],
   harvest_week: "",
+  general_notes: "",
   photo_url: "",
   reminders_enabled: true,
 };
@@ -174,7 +171,6 @@ function plantToDraft(p: Plant): PlantDraft {
     sun_needs: p.sun_needs ?? "",
     season_notes: p.season_notes ?? "",
     water_notes: p.water_notes ?? "",
-    water_tags: p.water_tags ?? [],
     water_interval_days: p.water_interval_days
       ? String(p.water_interval_days)
       : "",
@@ -201,6 +197,7 @@ function plantToDraft(p: Plant): PlantDraft {
     harvest_notes: p.harvest_notes ?? "",
     harvest_months: p.harvest_months ?? [],
     harvest_week: p.harvest_week ?? "",
+    general_notes: p.general_notes ?? "",
     photo_url: p.photo_url ?? "",
     reminders_enabled: p.reminders_enabled,
   };
@@ -217,7 +214,6 @@ function draftToRow(d: PlantDraft) {
     sun_needs: d.sun_needs || null,
     season_notes: d.season_notes.trim() || null,
     water_notes: d.water_notes.trim() || null,
-    water_tags: d.water_tags,
     water_interval_days: d.water_interval_days
       ? Number(d.water_interval_days)
       : null,
@@ -246,6 +242,7 @@ function draftToRow(d: PlantDraft) {
     harvest_notes: d.harvest_notes.trim() || null,
     harvest_months: d.harvest_months,
     harvest_week: d.harvest_week.trim() || null,
+    general_notes: d.general_notes.trim() || null,
     photo_url: d.photo_url.trim() || null,
     reminders_enabled: d.reminders_enabled,
   };
@@ -317,9 +314,7 @@ function PlantForm({
       />
 
       <div className="space-y-2">
-        <p className="text-sm font-semibold uppercase tracking-wide sv-heading">
-          Eenjarig of meerjarig
-        </p>
+        <SectionHeading>Eenjarig of meerjarig</SectionHeading>
         <div className="flex gap-2 flex-wrap">
           {LIFECYCLE_OPTIONS.map((opt) => (
             <button
@@ -337,9 +332,7 @@ function PlantForm({
       </div>
 
       <div className="space-y-2">
-        <p className="text-sm font-semibold uppercase tracking-wide sv-heading">
-          Grootte in cm
-        </p>
+        <SectionHeading>Grootte in cm</SectionHeading>
         <Input
           type="number"
           min={1}
@@ -350,14 +343,7 @@ function PlantForm({
       </div>
 
       <div className="space-y-2">
-        <p className="text-sm font-semibold uppercase tracking-wide sv-heading">
-          Standplaats & seizoen
-        </p>
-        <Input
-          placeholder="Locatie (bv. vensterbank woonkamer)"
-          value={draft.location}
-          onChange={(e) => onChange({ location: e.target.value })}
-        />
+        <SectionHeading>Standplaats & seizoen</SectionHeading>
         <div className="flex gap-2 flex-wrap">
           {SUN_OPTIONS.map((opt) => (
             <button
@@ -373,7 +359,7 @@ function PlantForm({
           ))}
         </div>
         <Textarea
-          placeholder="Seizoen-notities (bv. rustperiode in de winter, minder water)"
+          placeholder="Notities"
           rows={2}
           value={draft.season_notes}
           onChange={(e) => onChange({ season_notes: e.target.value })}
@@ -381,25 +367,9 @@ function PlantForm({
       </div>
 
       <div className="space-y-2">
-        <p className="text-sm font-semibold uppercase tracking-wide sv-heading">
-          Water
-        </p>
-        <div className="flex gap-2 flex-wrap">
-          {WATER_TAG_OPTIONS.map((opt) => (
-            <button
-              key={opt}
-              type="button"
-              onClick={() =>
-                onChange({ water_tags: toggleInArray(draft.water_tags, opt) })
-              }
-              className={chipClass(draft.water_tags.includes(opt))}
-            >
-              {opt}
-            </button>
-          ))}
-        </div>
+        <SectionHeading>Water</SectionHeading>
         <Textarea
-          placeholder="Overige water-notities"
+          placeholder="Water-notities"
           rows={2}
           value={draft.water_notes}
           onChange={(e) => onChange({ water_notes: e.target.value })}
@@ -437,17 +407,19 @@ function PlantForm({
       </div>
 
       <div className="space-y-2">
-        <p className="text-sm font-semibold uppercase tracking-wide sv-heading">
-          Voeding & grond
-        </p>
+        <SectionHeading>Voeding</SectionHeading>
         <Textarea
-          placeholder="Voeding-notities"
+          placeholder="Notities"
           rows={2}
           value={draft.feeding_notes}
           onChange={(e) => onChange({ feeding_notes: e.target.value })}
         />
+      </div>
+
+      <div className="space-y-2">
+        <SectionHeading>Grond</SectionHeading>
         <Textarea
-          placeholder="Grond & pot-notities"
+          placeholder="Notities"
           rows={2}
           value={draft.soil_notes}
           onChange={(e) => onChange({ soil_notes: e.target.value })}
@@ -455,27 +427,17 @@ function PlantForm({
       </div>
 
       <div className="space-y-2">
-        <p className="text-sm font-semibold uppercase tracking-wide sv-heading">
-          Klimaat
-        </p>
-        <div className="grid grid-cols-2 gap-3">
-          <Input
-            placeholder="Temperatuur"
-            value={draft.temperature_notes}
-            onChange={(e) => onChange({ temperature_notes: e.target.value })}
-          />
-          <Input
-            placeholder="Luchtvochtigheid"
-            value={draft.humidity_notes}
-            onChange={(e) => onChange({ humidity_notes: e.target.value })}
-          />
-        </div>
+        <SectionHeading>Klimaat</SectionHeading>
+        <Textarea
+          placeholder="Notities"
+          rows={2}
+          value={draft.temperature_notes}
+          onChange={(e) => onChange({ temperature_notes: e.target.value })}
+        />
       </div>
 
       <div className="space-y-2">
-        <p className="text-sm font-semibold uppercase tracking-wide sv-heading">
-          Winterhardheid
-        </p>
+        <SectionHeading>Winterhardheid</SectionHeading>
         <div className="flex gap-2 flex-wrap">
           {WINTER_HARDINESS_OPTIONS.map((opt) => (
             <button
@@ -501,17 +463,19 @@ function PlantForm({
       </div>
 
       <div className="space-y-2">
-        <p className="text-sm font-semibold uppercase tracking-wide sv-heading">
-          Onderhoud
-        </p>
+        <SectionHeading>Snoeien</SectionHeading>
         <Textarea
-          placeholder="Snoeien"
+          placeholder="Notities"
           rows={2}
           value={draft.pruning_notes}
           onChange={(e) => onChange({ pruning_notes: e.target.value })}
         />
+      </div>
+
+      <div className="space-y-2">
+        <SectionHeading>Ziektes & plagen</SectionHeading>
         <Textarea
-          placeholder="Ziektes & plagen"
+          placeholder="Notities"
           rows={2}
           value={draft.pest_notes}
           onChange={(e) => onChange({ pest_notes: e.target.value })}
@@ -519,40 +483,7 @@ function PlantForm({
       </div>
 
       <div className="space-y-2">
-        <p className="text-sm font-semibold uppercase tracking-wide sv-heading">
-          Vermeerderen
-        </p>
-        <div className="flex gap-2 flex-wrap">
-          {PROPAGATION_OPTIONS.map((opt) => (
-            <button
-              key={opt}
-              type="button"
-              onClick={() =>
-                onChange({
-                  propagation_methods: toggleInArray(
-                    draft.propagation_methods,
-                    opt,
-                  ),
-                })
-              }
-              className={chipClass(draft.propagation_methods.includes(opt))}
-            >
-              {opt}
-            </button>
-          ))}
-        </div>
-        <Textarea
-          placeholder="Overige vermeerder-notities"
-          rows={2}
-          value={draft.propagation_notes}
-          onChange={(e) => onChange({ propagation_notes: e.target.value })}
-        />
-      </div>
-
-      <div className="space-y-2">
-        <p className="text-sm font-semibold uppercase tracking-wide sv-heading">
-          Zaaien
-        </p>
+        <SectionHeading>Zaaien</SectionHeading>
         <div className="flex gap-2 flex-wrap">
           {MONTH_OPTIONS.map((month) => (
             <button
@@ -581,9 +512,7 @@ function PlantForm({
       </div>
 
       <div className="space-y-2">
-        <p className="text-sm font-semibold uppercase tracking-wide sv-heading">
-          Bloeien (indien bloemen)
-        </p>
+        <SectionHeading>Bloeien (indien bloemen)</SectionHeading>
         <div className="flex gap-2 flex-wrap">
           {MONTH_OPTIONS.map((month) => (
             <button
@@ -614,9 +543,7 @@ function PlantForm({
       </div>
 
       <div className="space-y-2">
-        <p className="text-sm font-semibold uppercase tracking-wide sv-heading">
-          Oogst
-        </p>
+        <SectionHeading>Oogst</SectionHeading>
         <div className="flex gap-2 flex-wrap">
           {MONTH_OPTIONS.map((month) => (
             <button
@@ -647,9 +574,36 @@ function PlantForm({
       </div>
 
       <div className="space-y-2">
-        <p className="text-sm font-semibold uppercase tracking-wide sv-heading">
-          Overig
-        </p>
+        <SectionHeading>Vermeerderen</SectionHeading>
+        <div className="flex gap-2 flex-wrap">
+          {PROPAGATION_OPTIONS.map((opt) => (
+            <button
+              key={opt}
+              type="button"
+              onClick={() =>
+                onChange({
+                  propagation_methods: toggleInArray(
+                    draft.propagation_methods,
+                    opt,
+                  ),
+                })
+              }
+              className={chipClass(draft.propagation_methods.includes(opt))}
+            >
+              {opt}
+            </button>
+          ))}
+        </div>
+        <Textarea
+          placeholder="Overige vermeerder-notities"
+          rows={2}
+          value={draft.propagation_notes}
+          onChange={(e) => onChange({ propagation_notes: e.target.value })}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <SectionHeading>Giftigheid</SectionHeading>
         <p className="text-sm sv-muted">Giftig voor</p>
         <div className="flex gap-2 flex-wrap">
           <button
@@ -669,10 +623,21 @@ function PlantForm({
             Kat
           </button>
         </div>
-        <Input
-          placeholder="Overige giftigheid-notities (optioneel)"
+        <Textarea
+          placeholder="Notities"
+          rows={2}
           value={draft.toxicity_notes}
           onChange={(e) => onChange({ toxicity_notes: e.target.value })}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <SectionHeading>Overig</SectionHeading>
+        <Textarea
+          placeholder="Notities"
+          rows={2}
+          value={draft.general_notes}
+          onChange={(e) => onChange({ general_notes: e.target.value })}
         />
       </div>
     </div>
@@ -1032,16 +997,18 @@ export default function Tuinieren() {
                 <InfoRow label="Seizoen" value={view.season_notes} />
                 <InfoRow
                   label="Water"
+                  value={[view.water_notes].filter(Boolean).join(" · ") || null}
+                />
+                <InfoRow label="Voeding" value={view.feeding_notes} />
+                <InfoRow label="Grond" value={view.soil_notes} />
+                <InfoRow
+                  label="Klimaat"
                   value={
-                    [...view.water_tags, view.water_notes]
+                    [view.temperature_notes, view.humidity_notes]
                       .filter(Boolean)
                       .join(" · ") || null
                   }
                 />
-                <InfoRow label="Voeding" value={view.feeding_notes} />
-                <InfoRow label="Grond & pot" value={view.soil_notes} />
-                <InfoRow label="Temperatuur" value={view.temperature_notes} />
-                <InfoRow label="Luchtvochtigheid" value={view.humidity_notes} />
                 <InfoRow
                   label="Winterhardheid"
                   value={
@@ -1052,31 +1019,6 @@ export default function Tuinieren() {
                 />
                 <InfoRow label="Snoeien" value={view.pruning_notes} />
                 <InfoRow label="Ziektes & plagen" value={view.pest_notes} />
-                <InfoRow
-                  label="Vermeerderen"
-                  value={
-                    [
-                      view.propagation_methods.length > 0
-                        ? view.propagation_methods.join(", ")
-                        : null,
-                      view.propagation_notes,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ") || null
-                  }
-                />
-                <InfoRow
-                  label="Giftig voor"
-                  value={
-                    [
-                      view.toxic_to_humans ? "Mens" : null,
-                      view.toxic_to_cats ? "Kat" : null,
-                      view.toxicity_notes,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ") || null
-                  }
-                />
                 <InfoRow
                   label="Zaaien"
                   value={
@@ -1119,6 +1061,32 @@ export default function Tuinieren() {
                       .join(" · ") || null
                   }
                 />
+                <InfoRow
+                  label="Vermeerderen"
+                  value={
+                    [
+                      view.propagation_methods.length > 0
+                        ? view.propagation_methods.join(", ")
+                        : null,
+                      view.propagation_notes,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ") || null
+                  }
+                />
+                <InfoRow
+                  label="Giftig voor"
+                  value={
+                    [
+                      view.toxic_to_humans ? "Mens" : null,
+                      view.toxic_to_cats ? "Kat" : null,
+                      view.toxicity_notes,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ") || null
+                  }
+                />
+                <InfoRow label="Overig" value={view.general_notes} />
               </div>
 
               <div className="space-y-3">

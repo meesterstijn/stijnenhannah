@@ -4,7 +4,8 @@ import webpush from "npm:web-push@3.6.7";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
 webpush.setVapidDetails(
@@ -24,29 +25,23 @@ Deno.serve(async (req) => {
   );
 
   try {
-    const { data: dueNotes, error: notesError } = await supabase
-      .from("notes")
-      .select("id, title, created_by, remind_at")
-      .lte("remind_at", new Date().toISOString())
-      .is("reminder_sent_at", null)
-      .not("remind_at", "is", null);
-    if (notesError) throw notesError;
-
     let sent = 0;
     let cleaned = 0;
+    let checked = 0;
 
-    for (const note of dueNotes ?? []) {
+    async function sendToOwner(
+      ownerId: string,
+      title: string,
+      body: string,
+      url: string,
+    ) {
       const { data: subs, error: subsError } = await supabase
         .from("push_subscriptions")
         .select("id, endpoint, p256dh, auth")
-        .eq("user_id", note.created_by);
+        .eq("user_id", ownerId);
       if (subsError) throw subsError;
 
-      const payload = JSON.stringify({
-        title: note.title?.trim() || "Herinnering",
-        body: "Je hebt een herinnering voor deze notitie.",
-        noteId: note.id,
-      });
+      const payload = JSON.stringify({ title, body, url });
 
       for (const sub of subs ?? []) {
         try {
@@ -64,21 +59,59 @@ Deno.serve(async (req) => {
             await supabase.from("push_subscriptions").delete().eq("id", sub.id);
             cleaned++;
           } else {
-            console.error("push send failed", note.id, sub.id, err);
+            console.error("push send failed", ownerId, sub.id, err);
           }
         }
       }
+    }
 
+    const { data: dueNotes, error: notesError } = await supabase
+      .from("notes")
+      .select("id, title, created_by, remind_at")
+      .lte("remind_at", new Date().toISOString())
+      .is("reminder_sent_at", null)
+      .not("remind_at", "is", null);
+    if (notesError) throw notesError;
+    checked += dueNotes?.length ?? 0;
+
+    for (const note of dueNotes ?? []) {
+      await sendToOwner(
+        note.created_by,
+        note.title?.trim() || "Herinnering",
+        "Je hebt een herinnering voor deze notitie.",
+        "/stijnenhannah/#/notities",
+      );
       await supabase
         .from("notes")
         .update({ reminder_sent_at: new Date().toISOString() })
         .eq("id", note.id);
     }
 
-    return new Response(
-      JSON.stringify({ checked: dueNotes?.length ?? 0, sent, cleaned }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    const { data: dueTodos, error: todosError } = await supabase
+      .from("todos")
+      .select("id, text, created_by, remind_at")
+      .lte("remind_at", new Date().toISOString())
+      .is("reminder_sent_at", null)
+      .not("remind_at", "is", null);
+    if (todosError) throw todosError;
+    checked += dueTodos?.length ?? 0;
+
+    for (const todo of dueTodos ?? []) {
+      await sendToOwner(
+        todo.created_by,
+        "Herinnering",
+        todo.text?.trim() || "Je hebt een herinnering voor deze taak.",
+        "/stijnenhannah/#/todo",
+      );
+      await supabase
+        .from("todos")
+        .update({ reminder_sent_at: new Date().toISOString() })
+        .eq("id", todo.id);
+    }
+
+    return new Response(JSON.stringify({ checked, sent, cleaned }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (err) {
     console.error(err);
     return new Response(JSON.stringify({ error: String(err) }), {
