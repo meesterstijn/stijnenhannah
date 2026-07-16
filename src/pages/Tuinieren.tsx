@@ -954,18 +954,23 @@ export default function Tuinieren() {
           ) : view ? (
             <>
               <DialogHeader>
-                <DialogTitle className="sv-heading text-2xl sm:text-3xl leading-snug">
-                  {view.name}
-                </DialogTitle>
+                <div className="flex items-center gap-3">
+                  {view.photo_url ? (
+                    <img
+                      src={view.photo_url}
+                      alt=""
+                      className="h-12 w-12 rounded-lg object-cover shrink-0 sv-icon-slot"
+                    />
+                  ) : (
+                    <div className="h-12 w-12 sv-icon-slot flex items-center justify-center shrink-0">
+                      <Sprout className="h-5 w-5" strokeWidth={1.6} />
+                    </div>
+                  )}
+                  <DialogTitle className="sv-heading text-2xl sm:text-3xl leading-snug">
+                    {view.name}
+                  </DialogTitle>
+                </div>
               </DialogHeader>
-
-              {view.photo_url && (
-                <img
-                  src={view.photo_url}
-                  alt=""
-                  className="w-full max-h-64 object-cover rounded-xl sv-icon-slot"
-                />
-              )}
 
               {view.fun_fact && (
                 <p className="text-sm italic sv-inset px-4 py-3">
