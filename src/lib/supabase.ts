@@ -85,6 +85,7 @@ export type Plant = {
   harvest_week: string | null;
   greenhouse_notes: string | null;
   photo_url: string | null;
+  planted: boolean;
   reminders_enabled: boolean;
   created_at: string;
 };

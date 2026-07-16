@@ -92,6 +92,7 @@ type PlantDraft = {
   sun_needs: string;
   season_notes: string;
   water_notes: string;
+  planted: boolean;
   water_interval_days: string;
   last_watered_at: string;
   feeding_notes: string;
@@ -132,6 +133,7 @@ const emptyDraft: PlantDraft = {
   sun_needs: "",
   season_notes: "",
   water_notes: "",
+  planted: false,
   water_interval_days: "",
   last_watered_at: "",
   feeding_notes: "",
@@ -173,6 +175,7 @@ function plantToDraft(p: Plant): PlantDraft {
     sun_needs: p.sun_needs ?? "",
     season_notes: p.season_notes ?? "",
     water_notes: p.water_notes ?? "",
+    planted: p.planted,
     water_interval_days: p.water_interval_days
       ? String(p.water_interval_days)
       : "",
@@ -217,6 +220,7 @@ function draftToRow(d: PlantDraft) {
     sun_needs: d.sun_needs || null,
     season_notes: d.season_notes.trim() || null,
     water_notes: d.water_notes.trim() || null,
+    planted: d.planted,
     water_interval_days: d.water_interval_days
       ? Number(d.water_interval_days)
       : null,
@@ -253,6 +257,7 @@ function draftToRow(d: PlantDraft) {
 }
 
 function waterStatus(p: Plant): { label: string; overdue: boolean } | null {
+  if (!p.planted) return null;
   if (!p.water_interval_days) return null;
   if (!p.last_watered_at)
     return { label: "Nog geen water gegeven", overdue: true };
@@ -378,36 +383,52 @@ function PlantForm({
           value={draft.water_notes}
           onChange={(e) => onChange({ water_notes: e.target.value })}
         />
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1">
-            <p className="text-xs sv-muted">Elke hoeveel dagen water</p>
-            <Input
-              type="number"
-              min={1}
-              placeholder="bv. 7"
-              value={draft.water_interval_days}
-              onChange={(e) =>
-                onChange({ water_interval_days: e.target.value })
-              }
-            />
-          </div>
-          <div className="space-y-1">
-            <p className="text-xs sv-muted">Laatst water gegeven op</p>
-            <Input
-              type="date"
-              value={draft.last_watered_at}
-              onChange={(e) => onChange({ last_watered_at: e.target.value })}
-            />
-          </div>
-        </div>
         <label className="flex items-center gap-2 text-sm sv-muted">
           <input
             type="checkbox"
-            checked={draft.reminders_enabled}
-            onChange={(e) => onChange({ reminders_enabled: e.target.checked })}
+            checked={draft.planted}
+            onChange={(e) => onChange({ planted: e.target.checked })}
           />
-          Stuur een melding als het tijd is om water te geven
+          Gepland (in de grond/pot gezet)
         </label>
+        {draft.planted && (
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <p className="text-xs sv-muted">Elke hoeveel dagen water</p>
+                <Input
+                  type="number"
+                  min={1}
+                  placeholder="bv. 7"
+                  value={draft.water_interval_days}
+                  onChange={(e) =>
+                    onChange({ water_interval_days: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs sv-muted">Laatst water gegeven op</p>
+                <Input
+                  type="date"
+                  value={draft.last_watered_at}
+                  onChange={(e) =>
+                    onChange({ last_watered_at: e.target.value })
+                  }
+                />
+              </div>
+            </div>
+            <label className="flex items-center gap-2 text-sm sv-muted">
+              <input
+                type="checkbox"
+                checked={draft.reminders_enabled}
+                onChange={(e) =>
+                  onChange({ reminders_enabled: e.target.checked })
+                }
+              />
+              Stuur een melding als het tijd is om water te geven
+            </label>
+          </>
+        )}
       </div>
 
       <div className="space-y-2">

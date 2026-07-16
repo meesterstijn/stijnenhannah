@@ -60,6 +60,7 @@ Deno.serve(async (req) => {
       .from("plants")
       .select("id, name, water_interval_days, last_watered_at, last_water_reminder_sent_at")
       .eq("reminders_enabled", true)
+      .eq("planted", true)
       .not("water_interval_days", "is", null);
     if (plantsError) throw plantsError;
 
