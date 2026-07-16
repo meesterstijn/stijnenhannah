@@ -76,7 +76,7 @@ function warnChipClass(active: boolean): string {
 
 function SectionHeading({ children }: { children: string }) {
   return (
-    <p className="text-base font-semibold uppercase tracking-wide sv-heading">
+    <p className="text-2xl font-semibold tracking-wide sv-heading">
       {children}
     </p>
   );
@@ -824,7 +824,7 @@ export default function Tuinieren() {
       <header className="flex items-end justify-end gap-4 flex-wrap">
         <Dialog open={open} onOpenChange={handleOpenChange}>
           <DialogTrigger asChild>
-            <Button size="lg" className="sv-button text-xl">
+            <Button size="lg" className="sv-button text-2xl">
               <Plus className="h-4 w-4" /> Nieuwe plant
             </Button>
           </DialogTrigger>
@@ -871,16 +871,16 @@ export default function Tuinieren() {
           </p>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2">
           {plants.map((p) => {
             const status = waterStatus(p);
             return (
               <button
                 key={p.id}
                 onClick={() => setView(p)}
-                className="sv-panel text-left p-5 hover:-translate-y-0.5 transition-transform flex flex-col gap-3"
+                className="sv-panel text-left p-5 hover:-translate-y-0.5 transition-transform flex items-center justify-between gap-3"
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 min-w-0">
                   {p.photo_url ? (
                     <img
                       src={p.photo_url}
@@ -903,7 +903,7 @@ export default function Tuinieren() {
                 </div>
                 {status && (
                   <span
-                    className={`sv-heading inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full w-fit ${
+                    className={`sv-heading inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full w-fit shrink-0 ${
                       status.overdue ? "sv-badge-overdue" : "sv-badge-ok"
                     }`}
                   >
@@ -1015,6 +1015,21 @@ export default function Tuinieren() {
                       disabled={updatePlant.isPending}
                     >
                       <Droplet className="h-3.5 w-3.5" /> Water gegeven vandaag
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="sv-button sv-button-thin-border text-xl"
+                      onClick={() =>
+                        updatePlant.mutate({
+                          id: view.id,
+                          patch: { planted: !view.planted },
+                        })
+                      }
+                      disabled={updatePlant.isPending}
+                    >
+                      <Sprout className="h-3.5 w-3.5" />{" "}
+                      {view.planted ? "Gepland" : "Markeer als gepland"}
                     </Button>
                   </div>
                 );
