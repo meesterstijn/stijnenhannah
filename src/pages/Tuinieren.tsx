@@ -305,7 +305,7 @@ function PlantForm({
           onChange={(e) => onChange({ species: e.target.value })}
         />
         <Input
-          placeholder="Foto-URL (link)"
+          placeholder="Foto: link of /plant-fotos/bestand.jpg"
           value={draft.photo_url}
           onChange={(e) => onChange({ photo_url: e.target.value })}
         />
