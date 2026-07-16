@@ -1,6 +1,7 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { Home, NotebookPen, ListTodo } from "lucide-react";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { WeatherForecast } from "@/components/weather-forecast";
 
 const nav = [
   { to: "/notities", label: "Notities", icon: NotebookPen },
@@ -9,6 +10,7 @@ const nav = [
 
 export function SiteLayout() {
   const { pathname } = useLocation();
+  const isTuinieren = pathname === "/tuinieren";
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -20,13 +22,17 @@ export function SiteLayout() {
               Ons Huisje
             </span>
           </Link>
-          <span className="hidden md:block text-center text-xs text-muted-foreground font-sans font-normal capitalize">
-            {new Date().toLocaleDateString("nl-NL", {
-              weekday: "long",
-              day: "numeric",
-              month: "long",
-            })}
-          </span>
+          {isTuinieren ? (
+            <WeatherForecast />
+          ) : (
+            <span className="hidden md:block text-center text-xs text-muted-foreground font-sans font-normal capitalize">
+              {new Date().toLocaleDateString("nl-NL", {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+              })}
+            </span>
+          )}
           <nav className="flex items-center gap-1 sm:gap-2 justify-self-end">
             {nav.map((item) => {
               const active = pathname === item.to;
@@ -35,7 +41,7 @@ export function SiteLayout() {
                 <Link
                   key={item.to}
                   to={item.to}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-full text-sm transition-colors ${
+                  className={`flex items-center gap-2 px-3 py-2 rounded-full ${isTuinieren ? "text-lg" : "text-sm"} transition-colors ${
                     active
                       ? "bg-primary text-primary-foreground shadow-sm"
                       : "text-muted-foreground hover:bg-secondary hover:text-foreground"

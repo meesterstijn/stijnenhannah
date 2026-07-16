@@ -76,7 +76,7 @@ function warnChipClass(active: boolean): string {
 
 function SectionHeading({ children }: { children: string }) {
   return (
-    <p className="text-sm font-semibold uppercase tracking-wide sv-heading">
+    <p className="text-base font-semibold uppercase tracking-wide sv-heading">
       {children}
     </p>
   );
@@ -683,7 +683,7 @@ function InfoRow({ label, value }: { label: string; value: string | null }) {
   if (!value) return null;
   return (
     <div>
-      <p className="text-xs uppercase tracking-wide sv-heading">{label}</p>
+      <p className="text-2xl font-bold tracking-wide sv-heading">{label}</p>
       <p className="text-sm mt-0.5 whitespace-pre-wrap">{value}</p>
     </div>
   );
@@ -824,13 +824,13 @@ export default function Tuinieren() {
       <header className="flex items-end justify-end gap-4 flex-wrap">
         <Dialog open={open} onOpenChange={handleOpenChange}>
           <DialogTrigger asChild>
-            <Button size="lg" className="sv-button">
+            <Button size="lg" className="sv-button text-xl">
               <Plus className="h-4 w-4" /> Nieuwe plant
             </Button>
           </DialogTrigger>
-          <DialogContent className="tuinieren-theme sv-dialog max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogContent className="tuinieren-theme sv-dialog max-w-lg max-h-[90vh] overflow-y-auto scrollbar-none">
             <DialogHeader>
-              <DialogTitle className="sv-heading text-2xl">
+              <DialogTitle className="sv-heading text-3xl">
                 Nieuwe plant
               </DialogTitle>
             </DialogHeader>
@@ -865,7 +865,7 @@ export default function Tuinieren() {
       ) : plants.length === 0 ? (
         <div className="sv-panel p-12 text-center">
           <Sprout className="h-10 w-10 mx-auto" strokeWidth={1.4} />
-          <p className="sv-heading text-xl mt-4">Nog geen planten</p>
+          <p className="sv-heading text-2xl mt-4">Nog geen planten</p>
           <p className="text-sm sv-muted mt-1">
             Voeg je eerste plant toe om bij te houden.
           </p>
@@ -893,7 +893,7 @@ export default function Tuinieren() {
                     </div>
                   )}
                   <div className="min-w-0">
-                    <p className="sv-heading text-lg leading-snug truncate">
+                    <p className="sv-heading text-2xl leading-snug truncate">
                       {p.name}
                     </p>
                     {p.location && (
@@ -930,7 +930,7 @@ export default function Tuinieren() {
           {view && editMode ? (
             <>
               <DialogHeader>
-                <DialogTitle className="sv-heading text-2xl">
+                <DialogTitle className="sv-heading text-3xl">
                   Plant bewerken
                 </DialogTitle>
               </DialogHeader>
@@ -982,7 +982,7 @@ export default function Tuinieren() {
                       <Sprout className="h-5 w-5" strokeWidth={1.6} />
                     </div>
                   )}
-                  <DialogTitle className="sv-heading text-2xl sm:text-3xl leading-snug">
+                  <DialogTitle className="sv-heading text-3xl sm:text-4xl leading-snug">
                     {view.name}
                   </DialogTitle>
                 </div>
@@ -1010,7 +1010,7 @@ export default function Tuinieren() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="sv-button text-xs"
+                      className="sv-button sv-button-thin-border text-xl"
                       onClick={markWatered}
                       disabled={updatePlant.isPending}
                     >
@@ -1126,7 +1126,7 @@ export default function Tuinieren() {
               </div>
 
               <div className="space-y-3">
-                <h3 className="sv-heading text-lg flex items-center gap-2">
+                <h3 className="sv-heading text-xl flex items-center gap-2">
                   <ImageIcon className="h-4 w-4" /> Groei bijhouden
                 </h3>
                 <div className="flex gap-2">

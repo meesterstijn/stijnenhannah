@@ -214,6 +214,7 @@ body:has(.tuinieren-theme) header {
   backdrop-filter: none !important;
   border-color: transparent !important;
   color: #f8f0da;
+  font-family: "TuinTitel", "Pixelify Sans", var(--font-serif), serif;
 }
 
 body:has(.tuinieren-theme) header .text-muted-foreground {
@@ -227,7 +228,7 @@ body:has(.tuinieren-theme) header span {
 
 @font-face {
   font-family: "TuinTitel";
-  src: url("/stijnenhannah/fonts/tuin-titel.ttf") format("truetype");
+  src: url("/stijnenhannah/fonts/tuin-titel.ttf?v=2") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -248,7 +249,7 @@ body:has(.tuinieren-theme) header span {
   );
   border: 7px solid;
   border-radius: 0;
-  border-image-source: url("/stijnenhannah/gradient-frame.svg");
+  border-image-source: url("/stijnenhannah/gradient-frame.svg?v=2");
   border-image-slice: 20;
   border-image-width: 7px;
   border-image-repeat: stretch;
@@ -268,7 +269,7 @@ body:has(.tuinieren-theme) header span {
 }
 
 .tuinieren-theme .sv-button {
-  font-family: "Pixelify Sans", var(--font-serif), serif;
+  font-family: "TuinTitel", "Pixelify Sans", var(--font-serif), serif;
   background: linear-gradient(
     180deg,
     #eda65f 0%,
@@ -277,7 +278,7 @@ body:has(.tuinieren-theme) header span {
   );
   border: 6px solid;
   border-radius: 0;
-  border-image-source: url("/stijnenhannah/gradient-frame.svg");
+  border-image-source: url("/stijnenhannah/gradient-frame.svg?v=2");
   border-image-slice: 20;
   border-image-width: 6px;
   border-image-repeat: stretch;
@@ -294,6 +295,12 @@ body:has(.tuinieren-theme) header span {
 
 .tuinieren-theme .sv-button:hover {
   filter: brightness(1.06);
+}
+
+.tuinieren-theme .sv-button-thin-border {
+  border-width: 2px;
+  border-image-width: 2px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
 .tuinieren-theme .sv-button:active {
