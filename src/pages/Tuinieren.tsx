@@ -821,12 +821,7 @@ export default function Tuinieren() {
 
   return (
     <div className="tuinieren-theme space-y-8">
-      <header className="flex items-end justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="sv-heading sv-title-tag text-4xl font-semibold">
-            Tuinieren
-          </h1>
-        </div>
+      <header className="flex items-end justify-end gap-4 flex-wrap">
         <Dialog open={open} onOpenChange={handleOpenChange}>
           <DialogTrigger asChild>
             <Button size="lg" className="sv-button">
