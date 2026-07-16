@@ -116,6 +116,7 @@ type PlantDraft = {
   harvest_notes: string;
   harvest_months: string[];
   harvest_week: string;
+  greenhouse_notes: string;
   general_notes: string;
   photo_url: string;
   reminders_enabled: boolean;
@@ -155,6 +156,7 @@ const emptyDraft: PlantDraft = {
   harvest_notes: "",
   harvest_months: [],
   harvest_week: "",
+  greenhouse_notes: "",
   general_notes: "",
   photo_url: "",
   reminders_enabled: true,
@@ -197,6 +199,7 @@ function plantToDraft(p: Plant): PlantDraft {
     harvest_notes: p.harvest_notes ?? "",
     harvest_months: p.harvest_months ?? [],
     harvest_week: p.harvest_week ?? "",
+    greenhouse_notes: p.greenhouse_notes ?? "",
     general_notes: p.general_notes ?? "",
     photo_url: p.photo_url ?? "",
     reminders_enabled: p.reminders_enabled,
@@ -242,6 +245,7 @@ function draftToRow(d: PlantDraft) {
     harvest_notes: d.harvest_notes.trim() || null,
     harvest_months: d.harvest_months,
     harvest_week: d.harvest_week.trim() || null,
+    greenhouse_notes: d.greenhouse_notes.trim() || null,
     general_notes: d.general_notes.trim() || null,
     photo_url: d.photo_url.trim() || null,
     reminders_enabled: d.reminders_enabled,
@@ -407,82 +411,6 @@ function PlantForm({
       </div>
 
       <div className="space-y-2">
-        <SectionHeading>Voeding</SectionHeading>
-        <Textarea
-          placeholder="Notities"
-          rows={2}
-          value={draft.feeding_notes}
-          onChange={(e) => onChange({ feeding_notes: e.target.value })}
-        />
-      </div>
-
-      <div className="space-y-2">
-        <SectionHeading>Grond</SectionHeading>
-        <Textarea
-          placeholder="Notities"
-          rows={2}
-          value={draft.soil_notes}
-          onChange={(e) => onChange({ soil_notes: e.target.value })}
-        />
-      </div>
-
-      <div className="space-y-2">
-        <SectionHeading>Klimaat</SectionHeading>
-        <Textarea
-          placeholder="Notities"
-          rows={2}
-          value={draft.temperature_notes}
-          onChange={(e) => onChange({ temperature_notes: e.target.value })}
-        />
-      </div>
-
-      <div className="space-y-2">
-        <SectionHeading>Winterhardheid</SectionHeading>
-        <div className="flex gap-2 flex-wrap">
-          {WINTER_HARDINESS_OPTIONS.map((opt) => (
-            <button
-              key={opt}
-              type="button"
-              onClick={() =>
-                onChange({
-                  winter_hardiness: draft.winter_hardiness === opt ? "" : opt,
-                })
-              }
-              className={chipClass(draft.winter_hardiness === opt)}
-            >
-              {opt}
-            </button>
-          ))}
-        </div>
-        <Textarea
-          placeholder="Winter-notities (bv. vorstvrij houden, afdekken met vorstdoek)"
-          rows={2}
-          value={draft.winter_notes}
-          onChange={(e) => onChange({ winter_notes: e.target.value })}
-        />
-      </div>
-
-      <div className="space-y-2">
-        <SectionHeading>Snoeien</SectionHeading>
-        <Textarea
-          placeholder="Notities"
-          rows={2}
-          value={draft.pruning_notes}
-          onChange={(e) => onChange({ pruning_notes: e.target.value })}
-        />
-      </div>
-
-      <div className="space-y-2">
-        <SectionHeading>Ziektes & plagen</SectionHeading>
-        <Textarea
-          placeholder="Notities"
-          rows={2}
-          value={draft.pest_notes}
-          onChange={(e) => onChange({ pest_notes: e.target.value })}
-        />
-      </div>
-
-      <div className="space-y-2">
         <SectionHeading>Zaaien</SectionHeading>
         <div className="flex gap-2 flex-wrap">
           {MONTH_OPTIONS.map((month) => (
@@ -570,6 +498,92 @@ function PlantForm({
           rows={2}
           value={draft.harvest_notes}
           onChange={(e) => onChange({ harvest_notes: e.target.value })}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <SectionHeading>Kas</SectionHeading>
+        <Textarea
+          placeholder="Notities"
+          rows={2}
+          value={draft.greenhouse_notes}
+          onChange={(e) => onChange({ greenhouse_notes: e.target.value })}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <SectionHeading>Voeding</SectionHeading>
+        <Textarea
+          placeholder="Notities"
+          rows={2}
+          value={draft.feeding_notes}
+          onChange={(e) => onChange({ feeding_notes: e.target.value })}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <SectionHeading>Grond</SectionHeading>
+        <Textarea
+          placeholder="Notities"
+          rows={2}
+          value={draft.soil_notes}
+          onChange={(e) => onChange({ soil_notes: e.target.value })}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <SectionHeading>Klimaat</SectionHeading>
+        <Textarea
+          placeholder="Notities"
+          rows={2}
+          value={draft.temperature_notes}
+          onChange={(e) => onChange({ temperature_notes: e.target.value })}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <SectionHeading>Winterhardheid</SectionHeading>
+        <div className="flex gap-2 flex-wrap">
+          {WINTER_HARDINESS_OPTIONS.map((opt) => (
+            <button
+              key={opt}
+              type="button"
+              onClick={() =>
+                onChange({
+                  winter_hardiness: draft.winter_hardiness === opt ? "" : opt,
+                })
+              }
+              className={chipClass(draft.winter_hardiness === opt)}
+            >
+              {opt}
+            </button>
+          ))}
+        </div>
+        <Textarea
+          placeholder="Winter-notities (bv. vorstvrij houden, afdekken met vorstdoek)"
+          rows={2}
+          value={draft.winter_notes}
+          onChange={(e) => onChange({ winter_notes: e.target.value })}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <SectionHeading>Snoeien</SectionHeading>
+        <Textarea
+          placeholder="Notities"
+          rows={2}
+          value={draft.pruning_notes}
+          onChange={(e) => onChange({ pruning_notes: e.target.value })}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <SectionHeading>Ziektes & plagen</SectionHeading>
+        <Textarea
+          placeholder="Notities"
+          rows={2}
+          value={draft.pest_notes}
+          onChange={(e) => onChange({ pest_notes: e.target.value })}
         />
       </div>
 
@@ -999,26 +1013,6 @@ export default function Tuinieren() {
                   label="Water"
                   value={[view.water_notes].filter(Boolean).join(" · ") || null}
                 />
-                <InfoRow label="Voeding" value={view.feeding_notes} />
-                <InfoRow label="Grond" value={view.soil_notes} />
-                <InfoRow
-                  label="Klimaat"
-                  value={
-                    [view.temperature_notes, view.humidity_notes]
-                      .filter(Boolean)
-                      .join(" · ") || null
-                  }
-                />
-                <InfoRow
-                  label="Winterhardheid"
-                  value={
-                    [view.winter_hardiness, view.winter_notes]
-                      .filter(Boolean)
-                      .join(" · ") || null
-                  }
-                />
-                <InfoRow label="Snoeien" value={view.pruning_notes} />
-                <InfoRow label="Ziektes & plagen" value={view.pest_notes} />
                 <InfoRow
                   label="Zaaien"
                   value={
@@ -1061,6 +1055,27 @@ export default function Tuinieren() {
                       .join(" · ") || null
                   }
                 />
+                <InfoRow label="Kas" value={view.greenhouse_notes} />
+                <InfoRow label="Voeding" value={view.feeding_notes} />
+                <InfoRow label="Grond" value={view.soil_notes} />
+                <InfoRow
+                  label="Klimaat"
+                  value={
+                    [view.temperature_notes, view.humidity_notes]
+                      .filter(Boolean)
+                      .join(" · ") || null
+                  }
+                />
+                <InfoRow
+                  label="Winterhardheid"
+                  value={
+                    [view.winter_hardiness, view.winter_notes]
+                      .filter(Boolean)
+                      .join(" · ") || null
+                  }
+                />
+                <InfoRow label="Snoeien" value={view.pruning_notes} />
+                <InfoRow label="Ziektes & plagen" value={view.pest_notes} />
                 <InfoRow
                   label="Vermeerderen"
                   value={
