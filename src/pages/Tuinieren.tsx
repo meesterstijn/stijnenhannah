@@ -887,7 +887,7 @@ export default function Tuinieren() {
                 </div>
                 {status && (
                   <span
-                    className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full w-fit ${
+                    className={`sv-heading inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full w-fit ${
                       status.overdue ? "sv-badge-overdue" : "sv-badge-ok"
                     }`}
                   >
@@ -979,7 +979,7 @@ export default function Tuinieren() {
                   <div className="flex items-center gap-3 flex-wrap">
                     {status && (
                       <span
-                        className={`inline-flex items-center gap-1 text-sm px-3 py-1.5 rounded-full ${
+                        className={`sv-heading inline-flex items-center gap-1 text-sm px-3 py-1.5 rounded-full ${
                           status.overdue ? "sv-badge-overdue" : "sv-badge-ok"
                         }`}
                       >
