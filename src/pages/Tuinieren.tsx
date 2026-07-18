@@ -1073,7 +1073,7 @@ export default function Tuinieren() {
           )}
         </Button>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 ml-auto">
           <Button
             size="lg"
             className="sv-button text-2xl"
@@ -1526,6 +1526,27 @@ export default function Tuinieren() {
 
           <div className="space-y-5">
             <div className="space-y-2">
+              <SectionHeading>Sortering</SectionHeading>
+              <div className="flex gap-2 flex-wrap">
+                {(
+                  [
+                    { value: "naam", label: "Naam (A–Z)" },
+                    { value: "water", label: "Water urgentie" },
+                  ] as const
+                ).map(({ value, label }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => patchFilter({ sort: value })}
+                    className={chipClass(filters.sort === value)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
               <SectionHeading>Categorie</SectionHeading>
               <div className="flex gap-2 flex-wrap">
                 {PLANT_CATEGORY_OPTIONS.map((opt) => (
@@ -1655,26 +1676,6 @@ export default function Tuinieren() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <SectionHeading>Sortering</SectionHeading>
-              <div className="flex gap-2 flex-wrap">
-                {(
-                  [
-                    { value: "naam", label: "Naam (A–Z)" },
-                    { value: "water", label: "Water urgentie" },
-                  ] as const
-                ).map(({ value, label }) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => patchFilter({ sort: value })}
-                    className={chipClass(filters.sort === value)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
 
           <DialogFooter className="flex justify-between w-full">
