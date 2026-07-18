@@ -900,7 +900,7 @@ export default function Tuinieren() {
                   )}
                   {status && (
                     <span
-                      className={`sv-heading inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full w-fit mt-1 ${
+                      className={`sv-heading inline-flex items-center gap-1 text-sm px-2 py-1 rounded-full w-fit mt-1 ${
                         status.overdue ? "sv-badge-overdue" : "sv-badge-ok"
                       }`}
                     >
