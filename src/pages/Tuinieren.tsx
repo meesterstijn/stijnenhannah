@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase, type Plant, type PlantPhoto } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -23,6 +23,7 @@ import {
   X,
   Image as ImageIcon,
   SlidersHorizontal,
+  Upload,
 } from "lucide-react";
 
 const SUN_OPTIONS = ["Volle zon", "Halfvolle zon", "Half schaduw", "Schaduw"] as const;
@@ -763,6 +764,81 @@ export default function Tuinieren() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [photoUrlDraft, setPhotoUrlDraft] = useState("");
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importMsg, setImportMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!importMsg) return;
+    const t = setTimeout(() => setImportMsg(null), 5000);
+    return () => clearTimeout(t);
+  }, [importMsg]);
+
+  async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const data = JSON.parse(await file.text());
+      const list = Array.isArray(data) ? data : [data];
+      let imported = 0;
+      const errors: string[] = [];
+      for (const p of list) {
+        if (!p.name?.trim()) { errors.push("plant zonder naam overgeslagen"); continue; }
+        const row = {
+          name: p.name.trim(),
+          category: p.category || null,
+          species: p.species || null,
+          fun_fact: p.fun_fact || null,
+          location: p.location || null,
+          lifecycle: p.lifecycle || null,
+          size_cm: p.size_cm ? Number(p.size_cm) : null,
+          sun_needs: Array.isArray(p.sun_needs) ? p.sun_needs.join(",") : p.sun_needs || null,
+          season_notes: p.season_notes || null,
+          water_notes: p.water_notes || null,
+          planted: p.planted ?? false,
+          water_interval_days: p.water_interval_days ? Number(p.water_interval_days) : null,
+          last_watered_at: p.last_watered_at ? new Date(p.last_watered_at).toISOString() : null,
+          reminders_enabled: p.reminders_enabled ?? true,
+          greenhouse_notes: [p.greenhouse_pref, p.greenhouse_notes].filter(Boolean).join("\n") || null,
+          feeding_notes: p.feeding_notes || null,
+          soil_notes: p.soil_notes || null,
+          temperature_notes: p.temperature_notes || null,
+          humidity_notes: p.humidity_notes || null,
+          winter_hardiness: p.winter_hardiness || null,
+          winter_notes: p.winter_notes || null,
+          pruning_notes: p.pruning_notes || null,
+          pest_notes: p.pest_notes || null,
+          toxic_to_humans: p.toxic_to_humans ?? false,
+          toxic_to_cats: p.toxic_to_cats ?? false,
+          toxicity_notes: p.toxicity_notes || null,
+          sow_months: p.sow_months ?? [],
+          sow_week: p.sow_week || null,
+          sow_notes: p.sow_notes || null,
+          bloom_months: p.bloom_months ?? [],
+          bloom_week: p.bloom_week || null,
+          bloom_notes: p.bloom_notes || null,
+          propagation_methods: p.propagation_methods ?? [],
+          propagation_notes: p.propagation_notes || null,
+          harvest_months: p.harvest_months ?? [],
+          harvest_week: p.harvest_week || null,
+          harvest_notes: p.harvest_notes || null,
+          general_notes: p.general_notes || null,
+          photo_url: p.photo_url || null,
+          created_by: session?.user.id,
+        };
+        const { error } = await supabase.from("plants").insert(row);
+        if (error) errors.push(`${row.name}: ${error.message}`);
+        else imported++;
+      }
+      queryClient.invalidateQueries({ queryKey: ["plants"] });
+      setImportMsg(errors.length > 0
+        ? `${imported} toegevoegd, ${errors.length} fout(en): ${errors.join(" · ")}`
+        : `${imported} plant${imported === 1 ? "" : "en"} toegevoegd!`);
+    } catch {
+      setImportMsg("Ongeldig JSON-bestand.");
+    }
+    e.target.value = "";
+  }
+
   const { data: plants = [], isLoading } = useQuery({
     queryKey: ["plants"],
     queryFn: fetchPlants,
@@ -997,6 +1073,22 @@ export default function Tuinieren() {
           )}
         </Button>
 
+        <div className="flex items-center gap-2">
+          <Button
+            size="lg"
+            className="sv-button text-2xl"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Upload className="h-4 w-4" /> Importeer
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            className="hidden"
+            onChange={handleImport}
+          />
+
         <Dialog open={open} onOpenChange={handleOpenChange}>
           <DialogTrigger asChild>
             <Button size="lg" className="sv-button text-2xl">
@@ -1031,7 +1123,12 @@ export default function Tuinieren() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
       </header>
+
+      {importMsg && (
+        <p className="text-sm sv-muted text-right -mt-4">{importMsg}</p>
+      )}
 
       {isLoading ? (
         <div className="flex justify-center py-12 sv-muted">
