@@ -1095,7 +1095,7 @@ export default function Tuinieren() {
               <Plus className="h-4 w-4" /><span className="hidden sm:inline">Nieuwe plant</span>
             </Button>
           </DialogTrigger>
-          <DialogContent className="tuinieren-theme sv-dialog max-w-lg max-h-[90vh] overflow-y-auto scrollbar-none">
+          <DialogContent className="tuinieren-theme sv-dialog max-w-lg max-h-[90vh]">
             <DialogHeader>
               <DialogTitle className="sv-heading text-3xl">
                 Nieuwe plant
@@ -1196,7 +1196,7 @@ export default function Tuinieren() {
           }
         }}
       >
-        <DialogContent className="tuinieren-theme sv-dialog w-full max-w-2xl max-h-[90vh] overflow-y-auto scrollbar-none">
+        <DialogContent className="tuinieren-theme sv-dialog w-full max-w-2xl max-h-[90vh]">
           {view && editMode ? (
             <>
               <DialogHeader>
@@ -1519,7 +1519,7 @@ export default function Tuinieren() {
       </Dialog>
 
       <Dialog open={filterOpen} onOpenChange={setFilterOpen}>
-        <DialogContent className="tuinieren-theme sv-dialog max-w-lg max-h-[90vh] overflow-y-auto scrollbar-none">
+        <DialogContent className="tuinieren-theme sv-dialog max-w-lg max-h-[90vh]">
           <DialogHeader>
             <DialogTitle className="sv-heading text-3xl">Zoeken & filteren</DialogTitle>
           </DialogHeader>
@@ -1681,14 +1681,14 @@ export default function Tuinieren() {
           <DialogFooter className="flex justify-between w-full">
             <Button
               variant="ghost"
-              className="sv-button sv-button-ghost"
+              className="sv-button sv-button-ghost text-xl"
               onClick={() =>
                 setFilters({ category: [], sun_needs: [], greenhouse_pref: [], sow_months: [], bloom_months: [], harvest_months: [], water: "all", sort: "naam" })
               }
             >
               Reset
             </Button>
-            <Button className="sv-button" onClick={() => setFilterOpen(false)}>
+            <Button className="sv-button text-xl" onClick={() => setFilterOpen(false)}>
               Tonen ({filteredPlants.length})
             </Button>
           </DialogFooter>

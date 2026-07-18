@@ -188,8 +188,15 @@
   --sv-green-dark: #35592a;
   --sv-terracotta: #b5502f;
 
-  padding: 0.5rem 1.25rem 1.25rem;
   color: var(--sv-text);
+}
+
+.tuinieren-theme:not(.sv-dialog) {
+  padding: 0.5rem 0 1.25rem;
+}
+
+.tuinieren-theme.sv-dialog {
+  padding: 0.5rem 1.25rem 1.25rem;
 }
 
 .tuinieren-theme:not(.sv-dialog)::before {
