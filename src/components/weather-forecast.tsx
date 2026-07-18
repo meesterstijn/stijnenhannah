@@ -53,17 +53,20 @@ export function WeatherForecast() {
     data.daily;
 
   return (
-    <div className="hidden md:flex items-center justify-center gap-4">
+    <div className="flex items-center justify-end gap-2 sm:gap-4">
       {time.map((day, i) => {
         const Icon = iconForCode(weathercode[i]);
         const label = new Date(day).toLocaleDateString("nl-NL", {
           weekday: "short",
         });
         return (
-          <div key={day} className="flex items-center gap-1.5 text-xl">
-            <span className="capitalize">{label}</span>
-            <Icon className="h-4 w-4" />
-            <span>
+          <div
+            key={day}
+            className={`flex items-center gap-1 sm:gap-1.5 ${i > 0 ? "hidden sm:flex" : "flex"}`}
+          >
+            <span className="hidden sm:inline capitalize text-sm">{label}</span>
+            <Icon className="h-4 w-4 shrink-0" />
+            <span className="text-sm whitespace-nowrap">
               {Math.round(temperature_2m_max[i])}°/
               {Math.round(temperature_2m_min[i])}°
             </span>
