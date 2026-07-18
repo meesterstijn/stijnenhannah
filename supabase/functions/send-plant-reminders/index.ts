@@ -11,6 +11,11 @@ const TIMEZONE = "Europe/Amsterdam";
 const REMINDER_HOUR = 18;
 const REMINDER_MINUTE = 0;
 
+const MONTH_NAMES = [
+  "januari", "februari", "maart", "april", "mei", "juni",
+  "juli", "augustus", "september", "oktober", "november", "december",
+];
+
 webpush.setVapidDetails(
   Deno.env.get("VAPID_SUBJECT") ?? "mailto:info@example.com",
   Deno.env.get("VAPID_PUBLIC_KEY")!,
@@ -37,6 +42,17 @@ function currentAmsterdamTime(): { hour: number; minute: number } {
   return { hour: get("hour"), minute: get("minute") };
 }
 
+function currentAmsterdamMonthName(): string {
+  const monthNum = Number(
+    new Intl.DateTimeFormat("en-CA", { timeZone: TIMEZONE, month: "numeric" }).format(new Date()),
+  );
+  return MONTH_NAMES[monthNum - 1];
+}
+
+function namesList(names: string[]): string {
+  return names.length <= 5 ? names.join(", ") : `${names.slice(0, 5).join(", ")} en ${names.length - 5} meer`;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -58,42 +74,75 @@ Deno.serve(async (req) => {
 
     const { data: plants, error: plantsError } = await supabase
       .from("plants")
-      .select("id, name, water_interval_days, last_watered_at, last_water_reminder_sent_at")
-      .eq("reminders_enabled", true)
+      .select(
+        "id, name, growing_method, water_interval_days, pot_water_interval_days, last_watered_at, last_water_reminder_sent_at, reminders_enabled, feeding_interval_days, last_fed_at, last_feeding_reminder_sent_at, feeding_reminders_enabled, feeding_months",
+      )
       .eq("planted", true)
-      .not("water_interval_days", "is", null);
+      .or("water_interval_days.not.is.null,pot_water_interval_days.not.is.null,feeding_interval_days.not.is.null");
     if (plantsError) throw plantsError;
 
     const now = Date.now();
-    const due = (plants ?? []).filter((p) => {
+    const currentMonth = currentAmsterdamMonthName();
+
+    const dueWater = (plants ?? []).filter((p) => {
+      const intervalDays =
+        p.growing_method === "Pot" && p.pot_water_interval_days
+          ? p.pot_water_interval_days
+          : p.water_interval_days;
+      if (!p.reminders_enabled || !intervalDays) return false;
       if (isSameLocalDay(p.last_water_reminder_sent_at)) return false;
       if (!p.last_watered_at) return true;
-      const dueAt = new Date(p.last_watered_at).getTime() + p.water_interval_days * 24 * 60 * 60 * 1000;
+      const dueAt = new Date(p.last_watered_at).getTime() + intervalDays * 24 * 60 * 60 * 1000;
       return dueAt <= now;
     });
 
-    if (due.length === 0) {
+    const dueFeeding = (plants ?? []).filter((p) => {
+      if (!p.feeding_reminders_enabled || !p.feeding_interval_days) return false;
+      if (p.feeding_months?.length > 0 && !p.feeding_months.includes(currentMonth)) return false;
+      if (isSameLocalDay(p.last_feeding_reminder_sent_at)) return false;
+      if (!p.last_fed_at) return true;
+      const dueAt = new Date(p.last_fed_at).getTime() + p.feeding_interval_days * 24 * 60 * 60 * 1000;
+      return dueAt <= now;
+    });
+
+    if (dueWater.length === 0 && dueFeeding.length === 0) {
       return new Response(JSON.stringify({ skipped: "no plants due" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const { error: updateError } = await supabase
-      .from("plants")
-      .update({ last_water_reminder_sent_at: new Date().toISOString() })
-      .in("id", due.map((p) => p.id));
-    if (updateError) throw updateError;
+    if (dueWater.length > 0) {
+      const { error: updateError } = await supabase
+        .from("plants")
+        .update({ last_water_reminder_sent_at: new Date().toISOString() })
+        .in("id", dueWater.map((p) => p.id));
+      if (updateError) throw updateError;
+    }
+
+    if (dueFeeding.length > 0) {
+      const { error: updateError } = await supabase
+        .from("plants")
+        .update({ last_feeding_reminder_sent_at: new Date().toISOString() })
+        .in("id", dueFeeding.map((p) => p.id));
+      if (updateError) throw updateError;
+    }
 
     const { data: subs, error: subsError } = await supabase
       .from("push_subscriptions")
       .select("id, endpoint, p256dh, auth");
     if (subsError) throw subsError;
 
-    const names = due.map((p) => p.name);
-    const body = names.length <= 5 ? names.join(", ") : `${names.slice(0, 5).join(", ")} en ${names.length - 5} meer`;
+    const bodyLines = [];
+    if (dueWater.length > 0) {
+      bodyLines.push(`💧 Water: ${namesList(dueWater.map((p) => p.name))}`);
+    }
+    if (dueFeeding.length > 0) {
+      bodyLines.push(`🌿 Voeding: ${namesList(dueFeeding.map((p) => p.name))}`);
+    }
+    const totalCount = dueWater.length + dueFeeding.length;
     const payload = JSON.stringify({
-      title: `Tuinieren: ${due.length} ${due.length === 1 ? "plant" : "planten"} water geven`,
-      body,
+      title: `Tuinieren: ${totalCount} ${totalCount === 1 ? "plant" : "planten"} verzorgen`,
+      body: bodyLines.join("\n"),
       url: "/stijnenhannah/#/tuinieren",
     });
 
@@ -114,9 +163,10 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ due: due.length, sent }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ dueWater: dueWater.length, dueFeeding: dueFeeding.length, sent }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   } catch (err) {
     console.error(err);
     return new Response(JSON.stringify({ error: String(err) }), {

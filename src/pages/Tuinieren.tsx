@@ -17,6 +17,7 @@ import {
   Plus,
   Sprout,
   Droplet,
+  Leaf,
   Trash2,
   Loader2,
   Pencil,
@@ -53,6 +54,21 @@ function parseGreenhouseNotes(raw: string | null): { pref: string; notes: string
 }
 
 const LIFECYCLE_OPTIONS = ["Eenjarig", "Meerjarig"] as const;
+
+const GROWING_METHOD_OPTIONS = ["Volle grond", "Pot"] as const;
+
+const GROWTH_HABIT_OPTIONS = [
+  "Omhoog",
+  "Steun nodig",
+  "Langs de grond",
+  "Bosvormend",
+] as const;
+
+const WATERING_METHOD_OPTIONS = [
+  "Onder de voet (weken)",
+  "Over de plant (bladbesproeiing)",
+  "Op de bodem bij de wortels",
+] as const;
 
 const WINTER_HARDINESS_OPTIONS = [
   "Winterhard",
@@ -115,14 +131,29 @@ type PlantDraft = {
   location: string;
   lifecycle: string;
   size_cm: string;
+  spacing_cm: string;
+  growth_habit: string[];
   sun_needs: string[];
   season_notes: string;
   water_notes: string;
+  watering_method: string[];
+  watering_soak_minutes: string;
+  growing_method: string;
+  pot_min_liters: string;
+  pot_recommended_liters: string;
+  pot_water_notes: string;
   planted: boolean;
   water_interval_days: string;
+  pot_water_interval_days: string;
   last_watered_at: string;
   feeding_notes: string;
+  feeding_interval_days: string;
+  last_fed_at: string;
+  feeding_reminders_enabled: boolean;
+  feeding_months: string[];
   soil_notes: string;
+  soil_ph_min: string;
+  soil_ph_max: string;
   temperature_notes: string;
   humidity_notes: string;
   winter_hardiness: string;
@@ -158,14 +189,29 @@ const emptyDraft: PlantDraft = {
   location: "",
   lifecycle: "",
   size_cm: "",
+  spacing_cm: "",
+  growth_habit: [],
   sun_needs: [],
   season_notes: "",
   water_notes: "",
+  watering_method: [],
+  watering_soak_minutes: "",
+  growing_method: "",
+  pot_min_liters: "",
+  pot_recommended_liters: "",
+  pot_water_notes: "",
   planted: false,
   water_interval_days: "",
+  pot_water_interval_days: "",
   last_watered_at: "",
   feeding_notes: "",
+  feeding_interval_days: "",
+  last_fed_at: "",
+  feeding_reminders_enabled: true,
+  feeding_months: [],
   soil_notes: "",
+  soil_ph_min: "",
+  soil_ph_max: "",
   temperature_notes: "",
   humidity_notes: "",
   winter_hardiness: "",
@@ -202,16 +248,39 @@ function plantToDraft(p: Plant): PlantDraft {
     location: p.location ?? "",
     lifecycle: p.lifecycle ?? "",
     size_cm: p.size_cm ? String(p.size_cm) : "",
+    spacing_cm: p.spacing_cm ? String(p.spacing_cm) : "",
+    growth_habit: p.growth_habit ?? [],
     sun_needs: p.sun_needs ? p.sun_needs.split(",") : [],
     season_notes: p.season_notes ?? "",
     water_notes: p.water_notes ?? "",
+    watering_method: p.watering_method ?? [],
+    watering_soak_minutes: p.watering_soak_minutes
+      ? String(p.watering_soak_minutes)
+      : "",
+    growing_method: p.growing_method ?? "",
+    pot_min_liters: p.pot_min_liters ? String(p.pot_min_liters) : "",
+    pot_recommended_liters: p.pot_recommended_liters
+      ? String(p.pot_recommended_liters)
+      : "",
+    pot_water_notes: p.pot_water_notes ?? "",
     planted: p.planted,
     water_interval_days: p.water_interval_days
       ? String(p.water_interval_days)
       : "",
+    pot_water_interval_days: p.pot_water_interval_days
+      ? String(p.pot_water_interval_days)
+      : "",
     last_watered_at: p.last_watered_at ? p.last_watered_at.slice(0, 10) : "",
     feeding_notes: p.feeding_notes ?? "",
+    feeding_interval_days: p.feeding_interval_days
+      ? String(p.feeding_interval_days)
+      : "",
+    last_fed_at: p.last_fed_at ? p.last_fed_at.slice(0, 10) : "",
+    feeding_reminders_enabled: p.feeding_reminders_enabled,
+    feeding_months: p.feeding_months ?? [],
     soil_notes: p.soil_notes ?? "",
+    soil_ph_min: p.soil_ph_min !== null ? String(p.soil_ph_min) : "",
+    soil_ph_max: p.soil_ph_max !== null ? String(p.soil_ph_max) : "",
     temperature_notes: p.temperature_notes ?? "",
     humidity_notes: p.humidity_notes ?? "",
     winter_hardiness: p.winter_hardiness ?? "",
@@ -249,18 +318,43 @@ function draftToRow(d: PlantDraft) {
     location: d.location.trim() || null,
     lifecycle: d.lifecycle || null,
     size_cm: d.size_cm ? Number(d.size_cm) : null,
+    spacing_cm: d.spacing_cm ? Number(d.spacing_cm) : null,
+    growth_habit: d.growth_habit,
     sun_needs: d.sun_needs.length > 0 ? d.sun_needs.join(",") : null,
     season_notes: d.season_notes.trim() || null,
     water_notes: d.water_notes.trim() || null,
+    watering_method: d.watering_method,
+    watering_soak_minutes: d.watering_soak_minutes
+      ? Number(d.watering_soak_minutes)
+      : null,
+    growing_method: d.growing_method || null,
+    pot_min_liters: d.pot_min_liters ? Number(d.pot_min_liters) : null,
+    pot_recommended_liters: d.pot_recommended_liters
+      ? Number(d.pot_recommended_liters)
+      : null,
+    pot_water_notes: d.pot_water_notes.trim() || null,
     planted: d.planted,
     water_interval_days: d.water_interval_days
       ? Number(d.water_interval_days)
+      : null,
+    pot_water_interval_days: d.pot_water_interval_days
+      ? Number(d.pot_water_interval_days)
       : null,
     last_watered_at: d.last_watered_at
       ? new Date(d.last_watered_at).toISOString()
       : null,
     feeding_notes: d.feeding_notes.trim() || null,
+    feeding_interval_days: d.feeding_interval_days
+      ? Number(d.feeding_interval_days)
+      : null,
+    last_fed_at: d.last_fed_at
+      ? new Date(d.last_fed_at).toISOString()
+      : null,
+    feeding_reminders_enabled: d.feeding_reminders_enabled,
+    feeding_months: d.feeding_months,
     soil_notes: d.soil_notes.trim() || null,
+    soil_ph_min: d.soil_ph_min ? Number(d.soil_ph_min) : null,
+    soil_ph_max: d.soil_ph_max ? Number(d.soil_ph_max) : null,
     temperature_notes: d.temperature_notes.trim() || null,
     humidity_notes: d.humidity_notes.trim() || null,
     winter_hardiness: d.winter_hardiness || null,
@@ -290,17 +384,42 @@ function draftToRow(d: PlantDraft) {
   };
 }
 
+function effectiveWaterIntervalDays(p: Plant): number | null {
+  if (p.growing_method === "Pot" && p.pot_water_interval_days) {
+    return p.pot_water_interval_days;
+  }
+  return p.water_interval_days;
+}
+
 function waterStatus(p: Plant): { label: string; overdue: boolean } | null {
   if (!p.planted) return null;
-  if (!p.water_interval_days) return null;
+  const intervalDays = effectiveWaterIntervalDays(p);
+  if (!intervalDays) return null;
   if (!p.last_watered_at)
     return { label: "Nog geen water gegeven", overdue: true };
   const dueAt =
-    new Date(p.last_watered_at).getTime() +
-    p.water_interval_days * 24 * 60 * 60 * 1000;
+    new Date(p.last_watered_at).getTime() + intervalDays * 24 * 60 * 60 * 1000;
   const daysLeft = Math.ceil((dueAt - Date.now()) / (24 * 60 * 60 * 1000));
   if (daysLeft <= 0) return { label: "Water geven!", overdue: true };
   if (daysLeft === 1) return { label: "Morgen water geven", overdue: false };
+  return { label: `Over ${daysLeft} dagen`, overdue: false };
+}
+
+function feedingStatus(p: Plant): { label: string; overdue: boolean } | null {
+  if (!p.planted) return null;
+  if (!p.feeding_interval_days) return null;
+  if (p.feeding_months.length > 0) {
+    const currentMonth = MONTH_OPTIONS[new Date().getMonth()];
+    if (!p.feeding_months.includes(currentMonth)) return null;
+  }
+  if (!p.last_fed_at)
+    return { label: "Nog geen voeding gegeven", overdue: true };
+  const dueAt =
+    new Date(p.last_fed_at).getTime() +
+    p.feeding_interval_days * 24 * 60 * 60 * 1000;
+  const daysLeft = Math.ceil((dueAt - Date.now()) / (24 * 60 * 60 * 1000));
+  if (daysLeft <= 0) return { label: "Voeding geven!", overdue: true };
+  if (daysLeft === 1) return { label: "Morgen voeding geven", overdue: false };
   return { label: `Over ${daysLeft} dagen`, overdue: false };
 }
 
@@ -404,6 +523,37 @@ function PlantForm({
       </div>
 
       <div className="space-y-2">
+        <SectionHeading>Plantafstand in cm</SectionHeading>
+        <Input
+          type="number"
+          min={1}
+          placeholder="bv. 30"
+          value={draft.spacing_cm}
+          onChange={(e) => onChange({ spacing_cm: e.target.value })}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <SectionHeading>Groeiwijze</SectionHeading>
+        <div className="flex gap-2 flex-wrap">
+          {GROWTH_HABIT_OPTIONS.map((opt) => (
+            <button
+              key={opt}
+              type="button"
+              onClick={() =>
+                onChange({
+                  growth_habit: toggleInArray(draft.growth_habit, opt),
+                })
+              }
+              className={chipClass(draft.growth_habit.includes(opt))}
+            >
+              {opt}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-2">
         <SectionHeading>Standplaats & seizoen</SectionHeading>
         <div className="flex gap-2 flex-wrap">
           {SUN_OPTIONS.map((opt) => (
@@ -435,6 +585,90 @@ function PlantForm({
           value={draft.water_notes}
           onChange={(e) => onChange({ water_notes: e.target.value })}
         />
+        <div className="space-y-1">
+          <p className="text-xs sv-muted">Hoe het beste water geven</p>
+          <div className="flex gap-2 flex-wrap">
+            {WATERING_METHOD_OPTIONS.map((opt) => (
+              <button
+                key={opt}
+                type="button"
+                onClick={() =>
+                  onChange({
+                    watering_method: toggleInArray(draft.watering_method, opt),
+                  })
+                }
+                className={chipClass(draft.watering_method.includes(opt))}
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="space-y-1">
+          <p className="text-xs sv-muted">
+            Weektijd in minuten (bij "onder de voet")
+          </p>
+          <Input
+            type="number"
+            min={1}
+            placeholder="bv. 15"
+            value={draft.watering_soak_minutes}
+            onChange={(e) =>
+              onChange({ watering_soak_minutes: e.target.value })
+            }
+          />
+        </div>
+        <div className="space-y-1">
+          <p className="text-xs sv-muted">Volle grond of pot</p>
+          <div className="flex gap-2 flex-wrap">
+            {GROWING_METHOD_OPTIONS.map((opt) => (
+              <button
+                key={opt}
+                type="button"
+                onClick={() =>
+                  onChange({
+                    growing_method: draft.growing_method === opt ? "" : opt,
+                  })
+                }
+                className={chipClass(draft.growing_method === opt)}
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <p className="text-xs sv-muted">Minimale potgrootte (liter)</p>
+            <Input
+              type="number"
+              min={1}
+              placeholder="bv. 10"
+              value={draft.pot_min_liters}
+              onChange={(e) => onChange({ pot_min_liters: e.target.value })}
+            />
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs sv-muted">Aanbevolen potgrootte (liter)</p>
+            <Input
+              type="number"
+              min={1}
+              placeholder="bv. 20"
+              value={draft.pot_recommended_liters}
+              onChange={(e) =>
+                onChange({ pot_recommended_liters: e.target.value })
+              }
+            />
+          </div>
+        </div>
+        <div className="space-y-1">
+          <p className="text-xs sv-muted">Extra water-notitie voor pot</p>
+          <Input
+            placeholder="bv. In pot vaker water geven"
+            value={draft.pot_water_notes}
+            onChange={(e) => onChange({ pot_water_notes: e.target.value })}
+          />
+        </div>
         <label className="flex items-center gap-2 text-sm sv-muted">
           <input
             type="checkbox"
@@ -443,44 +677,52 @@ function PlantForm({
           />
           Gepland (in de grond/pot gezet)
         </label>
-        {draft.planted && (
-          <>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <p className="text-xs sv-muted">Elke hoeveel dagen water</p>
-                <Input
-                  type="number"
-                  min={1}
-                  placeholder="bv. 7"
-                  value={draft.water_interval_days}
-                  onChange={(e) =>
-                    onChange({ water_interval_days: e.target.value })
-                  }
-                />
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs sv-muted">Laatst water gegeven op</p>
-                <Input
-                  type="date"
-                  value={draft.last_watered_at}
-                  onChange={(e) =>
-                    onChange({ last_watered_at: e.target.value })
-                  }
-                />
-              </div>
-            </div>
-            <label className="flex items-center gap-2 text-sm sv-muted">
-              <input
-                type="checkbox"
-                checked={draft.reminders_enabled}
-                onChange={(e) =>
-                  onChange({ reminders_enabled: e.target.checked })
-                }
-              />
-              Stuur een melding als het tijd is om water te geven
-            </label>
-          </>
-        )}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <p className="text-xs sv-muted">Elke hoeveel dagen water (volle grond)</p>
+            <Input
+              type="number"
+              min={1}
+              placeholder="bv. 7"
+              value={draft.water_interval_days}
+              onChange={(e) =>
+                onChange({ water_interval_days: e.target.value })
+              }
+            />
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs sv-muted">Elke hoeveel dagen water (in pot)</p>
+            <Input
+              type="number"
+              min={1}
+              placeholder="bv. 4"
+              value={draft.pot_water_interval_days}
+              onChange={(e) =>
+                onChange({ pot_water_interval_days: e.target.value })
+              }
+            />
+          </div>
+        </div>
+        <div className="space-y-1">
+          <p className="text-xs sv-muted">Laatst water gegeven op</p>
+          <Input
+            type="date"
+            value={draft.last_watered_at}
+            onChange={(e) =>
+              onChange({ last_watered_at: e.target.value })
+            }
+          />
+        </div>
+        <label className="flex items-center gap-2 text-sm sv-muted">
+          <input
+            type="checkbox"
+            checked={draft.reminders_enabled}
+            onChange={(e) =>
+              onChange({ reminders_enabled: e.target.checked })
+            }
+          />
+          Stuur een melding als het tijd is om water te geven
+        </label>
       </div>
 
       <div className="space-y-2">
@@ -606,6 +848,59 @@ function PlantForm({
           value={draft.feeding_notes}
           onChange={(e) => onChange({ feeding_notes: e.target.value })}
         />
+        <div className="space-y-1">
+          <p className="text-xs sv-muted">In welke maanden voeden</p>
+          <div className="flex gap-2 flex-wrap">
+            {MONTH_OPTIONS.map((month) => (
+              <button
+                key={month}
+                type="button"
+                onClick={() =>
+                  onChange({
+                    feeding_months: toggleInArray(draft.feeding_months, month),
+                  })
+                }
+                className={monthChipClass(draft.feeding_months.includes(month))}
+              >
+                {month}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <p className="text-xs sv-muted">Elke hoeveel dagen voeden</p>
+            <Input
+              type="number"
+              min={1}
+              placeholder="bv. 14"
+              value={draft.feeding_interval_days}
+              onChange={(e) =>
+                onChange({ feeding_interval_days: e.target.value })
+              }
+            />
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs sv-muted">Laatst gevoed op</p>
+            <Input
+              type="date"
+              value={draft.last_fed_at}
+              onChange={(e) =>
+                onChange({ last_fed_at: e.target.value })
+              }
+            />
+          </div>
+        </div>
+        <label className="flex items-center gap-2 text-sm sv-muted">
+          <input
+            type="checkbox"
+            checked={draft.feeding_reminders_enabled}
+            onChange={(e) =>
+              onChange({ feeding_reminders_enabled: e.target.checked })
+            }
+          />
+          Stuur een melding als het tijd is om te voeden
+        </label>
       </div>
 
       <div className="space-y-2">
@@ -616,6 +911,32 @@ function PlantForm({
           value={draft.soil_notes}
           onChange={(e) => onChange({ soil_notes: e.target.value })}
         />
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <p className="text-xs sv-muted">Minimale pH</p>
+            <Input
+              type="number"
+              step="0.1"
+              min={0}
+              max={14}
+              placeholder="bv. 6.0"
+              value={draft.soil_ph_min}
+              onChange={(e) => onChange({ soil_ph_min: e.target.value })}
+            />
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs sv-muted">Maximale pH</p>
+            <Input
+              type="number"
+              step="0.1"
+              min={0}
+              max={14}
+              placeholder="bv. 7.0"
+              value={draft.soil_ph_max}
+              onChange={(e) => onChange({ soil_ph_max: e.target.value })}
+            />
+          </div>
+        </div>
       </div>
 
       <div className="space-y-2">
@@ -755,8 +1076,19 @@ function InfoRow({ label, value }: { label: string; value: string | null }) {
   );
 }
 
-function PlantCard({ p, onOpen }: { p: Plant; onOpen: (p: Plant) => void }) {
+function PlantCard({
+  p,
+  onOpen,
+  onWater,
+  onFeed,
+}: {
+  p: Plant;
+  onOpen: (p: Plant) => void;
+  onWater: (p: Plant) => void;
+  onFeed: (p: Plant) => void;
+}) {
   const status = waterStatus(p);
+  const feedStatus = feedingStatus(p);
   return (
     <button
       onClick={() => onOpen(p)}
@@ -771,11 +1103,33 @@ function PlantCard({ p, onOpen }: { p: Plant; onOpen: (p: Plant) => void }) {
       )}
       <div className="min-w-0">
         <p className="sv-heading text-2xl leading-snug truncate">{p.name}</p>
-        {p.location && <p className="text-xs sv-muted truncate">{p.location}</p>}
-        {status && (
-          <span className={`sv-heading inline-flex items-center gap-1 text-sm px-2 py-1 rounded-full w-fit mt-1 ${status.overdue ? "sv-badge-overdue" : "sv-badge-ok"}`}>
-            <Droplet className="h-3 w-3" /> {status.label}
-          </span>
+        {(status || feedStatus) && (
+          <div className="flex items-center gap-1.5 flex-wrap mt-1">
+            {status && (
+              <span
+                role="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onWater(p);
+                }}
+                className={`sv-heading inline-flex items-center gap-1 text-sm px-2 py-1 rounded-full w-fit cursor-pointer hover:brightness-95 ${status.overdue ? "sv-badge-overdue" : "sv-badge-ok"}`}
+              >
+                <Droplet className="h-3 w-3" /> {status.label}
+              </span>
+            )}
+            {feedStatus && (
+              <span
+                role="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onFeed(p);
+                }}
+                className={`sv-heading inline-flex items-center gap-1 text-sm px-2 py-1 rounded-full w-fit cursor-pointer hover:brightness-95 ${feedStatus.overdue ? "sv-badge-overdue" : "sv-badge-ok"}`}
+              >
+                <Leaf className="h-3 w-3" /> {feedStatus.label}
+              </span>
+            )}
+          </div>
         )}
       </div>
     </button>
@@ -918,16 +1272,31 @@ export default function Tuinieren() {
           location: p.location || null,
           lifecycle: p.lifecycle || null,
           size_cm: p.size_cm ? Number(p.size_cm) : null,
+          spacing_cm: p.spacing_cm ? Number(p.spacing_cm) : null,
+          growth_habit: p.growth_habit ?? [],
           sun_needs: Array.isArray(p.sun_needs) ? p.sun_needs.join(",") : p.sun_needs || null,
           season_notes: p.season_notes || null,
           water_notes: p.water_notes || null,
+          watering_method: p.watering_method ?? [],
+          watering_soak_minutes: p.watering_soak_minutes ? Number(p.watering_soak_minutes) : null,
+          growing_method: p.growing_method || null,
+          pot_min_liters: p.pot_min_liters ? Number(p.pot_min_liters) : null,
+          pot_recommended_liters: p.pot_recommended_liters ? Number(p.pot_recommended_liters) : null,
+          pot_water_notes: p.pot_water_notes || null,
           planted: p.planted ?? false,
           water_interval_days: p.water_interval_days ? Number(p.water_interval_days) : null,
+          pot_water_interval_days: p.pot_water_interval_days ? Number(p.pot_water_interval_days) : null,
           last_watered_at: p.last_watered_at ? new Date(p.last_watered_at).toISOString() : null,
           reminders_enabled: p.reminders_enabled ?? true,
           greenhouse_notes: [p.greenhouse_pref, p.greenhouse_notes].filter(Boolean).join("\n") || null,
           feeding_notes: p.feeding_notes || null,
+          feeding_interval_days: p.feeding_interval_days ? Number(p.feeding_interval_days) : null,
+          last_fed_at: p.last_fed_at ? new Date(p.last_fed_at).toISOString() : null,
+          feeding_reminders_enabled: p.feeding_reminders_enabled ?? true,
+          feeding_months: p.feeding_months ?? [],
           soil_notes: p.soil_notes || null,
+          soil_ph_min: p.soil_ph_min ? Number(p.soil_ph_min) : null,
+          soil_ph_max: p.soil_ph_max ? Number(p.soil_ph_max) : null,
           temperature_notes: p.temperature_notes || null,
           humidity_notes: p.humidity_notes || null,
           winter_hardiness: p.winter_hardiness || null,
@@ -1082,6 +1451,37 @@ export default function Tuinieren() {
     });
   }
 
+  function handleWaterFromCard(p: Plant) {
+    updatePlant.mutate({
+      id: p.id,
+      patch: {
+        last_watered_at: new Date().toISOString(),
+        last_water_reminder_sent_at: null,
+      },
+    });
+  }
+
+  function markFed() {
+    if (!view) return;
+    updatePlant.mutate({
+      id: view.id,
+      patch: {
+        last_fed_at: new Date().toISOString(),
+        last_feeding_reminder_sent_at: null,
+      },
+    });
+  }
+
+  function handleFeedFromCard(p: Plant) {
+    updatePlant.mutate({
+      id: p.id,
+      patch: {
+        last_fed_at: new Date().toISOString(),
+        last_feeding_reminder_sent_at: null,
+      },
+    });
+  }
+
   type FilterState = {
     category: string[];
     sun_needs: string[];
@@ -1093,7 +1493,9 @@ export default function Tuinieren() {
     sow_months: string[];
     bloom_months: string[];
     harvest_months: string[];
+    feeding_months: string[];
     water: "all" | "overdue" | "soon";
+    feeding: "all" | "overdue" | "soon";
     sort: "naam" | "water" | "categorie";
   };
 
@@ -1108,7 +1510,9 @@ export default function Tuinieren() {
     sow_months: [],
     bloom_months: [],
     harvest_months: [],
+    feeding_months: [],
     water: "all",
+    feeding: "all",
     sort: "naam",
   };
 
@@ -1120,11 +1524,20 @@ export default function Tuinieren() {
   }
 
   function daysLeftForSort(p: Plant): number {
-    if (!p.planted || !p.water_interval_days) return 9999;
+    const intervalDays = effectiveWaterIntervalDays(p);
+    if (!p.planted || !intervalDays) return 9999;
     if (!p.last_watered_at) return -9999;
     const dueAt =
-      new Date(p.last_watered_at).getTime() +
-      p.water_interval_days * 24 * 60 * 60 * 1000;
+      new Date(p.last_watered_at).getTime() + intervalDays * 24 * 60 * 60 * 1000;
+    return Math.ceil((dueAt - Date.now()) / (24 * 60 * 60 * 1000));
+  }
+
+  function daysLeftForFeedingSort(p: Plant): number {
+    if (!p.planted || !p.feeding_interval_days) return 9999;
+    if (!p.last_fed_at) return -9999;
+    const dueAt =
+      new Date(p.last_fed_at).getTime() +
+      p.feeding_interval_days * 24 * 60 * 60 * 1000;
     return Math.ceil((dueAt - Date.now()) / (24 * 60 * 60 * 1000));
   }
 
@@ -1190,11 +1603,26 @@ export default function Tuinieren() {
       );
     }
 
+    if (filters.feeding_months.length > 0) {
+      result = result.filter((p) =>
+        filters.feeding_months.some((m) => p.feeding_months.includes(m)),
+      );
+    }
+
     if (filters.water === "overdue") {
       result = result.filter((p) => waterStatus(p)?.overdue);
     } else if (filters.water === "soon") {
       result = result.filter((p) => {
         const days = daysLeftForSort(p);
+        return days <= 3 && days > 0;
+      });
+    }
+
+    if (filters.feeding === "overdue") {
+      result = result.filter((p) => feedingStatus(p)?.overdue);
+    } else if (filters.feeding === "soon") {
+      result = result.filter((p) => {
+        const days = daysLeftForFeedingSort(p);
         return days <= 3 && days > 0;
       });
     }
@@ -1240,7 +1668,9 @@ export default function Tuinieren() {
     filters.sow_months.length +
     filters.bloom_months.length +
     filters.harvest_months.length +
+    filters.feeding_months.length +
     (filters.water !== "all" ? 1 : 0) +
+    (filters.feeding !== "all" ? 1 : 0) +
     (filters.sort !== "naam" ? 1 : 0);
 
   function handleExport() {
@@ -1252,14 +1682,27 @@ export default function Tuinieren() {
       location: p.location,
       lifecycle: p.lifecycle,
       size_cm: p.size_cm,
+      spacing_cm: p.spacing_cm,
+      growth_habit: p.growth_habit,
       sun_needs: p.sun_needs ? p.sun_needs.split(",") : [],
       season_notes: p.season_notes,
       water_notes: p.water_notes,
+      watering_method: p.watering_method,
+      watering_soak_minutes: p.watering_soak_minutes,
+      growing_method: p.growing_method,
+      pot_min_liters: p.pot_min_liters,
+      pot_recommended_liters: p.pot_recommended_liters,
+      pot_water_notes: p.pot_water_notes,
       water_interval_days: p.water_interval_days,
+      pot_water_interval_days: p.pot_water_interval_days,
       greenhouse_pref: parseGreenhouseNotes(p.greenhouse_notes).pref || null,
       greenhouse_notes: parseGreenhouseNotes(p.greenhouse_notes).notes || null,
       feeding_notes: p.feeding_notes,
+      feeding_interval_days: p.feeding_interval_days,
+      feeding_months: p.feeding_months,
       soil_notes: p.soil_notes,
+      soil_ph_min: p.soil_ph_min,
+      soil_ph_max: p.soil_ph_max,
       temperature_notes: p.temperature_notes,
       winter_hardiness: p.winter_hardiness,
       winter_notes: p.winter_notes,
@@ -1390,14 +1833,14 @@ export default function Tuinieren() {
             <div key={group.label} className="space-y-3">
               <p className="sv-heading text-2xl">{group.label}</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {group.plants.map((p) => <PlantCard key={p.id} p={p} onOpen={setView} />)}
+                {group.plants.map((p) => <PlantCard key={p.id} p={p} onOpen={setView} onWater={handleWaterFromCard} onFeed={handleFeedFromCard} />)}
               </div>
             </div>
           ))}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {filteredPlants.map((p) => <PlantCard key={p.id} p={p} onOpen={setView} />)}
+          {filteredPlants.map((p) => <PlantCard key={p.id} p={p} onOpen={setView} onWater={handleWaterFromCard} onFeed={handleFeedFromCard} />)}
         </div>
       )}
 
@@ -1483,6 +1926,7 @@ export default function Tuinieren() {
 
               {(() => {
                 const status = waterStatus(view);
+                const feedStatus = feedingStatus(view);
                 return (
                   <div className="flex items-center gap-3 flex-wrap">
                     {status && (
@@ -1494,6 +1938,15 @@ export default function Tuinieren() {
                         <Droplet className="h-3.5 w-3.5" /> {status.label}
                       </span>
                     )}
+                    {feedStatus && (
+                      <span
+                        className={`sv-heading inline-flex items-center gap-1 text-sm px-3 py-1.5 rounded-full ${
+                          feedStatus.overdue ? "sv-badge-overdue" : "sv-badge-ok"
+                        }`}
+                      >
+                        <Leaf className="h-3.5 w-3.5" /> {feedStatus.label}
+                      </span>
+                    )}
                     <Button
                       size="sm"
                       variant="outline"
@@ -1502,6 +1955,15 @@ export default function Tuinieren() {
                       disabled={updatePlant.isPending}
                     >
                       <Droplet className="h-3.5 w-3.5" /> Water gegeven vandaag
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="sv-button sv-button-thin-border text-xl"
+                      onClick={markFed}
+                      disabled={updatePlant.isPending}
+                    >
+                      <Leaf className="h-3.5 w-3.5" /> Voeding gegeven vandaag
                     </Button>
                     <Button
                       size="sm"
@@ -1529,12 +1991,58 @@ export default function Tuinieren() {
                   label="Grootte"
                   value={view.size_cm ? `${view.size_cm} cm` : null}
                 />
+                <InfoRow
+                  label="Plantafstand"
+                  value={view.spacing_cm ? `${view.spacing_cm} cm` : null}
+                />
+                <InfoRow
+                  label="Groeiwijze"
+                  value={
+                    view.growth_habit.length > 0
+                      ? view.growth_habit.join(", ")
+                      : null
+                  }
+                />
                 <InfoRow label="Locatie" value={view.location} />
                 <InfoRow label="Zon" value={view.sun_needs ? view.sun_needs.replace(/,/g, " · ") : null} />
                 <InfoRow label="Seizoen" value={view.season_notes} />
+                <InfoRow label="Volle grond of pot" value={view.growing_method} />
+                {view.growing_method === "Pot" && (
+                  <InfoRow
+                    label="Potgrootte"
+                    value={
+                      [
+                        view.pot_min_liters
+                          ? `Minimaal ${view.pot_min_liters} liter`
+                          : null,
+                        view.pot_recommended_liters
+                          ? `Aanbevolen ${view.pot_recommended_liters} liter`
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ") || null
+                    }
+                  />
+                )}
                 <InfoRow
                   label="Water"
-                  value={[view.water_notes].filter(Boolean).join(" · ") || null}
+                  value={
+                    [
+                      view.watering_method.length > 0
+                        ? view.watering_method.join(", ")
+                        : null,
+                      view.watering_method.includes("Onder de voet (weken)") &&
+                      view.watering_soak_minutes
+                        ? `${view.watering_soak_minutes} minuten weken`
+                        : null,
+                      view.growing_method === "Pot"
+                        ? view.pot_water_notes
+                        : null,
+                      view.water_notes,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ") || null
+                  }
                 />
                 <InfoRow
                   label="Zaaien"
@@ -1579,8 +2087,35 @@ export default function Tuinieren() {
                   }
                 />
                 <InfoRow label="Kas" value={view.greenhouse_notes} />
-                <InfoRow label="Voeding" value={view.feeding_notes} />
-                <InfoRow label="Grond" value={view.soil_notes} />
+                <InfoRow
+                  label="Voeding"
+                  value={
+                    [
+                      view.feeding_interval_days
+                        ? `Elke ${view.feeding_interval_days} dagen`
+                        : null,
+                      view.feeding_months.length > 0
+                        ? view.feeding_months.join(", ")
+                        : null,
+                      view.feeding_notes,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ") || null
+                  }
+                />
+                <InfoRow
+                  label="Grond"
+                  value={
+                    [
+                      view.soil_ph_min || view.soil_ph_max
+                        ? `pH ${view.soil_ph_min ?? "?"}–${view.soil_ph_max ?? "?"}`
+                        : null,
+                      view.soil_notes,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ") || null
+                  }
+                />
                 <InfoRow
                   label="Klimaat"
                   value={
@@ -1889,6 +2424,42 @@ export default function Tuinieren() {
                     className={chipClass(filters.water === value)}
                   >
                     {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <SectionHeading>Voeding</SectionHeading>
+              <div className="flex gap-2 flex-wrap">
+                {(
+                  [
+                    { value: "all", label: "Alles" },
+                    { value: "overdue", label: "Te laat" },
+                    { value: "soon", label: "Binnenkort (≤ 3 dagen)" },
+                  ] as const
+                ).map(({ value, label }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => patchFilter({ feeding: value })}
+                    className={chipClass(filters.feeding === value)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                {MONTH_OPTIONS.map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() =>
+                      patchFilter({ feeding_months: toggleInArray(filters.feeding_months, m) })
+                    }
+                    className={monthChipClass(filters.feeding_months.includes(m))}
+                  >
+                    {m}
                   </button>
                 ))}
               </div>
