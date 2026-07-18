@@ -1079,7 +1079,7 @@ export default function Tuinieren() {
             className="sv-button text-2xl"
             onClick={() => fileInputRef.current?.click()}
           >
-            <Upload className="h-4 w-4" /> Importeer
+            <Upload className="h-4 w-4" /><span className="hidden sm:inline">Importeer</span>
           </Button>
           <input
             ref={fileInputRef}

@@ -62,7 +62,7 @@ export function WeatherForecast() {
         return (
           <div
             key={day}
-            className={`flex items-center gap-1 sm:gap-1.5 ${i > 0 ? "hidden sm:flex" : "flex"}`}
+            className="flex items-center gap-1 sm:gap-1.5"
           >
             <span className="hidden sm:inline capitalize text-sm">{label}</span>
             <Icon className="h-4 w-4 shrink-0" />
