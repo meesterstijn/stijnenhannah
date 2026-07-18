@@ -18,7 +18,7 @@ import {
   ingredientDisplayLine,
 } from "@/lib/ingredients";
 import {
-  Plus, Clock, Users, Trash2, ChefHat, Loader2, X, Check, ShoppingBasket, Pencil,
+  Plus, Clock, Users, Trash2, ChefHat, Loader2, X, Check, ShoppingBasket, Pencil, Download,
 } from "lucide-react";
 
 const RECIPE_CATEGORIES = ["Brood", "Gebak", "Gerechten"] as const;
@@ -192,6 +192,19 @@ export default function Recepten() {
     queryFn: fetchRecipes,
   });
 
+  function handleExport() {
+    const data = recipes.map(({ id: _id, created_at: _ca, ...r }) => r);
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `recepten-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const addRecipe = useMutation({
@@ -324,6 +337,11 @@ export default function Recepten() {
             Bewaar gerechten die jullie graag samen maken.
           </p>
         </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleExport} disabled={recipes.length === 0} className="rounded-xl gap-2">
+            <Download className="h-4 w-4" />
+            <span className="hidden sm:inline">Exporteer</span>
+          </Button>
         <Dialog open={open} onOpenChange={handleOpenDialog}>
           <DialogTrigger asChild>
             <Button size="lg" className="rounded-xl">
@@ -384,6 +402,7 @@ export default function Recepten() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
       </header>
 
       <div className="grid grid-cols-3 gap-2 sm:gap-4">

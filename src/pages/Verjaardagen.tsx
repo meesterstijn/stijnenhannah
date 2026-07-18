@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Sheet, SheetContent, SheetClose } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Trash2, Loader2, X, Cake, Heart, Flower2 } from "lucide-react";
+import { Plus, Trash2, Loader2, X, Cake, Heart, Flower2, Download } from "lucide-react";
 
 type EntryType = "verjaardag" | "trouwdag" | "sterfdag";
 
@@ -113,6 +113,19 @@ export default function Verjaardagen() {
 
   const sorted = sortedByNext(birthdays);
 
+  function handleExport() {
+    const data = birthdays.map(({ id: _id, ...b }) => b);
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `verjaardagen-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
   const saveBirthday = useMutation({
     mutationFn: async () => {
       const payload = {
@@ -187,10 +200,16 @@ export default function Verjaardagen() {
           <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Overzicht</p>
           <h1 className="font-serif text-3xl font-semibold mt-1">Kalender</h1>
         </div>
-        <Button onClick={openNew} className="rounded-xl gap-2 mb-1">
-          <Plus className="h-4 w-4" />
-          <span className="hidden sm:inline">Toevoegen</span>
-        </Button>
+        <div className="flex items-center gap-2 mb-1">
+          <Button variant="outline" size="sm" onClick={handleExport} disabled={birthdays.length === 0} className="rounded-xl gap-2">
+            <Download className="h-4 w-4" />
+            <span className="hidden sm:inline">Exporteer</span>
+          </Button>
+          <Button onClick={openNew} className="rounded-xl gap-2">
+            <Plus className="h-4 w-4" />
+            <span className="hidden sm:inline">Toevoegen</span>
+          </Button>
+        </div>
       </div>
 
       {isLoading && (

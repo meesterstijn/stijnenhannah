@@ -17,7 +17,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { HistoryPicker } from "@/components/history-picker";
-import { Plus, Loader2, Trash2 } from "lucide-react";
+import { Plus, Loader2, Trash2, Download } from "lucide-react";
 
 async function fetchItems(tableName: string): Promise<GroceryItem[]> {
   const { data, error } = await supabase
@@ -352,9 +352,32 @@ function GroceryList({
   );
 }
 
+async function exportBoodschappen() {
+  const [{ data: groceries }, { data: upfront }] = await Promise.all([
+    supabase.from("groceries").select("*").order("created_at"),
+    supabase.from("groceries_upfront").select("*").order("created_at"),
+  ]);
+  const data = { groceries: groceries ?? [], upfront: upfront ?? [] };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `boodschappen-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 export default function Boodschappen() {
   return (
     <div>
+      <div className="flex justify-end mb-4">
+        <Button variant="outline" size="sm" onClick={exportBoodschappen} className="rounded-xl gap-2">
+          <Download className="h-4 w-4" />
+          <span className="hidden sm:inline">Exporteer boodschappen</span>
+        </Button>
+      </div>
       <div className="lg:grid lg:grid-cols-[1fr_320px] lg:gap-8 lg:items-start flex flex-col gap-10 lg:flex-none lg:gap-0">
         <div className="space-y-10">
           <GroceryList tableName="groceries" />

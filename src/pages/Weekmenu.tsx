@@ -5,7 +5,7 @@ import { textToIngredients } from "@/lib/ingredients";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2, ShoppingBasket, Check, ChefHat } from "lucide-react";
+import { Loader2, ShoppingBasket, Check, ChefHat, Download } from "lucide-react";
 
 const days = [
   { key: "ma", label: "Maandag" },
@@ -65,6 +65,19 @@ export default function Weekmenu() {
     queryKey: ["weekplan"],
     queryFn: fetchPlan,
   });
+
+  function handleExport() {
+    const data = Object.values(plan);
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `weekmenu-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
 
   const { data: recipeOptions = [] } = useQuery({
     queryKey: ["recipe-options"],
@@ -150,15 +163,21 @@ export default function Weekmenu() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-8">
-      <header>
-        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-          Wat eten we deze week?
-        </p>
-        <h1 className="font-serif text-4xl font-semibold mt-2">Weekmenu</h1>
-        <p className="text-muted-foreground mt-2">
-          Vul per dag in wat jullie eten, of koppel een opgeslagen recept.
-          Wijzigingen worden meteen opgeslagen.
-        </p>
+      <header className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+            Wat eten we deze week?
+          </p>
+          <h1 className="font-serif text-4xl font-semibold mt-2">Weekmenu</h1>
+          <p className="text-muted-foreground mt-2">
+            Vul per dag in wat jullie eten, of koppel een opgeslagen recept.
+            Wijzigingen worden meteen opgeslagen.
+          </p>
+        </div>
+        <Button variant="outline" size="sm" onClick={handleExport} disabled={Object.keys(plan).length === 0} className="rounded-xl gap-2 shrink-0 mt-1">
+          <Download className="h-4 w-4" />
+          <span className="hidden sm:inline">Exporteer</span>
+        </Button>
         <div className="flex items-center gap-2 mt-4 flex-wrap">
           <p className="text-xs text-muted-foreground">Week begint op</p>
           <div className="flex gap-2">
