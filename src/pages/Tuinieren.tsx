@@ -806,19 +806,25 @@ function SeasonalOverview({ plants }: { plants: Plant[] }) {
           {sowNow.length > 0 && (
             <div>
               <p className="text-xs sv-muted mb-1">Zaaien</p>
-              <p className="text-sm">{sowNow.map((p) => p.name).join(" · ")}</p>
+              <div className="space-y-0.5">
+                {sowNow.map((p) => <p key={p.id} className="sv-heading text-xl">{p.name}</p>)}
+              </div>
             </div>
           )}
           {bloomNow.length > 0 && (
             <div>
               <p className="text-xs sv-muted mb-1">In bloei</p>
-              <p className="text-sm">{bloomNow.map((p) => p.name).join(" · ")}</p>
+              <div className="space-y-0.5">
+                {bloomNow.map((p) => <p key={p.id} className="sv-heading text-xl">{p.name}</p>)}
+              </div>
             </div>
           )}
           {harvestNow.length > 0 && (
             <div>
               <p className="text-xs sv-muted mb-1">Oogsten</p>
-              <p className="text-sm">{harvestNow.map((p) => p.name).join(" · ")}</p>
+              <div className="space-y-0.5">
+                {harvestNow.map((p) => <p key={p.id} className="sv-heading text-xl">{p.name}</p>)}
+              </div>
             </div>
           )}
         </div>
