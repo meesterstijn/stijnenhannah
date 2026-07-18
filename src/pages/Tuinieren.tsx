@@ -1112,7 +1112,7 @@ export default function Tuinieren() {
               <Button
                 onClick={() => addPlant.mutate(draft)}
                 disabled={!draft.name.trim() || addPlant.isPending}
-                className="sv-button"
+                className="sv-button text-xl"
               >
                 {addPlant.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -1227,7 +1227,7 @@ export default function Tuinieren() {
                 <Button
                   onClick={handleSaveEdit}
                   disabled={!editDraft.name.trim() || updatePlant.isPending}
-                  className="sv-button"
+                  className="sv-button text-xl"
                 >
                   {updatePlant.isPending ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -1505,7 +1505,7 @@ export default function Tuinieren() {
                     </Button>
                     <Button
                       variant="outline"
-                      className="sv-button"
+                      className="sv-button text-xl"
                       onClick={startEdit}
                     >
                       <Pencil className="h-4 w-4" /> Bewerken
