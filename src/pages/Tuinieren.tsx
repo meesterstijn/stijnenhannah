@@ -24,6 +24,9 @@ import {
   Image as ImageIcon,
   SlidersHorizontal,
   Upload,
+  Download,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 
 const SUN_OPTIONS = ["Volle zon", "Halfvolle zon", "Half schaduw", "Schaduw"] as const;
@@ -750,6 +753,80 @@ function InfoRow({ label, value }: { label: string; value: string | null }) {
   );
 }
 
+function PlantCard({ p, onOpen }: { p: Plant; onOpen: (p: Plant) => void }) {
+  const status = waterStatus(p);
+  return (
+    <button
+      onClick={() => onOpen(p)}
+      className="sv-panel text-left p-5 hover:-translate-y-0.5 transition-transform flex items-center gap-3"
+    >
+      {p.photo_url ? (
+        <img src={p.photo_url} alt="" className="h-12 w-12 rounded-lg object-cover shrink-0 sv-icon-slot" />
+      ) : (
+        <div className="h-12 w-12 sv-icon-slot flex items-center justify-center shrink-0">
+          <Sprout className="h-5 w-5" strokeWidth={1.6} />
+        </div>
+      )}
+      <div className="min-w-0">
+        <p className="sv-heading text-2xl leading-snug truncate">{p.name}</p>
+        {p.location && <p className="text-xs sv-muted truncate">{p.location}</p>}
+        {status && (
+          <span className={`sv-heading inline-flex items-center gap-1 text-sm px-2 py-1 rounded-full w-fit mt-1 ${status.overdue ? "sv-badge-overdue" : "sv-badge-ok"}`}>
+            <Droplet className="h-3 w-3" /> {status.label}
+          </span>
+        )}
+      </div>
+    </button>
+  );
+}
+
+function SeasonalOverview({ plants }: { plants: Plant[] }) {
+  const [open, setOpen] = useState(true);
+  const monthIndex = new Date().getMonth();
+  const currentMonth = MONTH_OPTIONS[monthIndex];
+  const monthLabel = currentMonth.charAt(0).toUpperCase() + currentMonth.slice(1);
+
+  const sowNow = plants.filter((p) => p.sow_months.includes(currentMonth));
+  const bloomNow = plants.filter((p) => p.bloom_months.includes(currentMonth));
+  const harvestNow = plants.filter((p) => p.harvest_months.includes(currentMonth));
+
+  if (sowNow.length === 0 && bloomNow.length === 0 && harvestNow.length === 0) return null;
+
+  return (
+    <div className="sv-panel p-5 space-y-3">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center justify-between w-full"
+      >
+        <p className="sv-heading text-2xl">🌱 {monthLabel}</p>
+        {open ? <ChevronUp className="h-4 w-4 sv-muted" /> : <ChevronDown className="h-4 w-4 sv-muted" />}
+      </button>
+      {open && (
+        <div className="space-y-3 pt-1">
+          {sowNow.length > 0 && (
+            <div>
+              <p className="text-xs sv-muted mb-1">Zaaien</p>
+              <p className="text-sm">{sowNow.map((p) => p.name).join(" · ")}</p>
+            </div>
+          )}
+          {bloomNow.length > 0 && (
+            <div>
+              <p className="text-xs sv-muted mb-1">In bloei</p>
+              <p className="text-sm">{bloomNow.map((p) => p.name).join(" · ")}</p>
+            </div>
+          )}
+          {harvestNow.length > 0 && (
+            <div>
+              <p className="text-xs sv-muted mb-1">Oogsten</p>
+              <p className="text-sm">{harvestNow.map((p) => p.name).join(" · ")}</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Tuinieren() {
   const { session } = useAuth();
   const queryClient = useQueryClient();
@@ -959,24 +1036,34 @@ export default function Tuinieren() {
     category: string[];
     sun_needs: string[];
     greenhouse_pref: string[];
+    lifecycle: string[];
+    winter_hardiness: string[];
+    toxic: string[];
+    planted: "all" | "planted" | "not_planted";
     sow_months: string[];
     bloom_months: string[];
     harvest_months: string[];
     water: "all" | "overdue" | "soon";
-    sort: "naam" | "water";
+    sort: "naam" | "water" | "categorie";
   };
 
-  const [filterOpen, setFilterOpen] = useState(false);
-  const [filters, setFilters] = useState<FilterState>({
+  const initialFilters: FilterState = {
     category: [],
     sun_needs: [],
     greenhouse_pref: [],
+    lifecycle: [],
+    winter_hardiness: [],
+    toxic: [],
+    planted: "all",
     sow_months: [],
     bloom_months: [],
     harvest_months: [],
     water: "all",
     sort: "naam",
-  });
+  };
+
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [filters, setFilters] = useState<FilterState>(initialFilters);
 
   function patchFilter(patch: Partial<FilterState>) {
     setFilters((prev) => ({ ...prev, ...patch }));
@@ -1013,6 +1100,28 @@ export default function Tuinieren() {
       });
     }
 
+    if (filters.lifecycle.length > 0) {
+      result = result.filter((p) => p.lifecycle && filters.lifecycle.includes(p.lifecycle));
+    }
+
+    if (filters.winter_hardiness.length > 0) {
+      result = result.filter((p) => p.winter_hardiness && filters.winter_hardiness.includes(p.winter_hardiness));
+    }
+
+    if (filters.toxic.length > 0) {
+      result = result.filter((p) => {
+        if (filters.toxic.includes("Mens") && !p.toxic_to_humans) return false;
+        if (filters.toxic.includes("Kat") && !p.toxic_to_cats) return false;
+        return true;
+      });
+    }
+
+    if (filters.planted !== "all") {
+      result = result.filter((p) =>
+        filters.planted === "planted" ? p.planted : !p.planted,
+      );
+    }
+
     if (filters.sow_months.length > 0) {
       result = result.filter((p) =>
         filters.sow_months.some((m) => p.sow_months.includes(m)),
@@ -1042,20 +1151,98 @@ export default function Tuinieren() {
 
     if (filters.sort === "water") {
       result = [...result].sort((a, b) => daysLeftForSort(a) - daysLeftForSort(b));
+    } else if (filters.sort === "categorie") {
+      result = [...result].sort((a, b) => {
+        const ai = PLANT_CATEGORY_OPTIONS.indexOf(a.category as (typeof PLANT_CATEGORY_OPTIONS)[number]);
+        const bi = PLANT_CATEGORY_OPTIONS.indexOf(b.category as (typeof PLANT_CATEGORY_OPTIONS)[number]);
+        const aIdx = ai === -1 ? 999 : ai;
+        const bIdx = bi === -1 ? 999 : bi;
+        if (aIdx !== bIdx) return aIdx - bIdx;
+        return a.name.localeCompare(b.name, "nl");
+      });
     }
 
     return result;
   }, [plants, filters]);
 
+  const groupedPlants = useMemo(() => {
+    if (filters.sort !== "categorie") return null;
+    const groups: { label: string; plants: Plant[] }[] = [];
+    for (const cat of PLANT_CATEGORY_OPTIONS) {
+      const ps = filteredPlants.filter((p) => p.category === cat);
+      if (ps.length > 0) groups.push({ label: cat, plants: ps });
+    }
+    const other = filteredPlants.filter(
+      (p) => !p.category || !PLANT_CATEGORY_OPTIONS.includes(p.category as (typeof PLANT_CATEGORY_OPTIONS)[number]),
+    );
+    if (other.length > 0) groups.push({ label: "Overig", plants: other });
+    return groups;
+  }, [filteredPlants, filters.sort]);
+
   const activeFilterCount =
     filters.category.length +
     filters.sun_needs.length +
     filters.greenhouse_pref.length +
+    filters.lifecycle.length +
+    filters.winter_hardiness.length +
+    filters.toxic.length +
+    (filters.planted !== "all" ? 1 : 0) +
     filters.sow_months.length +
     filters.bloom_months.length +
     filters.harvest_months.length +
     (filters.water !== "all" ? 1 : 0) +
     (filters.sort !== "naam" ? 1 : 0);
+
+  function handleExport() {
+    const data = plants.map((p) => ({
+      name: p.name,
+      category: p.category,
+      species: p.species,
+      fun_fact: p.fun_fact,
+      location: p.location,
+      lifecycle: p.lifecycle,
+      size_cm: p.size_cm,
+      sun_needs: p.sun_needs ? p.sun_needs.split(",") : [],
+      season_notes: p.season_notes,
+      water_notes: p.water_notes,
+      water_interval_days: p.water_interval_days,
+      greenhouse_pref: parseGreenhouseNotes(p.greenhouse_notes).pref || null,
+      greenhouse_notes: parseGreenhouseNotes(p.greenhouse_notes).notes || null,
+      feeding_notes: p.feeding_notes,
+      soil_notes: p.soil_notes,
+      temperature_notes: p.temperature_notes,
+      winter_hardiness: p.winter_hardiness,
+      winter_notes: p.winter_notes,
+      pruning_notes: p.pruning_notes,
+      pest_notes: p.pest_notes,
+      toxic_to_humans: p.toxic_to_humans,
+      toxic_to_cats: p.toxic_to_cats,
+      toxicity_notes: p.toxicity_notes,
+      sow_months: p.sow_months,
+      sow_week: p.sow_week,
+      sow_notes: p.sow_notes,
+      bloom_months: p.bloom_months,
+      bloom_week: p.bloom_week,
+      bloom_notes: p.bloom_notes,
+      propagation_methods: p.propagation_methods,
+      propagation_notes: p.propagation_notes,
+      harvest_months: p.harvest_months,
+      harvest_week: p.harvest_week,
+      harvest_notes: p.harvest_notes,
+      general_notes: p.general_notes,
+      photo_url: p.photo_url,
+      planted: p.planted,
+    }));
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `planten-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
 
   return (
     <div className="tuinieren-theme space-y-8">
@@ -1074,6 +1261,14 @@ export default function Tuinieren() {
         </Button>
 
         <div className="flex items-center gap-2 justify-end">
+          <Button
+            size="lg"
+            className="sv-button text-2xl"
+            onClick={handleExport}
+            disabled={plants.length === 0}
+          >
+            <Download className="h-4 w-4" /><span className="hidden sm:inline">Exporteer</span>
+          </Button>
           <Button
             size="lg"
             className="sv-button text-2xl"
@@ -1142,49 +1337,24 @@ export default function Tuinieren() {
             Voeg je eerste plant toe om bij te houden.
           </p>
         </div>
+      ) : groupedPlants ? (
+        <div className="space-y-6">
+          {groupedPlants.map((group) => (
+            <div key={group.label} className="space-y-3">
+              <p className="sv-heading text-2xl">{group.label}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {group.plants.map((p) => <PlantCard key={p.id} p={p} onOpen={setView} />)}
+              </div>
+            </div>
+          ))}
+        </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {filteredPlants.map((p) => {
-            const status = waterStatus(p);
-            return (
-              <button
-                key={p.id}
-                onClick={() => setView(p)}
-                className="sv-panel text-left p-5 hover:-translate-y-0.5 transition-transform flex items-center gap-3"
-              >
-                {p.photo_url ? (
-                  <img
-                    src={p.photo_url}
-                    alt=""
-                    className="h-12 w-12 rounded-lg object-cover shrink-0 sv-icon-slot"
-                  />
-                ) : (
-                  <div className="h-12 w-12 sv-icon-slot flex items-center justify-center shrink-0">
-                    <Sprout className="h-5 w-5" strokeWidth={1.6} />
-                  </div>
-                )}
-                <div className="min-w-0">
-                  <p className="sv-heading text-2xl leading-snug truncate">
-                    {p.name}
-                  </p>
-                  {p.location && (
-                    <p className="text-xs sv-muted truncate">{p.location}</p>
-                  )}
-                  {status && (
-                    <span
-                      className={`sv-heading inline-flex items-center gap-1 text-sm px-2 py-1 rounded-full w-fit mt-1 ${
-                        status.overdue ? "sv-badge-overdue" : "sv-badge-ok"
-                      }`}
-                    >
-                      <Droplet className="h-3 w-3" /> {status.label}
-                    </span>
-                  )}
-                </div>
-              </button>
-            );
-          })}
+          {filteredPlants.map((p) => <PlantCard key={p.id} p={p} onOpen={setView} />)}
         </div>
       )}
+
+      <SeasonalOverview plants={plants} />
 
       <Dialog
         open={!!view}
@@ -1532,6 +1702,7 @@ export default function Tuinieren() {
                   [
                     { value: "naam", label: "Naam (A–Z)" },
                     { value: "water", label: "Water urgentie" },
+                    { value: "categorie", label: "Categorie" },
                   ] as const
                 ).map(({ value, label }) => (
                   <button
@@ -1676,15 +1847,83 @@ export default function Tuinieren() {
               </div>
             </div>
 
+            <div className="space-y-2">
+              <SectionHeading>Ingeplant</SectionHeading>
+              <div className="flex gap-2 flex-wrap">
+                {(
+                  [
+                    { value: "all", label: "Alles" },
+                    { value: "planted", label: "Ingeplant" },
+                    { value: "not_planted", label: "Nog te planten" },
+                  ] as const
+                ).map(({ value, label }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => patchFilter({ planted: value })}
+                    className={chipClass(filters.planted === value)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <SectionHeading>Levensduur</SectionHeading>
+              <div className="flex gap-2 flex-wrap">
+                {LIFECYCLE_OPTIONS.map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => patchFilter({ lifecycle: toggleInArray(filters.lifecycle, opt) })}
+                    className={chipClass(filters.lifecycle.includes(opt))}
+                  >
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <SectionHeading>Winterhardheid</SectionHeading>
+              <div className="flex gap-2 flex-wrap">
+                {WINTER_HARDINESS_OPTIONS.map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => patchFilter({ winter_hardiness: toggleInArray(filters.winter_hardiness, opt) })}
+                    className={chipClass(filters.winter_hardiness.includes(opt))}
+                  >
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <SectionHeading>Giftig voor</SectionHeading>
+              <div className="flex gap-2 flex-wrap">
+                {["Mens", "Kat"].map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() => patchFilter({ toxic: toggleInArray(filters.toxic, opt) })}
+                    className={warnChipClass(filters.toxic.includes(opt))}
+                  >
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            </div>
+
           </div>
 
           <DialogFooter className="flex justify-between w-full">
             <Button
               variant="ghost"
               className="sv-button sv-button-ghost text-xl"
-              onClick={() =>
-                setFilters({ category: [], sun_needs: [], greenhouse_pref: [], sow_months: [], bloom_months: [], harvest_months: [], water: "all", sort: "naam" })
-              }
+              onClick={() => setFilters(initialFilters)}
             >
               Reset
             </Button>
