@@ -1059,13 +1059,13 @@ export default function Tuinieren() {
 
   return (
     <div className="tuinieren-theme space-y-8">
-      <header className="flex items-end justify-between gap-4 flex-wrap">
+      <header className="grid grid-cols-[auto_1fr] items-center gap-2">
         <Button
           size="lg"
           className="sv-button text-2xl"
           onClick={() => setFilterOpen(true)}
         >
-          <SlidersHorizontal className="h-4 w-4" /> Zoeken
+          <SlidersHorizontal className="h-4 w-4" /><span className="hidden sm:inline">Zoeken</span>
           {activeFilterCount > 0 && (
             <span className="ml-1 text-xs sv-badge-ok rounded-full px-1.5 py-0.5">
               {activeFilterCount}
@@ -1073,7 +1073,7 @@ export default function Tuinieren() {
           )}
         </Button>
 
-        <div className="flex items-center gap-2 ml-auto">
+        <div className="flex items-center gap-2 justify-end">
           <Button
             size="lg"
             className="sv-button text-2xl"
@@ -1092,7 +1092,7 @@ export default function Tuinieren() {
         <Dialog open={open} onOpenChange={handleOpenChange}>
           <DialogTrigger asChild>
             <Button size="lg" className="sv-button text-2xl">
-              <Plus className="h-4 w-4" /> Nieuwe plant
+              <Plus className="h-4 w-4" /><span className="hidden sm:inline">Nieuwe plant</span>
             </Button>
           </DialogTrigger>
           <DialogContent className="tuinieren-theme sv-dialog max-w-lg max-h-[90vh] overflow-y-auto scrollbar-none">
