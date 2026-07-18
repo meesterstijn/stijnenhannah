@@ -8,8 +8,8 @@ import {
   CloudFog,
 } from "lucide-react";
 
-const LATITUDE = 51.7833;
-const LONGITUDE = 4.6;
+const LATITUDE = 51.7822;
+const LONGITUDE = 4.6133;
 
 type ForecastResponse = {
   daily: {

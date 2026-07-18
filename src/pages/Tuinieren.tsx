@@ -1254,8 +1254,7 @@ export default function Tuinieren() {
     <div className="tuinieren-theme space-y-8">
       <header className="grid grid-cols-[auto_1fr] items-center gap-2">
         <Button
-          size="lg"
-          className="sv-button text-2xl"
+          className="sv-button text-2xl h-11 px-3 sm:px-6"
           onClick={() => setFilterOpen(true)}
         >
           <SlidersHorizontal className="h-4 w-4" /><span className="hidden sm:inline">Zoeken</span>
@@ -1268,16 +1267,14 @@ export default function Tuinieren() {
 
         <div className="flex items-center gap-2 justify-end">
           <Button
-            size="lg"
-            className="sv-button text-2xl"
+            className="sv-button text-2xl h-11 px-3 sm:px-6"
             onClick={handleExport}
             disabled={plants.length === 0}
           >
             <Download className="h-4 w-4" /><span className="hidden sm:inline">Exporteer</span>
           </Button>
           <Button
-            size="lg"
-            className="sv-button text-2xl"
+            className="sv-button text-2xl h-11 px-3 sm:px-6"
             onClick={() => fileInputRef.current?.click()}
           >
             <Upload className="h-4 w-4" /><span className="hidden sm:inline">Importeer</span>
@@ -1292,7 +1289,7 @@ export default function Tuinieren() {
 
         <Dialog open={open} onOpenChange={handleOpenChange}>
           <DialogTrigger asChild>
-            <Button size="lg" className="sv-button text-2xl">
+            <Button className="sv-button text-2xl h-11 px-3 sm:px-6">
               <Plus className="h-4 w-4" /><span className="hidden sm:inline">Nieuwe plant</span>
             </Button>
           </DialogTrigger>
