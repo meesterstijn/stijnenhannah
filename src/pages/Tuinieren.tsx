@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase, type Plant, type PlantPhoto } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -22,9 +22,21 @@ import {
   Pencil,
   X,
   Image as ImageIcon,
+  SlidersHorizontal,
 } from "lucide-react";
 
-const SUN_OPTIONS = ["Volle zon", "Half schaduw", "Schaduw"] as const;
+const SUN_OPTIONS = ["Volle zon", "Halfvolle zon", "Half schaduw", "Schaduw"] as const;
+
+const GREENHOUSE_PREF_OPTIONS = ["Kas liefhebber", "Kas of buiten", "Alleen buiten"] as const;
+
+function parseGreenhouseNotes(raw: string | null): { pref: string; notes: string } {
+  if (!raw) return { pref: "", notes: "" };
+  for (const p of GREENHOUSE_PREF_OPTIONS) {
+    if (raw === p) return { pref: p, notes: "" };
+    if (raw.startsWith(p + "\n")) return { pref: p, notes: raw.slice(p.length + 1) };
+  }
+  return { pref: "", notes: raw };
+}
 
 const LIFECYCLE_OPTIONS = ["Eenjarig", "Meerjarig"] as const;
 
@@ -89,7 +101,7 @@ type PlantDraft = {
   location: string;
   lifecycle: string;
   size_cm: string;
-  sun_needs: string;
+  sun_needs: string[];
   season_notes: string;
   water_notes: string;
   planted: boolean;
@@ -117,6 +129,7 @@ type PlantDraft = {
   harvest_notes: string;
   harvest_months: string[];
   harvest_week: string;
+  greenhouse_pref: string;
   greenhouse_notes: string;
   general_notes: string;
   photo_url: string;
@@ -130,7 +143,7 @@ const emptyDraft: PlantDraft = {
   location: "",
   lifecycle: "",
   size_cm: "",
-  sun_needs: "",
+  sun_needs: [],
   season_notes: "",
   water_notes: "",
   planted: false,
@@ -158,6 +171,7 @@ const emptyDraft: PlantDraft = {
   harvest_notes: "",
   harvest_months: [],
   harvest_week: "",
+  greenhouse_pref: "",
   greenhouse_notes: "",
   general_notes: "",
   photo_url: "",
@@ -172,7 +186,7 @@ function plantToDraft(p: Plant): PlantDraft {
     location: p.location ?? "",
     lifecycle: p.lifecycle ?? "",
     size_cm: p.size_cm ? String(p.size_cm) : "",
-    sun_needs: p.sun_needs ?? "",
+    sun_needs: p.sun_needs ? p.sun_needs.split(",") : [],
     season_notes: p.season_notes ?? "",
     water_notes: p.water_notes ?? "",
     planted: p.planted,
@@ -202,7 +216,8 @@ function plantToDraft(p: Plant): PlantDraft {
     harvest_notes: p.harvest_notes ?? "",
     harvest_months: p.harvest_months ?? [],
     harvest_week: p.harvest_week ?? "",
-    greenhouse_notes: p.greenhouse_notes ?? "",
+    greenhouse_pref: parseGreenhouseNotes(p.greenhouse_notes).pref,
+    greenhouse_notes: parseGreenhouseNotes(p.greenhouse_notes).notes,
     general_notes: p.general_notes ?? "",
     photo_url: p.photo_url ?? "",
     reminders_enabled: p.reminders_enabled,
@@ -217,7 +232,7 @@ function draftToRow(d: PlantDraft) {
     location: d.location.trim() || null,
     lifecycle: d.lifecycle || null,
     size_cm: d.size_cm ? Number(d.size_cm) : null,
-    sun_needs: d.sun_needs || null,
+    sun_needs: d.sun_needs.length > 0 ? d.sun_needs.join(",") : null,
     season_notes: d.season_notes.trim() || null,
     water_notes: d.water_notes.trim() || null,
     planted: d.planted,
@@ -249,7 +264,8 @@ function draftToRow(d: PlantDraft) {
     harvest_notes: d.harvest_notes.trim() || null,
     harvest_months: d.harvest_months,
     harvest_week: d.harvest_week.trim() || null,
-    greenhouse_notes: d.greenhouse_notes.trim() || null,
+    greenhouse_notes:
+      [d.greenhouse_pref, d.greenhouse_notes.trim()].filter(Boolean).join("\n") || null,
     general_notes: d.general_notes.trim() || null,
     photo_url: d.photo_url.trim() || null,
     reminders_enabled: d.reminders_enabled,
@@ -359,9 +375,9 @@ function PlantForm({
               key={opt}
               type="button"
               onClick={() =>
-                onChange({ sun_needs: draft.sun_needs === opt ? "" : opt })
+                onChange({ sun_needs: toggleInArray(draft.sun_needs, opt) })
               }
-              className={chipClass(draft.sun_needs === opt)}
+              className={chipClass(draft.sun_needs.includes(opt))}
             >
               {opt}
             </button>
@@ -524,6 +540,20 @@ function PlantForm({
 
       <div className="space-y-2">
         <SectionHeading>Kas</SectionHeading>
+        <div className="flex gap-2 flex-wrap">
+          {GREENHOUSE_PREF_OPTIONS.map((opt) => (
+            <button
+              key={opt}
+              type="button"
+              onClick={() =>
+                onChange({ greenhouse_pref: draft.greenhouse_pref === opt ? "" : opt })
+              }
+              className={chipClass(draft.greenhouse_pref === opt)}
+            >
+              {opt}
+            </button>
+          ))}
+        </div>
         <Textarea
           placeholder="Notities"
           rows={2}
@@ -819,9 +849,117 @@ export default function Tuinieren() {
     });
   }
 
+  type FilterState = {
+    sun_needs: string[];
+    greenhouse_pref: string[];
+    sow_months: string[];
+    bloom_months: string[];
+    harvest_months: string[];
+    water: "all" | "overdue" | "soon";
+    sort: "naam" | "water";
+  };
+
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [filters, setFilters] = useState<FilterState>({
+    sun_needs: [],
+    greenhouse_pref: [],
+    sow_months: [],
+    bloom_months: [],
+    harvest_months: [],
+    water: "all",
+    sort: "naam",
+  });
+
+  function patchFilter(patch: Partial<FilterState>) {
+    setFilters((prev) => ({ ...prev, ...patch }));
+  }
+
+  function daysLeftForSort(p: Plant): number {
+    if (!p.planted || !p.water_interval_days) return 9999;
+    if (!p.last_watered_at) return -9999;
+    const dueAt =
+      new Date(p.last_watered_at).getTime() +
+      p.water_interval_days * 24 * 60 * 60 * 1000;
+    return Math.ceil((dueAt - Date.now()) / (24 * 60 * 60 * 1000));
+  }
+
+  const filteredPlants = useMemo(() => {
+    let result = plants;
+
+    if (filters.sun_needs.length > 0) {
+      result = result.filter((p) => {
+        if (!p.sun_needs) return false;
+        const plantSun = p.sun_needs.split(",");
+        return filters.sun_needs.some((f) => plantSun.includes(f));
+      });
+    }
+
+    if (filters.greenhouse_pref.length > 0) {
+      result = result.filter((p) => {
+        const pref = parseGreenhouseNotes(p.greenhouse_notes).pref;
+        return filters.greenhouse_pref.includes(pref);
+      });
+    }
+
+    if (filters.sow_months.length > 0) {
+      result = result.filter((p) =>
+        filters.sow_months.some((m) => p.sow_months.includes(m)),
+      );
+    }
+
+    if (filters.bloom_months.length > 0) {
+      result = result.filter((p) =>
+        filters.bloom_months.some((m) => p.bloom_months.includes(m)),
+      );
+    }
+
+    if (filters.harvest_months.length > 0) {
+      result = result.filter((p) =>
+        filters.harvest_months.some((m) => p.harvest_months.includes(m)),
+      );
+    }
+
+    if (filters.water === "overdue") {
+      result = result.filter((p) => waterStatus(p)?.overdue);
+    } else if (filters.water === "soon") {
+      result = result.filter((p) => {
+        const days = daysLeftForSort(p);
+        return days <= 3 && days > 0;
+      });
+    }
+
+    if (filters.sort === "water") {
+      result = [...result].sort((a, b) => daysLeftForSort(a) - daysLeftForSort(b));
+    }
+
+    return result;
+  }, [plants, filters]);
+
+  const activeFilterCount =
+    filters.sun_needs.length +
+    filters.greenhouse_pref.length +
+    filters.sow_months.length +
+    filters.bloom_months.length +
+    filters.harvest_months.length +
+    (filters.water !== "all" ? 1 : 0) +
+    (filters.sort !== "naam" ? 1 : 0);
+
   return (
     <div className="tuinieren-theme space-y-8">
-      <header className="flex items-end justify-end gap-4 flex-wrap">
+      <header className="flex items-end justify-between gap-4 flex-wrap">
+        <Button
+          size="lg"
+          className="sv-button text-2xl"
+          onClick={() => setFilterOpen(true)}
+        >
+          <SlidersHorizontal className="h-4 w-4" /> Zoeken
+          {activeFilterCount > 0 && (
+            <span className="ml-1 text-xs sv-badge-ok rounded-full px-1.5 py-0.5">
+              {activeFilterCount}
+            </span>
+          )}
+        </Button>
+
         <Dialog open={open} onOpenChange={handleOpenChange}>
           <DialogTrigger asChild>
             <Button size="lg" className="sv-button text-2xl">
@@ -872,7 +1010,7 @@ export default function Tuinieren() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {plants.map((p) => {
+          {filteredPlants.map((p) => {
             const status = waterStatus(p);
             return (
               <button
@@ -1041,7 +1179,7 @@ export default function Tuinieren() {
                   value={view.size_cm ? `${view.size_cm} cm` : null}
                 />
                 <InfoRow label="Locatie" value={view.location} />
-                <InfoRow label="Zon" value={view.sun_needs} />
+                <InfoRow label="Zon" value={view.sun_needs ? view.sun_needs.replace(/,/g, " · ") : null} />
                 <InfoRow label="Seizoen" value={view.season_notes} />
                 <InfoRow
                   label="Water"
@@ -1243,6 +1381,164 @@ export default function Tuinieren() {
               </DialogFooter>
             </>
           ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={filterOpen} onOpenChange={setFilterOpen}>
+        <DialogContent className="tuinieren-theme sv-dialog max-w-lg max-h-[90vh] overflow-y-auto scrollbar-none">
+          <DialogHeader>
+            <DialogTitle className="sv-heading text-3xl">Zoeken & filteren</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <SectionHeading>Zon</SectionHeading>
+              <div className="flex gap-2 flex-wrap">
+                {SUN_OPTIONS.map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() =>
+                      patchFilter({ sun_needs: toggleInArray(filters.sun_needs, opt) })
+                    }
+                    className={chipClass(filters.sun_needs.includes(opt))}
+                  >
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <SectionHeading>Kas</SectionHeading>
+              <div className="flex gap-2 flex-wrap">
+                {GREENHOUSE_PREF_OPTIONS.map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() =>
+                      patchFilter({ greenhouse_pref: toggleInArray(filters.greenhouse_pref, opt) })
+                    }
+                    className={chipClass(filters.greenhouse_pref.includes(opt))}
+                  >
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <SectionHeading>Zaaien</SectionHeading>
+              <div className="flex gap-2 flex-wrap">
+                {MONTH_OPTIONS.map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() =>
+                      patchFilter({ sow_months: toggleInArray(filters.sow_months, m) })
+                    }
+                    className={monthChipClass(filters.sow_months.includes(m))}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <SectionHeading>Bloeien</SectionHeading>
+              <div className="flex gap-2 flex-wrap">
+                {MONTH_OPTIONS.map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() =>
+                      patchFilter({ bloom_months: toggleInArray(filters.bloom_months, m) })
+                    }
+                    className={monthChipClass(filters.bloom_months.includes(m))}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <SectionHeading>Oogsten</SectionHeading>
+              <div className="flex gap-2 flex-wrap">
+                {MONTH_OPTIONS.map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() =>
+                      patchFilter({ harvest_months: toggleInArray(filters.harvest_months, m) })
+                    }
+                    className={monthChipClass(filters.harvest_months.includes(m))}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <SectionHeading>Water</SectionHeading>
+              <div className="flex gap-2 flex-wrap">
+                {(
+                  [
+                    { value: "all", label: "Alles" },
+                    { value: "overdue", label: "Te laat" },
+                    { value: "soon", label: "Binnenkort (≤ 3 dagen)" },
+                  ] as const
+                ).map(({ value, label }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => patchFilter({ water: value })}
+                    className={chipClass(filters.water === value)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <SectionHeading>Sortering</SectionHeading>
+              <div className="flex gap-2 flex-wrap">
+                {(
+                  [
+                    { value: "naam", label: "Naam (A–Z)" },
+                    { value: "water", label: "Water urgentie" },
+                  ] as const
+                ).map(({ value, label }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => patchFilter({ sort: value })}
+                    className={chipClass(filters.sort === value)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="flex justify-between w-full">
+            <Button
+              variant="ghost"
+              className="sv-button sv-button-ghost"
+              onClick={() =>
+                setFilters({ sun_needs: [], greenhouse_pref: [], sow_months: [], bloom_months: [], harvest_months: [], water: "all", sort: "naam" })
+              }
+            >
+              Reset
+            </Button>
+            <Button className="sv-button" onClick={() => setFilterOpen(false)}>
+              Tonen ({filteredPlants.length})
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
