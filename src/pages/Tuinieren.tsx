@@ -27,6 +27,8 @@ import {
   Download,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 const SUN_OPTIONS = ["Volle zon", "Halfvolle zon", "Half schaduw", "Schaduw"] as const;
@@ -780,50 +782,92 @@ function PlantCard({ p, onOpen }: { p: Plant; onOpen: (p: Plant) => void }) {
   );
 }
 
+function PlantSeasonRow({ p }: { p: Plant }) {
+  return (
+    <div className="flex items-center gap-2">
+      {p.photo_url ? (
+        <img src={p.photo_url} alt="" className="h-7 w-7 rounded object-cover shrink-0 sv-icon-slot" />
+      ) : (
+        <div className="h-7 w-7 sv-icon-slot flex items-center justify-center shrink-0">
+          <Sprout className="h-3.5 w-3.5" strokeWidth={1.6} />
+        </div>
+      )}
+      <p className="sv-heading text-xl">{p.name}</p>
+    </div>
+  );
+}
+
 function SeasonalOverview({ plants }: { plants: Plant[] }) {
   const [open, setOpen] = useState(true);
-  const monthIndex = new Date().getMonth();
+  const [monthIndex, setMonthIndex] = useState(new Date().getMonth());
   const currentMonth = MONTH_OPTIONS[monthIndex];
   const monthLabel = currentMonth.charAt(0).toUpperCase() + currentMonth.slice(1);
+  const isCurrentMonth = monthIndex === new Date().getMonth();
 
   const sowNow = plants.filter((p) => p.sow_months.includes(currentMonth));
   const bloomNow = plants.filter((p) => p.bloom_months.includes(currentMonth));
   const harvestNow = plants.filter((p) => p.harvest_months.includes(currentMonth));
 
-  if (sowNow.length === 0 && bloomNow.length === 0 && harvestNow.length === 0) return null;
+  const isEmpty = sowNow.length === 0 && bloomNow.length === 0 && harvestNow.length === 0;
 
   return (
     <div className="sv-panel p-5 space-y-3">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="flex items-center justify-between w-full"
-      >
-        <p className="sv-heading text-2xl">🌱 {monthLabel}</p>
-        {open ? <ChevronUp className="h-4 w-4 sv-muted" /> : <ChevronDown className="h-4 w-4 sv-muted" />}
-      </button>
+      <div className="flex items-center gap-2 w-full">
+        <button
+          onClick={() => setMonthIndex((i) => (i + 11) % 12)}
+          className="sv-icon-slot h-7 w-7 flex items-center justify-center rounded shrink-0"
+          aria-label="Vorige maand"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <p className="sv-heading text-2xl flex-1 text-center">
+          🌱 {monthLabel}
+        </p>
+        {!isCurrentMonth && (
+          <button
+            onClick={() => setMonthIndex(new Date().getMonth())}
+            className="text-xs sv-muted underline shrink-0"
+          >
+            nu
+          </button>
+        )}
+        <button
+          onClick={() => setMonthIndex((i) => (i + 1) % 12)}
+          className="sv-icon-slot h-7 w-7 flex items-center justify-center rounded shrink-0"
+          aria-label="Volgende maand"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+        <button onClick={() => setOpen((v) => !v)} className="shrink-0">
+          {open ? <ChevronUp className="h-4 w-4 sv-muted" /> : <ChevronDown className="h-4 w-4 sv-muted" />}
+        </button>
+      </div>
       {open && (
         <div className="space-y-3 pt-1">
+          {isEmpty && (
+            <p className="text-sm sv-muted">Niets gepland voor {monthLabel}.</p>
+          )}
           {sowNow.length > 0 && (
             <div>
               <p className="text-xs sv-muted mb-1">Zaaien</p>
-              <div className="space-y-0.5">
-                {sowNow.map((p) => <p key={p.id} className="sv-heading text-xl">{p.name}</p>)}
+              <div className="space-y-1">
+                {sowNow.map((p) => <PlantSeasonRow key={p.id} p={p} />)}
               </div>
             </div>
           )}
           {bloomNow.length > 0 && (
             <div>
               <p className="text-xs sv-muted mb-1">In bloei</p>
-              <div className="space-y-0.5">
-                {bloomNow.map((p) => <p key={p.id} className="sv-heading text-xl">{p.name}</p>)}
+              <div className="space-y-1">
+                {bloomNow.map((p) => <PlantSeasonRow key={p.id} p={p} />)}
               </div>
             </div>
           )}
           {harvestNow.length > 0 && (
             <div>
               <p className="text-xs sv-muted mb-1">Oogsten</p>
-              <div className="space-y-0.5">
-                {harvestNow.map((p) => <p key={p.id} className="sv-heading text-xl">{p.name}</p>)}
+              <div className="space-y-1">
+                {harvestNow.map((p) => <PlantSeasonRow key={p.id} p={p} />)}
               </div>
             </div>
           )}
