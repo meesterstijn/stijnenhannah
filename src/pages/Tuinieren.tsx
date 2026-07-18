@@ -878,38 +878,36 @@ export default function Tuinieren() {
               <button
                 key={p.id}
                 onClick={() => setView(p)}
-                className="sv-panel text-left p-5 hover:-translate-y-0.5 transition-transform flex items-center justify-between gap-3"
+                className="sv-panel text-left p-5 hover:-translate-y-0.5 transition-transform flex items-center gap-3"
               >
-                <div className="flex items-center gap-3 min-w-0">
-                  {p.photo_url ? (
-                    <img
-                      src={p.photo_url}
-                      alt=""
-                      className="h-12 w-12 rounded-lg object-cover shrink-0 sv-icon-slot"
-                    />
-                  ) : (
-                    <div className="h-12 w-12 sv-icon-slot flex items-center justify-center shrink-0">
-                      <Sprout className="h-5 w-5" strokeWidth={1.6} />
-                    </div>
-                  )}
-                  <div className="min-w-0">
-                    <p className="sv-heading text-2xl leading-snug truncate">
-                      {p.name}
-                    </p>
-                    {p.location && (
-                      <p className="text-xs sv-muted truncate">{p.location}</p>
-                    )}
+                {p.photo_url ? (
+                  <img
+                    src={p.photo_url}
+                    alt=""
+                    className="h-12 w-12 rounded-lg object-cover shrink-0 sv-icon-slot"
+                  />
+                ) : (
+                  <div className="h-12 w-12 sv-icon-slot flex items-center justify-center shrink-0">
+                    <Sprout className="h-5 w-5" strokeWidth={1.6} />
                   </div>
-                </div>
-                {status && (
-                  <span
-                    className={`sv-heading inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full w-fit shrink-0 ${
-                      status.overdue ? "sv-badge-overdue" : "sv-badge-ok"
-                    }`}
-                  >
-                    <Droplet className="h-3 w-3" /> {status.label}
-                  </span>
                 )}
+                <div className="min-w-0">
+                  <p className="sv-heading text-2xl leading-snug truncate">
+                    {p.name}
+                  </p>
+                  {p.location && (
+                    <p className="text-xs sv-muted truncate">{p.location}</p>
+                  )}
+                  {status && (
+                    <span
+                      className={`sv-heading inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full w-fit mt-1 ${
+                        status.overdue ? "sv-badge-overdue" : "sv-badge-ok"
+                      }`}
+                    >
+                      <Droplet className="h-3 w-3" /> {status.label}
+                    </span>
+                  )}
+                </div>
               </button>
             );
           })}
