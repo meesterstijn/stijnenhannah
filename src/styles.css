@@ -209,7 +209,10 @@
 }
 
 @media (min-width: 640px) {
-  .tuinieren-theme {
+  .tuinieren-theme:not(.sv-dialog) {
+    padding: 0;
+  }
+  .tuinieren-theme.sv-dialog {
     padding: 2rem;
   }
 }
