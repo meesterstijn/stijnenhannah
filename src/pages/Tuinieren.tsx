@@ -29,6 +29,14 @@ const SUN_OPTIONS = ["Volle zon", "Halfvolle zon", "Half schaduw", "Schaduw"] as
 
 const GREENHOUSE_PREF_OPTIONS = ["Kas liefhebber", "Kas of buiten", "Alleen buiten"] as const;
 
+const PLANT_CATEGORY_OPTIONS = [
+  "🍅 Moestuin",
+  "🍓 Fruit",
+  "🌿 Kruiden",
+  "🌸 Sierplanten",
+  "🌳 Bomen & Mediterrane planten",
+] as const;
+
 function parseGreenhouseNotes(raw: string | null): { pref: string; notes: string } {
   if (!raw) return { pref: "", notes: "" };
   for (const p of GREENHOUSE_PREF_OPTIONS) {
@@ -129,6 +137,7 @@ type PlantDraft = {
   harvest_notes: string;
   harvest_months: string[];
   harvest_week: string;
+  category: string;
   greenhouse_pref: string;
   greenhouse_notes: string;
   general_notes: string;
@@ -171,6 +180,7 @@ const emptyDraft: PlantDraft = {
   harvest_notes: "",
   harvest_months: [],
   harvest_week: "",
+  category: "",
   greenhouse_pref: "",
   greenhouse_notes: "",
   general_notes: "",
@@ -216,6 +226,7 @@ function plantToDraft(p: Plant): PlantDraft {
     harvest_notes: p.harvest_notes ?? "",
     harvest_months: p.harvest_months ?? [],
     harvest_week: p.harvest_week ?? "",
+    category: p.category ?? "",
     greenhouse_pref: parseGreenhouseNotes(p.greenhouse_notes).pref,
     greenhouse_notes: parseGreenhouseNotes(p.greenhouse_notes).notes,
     general_notes: p.general_notes ?? "",
@@ -264,6 +275,7 @@ function draftToRow(d: PlantDraft) {
     harvest_notes: d.harvest_notes.trim() || null,
     harvest_months: d.harvest_months,
     harvest_week: d.harvest_week.trim() || null,
+    category: d.category || null,
     greenhouse_notes:
       [d.greenhouse_pref, d.greenhouse_notes.trim()].filter(Boolean).join("\n") || null,
     general_notes: d.general_notes.trim() || null,
@@ -314,6 +326,24 @@ function PlantForm({
 }) {
   return (
     <div className="space-y-5">
+      <div className="space-y-2">
+        <SectionHeading>Categorie</SectionHeading>
+        <div className="flex gap-2 flex-wrap">
+          {PLANT_CATEGORY_OPTIONS.map((opt) => (
+            <button
+              key={opt}
+              type="button"
+              onClick={() =>
+                onChange({ category: draft.category === opt ? "" : opt })
+              }
+              className={chipClass(draft.category === opt)}
+            >
+              {opt}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <Input
         placeholder="Naam plant"
         value={draft.name}
@@ -850,6 +880,7 @@ export default function Tuinieren() {
   }
 
   type FilterState = {
+    category: string[];
     sun_needs: string[];
     greenhouse_pref: string[];
     sow_months: string[];
@@ -861,6 +892,7 @@ export default function Tuinieren() {
 
   const [filterOpen, setFilterOpen] = useState(false);
   const [filters, setFilters] = useState<FilterState>({
+    category: [],
     sun_needs: [],
     greenhouse_pref: [],
     sow_months: [],
@@ -885,6 +917,10 @@ export default function Tuinieren() {
 
   const filteredPlants = useMemo(() => {
     let result = plants;
+
+    if (filters.category.length > 0) {
+      result = result.filter((p) => p.category && filters.category.includes(p.category));
+    }
 
     if (filters.sun_needs.length > 0) {
       result = result.filter((p) => {
@@ -936,6 +972,7 @@ export default function Tuinieren() {
   }, [plants, filters]);
 
   const activeFilterCount =
+    filters.category.length +
     filters.sun_needs.length +
     filters.greenhouse_pref.length +
     filters.sow_months.length +
@@ -1392,6 +1429,24 @@ export default function Tuinieren() {
 
           <div className="space-y-5">
             <div className="space-y-2">
+              <SectionHeading>Categorie</SectionHeading>
+              <div className="flex gap-2 flex-wrap">
+                {PLANT_CATEGORY_OPTIONS.map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() =>
+                      patchFilter({ category: toggleInArray(filters.category, opt) })
+                    }
+                    className={chipClass(filters.category.includes(opt))}
+                  >
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
               <SectionHeading>Zon</SectionHeading>
               <div className="flex gap-2 flex-wrap">
                 {SUN_OPTIONS.map((opt) => (
@@ -1530,7 +1585,7 @@ export default function Tuinieren() {
               variant="ghost"
               className="sv-button sv-button-ghost"
               onClick={() =>
-                setFilters({ sun_needs: [], greenhouse_pref: [], sow_months: [], bloom_months: [], harvest_months: [], water: "all", sort: "naam" })
+                setFilters({ category: [], sun_needs: [], greenhouse_pref: [], sow_months: [], bloom_months: [], harvest_months: [], water: "all", sort: "naam" })
               }
             >
               Reset
