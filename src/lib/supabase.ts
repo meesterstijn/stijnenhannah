@@ -105,8 +105,41 @@ export type Plant = {
   planted: boolean;
   planted_at: string | null;
   reminders_enabled: boolean;
+  // Individual-plant reality (distinct from the botanical advice fields
+  // above, e.g. pot_recommended_liters / soil_notes / size_cm).
+  health_status: PlantHealthStatus | null;
+  last_checked_at: string | null;
+  pot_size_liters: number | null;
+  pot_material: PotMaterial | null;
+  pot_color: string | null;
+  soil_type: string | null;
+  soil_mix_notes: string | null;
+  last_repotted_at: string | null;
+  acquired_at: string | null;
+  source: string | null;
+  price: number | null;
   created_at: string;
 };
+
+export type PlantHealthStatus =
+  | "Net geplant"
+  | "Gezond"
+  | "In bloei"
+  | "Vruchten"
+  | "Stress"
+  | "Ziek"
+  | "Afgestorven";
+
+export type PotMaterial =
+  | "Terracotta"
+  | "Kunststof"
+  | "Keramiek"
+  | "Metaal"
+  | "Hout"
+  | "Textiel"
+  | "Steen"
+  | "Biologisch afbreekbaar"
+  | "Anders";
 
 export type PlantPhoto = {
   id: string;
@@ -115,3 +148,36 @@ export type PlantPhoto = {
   note: string | null;
   taken_at: string;
 };
+
+export type PlantHarvestLog = {
+  id: string;
+  plant_id: string;
+  harvested_at: string;
+  weight_grams: number | null;
+  quantity: number | null;
+  unit: string | null;
+  notes: string | null;
+  created_at: string;
+};
+
+export type PlantPruningLog = {
+  id: string;
+  plant_id: string;
+  pruned_at: string;
+  pruning_type: string | null;
+  notes: string | null;
+  created_at: string;
+};
+
+export type PlantRepotLog = {
+  id: string;
+  plant_id: string;
+  repotted_at: string;
+  old_pot_size_liters: number | null;
+  new_pot_size_liters: number | null;
+  pot_material: string | null;
+  soil_type: string | null;
+  notes: string | null;
+  created_at: string;
+};
+

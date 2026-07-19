@@ -1,7 +1,14 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase, type Plant, type PlantPhoto } from "@/lib/supabase";
+import {
+  supabase,
+  type Plant,
+  type PlantPhoto,
+  type PlantHarvestLog,
+  type PlantPruningLog,
+  type PlantRepotLog,
+} from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,8 +40,17 @@ import {
   ChevronRight,
   Lightbulb,
   BookOpen,
+  ClipboardCheck,
+  Ruler,
+  Euro,
+  MapPin,
+  Scissors,
+  Boxes,
+  Apple,
+  Clock,
 } from "lucide-react";
 import { useGrowthLog } from "@/features/tuingids/hooks/useGrowthLog";
+import type { LogEntry } from "@/features/tuingids/types";
 
 const SUN_OPTIONS = ["Volle zon", "Halfvolle zon", "Half schaduw", "Schaduw"] as const;
 
@@ -73,6 +89,57 @@ const WATERING_METHOD_OPTIONS = [
   "Over de plant (bladbesproeiing)",
   "Op de bodem bij de wortels",
 ] as const;
+
+const HEALTH_STATUS_OPTIONS = [
+  "Net geplant",
+  "Gezond",
+  "In bloei",
+  "Vruchten",
+  "Stress",
+  "Ziek",
+  "Afgestorven",
+] as const;
+
+const HEALTH_STATUS_EMOJI: Record<string, string> = {
+  "Net geplant": "🌱",
+  Gezond: "💚",
+  "In bloei": "🌼",
+  Vruchten: "🍓",
+  Stress: "⚠️",
+  Ziek: "🤒",
+  Afgestorven: "☠️",
+};
+
+const POT_MATERIAL_OPTIONS = [
+  "Terracotta",
+  "Kunststof",
+  "Keramiek",
+  "Metaal",
+  "Hout",
+  "Textiel",
+  "Steen",
+  "Biologisch afbreekbaar",
+  "Anders",
+] as const;
+
+const PRUNING_TYPE_OPTIONS = [
+  "Vormsnoei",
+  "Onderhoudssnoei",
+  "Zomersnoei",
+  "Wintersnoei",
+  "Uitgebloeide bloemen verwijderd",
+  "Zieke delen verwijderd",
+  "Geoogst en teruggeknipt",
+  "Anders",
+] as const;
+
+function formatEuro(amount: number | null): string | null {
+  if (amount === null) return null;
+  return new Intl.NumberFormat("nl-NL", {
+    style: "currency",
+    currency: "EUR",
+  }).format(amount);
+}
 
 const WINTER_HARDINESS_OPTIONS = [
   "Winterhard",
@@ -185,6 +252,16 @@ type PlantDraft = {
   photo_url: string;
   planted_at: string;
   reminders_enabled: boolean;
+  health_status: string;
+  pot_size_liters: string;
+  pot_material: string;
+  pot_color: string;
+  soil_type: string;
+  soil_mix_notes: string;
+  last_repotted_at: string;
+  acquired_at: string;
+  source: string;
+  price: string;
 };
 
 const emptyDraft: PlantDraft = {
@@ -244,6 +321,16 @@ const emptyDraft: PlantDraft = {
   photo_url: "",
   planted_at: "",
   reminders_enabled: true,
+  health_status: "Net geplant",
+  pot_size_liters: "",
+  pot_material: "",
+  pot_color: "",
+  soil_type: "",
+  soil_mix_notes: "",
+  last_repotted_at: "",
+  acquired_at: "",
+  source: "",
+  price: "",
 };
 
 function plantToDraft(p: Plant): PlantDraft {
@@ -314,6 +401,16 @@ function plantToDraft(p: Plant): PlantDraft {
     photo_url: p.photo_url ?? "",
     planted_at: p.planted_at ? p.planted_at.slice(0, 10) : "",
     reminders_enabled: p.reminders_enabled,
+    health_status: p.health_status ?? "",
+    pot_size_liters: p.pot_size_liters ? String(p.pot_size_liters) : "",
+    pot_material: p.pot_material ?? "",
+    pot_color: p.pot_color ?? "",
+    soil_type: p.soil_type ?? "",
+    soil_mix_notes: p.soil_mix_notes ?? "",
+    last_repotted_at: p.last_repotted_at ? p.last_repotted_at.slice(0, 10) : "",
+    acquired_at: p.acquired_at ? p.acquired_at.slice(0, 10) : "",
+    source: p.source ?? "",
+    price: p.price !== null ? String(p.price) : "",
   };
 }
 
@@ -389,6 +486,16 @@ function draftToRow(d: PlantDraft) {
     photo_url: d.photo_url.trim() || null,
     planted_at: d.planted_at ? new Date(d.planted_at).toISOString() : null,
     reminders_enabled: d.reminders_enabled,
+    health_status: d.health_status || null,
+    pot_size_liters: d.pot_size_liters ? Number(d.pot_size_liters) : null,
+    pot_material: d.pot_material || null,
+    pot_color: d.pot_color.trim() || null,
+    soil_type: d.soil_type.trim() || null,
+    soil_mix_notes: d.soil_mix_notes.trim() || null,
+    last_repotted_at: d.last_repotted_at || null,
+    acquired_at: d.acquired_at || null,
+    source: d.source.trim() || null,
+    price: d.price ? Number(d.price) : null,
   };
 }
 
@@ -446,6 +553,16 @@ function plantAge(dateStr: string | null): string | null {
   return remMonths > 0 ? `${years} jaar en ${remMonths} maand${remMonths === 1 ? "" : "en"}` : `${years} jaar`;
 }
 
+function checkedLabel(dateStr: string | null): string | null {
+  if (!dateStr) return null;
+  const days = Math.floor(
+    (Date.now() - new Date(dateStr + "T00:00:00").getTime()) / 86400000,
+  );
+  if (days <= 0) return "Vandaag gecontroleerd";
+  if (days === 1) return "Gisteren gecontroleerd";
+  return `${days} dagen geleden gecontroleerd`;
+}
+
 async function fetchPlants(): Promise<Plant[]> {
   const { data, error } = await supabase
     .from("plants")
@@ -461,6 +578,36 @@ async function fetchPhotos(plantId: string): Promise<PlantPhoto[]> {
     .select("*")
     .eq("plant_id", plantId)
     .order("taken_at", { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+async function fetchHarvestLogs(plantId: string): Promise<PlantHarvestLog[]> {
+  const { data, error } = await supabase
+    .from("plant_harvest_logs")
+    .select("*")
+    .eq("plant_id", plantId)
+    .order("harvested_at", { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+async function fetchPruningLogs(plantId: string): Promise<PlantPruningLog[]> {
+  const { data, error } = await supabase
+    .from("plant_pruning_logs")
+    .select("*")
+    .eq("plant_id", plantId)
+    .order("pruned_at", { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+async function fetchRepotLogs(plantId: string): Promise<PlantRepotLog[]> {
+  const { data, error } = await supabase
+    .from("plant_repot_logs")
+    .select("*")
+    .eq("plant_id", plantId)
+    .order("repotted_at", { ascending: false });
   if (error) throw error;
   return data ?? [];
 }
@@ -487,6 +634,24 @@ function PlantForm({
               className={chipClass(draft.category === opt)}
             >
               {opt}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <SectionHeading>Status</SectionHeading>
+        <div className="flex gap-2 flex-wrap">
+          {HEALTH_STATUS_OPTIONS.map((opt) => (
+            <button
+              key={opt}
+              type="button"
+              onClick={() =>
+                onChange({ health_status: draft.health_status === opt ? "" : opt })
+              }
+              className={chipClass(draft.health_status === opt)}
+            >
+              {HEALTH_STATUS_EMOJI[opt]} {opt}
             </button>
           ))}
         </div>
@@ -757,6 +922,82 @@ function PlantForm({
       </div>
 
       <div className="space-y-2">
+        <SectionHeading>Herkomst</SectionHeading>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <p className="text-xs sv-muted">Verkregen op</p>
+            <Input
+              type="date"
+              value={draft.acquired_at}
+              onChange={(e) => onChange({ acquired_at: e.target.value })}
+            />
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs sv-muted">Prijs (€)</p>
+            <Input
+              type="number"
+              min={0}
+              step="0.01"
+              placeholder="bv. 9.95"
+              value={draft.price}
+              onChange={(e) => onChange({ price: e.target.value })}
+            />
+          </div>
+        </div>
+        <Input
+          placeholder="Herkomst, bv. Intratuin, cadeau van Hannah, zelf gezaaid"
+          value={draft.source}
+          onChange={(e) => onChange({ source: e.target.value })}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <SectionHeading>Pot (werkelijk)</SectionHeading>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <p className="text-xs sv-muted">Huidige potgrootte (liter)</p>
+            <Input
+              type="number"
+              min={1}
+              placeholder="bv. 20"
+              value={draft.pot_size_liters}
+              onChange={(e) => onChange({ pot_size_liters: e.target.value })}
+            />
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs sv-muted">Potkleur</p>
+            <Input
+              placeholder="bv. terracotta-rood"
+              value={draft.pot_color}
+              onChange={(e) => onChange({ pot_color: e.target.value })}
+            />
+          </div>
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          {POT_MATERIAL_OPTIONS.map((opt) => (
+            <button
+              key={opt}
+              type="button"
+              onClick={() =>
+                onChange({ pot_material: draft.pot_material === opt ? "" : opt })
+              }
+              className={chipClass(draft.pot_material === opt)}
+            >
+              {opt}
+            </button>
+          ))}
+        </div>
+        <div className="space-y-1">
+          <p className="text-xs sv-muted">Laatst verpot op</p>
+          <Input
+            type="date"
+            value={draft.last_repotted_at}
+            onChange={(e) => onChange({ last_repotted_at: e.target.value })}
+          />
+        </div>
+      </div>
+
+      <div className="space-y-2">
         <SectionHeading>Zaaien</SectionHeading>
         <div className="flex gap-2 flex-wrap">
           {MONTH_OPTIONS.map((month) => (
@@ -971,6 +1212,21 @@ function PlantForm({
       </div>
 
       <div className="space-y-2">
+        <SectionHeading>Grond (werkelijk)</SectionHeading>
+        <Input
+          placeholder="bv. Pokon Moestuingrond"
+          value={draft.soil_type}
+          onChange={(e) => onChange({ soil_type: e.target.value })}
+        />
+        <Textarea
+          placeholder="Samenstelling, bv. 60% potgrond, 20% perliet, 20% kokos"
+          rows={2}
+          value={draft.soil_mix_notes}
+          onChange={(e) => onChange({ soil_mix_notes: e.target.value })}
+        />
+      </div>
+
+      <div className="space-y-2">
         <SectionHeading>Klimaat</SectionHeading>
         <Textarea
           placeholder="Notities"
@@ -1150,7 +1406,14 @@ function PlantCard({
         </div>
       )}
       <div className="min-w-0">
-        <p className="sv-heading text-2xl leading-snug truncate">{p.name}</p>
+        <p className="sv-heading text-2xl leading-snug truncate">
+          {p.health_status && (
+            <span aria-label={p.health_status}>
+              {HEALTH_STATUS_EMOJI[p.health_status]}{" "}
+            </span>
+          )}
+          {p.name}
+        </p>
         {(status || feedStatus) && (
           <div className="flex items-center gap-1.5 flex-wrap mt-1">
             {status && (
@@ -2399,6 +2662,528 @@ function PlantLogboek({ plantName }: { plantName: string }) {
   );
 }
 
+// ─── HarvestLogSection component ───────────────────────────────────────────
+
+function HarvestLogSection({
+  plantId,
+  logs,
+  onAdd,
+  onDelete,
+  isSaving,
+}: {
+  plantId: string;
+  logs: PlantHarvestLog[];
+  onAdd: (row: {
+    plant_id: string;
+    harvested_at: string;
+    weight_grams: number | null;
+    quantity: number | null;
+    unit: string | null;
+    notes: string | null;
+  }) => void;
+  onDelete: (id: string) => void;
+  isSaving: boolean;
+}) {
+  const [formOpen, setFormOpen] = useState(false);
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [weight, setWeight] = useState("");
+  const [quantity, setQuantity] = useState("");
+  const [unit, setUnit] = useState("");
+  const [notes, setNotes] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  function resetForm() {
+    setWeight("");
+    setQuantity("");
+    setUnit("");
+    setNotes("");
+    setDate(new Date().toISOString().slice(0, 10));
+    setError(null);
+    setFormOpen(false);
+  }
+
+  function handleSave() {
+    setError(null);
+    if (!weight.trim() && !quantity.trim() && !notes.trim()) {
+      setError("Vul minimaal een gewicht, aantal of notitie in.");
+      return;
+    }
+    if (Number(weight) < 0 || Number(quantity) < 0) {
+      setError("Gewicht en aantal mogen niet negatief zijn.");
+      return;
+    }
+    if (new Date(date).getTime() > Date.now() + 24 * 60 * 60 * 1000) {
+      setError("Datum ligt te ver in de toekomst.");
+      return;
+    }
+    onAdd({
+      plant_id: plantId,
+      harvested_at: date,
+      weight_grams: weight.trim() ? Number(weight) : null,
+      quantity: quantity.trim() ? Number(quantity) : null,
+      unit: unit.trim() || null,
+      notes: notes.trim() || null,
+    });
+    resetForm();
+  }
+
+  const currentYear = new Date().getFullYear();
+  const thisYearLogs = logs.filter(
+    (l) => new Date(l.harvested_at).getFullYear() === currentYear,
+  );
+  const totalWeight = thisYearLogs.reduce((sum, l) => sum + (l.weight_grams ?? 0), 0);
+  const totalsByUnit = new Map<string, number>();
+  for (const l of thisYearLogs) {
+    if (l.quantity !== null) {
+      const key = l.unit || "stuks";
+      totalsByUnit.set(key, (totalsByUnit.get(key) ?? 0) + l.quantity);
+    }
+  }
+
+  return (
+    <div className="sv-inset p-4 space-y-4 rounded-xl">
+      <div className="flex items-center justify-between">
+        <p className="text-xs sv-muted">
+          {logs.length === 0 ? "Nog geen oogst" : `${logs.length} oogst${logs.length !== 1 ? "en" : ""}`}
+        </p>
+        {!formOpen && (
+          <button
+            type="button"
+            onClick={() => setFormOpen(true)}
+            className="sv-button sv-button-thin-border flex items-center gap-1 px-3 py-1.5 text-xs"
+          >
+            <Plus className="h-3 w-3" /> Oogst
+          </button>
+        )}
+      </div>
+
+      {(totalWeight > 0 || totalsByUnit.size > 0) && (
+        <p className="text-xs sv-muted">
+          Totaal dit jaar:{" "}
+          {sn(
+            [
+              totalWeight > 0 ? `${totalWeight} g` : null,
+              ...Array.from(totalsByUnit.entries()).map(([unit, n]) => `${n} ${unit}`),
+            ],
+            [],
+          )}
+        </p>
+      )}
+
+      {formOpen && (
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-xs sv-muted block mb-1">Datum</label>
+              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="text-sm" />
+            </div>
+            <div>
+              <label className="text-xs sv-muted block mb-1">Gewicht (gram)</label>
+              <Input type="number" min={0} step="0.1" placeholder="bijv. 350" value={weight} onChange={(e) => setWeight(e.target.value)} className="text-sm" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-xs sv-muted block mb-1">Aantal</label>
+              <Input type="number" min={0} step="0.1" placeholder="bijv. 4" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="text-sm" />
+            </div>
+            <div>
+              <label className="text-xs sv-muted block mb-1">Eenheid</label>
+              <Input placeholder="bijv. courgettes, bos munt" value={unit} onChange={(e) => setUnit(e.target.value)} className="text-sm" />
+            </div>
+          </div>
+          <Textarea placeholder="Notities..." rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} className="text-sm resize-none" />
+          {error && <p className="text-xs sv-destructive-text">{error}</p>}
+          <div className="flex gap-2">
+            <Button size="sm" className="sv-button" onClick={handleSave} disabled={isSaving}>
+              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Opslaan"}
+            </Button>
+            <Button size="sm" className="sv-button sv-button-ghost" onClick={resetForm}>
+              Annuleer
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {logs.length > 0 && (
+        <div className="space-y-2 max-h-64 overflow-y-auto scrollbar-none">
+          {logs.map((log) => (
+            <div key={log.id} className="flex items-start justify-between gap-2 text-sm border-t border-black/10 pt-2">
+              <div>
+                <p className="sv-muted text-xs">
+                  {new Date(log.harvested_at).toLocaleDateString("nl-NL", { day: "numeric", month: "short", year: "numeric" })}
+                </p>
+                <p>
+                  {sn(
+                    [
+                      log.weight_grams ? `${log.weight_grams} g` : null,
+                      log.quantity ? `${log.quantity} ${log.unit ?? "stuks"}` : null,
+                    ],
+                    [log.notes],
+                  )}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => onDelete(log.id)}
+                className="sv-muted hover:sv-destructive-text shrink-0"
+                aria-label="Verwijder oogst"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── PruningLogSection component ───────────────────────────────────────────
+
+function PruningLogSection({
+  plantId,
+  logs,
+  onAdd,
+  onDelete,
+  isSaving,
+}: {
+  plantId: string;
+  logs: PlantPruningLog[];
+  onAdd: (row: {
+    plant_id: string;
+    pruned_at: string;
+    pruning_type: string | null;
+    notes: string | null;
+  }) => void;
+  onDelete: (id: string) => void;
+  isSaving: boolean;
+}) {
+  const [formOpen, setFormOpen] = useState(false);
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [type, setType] = useState("");
+  const [notes, setNotes] = useState("");
+
+  function resetForm() {
+    setType("");
+    setNotes("");
+    setDate(new Date().toISOString().slice(0, 10));
+    setFormOpen(false);
+  }
+
+  function handleSave() {
+    onAdd({
+      plant_id: plantId,
+      pruned_at: date,
+      pruning_type: type || null,
+      notes: notes.trim() || null,
+    });
+    resetForm();
+  }
+
+  return (
+    <div className="sv-inset p-4 space-y-4 rounded-xl">
+      <div className="flex items-center justify-between">
+        <p className="text-xs sv-muted">
+          {logs.length === 0 ? "Nog niet gesnoeid" : `Laatst gesnoeid: ${new Date(logs[0].pruned_at).toLocaleDateString("nl-NL", { day: "numeric", month: "long", year: "numeric" })}`}
+        </p>
+        {!formOpen && (
+          <button
+            type="button"
+            onClick={() => setFormOpen(true)}
+            className="sv-button sv-button-thin-border flex items-center gap-1 px-3 py-1.5 text-xs"
+          >
+            <Plus className="h-3 w-3" /> Snoeien
+          </button>
+        )}
+      </div>
+
+      {formOpen && (
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs sv-muted block mb-1">Datum</label>
+            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="text-sm" />
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            {PRUNING_TYPE_OPTIONS.map((opt) => (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => setType(type === opt ? "" : opt)}
+                className={chipClass(type === opt)}
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+          <Textarea placeholder="Notities..." rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} className="text-sm resize-none" />
+          <div className="flex gap-2">
+            <Button size="sm" className="sv-button" onClick={handleSave} disabled={isSaving}>
+              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Opslaan"}
+            </Button>
+            <Button size="sm" className="sv-button sv-button-ghost" onClick={resetForm}>
+              Annuleer
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {logs.length > 0 && (
+        <div className="space-y-2 max-h-64 overflow-y-auto scrollbar-none">
+          {logs.map((log) => (
+            <div key={log.id} className="flex items-start justify-between gap-2 text-sm border-t border-black/10 pt-2">
+              <div>
+                <p className="sv-muted text-xs">
+                  {new Date(log.pruned_at).toLocaleDateString("nl-NL", { day: "numeric", month: "short", year: "numeric" })}
+                  {log.pruning_type ? ` · ${log.pruning_type}` : ""}
+                </p>
+                {log.notes && <p className="text-sm">{log.notes}</p>}
+              </div>
+              <button
+                type="button"
+                onClick={() => onDelete(log.id)}
+                className="sv-muted hover:sv-destructive-text shrink-0"
+                aria-label="Verwijder snoeimoment"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── RepotLogSection component ─────────────────────────────────────────────
+
+function RepotLogSection({
+  plant,
+  logs,
+  onAdd,
+  onDelete,
+  isSaving,
+}: {
+  plant: Plant;
+  logs: PlantRepotLog[];
+  onAdd: (row: {
+    plant_id: string;
+    repotted_at: string;
+    old_pot_size_liters: number | null;
+    new_pot_size_liters: number | null;
+    pot_material: string | null;
+    soil_type: string | null;
+    notes: string | null;
+  }) => void;
+  onDelete: (id: string) => void;
+  isSaving: boolean;
+}) {
+  const [formOpen, setFormOpen] = useState(false);
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [newSize, setNewSize] = useState("");
+  const [material, setMaterial] = useState("");
+  const [soil, setSoil] = useState("");
+  const [notes, setNotes] = useState("");
+
+  function resetForm() {
+    setNewSize("");
+    setMaterial("");
+    setSoil("");
+    setNotes("");
+    setDate(new Date().toISOString().slice(0, 10));
+    setFormOpen(false);
+  }
+
+  function handleSave() {
+    onAdd({
+      plant_id: plant.id,
+      repotted_at: date,
+      old_pot_size_liters: plant.pot_size_liters,
+      new_pot_size_liters: newSize.trim() ? Number(newSize) : null,
+      pot_material: material || null,
+      soil_type: soil.trim() || null,
+      notes: notes.trim() || null,
+    });
+    resetForm();
+  }
+
+  return (
+    <div className="sv-inset p-4 space-y-4 rounded-xl">
+      <div className="flex items-center justify-between">
+        <p className="text-xs sv-muted">
+          {plant.last_repotted_at
+            ? `Laatst verpot: ${new Date(plant.last_repotted_at).toLocaleDateString("nl-NL", { day: "numeric", month: "long", year: "numeric" })}${plantAge(plant.last_repotted_at) ? ` (${plantAge(plant.last_repotted_at)} geleden)` : ""}`
+            : "Nog niet verpot"}
+        </p>
+        {!formOpen && (
+          <button
+            type="button"
+            onClick={() => setFormOpen(true)}
+            className="sv-button sv-button-thin-border flex items-center gap-1 px-3 py-1.5 text-xs"
+          >
+            <Plus className="h-3 w-3" /> Verpotten
+          </button>
+        )}
+      </div>
+
+      {formOpen && (
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-xs sv-muted block mb-1">Datum</label>
+              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="text-sm" />
+            </div>
+            <div>
+              <label className="text-xs sv-muted block mb-1">
+                Nieuwe potgrootte (L){plant.pot_size_liters ? ` — was ${plant.pot_size_liters} L` : ""}
+              </label>
+              <Input type="number" min={1} placeholder="bijv. 25" value={newSize} onChange={(e) => setNewSize(e.target.value)} className="text-sm" />
+            </div>
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            {POT_MATERIAL_OPTIONS.map((opt) => (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => setMaterial(material === opt ? "" : opt)}
+                className={chipClass(material === opt)}
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+          <Input placeholder="Nieuwe grondsoort (optioneel)" value={soil} onChange={(e) => setSoil(e.target.value)} className="text-sm" />
+          <Textarea placeholder="Notities..." rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} className="text-sm resize-none" />
+          <div className="flex gap-2">
+            <Button size="sm" className="sv-button" onClick={handleSave} disabled={isSaving}>
+              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Opslaan"}
+            </Button>
+            <Button size="sm" className="sv-button sv-button-ghost" onClick={resetForm}>
+              Annuleer
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {logs.length > 0 && (
+        <div className="space-y-2 max-h-64 overflow-y-auto scrollbar-none">
+          {logs.map((log) => (
+            <div key={log.id} className="flex items-start justify-between gap-2 text-sm border-t border-black/10 pt-2">
+              <div>
+                <p className="sv-muted text-xs">
+                  {new Date(log.repotted_at).toLocaleDateString("nl-NL", { day: "numeric", month: "short", year: "numeric" })}
+                </p>
+                <p>
+                  {sn(
+                    [
+                      log.old_pot_size_liters || log.new_pot_size_liters
+                        ? `${log.old_pot_size_liters ?? "?"} L → ${log.new_pot_size_liters ?? "?"} L`
+                        : null,
+                      log.pot_material,
+                      log.soil_type,
+                    ],
+                    [log.notes],
+                  )}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => onDelete(log.id)}
+                className="sv-muted hover:sv-destructive-text shrink-0"
+                aria-label="Verwijder verpotmoment"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── TimelineSection component ─────────────────────────────────────────────
+// Merges existing history sources (growth log, photos) with the new log
+// tables into one read-only chronological view. No new storage — every
+// item is derived from data that already lives somewhere else.
+
+type TimelineItem = { date: string; icon: typeof Droplet; label: string };
+
+function TimelineSection({
+  plant,
+  photos,
+  harvestLogs,
+  pruningLogs,
+  repotLogs,
+}: {
+  plant: Plant;
+  photos: PlantPhoto[];
+  harvestLogs: PlantHarvestLog[];
+  pruningLogs: PlantPruningLog[];
+  repotLogs: PlantRepotLog[];
+}) {
+  const { getEntriesForPlant } = useGrowthLog();
+  const growthEntries: LogEntry[] = getEntriesForPlant(plant.name);
+
+  const items: TimelineItem[] = [];
+
+  if (plant.acquired_at) {
+    items.push({ date: plant.acquired_at, icon: MapPin, label: sn([plant.source ? `Verkregen — ${plant.source}` : "Verkregen"], []) ?? "Verkregen" });
+  }
+  if (plant.planted_at) {
+    items.push({ date: plant.planted_at, icon: Sprout, label: "Geplant / gezaaid" });
+  }
+  for (const photo of photos) {
+    items.push({ date: photo.taken_at, icon: ImageIcon, label: photo.note ? `Foto toegevoegd — ${photo.note}` : "Foto toegevoegd" });
+  }
+  for (const log of harvestLogs) {
+    items.push({
+      date: log.harvested_at,
+      icon: Apple,
+      label: `Oogst — ${sn([log.weight_grams ? `${log.weight_grams} g` : null, log.quantity ? `${log.quantity} ${log.unit ?? "stuks"}` : null], []) ?? "geregistreerd"}`,
+    });
+  }
+  for (const log of pruningLogs) {
+    items.push({ date: log.pruned_at, icon: Scissors, label: log.pruning_type ? `Gesnoeid — ${log.pruning_type}` : "Gesnoeid" });
+  }
+  for (const log of repotLogs) {
+    items.push({ date: log.repotted_at, icon: Boxes, label: "Verpot" });
+  }
+  for (const entry of growthEntries) {
+    if (entry.watered) items.push({ date: entry.date, icon: Droplet, label: "Water gegeven" });
+    if (entry.fertilized) items.push({ date: entry.date, icon: Leaf, label: "Voeding gegeven" });
+    if (entry.height_cm) items.push({ date: entry.date, icon: Ruler, label: `Hoogte bijgewerkt naar ${entry.height_cm} cm` });
+    if (entry.notes && !entry.watered && !entry.fertilized && !entry.height_cm) {
+      items.push({ date: entry.date, icon: BookOpen, label: entry.notes });
+    }
+  }
+
+  items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  if (items.length === 0) {
+    return <p className="text-sm sv-muted px-1">Nog geen gebeurtenissen vastgelegd.</p>;
+  }
+
+  return (
+    <div className="space-y-3 max-h-80 overflow-y-auto scrollbar-none">
+      {items.map((item, i) => {
+        const Icon = item.icon;
+        return (
+          <div key={i} className="flex items-start gap-2 text-sm">
+            <Icon className="h-4 w-4 shrink-0 mt-0.5 sv-muted" />
+            <div>
+              <p className="sv-muted text-xs">
+                {new Date(item.date).toLocaleDateString("nl-NL", { day: "numeric", month: "long", year: "numeric" })}
+              </p>
+              <p>{item.label}</p>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function Tuinieren() {
   const { session } = useAuth();
   const queryClient = useQueryClient();
@@ -2413,6 +3198,10 @@ export default function Tuinieren() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [photoUrlDraft, setPhotoUrlDraft] = useState("");
   const [logOpen, setLogOpen] = useState(false);
+  const [harvestOpen, setHarvestOpen] = useState(false);
+  const [pruningOpen, setPruningOpen] = useState(false);
+  const [repotOpen, setRepotOpen] = useState(false);
+  const [timelineOpen, setTimelineOpen] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importMsg, setImportMsg] = useState<string | null>(null);
@@ -2454,6 +3243,16 @@ export default function Tuinieren() {
           pot_water_notes: p.pot_water_notes || null,
           planted: p.planted ?? false,
           planted_at: p.planted_at ? new Date(p.planted_at).toISOString() : null,
+          health_status: p.health_status || null,
+          pot_size_liters: p.pot_size_liters ? Number(p.pot_size_liters) : null,
+          pot_material: p.pot_material || null,
+          pot_color: p.pot_color || null,
+          soil_type: p.soil_type || null,
+          soil_mix_notes: p.soil_mix_notes || null,
+          last_repotted_at: p.last_repotted_at || null,
+          acquired_at: p.acquired_at || null,
+          source: p.source || null,
+          price: p.price ? Number(p.price) : null,
           water_interval_days: p.water_interval_days ? Number(p.water_interval_days) : null,
           pot_water_interval_days: p.pot_water_interval_days ? Number(p.pot_water_interval_days) : null,
           last_watered_at: p.last_watered_at ? new Date(p.last_watered_at).toISOString() : null,
@@ -2513,6 +3312,24 @@ export default function Tuinieren() {
   const { data: photos = [] } = useQuery({
     queryKey: ["plant_photos", view?.id],
     queryFn: () => fetchPhotos(view!.id),
+    enabled: !!view,
+  });
+
+  const { data: harvestLogs = [] } = useQuery({
+    queryKey: ["plant_harvest_logs", view?.id],
+    queryFn: () => fetchHarvestLogs(view!.id),
+    enabled: !!view,
+  });
+
+  const { data: pruningLogs = [] } = useQuery({
+    queryKey: ["plant_pruning_logs", view?.id],
+    queryFn: () => fetchPruningLogs(view!.id),
+    enabled: !!view,
+  });
+
+  const { data: repotLogs = [] } = useQuery({
+    queryKey: ["plant_repot_logs", view?.id],
+    queryFn: () => fetchRepotLogs(view!.id),
     enabled: !!view,
   });
 
@@ -2595,6 +3412,87 @@ export default function Tuinieren() {
       queryClient.invalidateQueries({ queryKey: ["plant_photos", view?.id] }),
   });
 
+  const addHarvestLog = useMutation({
+    mutationFn: async (row: {
+      plant_id: string;
+      harvested_at: string;
+      weight_grams: number | null;
+      quantity: number | null;
+      unit: string | null;
+      notes: string | null;
+    }) => {
+      const { error } = await supabase.from("plant_harvest_logs").insert(row);
+      if (error) throw error;
+    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["plant_harvest_logs", view?.id] }),
+  });
+
+  const deleteHarvestLog = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("plant_harvest_logs").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["plant_harvest_logs", view?.id] }),
+  });
+
+  const addPruningLog = useMutation({
+    mutationFn: async (row: {
+      plant_id: string;
+      pruned_at: string;
+      pruning_type: string | null;
+      notes: string | null;
+    }) => {
+      const { error } = await supabase.from("plant_pruning_logs").insert(row);
+      if (error) throw error;
+    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["plant_pruning_logs", view?.id] }),
+  });
+
+  const deletePruningLog = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("plant_pruning_logs").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["plant_pruning_logs", view?.id] }),
+  });
+
+  const addRepotLog = useMutation({
+    mutationFn: async (row: {
+      plant_id: string;
+      repotted_at: string;
+      old_pot_size_liters: number | null;
+      new_pot_size_liters: number | null;
+      pot_material: string | null;
+      soil_type: string | null;
+      notes: string | null;
+    }) => {
+      const { error } = await supabase.from("plant_repot_logs").insert(row);
+      if (error) throw error;
+      return row;
+    },
+    onSuccess: (row) => {
+      queryClient.invalidateQueries({ queryKey: ["plant_repot_logs", view?.id] });
+      const patch: Record<string, unknown> = { last_repotted_at: row.repotted_at };
+      if (row.new_pot_size_liters !== null) patch.pot_size_liters = row.new_pot_size_liters;
+      if (row.pot_material !== null) patch.pot_material = row.pot_material;
+      if (row.soil_type !== null) patch.soil_type = row.soil_type;
+      updatePlant.mutate({ id: row.plant_id, patch });
+    },
+  });
+
+  const deleteRepotLog = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("plant_repot_logs").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["plant_repot_logs", view?.id] }),
+  });
+
   function startEdit() {
     if (!view) return;
     setEditDraft(plantToDraft(view));
@@ -2652,6 +3550,14 @@ export default function Tuinieren() {
     });
   }
 
+  function markChecked() {
+    if (!view) return;
+    updatePlant.mutate({
+      id: view.id,
+      patch: { last_checked_at: new Date().toISOString().slice(0, 10) },
+    });
+  }
+
   type FilterState = {
     category: string[];
     sun_needs: string[];
@@ -2659,6 +3565,7 @@ export default function Tuinieren() {
     lifecycle: string[];
     winter_hardiness: string[];
     toxic: string[];
+    health_status: string[];
     planted: "all" | "planted" | "not_planted";
     sow_months: string[];
     bloom_months: string[];
@@ -2676,6 +3583,7 @@ export default function Tuinieren() {
     lifecycle: [],
     winter_hardiness: [],
     toxic: [],
+    health_status: [],
     planted: "all",
     sow_months: [],
     bloom_months: [],
@@ -2747,6 +3655,12 @@ export default function Tuinieren() {
         if (filters.toxic.includes("Kat") && !p.toxic_to_cats) return false;
         return true;
       });
+    }
+
+    if (filters.health_status.length > 0) {
+      result = result.filter(
+        (p) => p.health_status && filters.health_status.includes(p.health_status),
+      );
     }
 
     if (filters.planted !== "all") {
@@ -2841,6 +3755,7 @@ export default function Tuinieren() {
     filters.lifecycle.length +
     filters.winter_hardiness.length +
     filters.toxic.length +
+    filters.health_status.length +
     (filters.planted !== "all" ? 1 : 0) +
     filters.sow_months.length +
     filters.bloom_months.length +
@@ -2903,6 +3818,16 @@ export default function Tuinieren() {
       photo_url: p.photo_url,
       planted: p.planted,
       planted_at: p.planted_at,
+      health_status: p.health_status,
+      pot_size_liters: p.pot_size_liters,
+      pot_material: p.pot_material,
+      pot_color: p.pot_color,
+      soil_type: p.soil_type,
+      soil_mix_notes: p.soil_mix_notes,
+      last_repotted_at: p.last_repotted_at,
+      acquired_at: p.acquired_at,
+      source: p.source,
+      price: p.price,
     }));
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -3099,6 +4024,11 @@ export default function Tuinieren() {
                   <DialogTitle className="sv-heading text-3xl sm:text-4xl leading-snug">
                     {view.name}
                   </DialogTitle>
+                  {view.health_status && (
+                    <span className="sv-heading inline-flex items-center gap-1 text-sm px-3 py-1.5 rounded-full sv-badge-ok shrink-0">
+                      {HEALTH_STATUS_EMOJI[view.health_status]} {view.health_status}
+                    </span>
+                  )}
                 </div>
               </DialogHeader>
 
@@ -3124,6 +4054,16 @@ export default function Tuinieren() {
                 >
                   <Sprout className="h-3.5 w-3.5" />{" "}
                   {view.planted ? "Gepland" : "Markeer als gepland"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="sv-button sv-button-thin-border text-xl"
+                  onClick={markChecked}
+                  disabled={updatePlant.isPending}
+                >
+                  <ClipboardCheck className="h-3.5 w-3.5" />{" "}
+                  {checkedLabel(view.last_checked_at) ?? "Plant gecontroleerd"}
                 </Button>
               </div>
 
@@ -3151,6 +4091,20 @@ export default function Tuinieren() {
                     [plantAge(view.planted_at) ? `${plantAge(view.planted_at)} oud` : null],
                   ) : null}
                 />
+                <InfoRow
+                  label="Verkregen op"
+                  value={
+                    view.acquired_at
+                      ? sn(
+                          [
+                            new Date(view.acquired_at).toLocaleDateString("nl-NL", { day: "numeric", month: "long", year: "numeric" }),
+                            plantAge(view.acquired_at) ? `${plantAge(view.acquired_at)} geleden` : null,
+                          ],
+                          [view.source, formatEuro(view.price)],
+                        )
+                      : sn([], [view.source, formatEuro(view.price)])
+                  }
+                />
                 <InfoRow label="Locatie" value={view.location} />
                 <InfoRow label="Zon" value={view.sun_needs ? view.sun_needs.replace(/,/g, " · ") : null} />
                 <InfoRow
@@ -3166,13 +4120,37 @@ export default function Tuinieren() {
                 />
                 <InfoRow label="Volle grond of pot" value={view.growing_method} />
                 {view.growing_method === "Pot" && (
-                  <InfoRow
-                    label="Potgrootte"
-                    value={[
-                      view.pot_min_liters ? `min. ${view.pot_min_liters} L` : null,
-                      view.pot_recommended_liters ? `aanbevolen ${view.pot_recommended_liters} L` : null,
-                    ].filter(Boolean).join(" · ") || null}
-                  />
+                  <>
+                    <InfoRow
+                      label="Huidige pot"
+                      value={sn(
+                        [
+                          view.pot_size_liters ? `${view.pot_size_liters} L` : null,
+                          view.pot_material,
+                          view.pot_color,
+                        ],
+                        [],
+                      )}
+                    />
+                    <InfoRow
+                      label="Potgrootte (advies)"
+                      value={[
+                        view.pot_min_liters ? `min. ${view.pot_min_liters} L` : null,
+                        view.pot_recommended_liters ? `aanbevolen ${view.pot_recommended_liters} L` : null,
+                      ].filter(Boolean).join(" · ") || null}
+                    />
+                    <InfoRow
+                      label="Laatst verpot"
+                      value={
+                        view.last_repotted_at
+                          ? sn(
+                              [new Date(view.last_repotted_at).toLocaleDateString("nl-NL", { day: "numeric", month: "long", year: "numeric" })],
+                              [plantAge(view.last_repotted_at) ? `${plantAge(view.last_repotted_at)} geleden` : null],
+                            )
+                          : null
+                      }
+                    />
+                  </>
                 )}
                 <InfoRow
                   label="Water"
@@ -3252,6 +4230,10 @@ export default function Tuinieren() {
                     ],
                     [view.soil_notes],
                   )}
+                />
+                <InfoRow
+                  label="Grond (werkelijk)"
+                  value={sn([view.soil_type], [view.soil_mix_notes])}
                 />
                 <InfoRow
                   label="Klimaat"
@@ -3357,6 +4339,100 @@ export default function Tuinieren() {
                   {logOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                 </button>
                 {logOpen && view && <PlantLogboek plantName={view.name} />}
+              </div>
+
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => setHarvestOpen((o) => !o)}
+                  className="sv-button sv-button-thin-border w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm"
+                >
+                  <span className="flex items-center gap-2">
+                    <Apple className="h-4 w-4" />
+                    Oogst
+                  </span>
+                  {harvestOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </button>
+                {harvestOpen && view && (
+                  <HarvestLogSection
+                    plantId={view.id}
+                    logs={harvestLogs}
+                    onAdd={(row) => addHarvestLog.mutate(row)}
+                    onDelete={(id) => deleteHarvestLog.mutate(id)}
+                    isSaving={addHarvestLog.isPending}
+                  />
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => setPruningOpen((o) => !o)}
+                  className="sv-button sv-button-thin-border w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm"
+                >
+                  <span className="flex items-center gap-2">
+                    <Scissors className="h-4 w-4" />
+                    Snoeien
+                  </span>
+                  {pruningOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </button>
+                {pruningOpen && view && (
+                  <PruningLogSection
+                    plantId={view.id}
+                    logs={pruningLogs}
+                    onAdd={(row) => addPruningLog.mutate(row)}
+                    onDelete={(id) => deletePruningLog.mutate(id)}
+                    isSaving={addPruningLog.isPending}
+                  />
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => setRepotOpen((o) => !o)}
+                  className="sv-button sv-button-thin-border w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm"
+                >
+                  <span className="flex items-center gap-2">
+                    <Boxes className="h-4 w-4" />
+                    Verpotten
+                  </span>
+                  {repotOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </button>
+                {repotOpen && view && (
+                  <RepotLogSection
+                    plant={view}
+                    logs={repotLogs}
+                    onAdd={(row) => addRepotLog.mutate(row)}
+                    onDelete={(id) => deleteRepotLog.mutate(id)}
+                    isSaving={addRepotLog.isPending}
+                  />
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => setTimelineOpen((o) => !o)}
+                  className="sv-button sv-button-thin-border w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm"
+                >
+                  <span className="flex items-center gap-2">
+                    <Clock className="h-4 w-4" />
+                    Tijdlijn
+                  </span>
+                  {timelineOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </button>
+                {timelineOpen && view && (
+                  <div className="sv-inset p-4 rounded-xl">
+                    <TimelineSection
+                      plant={view}
+                      photos={photos}
+                      harvestLogs={harvestLogs}
+                      pruningLogs={pruningLogs}
+                      repotLogs={repotLogs}
+                    />
+                  </div>
+                )}
               </div>
 
               <DialogFooter>
@@ -3599,6 +4675,24 @@ export default function Tuinieren() {
                     className={monthChipClass(filters.feeding_months.includes(m))}
                   >
                     {m}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <SectionHeading>Status</SectionHeading>
+              <div className="flex gap-2 flex-wrap">
+                {HEALTH_STATUS_OPTIONS.map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onClick={() =>
+                      patchFilter({ health_status: toggleInArray(filters.health_status, opt) })
+                    }
+                    className={chipClass(filters.health_status.includes(opt))}
+                  >
+                    {HEALTH_STATUS_EMOJI[opt]} {opt}
                   </button>
                 ))}
               </div>
