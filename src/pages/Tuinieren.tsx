@@ -2808,6 +2808,13 @@ export default function Tuinieren() {
         if (aIdx !== bIdx) return aIdx - bIdx;
         return a.name.localeCompare(b.name, "nl");
       });
+    } else {
+      result = [...result].sort((a, b) => {
+        const aUrgent = waterStatus(a)?.overdue || feedingStatus(a)?.overdue ? 0 : 1;
+        const bUrgent = waterStatus(b)?.overdue || feedingStatus(b)?.overdue ? 0 : 1;
+        if (aUrgent !== bUrgent) return aUrgent - bUrgent;
+        return a.name.localeCompare(b.name, "nl");
+      });
     }
 
     return result;
