@@ -1279,21 +1279,7 @@ function SeasonalOverview({ plants }: { plants: Plant[] }) {
   );
 }
 
-// ─── Water skip localStorage ───────────────────────────────────────────────
 
-const WATER_SKIP_KEY = "tuinieren_water_skips";
-
-function getWaterSkips(): Record<string, string> {
-  try { return JSON.parse(localStorage.getItem(WATER_SKIP_KEY) ?? "{}"); } catch { return {}; }
-}
-function setWaterSkip(plantId: string) {
-  const s = getWaterSkips();
-  s[plantId] = new Date().toISOString().slice(0, 10);
-  localStorage.setItem(WATER_SKIP_KEY, JSON.stringify(s));
-}
-function isSkippedToday(plantId: string) {
-  return getWaterSkips()[plantId] === new Date().toISOString().slice(0, 10);
-}
 
 // ─── Water advice ───────────────────────────────────────────────────────────
 
@@ -1304,7 +1290,6 @@ type WaterUrgency = "hoog" | "middel" | "laag" | "overslaan";
 interface WaterAdvice {
   urgency: WaterUrgency;
   message: string;
-  suggestedLiters: number | null;
 }
 
 function computeWaterAdvice(
@@ -1319,16 +1304,16 @@ function computeWaterAdvice(
   const inGreenhouse = greenPref.includes("kas") && !greenPref.includes("alleen buiten");
 
   if (soilMoisture === "nat")
-    return { urgency: "overslaan", message: "De grond is nog nat — wacht nog even met water geven.", suggestedLiters: null };
+    return { urgency: "overslaan", message: "De grond is nog nat — wacht nog even met water geven." };
 
   if (soilMoisture === "vochtig" && rainToday && !inGreenhouse)
-    return { urgency: "overslaan", message: "Het heeft geregend en de grond is vochtig — sla vandaag over.", suggestedLiters: null };
+    return { urgency: "overslaan", message: "Het heeft geregend en de grond is vochtig — sla vandaag over." };
 
   if (soilMoisture === "vochtig")
-    return { urgency: "laag", message: "De grond is licht vochtig. Wacht een dag of geef een kleine hoeveelheid.", suggestedLiters: null };
+    return { urgency: "laag", message: "De grond is licht vochtig. Wacht een dag of geef een kleine hoeveelheid." };
 
   if (rainToday && !inGreenhouse && !inPot && soilMoisture !== "kurkdroog" && soilMoisture !== "droog")
-    return { urgency: "laag", message: "Het heeft geregend — volle-grond planten hebben genoeg water gekregen.", suggestedLiters: null };
+    return { urgency: "laag", message: "Het heeft geregend — volle-grond planten hebben genoeg water gekregen." };
 
   const mods: string[] = [];
   if (tempHigh) mods.push("warmte versnelt verdamping");
@@ -1339,25 +1324,13 @@ function computeWaterAdvice(
   const urgency: WaterUrgency =
     soilMoisture === "kurkdroog" || soilMoisture === "droog" ? "hoog" : "middel";
 
-  let suggestedLiters: number | null = null;
-  if (inPot) {
-    const potSize = plant.pot_recommended_liters ?? plant.pot_min_liters;
-    if (potSize) {
-      let f = 0.2;
-      if (potMaterial === "terracotta") f += 0.05;
-      if (tempHigh) f += 0.05;
-      if (strongWind) f += 0.03;
-      suggestedLiters = Math.round(potSize * f * 10) / 10;
-    }
-  }
-
   let message =
     urgency === "hoog"
       ? "Geef nu water — de plant heeft het zeker nodig."
       : "Het is een goed moment om water te geven.";
   if (mods.length > 0) message += ` Let op: ${mods.join("; ")}.`;
 
-  return { urgency, message, suggestedLiters };
+  return { urgency, message };
 }
 
 // ─── WaterPanel component ───────────────────────────────────────────────────
@@ -1369,39 +1342,28 @@ function WaterPanel({
   onSkipToday,
 }: {
   plant: Plant;
-  onWatered: (liters: number | null) => void;
+  onWatered: (note: string) => void;
   onSkipWet: () => void;
   onSkipToday: () => void;
 }) {
   const inPot = plant.growing_method === "Pot";
-  const { addEntry } = useGrowthLog();
 
   const [soilMoisture, setSoilMoisture] = useState<SoilMoisture>("");
   const [rainToday, setRainToday] = useState(false);
   const [tempHigh, setTempHigh] = useState(false);
   const [strongWind, setStrongWind] = useState(false);
   const [potMaterial, setPotMaterial] = useState<PotMaterial>("");
-  const [waterLiters, setWaterLiters] = useState("");
+  const [note, setNote] = useState("");
 
   const advice = computeWaterAdvice(plant, { soilMoisture, rainToday, tempHigh, strongWind, potMaterial });
-  const suggestedL = advice?.suggestedLiters ?? null;
-  const enteredL = waterLiters.trim() ? parseFloat(waterLiters) : null;
-  const finalLiters = enteredL !== null ? enteredL : suggestedL;
+
+  const wateringTip = inPot
+    ? "Geef water totdat er water uit de drainagegaten onder de pot begint te lopen. Geef liever één keer goed water dan meerdere kleine beetjes."
+    : "Geef minder vaak, maar wel royaal zodat het water diep in de bodem trekt. Hierdoor ontwikkelen planten diepere en sterkere wortels.";
 
   function handleWatered() {
-    addEntry({
-      plant_id: null,
-      plant_name: plant.name,
-      date: new Date().toISOString().slice(0, 10),
-      notes: finalLiters != null ? `${finalLiters} liter water gegeven` : "Water gegeven",
-      height_cm: null,
-      flower_count: null,
-      fruit_count: null,
-      watered: true,
-      fertilized: false,
-      photo_url: "",
-    });
-    onWatered(finalLiters);
+    onWatered(note.trim());
+    setNote("");
   }
 
   const soilBtns: { value: Exclude<SoilMoisture, "">; emoji: string; label: string }[] = [
@@ -1439,6 +1401,9 @@ function WaterPanel({
 
   return (
     <div className="sv-inset p-4 space-y-5 rounded-xl">
+      {/* Watertip */}
+      <p className="text-xs sv-muted italic">{wateringTip}</p>
+
       {/* Grondvocht meting */}
       <div className="space-y-2">
         <p className="text-[11px] sv-muted uppercase tracking-wider font-semibold">Hoe voelt de grond?</p>
@@ -1474,36 +1439,27 @@ function WaterPanel({
         <div className={urgencyStyle[advice.urgency]}>
           <p className="sv-heading text-sm font-semibold">{urgencyLabel[advice.urgency]}</p>
           <p className="text-sm mt-0.5">{advice.message}</p>
-          {advice.suggestedLiters !== null && (
-            <p className="text-xs sv-muted mt-1">Aanbevolen hoeveelheid: ~{advice.suggestedLiters} liter</p>
-          )}
         </div>
       )}
 
-      {/* Liter invoer */}
+      {/* Optionele notitie */}
       <div className="space-y-1.5">
         <label className="text-[11px] sv-muted uppercase tracking-wider font-semibold block">
-          Hoeveel water geven? <span className="normal-case opacity-60">(optioneel)</span>
+          Notitie <span className="normal-case opacity-60">(optioneel)</span>
         </label>
-        <div className="flex items-center gap-2">
-          <Input
-            type="number"
-            placeholder={suggestedL != null ? `${suggestedL} (advies)` : "0.0"}
-            value={waterLiters}
-            onChange={(e) => setWaterLiters(e.target.value)}
-            className="text-sm"
-            step="0.1"
-            min="0"
-          />
-          <span className="text-sm sv-muted whitespace-nowrap">liter</span>
-        </div>
+        <Textarea
+          placeholder="Bijv. bladeren hingen slap, of aarde voelde heel droog..."
+          rows={2}
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          className="text-sm resize-none"
+        />
       </div>
 
       {/* Actieknoppen */}
       <div className="flex flex-wrap gap-2">
         <Button size="sm" className="sv-button gap-1.5" onClick={handleWatered}>
-          <Droplet className="h-3.5 w-3.5" />
-          {finalLiters != null ? `Water gegeven (${finalLiters} L)` : "Water gegeven"}
+          <Droplet className="h-3.5 w-3.5" /> Water gegeven
         </Button>
         <Button size="sm" className="sv-button sv-button-ghost gap-1.5" onClick={onSkipWet}>
           💧 Grond nog nat
@@ -1511,6 +1467,427 @@ function WaterPanel({
         <Button size="sm" className="sv-button sv-button-ghost gap-1.5" onClick={onSkipToday}>
           ⏭️ Sla vandaag over
         </Button>
+      </div>
+    </div>
+  );
+}
+
+// ─── WaterSection component ─────────────────────────────────────────────────
+
+function WaterSection({
+  plant,
+  onSyncLastWatered,
+  isUpdating,
+}: {
+  plant: Plant;
+  onSyncLastWatered: (isoDate: string | null) => void;
+  isUpdating: boolean;
+}) {
+  const { entries, addEntry, updateEntry, deleteEntry } = useGrowthLog();
+  const inPot = plant.growing_method === "Pot";
+
+  // Water history: growth log entries where watered=true for this plant
+  const waterHistory = entries
+    .filter(
+      (e) =>
+        e.watered &&
+        (e.plant_id === plant.id || e.plant_name === plant.name),
+    )
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  // Fallback to Supabase field when no local history yet
+  const lastWaterDateStr =
+    waterHistory[0]?.date ?? plant.last_watered_at?.slice(0, 10) ?? null;
+
+  const interval = effectiveWaterIntervalDays(plant);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const lastWaterDate = lastWaterDateStr
+    ? new Date(lastWaterDateStr + "T00:00:00")
+    : null;
+
+  const daysAgo =
+    lastWaterDate !== null
+      ? Math.floor((today.getTime() - lastWaterDate.getTime()) / 86_400_000)
+      : null;
+
+  const nextWaterDate =
+    lastWaterDate && interval
+      ? new Date(lastWaterDate.getTime() + interval * 86_400_000)
+      : null;
+
+  const daysLeft =
+    nextWaterDate !== null
+      ? Math.ceil((nextWaterDate.getTime() - today.getTime()) / 86_400_000)
+      : null;
+
+  const [quickNote, setQuickNote] = useState("");
+  const [grondcheckOpen, setGrondcheckOpen] = useState(false);
+  const [adviceOpen, setAdviceOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editNote, setEditNote] = useState("");
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  function recordWatering(note: string) {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    addEntry({
+      plant_id: plant.id,
+      plant_name: plant.name,
+      date: todayStr,
+      notes: note || "Water gegeven",
+      height_cm: null,
+      flower_count: null,
+      fruit_count: null,
+      watered: true,
+      fertilized: false,
+      photo_url: "",
+    });
+    onSyncLastWatered(todayStr);
+    setQuickNote("");
+    setGrondcheckOpen(false);
+  }
+
+  function handleDelete(id: string) {
+    const remaining = entries
+      .filter(
+        (e) =>
+          e.id !== id &&
+          e.watered &&
+          (e.plant_id === plant.id || e.plant_name === plant.name),
+      )
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    deleteEntry(id);
+    onSyncLastWatered(remaining[0]?.date ?? null);
+    setConfirmDeleteId(null);
+  }
+
+  function handleSaveNote(id: string) {
+    updateEntry(id, { notes: editNote.trim() || "Water gegeven" });
+    setEditingId(null);
+  }
+
+  function daysAgoLabel(n: number) {
+    if (n === 0) return "vandaag";
+    if (n === 1) return "gisteren";
+    return `${n} dagen geleden`;
+  }
+
+  function daysLeftBadge() {
+    if (daysLeft === null || !interval) return null;
+    if (daysLeft < 0)
+      return {
+        label: `${Math.abs(daysLeft)} dag${Math.abs(daysLeft) !== 1 ? "en" : ""} te laat`,
+        overdue: true,
+      };
+    if (daysLeft === 0) return { label: "Vandaag water geven", overdue: true };
+    if (daysLeft === 1) return { label: "Morgen water geven", overdue: false };
+    return { label: `Over ${daysLeft} dagen`, overdue: false };
+  }
+
+  const badge = daysLeftBadge();
+
+  const hasAdvice =
+    !!(
+      plant.water_notes ||
+      plant.pot_water_notes ||
+      plant.watering_method.length > 0 ||
+      plant.water_interval_days ||
+      plant.pot_water_interval_days
+    );
+
+  return (
+    <div className="sv-panel p-4 space-y-4">
+      <h3 className="sv-heading text-xl flex items-center gap-2">
+        <Droplet className="h-4 w-4" /> Water geven
+      </h3>
+
+      {/* Huidige waterstatus */}
+      <div className="space-y-2">
+        {!lastWaterDate ? (
+          <p className="text-sm sv-muted">Nog geen watergift geregistreerd.</p>
+        ) : (
+          <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+            <span className="sv-muted">Laatste watergift</span>
+            <span>
+              {lastWaterDate.toLocaleDateString("nl-NL", {
+                day: "numeric",
+                month: "long",
+              })}
+              {daysAgo !== null && (
+                <span className="sv-muted ml-1.5">({daysAgoLabel(daysAgo)})</span>
+              )}
+            </span>
+            {nextWaterDate && (
+              <>
+                <span className="sv-muted">Volgende watergift</span>
+                <span>
+                  {nextWaterDate.toLocaleDateString("nl-NL", {
+                    day: "numeric",
+                    month: "long",
+                  })}
+                </span>
+              </>
+            )}
+            {interval && (
+              <>
+                <span className="sv-muted">Waterinterval</span>
+                <span>
+                  elke {interval} dag{interval !== 1 ? "en" : ""}{" "}
+                  <span className="sv-muted">({inPot ? "pot" : "volle grond"})</span>
+                </span>
+              </>
+            )}
+          </div>
+        )}
+        {!interval && (
+          <p className="text-xs sv-muted">
+            Geen vast waterinterval beschikbaar — controleer de grond voordat je water geeft.
+          </p>
+        )}
+        {badge && (
+          <span
+            className={`inline-flex items-center gap-1.5 text-sm px-3 py-1 rounded-full sv-heading ${
+              badge.overdue ? "sv-badge-overdue" : "sv-badge-ok"
+            }`}
+          >
+            <Droplet className="h-3 w-3" /> {badge.label}
+          </span>
+        )}
+      </div>
+
+      {/* Snelle wateractie */}
+      <div className="flex gap-2">
+        <Input
+          placeholder="Notitie (optioneel)..."
+          value={quickNote}
+          onChange={(e) => setQuickNote(e.target.value)}
+          className="text-sm"
+          onKeyDown={(e) => e.key === "Enter" && recordWatering(quickNote)}
+        />
+        <Button
+          size="sm"
+          className="sv-button shrink-0 gap-1.5"
+          onClick={() => recordWatering(quickNote)}
+          disabled={isUpdating}
+        >
+          <Droplet className="h-3.5 w-3.5" /> Water gegeven
+        </Button>
+      </div>
+
+      {/* Grondcheck (optioneel) */}
+      <div>
+        <button
+          type="button"
+          onClick={() => setGrondcheckOpen(!grondcheckOpen)}
+          className="sv-button sv-button-thin-border w-full flex items-center justify-between gap-2 px-4 py-2 text-sm"
+        >
+          <span>Grondcheck (optioneel)</span>
+          {grondcheckOpen ? (
+            <ChevronUp className="h-3.5 w-3.5" />
+          ) : (
+            <ChevronDown className="h-3.5 w-3.5" />
+          )}
+        </button>
+        {grondcheckOpen && (
+          <div className="mt-2">
+            <WaterPanel
+              plant={plant}
+              onWatered={(note) => recordWatering(note)}
+              onSkipWet={() => setGrondcheckOpen(false)}
+              onSkipToday={() => {
+                if (lastWaterDateStr) {
+                  const shifted = new Date(lastWaterDateStr + "T00:00:00");
+                  shifted.setDate(shifted.getDate() + 1);
+                  onSyncLastWatered(shifted.toISOString().slice(0, 10));
+                }
+                setGrondcheckOpen(false);
+              }}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Wateradvies */}
+      {hasAdvice && (
+        <div>
+          <button
+            type="button"
+            onClick={() => setAdviceOpen(!adviceOpen)}
+            className="sv-button sv-button-thin-border w-full flex items-center justify-between gap-2 px-4 py-2 text-sm"
+          >
+            <span>Wateradvies</span>
+            {adviceOpen ? (
+              <ChevronUp className="h-3.5 w-3.5" />
+            ) : (
+              <ChevronDown className="h-3.5 w-3.5" />
+            )}
+          </button>
+          {adviceOpen && (
+            <div className="sv-inset mt-2 px-4 py-3 space-y-1.5 text-sm rounded-xl">
+              {plant.water_notes && (
+                <p>
+                  <span className="sv-muted">Volle grond: </span>
+                  {plant.water_notes}
+                </p>
+              )}
+              {plant.pot_water_notes && (
+                <p>
+                  <span className="sv-muted">Pot: </span>
+                  {plant.pot_water_notes}
+                </p>
+              )}
+              {plant.watering_method.length > 0 && (
+                <p>
+                  <span className="sv-muted">Methode: </span>
+                  {plant.watering_method.join(", ")}
+                  {plant.watering_soak_minutes
+                    ? ` (${plant.watering_soak_minutes} min. weken)`
+                    : ""}
+                </p>
+              )}
+              {plant.water_interval_days && (
+                <p>
+                  <span className="sv-muted">Interval volle grond: </span>
+                  elke {plant.water_interval_days} dagen
+                </p>
+              )}
+              {plant.pot_water_interval_days && (
+                <p>
+                  <span className="sv-muted">Interval pot: </span>
+                  elke {plant.pot_water_interval_days} dagen
+                </p>
+              )}
+              <p className="text-xs sv-muted italic border-t pt-2 mt-2">
+                {inPot
+                  ? "Geef water totdat er water uit de drainagegaten onder de pot begint te lopen. Geef liever één keer goed water dan meerdere kleine beetjes."
+                  : "Geef minder vaak, maar wel royaal zodat het water diep in de bodem trekt. Hierdoor ontwikkelen planten diepere en sterkere wortels."}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Watergeschiedenis */}
+      <div>
+        <button
+          type="button"
+          onClick={() => setHistoryOpen(!historyOpen)}
+          className="sv-button sv-button-thin-border w-full flex items-center justify-between gap-2 px-4 py-2 text-sm"
+        >
+          <span>
+            Watergeschiedenis
+            {waterHistory.length > 0 && (
+              <span className="sv-muted ml-1">({waterHistory.length})</span>
+            )}
+          </span>
+          {historyOpen ? (
+            <ChevronUp className="h-3.5 w-3.5" />
+          ) : (
+            <ChevronDown className="h-3.5 w-3.5" />
+          )}
+        </button>
+        {historyOpen && (
+          <div className="mt-2 space-y-1.5 max-h-72 overflow-y-auto pr-0.5">
+            {waterHistory.length === 0 ? (
+              <p className="text-sm sv-muted text-center py-4">
+                Nog geen watergiften geregistreerd.
+              </p>
+            ) : (
+              waterHistory.map((entry) => (
+                <div
+                  key={entry.id}
+                  className="sv-inset px-3 py-2.5 rounded-xl space-y-1.5"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-xs sv-muted font-medium">
+                      {new Date(
+                        entry.date + "T00:00:00",
+                      ).toLocaleDateString("nl-NL", {
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                      })}
+                    </p>
+                    {confirmDeleteId === entry.id ? (
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="text-xs sv-muted">Verwijderen?</span>
+                        <button
+                          onClick={() => handleDelete(entry.id)}
+                          className="text-xs sv-badge-overdue px-2 py-0.5 rounded-full"
+                        >
+                          Ja
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeleteId(null)}
+                          className="text-xs sv-badge-ok px-2 py-0.5 rounded-full"
+                        >
+                          Nee
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => {
+                            setEditingId(entry.id);
+                            setEditNote(
+                              entry.notes === "Water gegeven" ? "" : entry.notes,
+                            );
+                          }}
+                          className="sv-icon-slot h-6 w-6 flex items-center justify-center opacity-60 hover:opacity-100"
+                          title="Notitie bewerken"
+                        >
+                          <Pencil className="h-2.5 w-2.5" />
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeleteId(entry.id)}
+                          className="sv-icon-slot h-6 w-6 flex items-center justify-center opacity-60 hover:opacity-100"
+                          title="Verwijderen"
+                        >
+                          <X className="h-2.5 w-2.5" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  {editingId === entry.id ? (
+                    <div className="flex gap-1.5">
+                      <Input
+                        value={editNote}
+                        onChange={(e) => setEditNote(e.target.value)}
+                        placeholder="Notitie..."
+                        className="text-xs h-7"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleSaveNote(entry.id);
+                          if (e.key === "Escape") setEditingId(null);
+                        }}
+                      />
+                      <button
+                        onClick={() => handleSaveNote(entry.id)}
+                        className="sv-button sv-button-thin-border px-2 py-1 text-xs shrink-0"
+                      >
+                        ✓
+                      </button>
+                      <button
+                        onClick={() => setEditingId(null)}
+                        className="sv-button sv-button-ghost px-2 py-1 text-xs shrink-0"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ) : (
+                    entry.notes &&
+                    entry.notes !== "Water gegeven" && (
+                      <p className="text-sm">{entry.notes}</p>
+                    )
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1668,7 +2045,6 @@ export default function Tuinieren() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [photoUrlDraft, setPhotoUrlDraft] = useState("");
   const [logOpen, setLogOpen] = useState(false);
-  const [waterOpen, setWaterOpen] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importMsg, setImportMsg] = useState<string | null>(null);
@@ -1866,26 +2242,15 @@ export default function Tuinieren() {
     );
   }
 
-  function markWatered() {
+  function handleSyncLastWatered(isoDate: string | null) {
     if (!view) return;
     updatePlant.mutate({
       id: view.id,
       patch: {
-        last_watered_at: new Date().toISOString(),
+        last_watered_at: isoDate ? new Date(isoDate).toISOString() : null,
         last_water_reminder_sent_at: null,
       },
     });
-  }
-
-  function handleWaterWithAmount(_liters: number | null) {
-    markWatered();
-    setWaterOpen(false);
-  }
-
-  function handleWaterSkipToday() {
-    if (!view) return;
-    setWaterSkip(view.id);
-    setWaterOpen(false);
   }
 
   function handleWaterFromCard(p: Plant) {
@@ -2297,7 +2662,6 @@ export default function Tuinieren() {
             setConfirmDelete(false);
             setEditMode(false);
             setLogOpen(false);
-            setWaterOpen(false);
           }
         }}
       >
@@ -2369,78 +2733,54 @@ export default function Tuinieren() {
                 </p>
               )}
 
+              {/* Action row */}
               {(() => {
-                const status = waterStatus(view);
                 const feedStatus = feedingStatus(view);
-                const skipped = isSkippedToday(view.id);
                 return (
-                  <>
-                    <div className="flex items-center gap-3 flex-wrap">
-                      {status && (
-                        <span
-                          className={`sv-heading inline-flex items-center gap-1 text-sm px-3 py-1.5 rounded-full ${
-                            status.overdue ? "sv-badge-overdue" : "sv-badge-ok"
-                          }`}
-                        >
-                          <Droplet className="h-3.5 w-3.5" /> {status.label}
-                        </span>
-                      )}
-                      {feedStatus && (
-                        <span
-                          className={`sv-heading inline-flex items-center gap-1 text-sm px-3 py-1.5 rounded-full ${
-                            feedStatus.overdue ? "sv-badge-overdue" : "sv-badge-ok"
-                          }`}
-                        >
-                          <Leaf className="h-3.5 w-3.5" /> {feedStatus.label}
-                        </span>
-                      )}
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className={`sv-button sv-button-thin-border text-xl${waterOpen ? " ring-2 ring-offset-1 ring-[var(--sv-wood-dark)]" : ""}`}
-                        onClick={() => setWaterOpen(!waterOpen)}
-                        disabled={updatePlant.isPending}
+                  <div className="flex items-center gap-3 flex-wrap">
+                    {feedStatus && (
+                      <span
+                        className={`sv-heading inline-flex items-center gap-1 text-sm px-3 py-1.5 rounded-full ${
+                          feedStatus.overdue ? "sv-badge-overdue" : "sv-badge-ok"
+                        }`}
                       >
-                        <Droplet className="h-3.5 w-3.5" />
-                        {skipped ? "Overgeslagen vandaag" : "Water bijhouden"}
-                        {waterOpen ? <ChevronUp className="h-3.5 w-3.5 ml-1" /> : <ChevronDown className="h-3.5 w-3.5 ml-1" />}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="sv-button sv-button-thin-border text-xl"
-                        onClick={markFed}
-                        disabled={updatePlant.isPending}
-                      >
-                        <Leaf className="h-3.5 w-3.5" /> Voeding gegeven vandaag
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="sv-button sv-button-thin-border text-xl"
-                        onClick={() =>
-                          updatePlant.mutate({
-                            id: view.id,
-                            patch: { planted: !view.planted },
-                          })
-                        }
-                        disabled={updatePlant.isPending}
-                      >
-                        <Sprout className="h-3.5 w-3.5" />{" "}
-                        {view.planted ? "Gepland" : "Markeer als gepland"}
-                      </Button>
-                    </div>
-                    {waterOpen && (
-                      <WaterPanel
-                        plant={view}
-                        onWatered={handleWaterWithAmount}
-                        onSkipWet={() => setWaterOpen(false)}
-                        onSkipToday={handleWaterSkipToday}
-                      />
+                        <Leaf className="h-3.5 w-3.5" /> {feedStatus.label}
+                      </span>
                     )}
-                  </>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="sv-button sv-button-thin-border text-xl"
+                      onClick={markFed}
+                      disabled={updatePlant.isPending}
+                    >
+                      <Leaf className="h-3.5 w-3.5" /> Voeding gegeven vandaag
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="sv-button sv-button-thin-border text-xl"
+                      onClick={() =>
+                        updatePlant.mutate({
+                          id: view.id,
+                          patch: { planted: !view.planted },
+                        })
+                      }
+                      disabled={updatePlant.isPending}
+                    >
+                      <Sprout className="h-3.5 w-3.5" />{" "}
+                      {view.planted ? "Gepland" : "Markeer als gepland"}
+                    </Button>
+                  </div>
                 );
               })()}
+
+              {/* Water sectie */}
+              <WaterSection
+                plant={view}
+                onSyncLastWatered={handleSyncLastWatered}
+                isUpdating={updatePlant.isPending}
+              />
 
               <div className="grid sm:grid-cols-2 gap-4">
                 <InfoRow label="Soort" value={view.species} />
