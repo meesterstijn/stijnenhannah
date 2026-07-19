@@ -132,6 +132,16 @@ export const encyclopediaCategories: EncyclopediaCategory[] = [
           "Wormencompost (vermicompost) is de rijkste variant: gebruik als top-dressing.",
         ],
       },
+      {
+        heading: "Zaai- en stekgrond vs. gewone potgrond",
+        content:
+          "Zaai- en stekgrond is speciaal gemaakt voor kiemende zaden: weinig voeding, een fijne structuur en een goede vochtbalans. Gewone (moestuin)potgrond bevat meer voeding en is bedoeld voor de verdere groei. Door het soil block in potgrond te zetten, krijgt de jonge plant precies de overgang die hij nodig heeft: eerst veilig kiemen, daarna voldoende voeding om verder te groeien.",
+        tips: [
+          "Schema: Zaai- en stekgrond → soil blocks (bijv. met een Sogo pottenpers). Moestuinpotgrond → eerste of definitieve pot.",
+          "Niet meer verpotten zodra de plant al in zijn uiteindelijke pot zit.",
+          "Werkt uitstekend voor tomaten, paprika's, komkommers, kruiden en bloemen.",
+        ],
+      },
     ],
   },
   {
@@ -174,6 +184,14 @@ export const encyclopediaCategories: EncyclopediaCategory[] = [
         tips: [
           "Compost toevoegen voedt het bodemleven direct.",
           "Mulchen (afdekken met organisch materiaal) houdt vocht vast en bevordert wormen.",
+        ],
+      },
+      {
+        heading: "Zaaigrond vs. gewone bodem/potgrond",
+        content:
+          "Voor kiemende zaden gebruik je aparte zaai- en stekgrond: die heeft weinig voeding, een fijne structuur en een goede vochtbalans, zodat jonge wortels niet verbranden en niet verstikken. Zodra de kiemplant groter wordt, gaat hij over naar voedingsrijkere grond (moestuinpotgrond of tuinbodem) voor de verdere groei.",
+        tips: [
+          "Gebruik zaai- en stekgrond nooit voor volwassen planten: te weinig voeding voor langdurige groei.",
         ],
       },
     ],
@@ -298,6 +316,21 @@ export const encyclopediaCategories: EncyclopediaCategory[] = [
           "Keramische potten ademen minder dan terracotta: pas waterfrequentie aan.",
           "Terracotta is ideaal voor mediterrane en vetplanten.",
         ],
+      },
+      {
+        heading: "Werkwijze met soil blocks (Pokon Zaai- en Stekgrond + Sogo pottenpers)",
+        content:
+          "Zaai- en stekgrond is speciaal gemaakt voor kiemende zaden: weinig voeding, een fijne structuur en een goede vochtbalans. Gewone (moestuin)potgrond bevat meer voeding en is bedoeld voor de verdere groei. Door het soil block in potgrond te zetten, krijgt de jonge plant precies de overgang die hij nodig heeft: eerst veilig kiemen, daarna voldoende voeding om verder te groeien.",
+        tips: [
+          "Schema: Zaai- en stekgrond → soil blocks. Moestuinpotgrond → eerste of definitieve pot.",
+          "Niet meer verpotten als de plant al in zijn uiteindelijke pot zit.",
+          "Werkt uitstekend voor tomaten, paprika's, komkommers, kruiden en bloemen.",
+        ],
+      },
+      {
+        heading: "Komkommers en courgettes: liever niet vaak verpotten",
+        content:
+          "Deze houden niet van vaak verpotten. Gebruik daarom liever een groter soil block (bijvoorbeeld 5 cm) en zet dat daarna direct in de eindpot. Zo verstoor je de wortels zo min mogelijk en groeien ze het snelst door.",
       },
     ],
   },
