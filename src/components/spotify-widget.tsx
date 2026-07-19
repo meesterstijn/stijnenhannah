@@ -65,31 +65,35 @@ export function SpotifyWidget() {
     return (
       <button
         onClick={() => initiateSpotifyLogin()}
-        className="group rounded-2xl bg-card border border-border/60 p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all flex items-center gap-3 sm:min-h-[100px] w-full text-left"
+        className="sv-panel group p-4 hover:-translate-y-0.5 transition-transform flex items-center gap-3 sm:min-h-[100px] w-full text-left"
       >
-        <Music className="h-5 w-5 text-primary shrink-0" strokeWidth={1.6} />
+        <div className="sv-icon-slot h-10 w-10 flex items-center justify-center shrink-0">
+          <Music className="h-5 w-5" strokeWidth={1.6} />
+        </div>
         <div className="flex-1 min-w-0">
-          <p className="font-serif text-base font-semibold leading-tight">Spotify</p>
-          <p className="text-xs text-muted-foreground mt-0.5 leading-tight">Verbind om muziek te zien</p>
+          <p className="sv-heading text-2xl leading-tight">Spotify</p>
+          <p className="text-xs sv-muted mt-0.5 leading-tight">Verbind om muziek te zien</p>
         </div>
       </button>
     );
   }
 
   return (
-    <div className="rounded-2xl bg-card border border-border/60 p-4 shadow-sm flex flex-col gap-3">
+    <div className="sv-panel p-4 flex flex-col gap-3">
       <div className="flex items-center gap-3">
         {nowPlaying?.albumArt ? (
-          <img src={nowPlaying.albumArt} alt="" className="h-10 w-10 rounded-lg shrink-0 object-cover" />
+          <img src={nowPlaying.albumArt} alt="" className="sv-icon-slot h-10 w-10 rounded-lg shrink-0 object-cover" />
         ) : (
-          <Music className="h-5 w-5 text-primary shrink-0" strokeWidth={1.6} />
+          <div className="sv-icon-slot h-10 w-10 flex items-center justify-center shrink-0">
+            <Music className="h-5 w-5" strokeWidth={1.6} />
+          </div>
         )}
 
         <div className="flex-1 min-w-0">
-          <p className="font-serif text-base font-semibold leading-tight truncate">
+          <p className="sv-heading text-2xl leading-tight truncate">
             {nowPlaying ? nowPlaying.trackName : "Spotify"}
           </p>
-          <p className="text-xs text-muted-foreground mt-0.5 leading-tight truncate">
+          <p className="text-xs sv-muted mt-0.5 leading-tight truncate">
             {nowPlaying ? nowPlaying.artistName : "Niets aan het spelen"}
           </p>
         </div>
@@ -100,7 +104,7 @@ export function SpotifyWidget() {
               <button
                 onClick={(e) => { e.preventDefault(); if (!actionPending) { setActionPending(true); skipTrack("previous").then(() => setTimeout(() => { fetchNowPlaying(); setActionPending(false); }, 700)); } }}
                 disabled={actionPending}
-                className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent/40 transition-colors"
+                className="sv-icon-slot h-8 w-8 flex items-center justify-center transition-colors"
                 aria-label="Vorige"
               >
                 <SkipBack className="h-3.5 w-3.5" />
@@ -108,7 +112,7 @@ export function SpotifyWidget() {
               <button
                 onClick={handleToggle}
                 disabled={actionPending}
-                className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent/40 transition-colors"
+                className="sv-icon-slot h-8 w-8 flex items-center justify-center transition-colors"
                 aria-label={nowPlaying.isPlaying ? "Pauzeer" : "Speel af"}
               >
                 {nowPlaying.isPlaying
@@ -119,7 +123,7 @@ export function SpotifyWidget() {
               <button
                 onClick={handleSkip}
                 disabled={actionPending}
-                className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent/40 transition-colors"
+                className="sv-icon-slot h-8 w-8 flex items-center justify-center transition-colors"
                 aria-label="Volgende"
               >
                 <SkipForward className="h-3.5 w-3.5" />
@@ -128,7 +132,7 @@ export function SpotifyWidget() {
           )}
           <button
             onClick={handleDisconnect}
-            className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground/40 hover:text-muted-foreground hover:bg-accent/40 transition-colors"
+            className="sv-icon-slot h-8 w-8 flex items-center justify-center transition-colors opacity-50"
             aria-label="Ontkoppel Spotify"
           >
             <LogOut className="h-3 w-3" />
@@ -138,7 +142,7 @@ export function SpotifyWidget() {
 
       {nowPlaying && (
         <div className="flex items-center gap-2">
-          <Volume2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <Volume2 className="h-3.5 w-3.5 sv-muted shrink-0" />
           <input
             type="range"
             min={0}
@@ -148,7 +152,7 @@ export function SpotifyWidget() {
             className="flex-1 h-1 accent-primary cursor-pointer"
             aria-label="Volume"
           />
-          <span className="text-xs text-muted-foreground w-6 text-right tabular-nums">{volume}</span>
+          <span className="text-xs sv-muted w-6 text-right tabular-nums">{volume}</span>
         </div>
       )}
     </div>

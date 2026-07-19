@@ -15,7 +15,7 @@ export default function TuingidsLayout() {
   const { pathname } = useLocation();
 
   return (
-    <div className="space-y-6">
+    <div className="tuinieren-theme space-y-6">
       <nav className="flex gap-1 overflow-x-auto pb-1 scrollbar-none -mx-4 px-4 sm:mx-0 sm:px-0">
         {subnav.map((item) => {
           const active = pathname === item.to;
@@ -23,11 +23,7 @@ export default function TuingidsLayout() {
             <Link
               key={item.to}
               to={item.to}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-sm whitespace-nowrap transition-colors shrink-0 ${
-                active
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80"
-              }`}
+              className={`sv-chip flex items-center gap-1.5 px-3 py-2 text-sm whitespace-nowrap shrink-0${active ? " active" : ""}`}
             >
               <span>{item.emoji}</span>
               <span>{item.label}</span>

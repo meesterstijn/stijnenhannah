@@ -48,7 +48,7 @@ export default function Home() {
   const firstTodo = openTodos[0];
 
   return (
-    <div className="space-y-4">
+    <div className="tuinieren-theme space-y-4">
       <section className="grid gap-4 sm:grid-cols-3">
         <WeatherWidget />
         <div className="hidden sm:block">
@@ -135,14 +135,16 @@ function QuickCard({
   return (
     <Link
       to={to}
-      className="group rounded-2xl bg-card border border-border/60 p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all flex items-center gap-3 sm:min-h-[100px]"
+      className="sv-panel group p-4 hover:-translate-y-0.5 transition-transform flex items-center gap-3 sm:min-h-[100px]"
     >
-      <Icon className="h-5 w-5 text-primary shrink-0" strokeWidth={1.6} />
+      <div className="sv-icon-slot h-10 w-10 flex items-center justify-center shrink-0">
+        <Icon className="h-5 w-5" strokeWidth={1.6} />
+      </div>
       <div className="flex-1 min-w-0">
-        <p className="font-serif text-base font-semibold leading-tight truncate">
+        <p className="sv-heading text-2xl leading-tight truncate">
           {title}
         </p>
-        <p className="text-xs text-muted-foreground mt-0.5 leading-tight truncate">
+        <p className="text-xs sv-muted mt-0.5 leading-tight truncate">
           {desc}
         </p>
       </div>

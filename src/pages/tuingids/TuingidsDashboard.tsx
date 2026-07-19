@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase, type Plant } from "@/lib/supabase";
-import { Droplet, Leaf, Scissors, Apple, Flower2, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { WeatherForecast } from "@/components/weather-forecast";
 
@@ -31,20 +31,20 @@ function isFeedingOverdue(p: Plant): boolean {
 
 function Widget({ emoji, title, children, to }: { emoji: string; title: string; children: React.ReactNode; to?: string }) {
   const inner = (
-    <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-3 h-full">
+    <div className="sv-panel p-4 space-y-3 h-full">
       <div className="flex items-center gap-2">
         <span className="text-lg">{emoji}</span>
-        <p className="font-semibold text-sm">{title}</p>
+        <p className="sv-heading text-xl">{title}</p>
       </div>
       {children}
     </div>
   );
-  return to ? <Link to={to} className="block hover:opacity-80 transition-opacity">{inner}</Link> : inner;
+  return to ? <Link to={to} className="block hover:opacity-90 transition-opacity">{inner}</Link> : inner;
 }
 
 function PlantPill({ name, photo_url }: { name: string; photo_url?: string | null }) {
   return (
-    <span className="inline-flex items-center gap-1.5 text-xs bg-muted rounded-full px-2.5 py-1 max-w-full">
+    <span className="sv-badge-ok inline-flex items-center gap-1.5 text-xs rounded-full px-2.5 py-1 max-w-full">
       {photo_url
         ? <img src={photo_url} alt="" className="h-4 w-4 rounded-full object-cover shrink-0" />
         : <span>🌱</span>}
@@ -72,7 +72,7 @@ export default function TuingidsDashboard() {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center py-20 text-muted-foreground">
+      <div className="flex justify-center py-20 sv-muted">
         <Loader2 className="h-6 w-6 animate-spin" />
       </div>
     );
@@ -81,46 +81,42 @@ export default function TuingidsDashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Tuingids</p>
-        <h1 className="font-serif text-3xl font-semibold mt-1">Dashboard</h1>
+        <p className="text-xs uppercase tracking-[0.2em] sv-muted">Tuingids</p>
+        <h1 className="sv-heading text-3xl mt-1">Dashboard</h1>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {/* Weer */}
         <Widget emoji="🌦" title="Weer vandaag">
           <div className="scale-90 origin-left">
             <WeatherForecast />
           </div>
         </Widget>
 
-        {/* Water */}
         <Widget emoji="💧" title={`Water geven (${waterPlants.length})`} to="/tuinieren">
           {waterPlants.length === 0 ? (
-            <p className="text-xs text-muted-foreground">Alle planten zijn bijgewerkt ✓</p>
+            <p className="text-xs sv-muted">Alle planten zijn bijgewerkt ✓</p>
           ) : (
             <div className="flex flex-wrap gap-1.5">
               {waterPlants.slice(0, 6).map((p) => <PlantPill key={p.id} name={p.name} photo_url={p.photo_url} />)}
-              {waterPlants.length > 6 && <span className="text-xs text-muted-foreground">+{waterPlants.length - 6} meer</span>}
+              {waterPlants.length > 6 && <span className="text-xs sv-muted">+{waterPlants.length - 6} meer</span>}
             </div>
           )}
         </Widget>
 
-        {/* Bemesten */}
         <Widget emoji="🌿" title={`Bemesten (${feedPlants.length})`} to="/tuinieren">
           {feedPlants.length === 0 ? (
-            <p className="text-xs text-muted-foreground">Niets te bemesten vandaag ✓</p>
+            <p className="text-xs sv-muted">Niets te bemesten vandaag ✓</p>
           ) : (
             <div className="flex flex-wrap gap-1.5">
               {feedPlants.slice(0, 6).map((p) => <PlantPill key={p.id} name={p.name} photo_url={p.photo_url} />)}
-              {feedPlants.length > 6 && <span className="text-xs text-muted-foreground">+{feedPlants.length - 6} meer</span>}
+              {feedPlants.length > 6 && <span className="text-xs sv-muted">+{feedPlants.length - 6} meer</span>}
             </div>
           )}
         </Widget>
 
-        {/* Bloeiend */}
         <Widget emoji="🌸" title={`In bloei deze maand (${bloomPlants.length})`}>
           {bloomPlants.length === 0 ? (
-            <p className="text-xs text-muted-foreground">Geen planten in bloei</p>
+            <p className="text-xs sv-muted">Geen planten in bloei</p>
           ) : (
             <div className="flex flex-wrap gap-1.5">
               {bloomPlants.map((p) => <PlantPill key={p.id} name={p.name} photo_url={p.photo_url} />)}
@@ -128,10 +124,9 @@ export default function TuingidsDashboard() {
           )}
         </Widget>
 
-        {/* Oogst */}
         <Widget emoji="🍅" title={`Komende oogst (${harvestPlants.length})`}>
           {harvestPlants.length === 0 ? (
-            <p className="text-xs text-muted-foreground">Niets te oogsten deze maand</p>
+            <p className="text-xs sv-muted">Niets te oogsten deze maand</p>
           ) : (
             <div className="flex flex-wrap gap-1.5">
               {harvestPlants.map((p) => <PlantPill key={p.id} name={p.name} photo_url={p.photo_url} />)}
@@ -139,10 +134,9 @@ export default function TuingidsDashboard() {
           )}
         </Widget>
 
-        {/* Snoeien */}
         <Widget emoji="✂️" title="Snoeien">
           {pruningPlants.length === 0 ? (
-            <p className="text-xs text-muted-foreground">Geen snoeiplanten aanwezig</p>
+            <p className="text-xs sv-muted">Geen snoeiplanten aanwezig</p>
           ) : (
             <div className="flex flex-wrap gap-1.5">
               {pruningPlants.slice(0, 4).map((p) => <PlantPill key={p.id} name={p.name} photo_url={p.photo_url} />)}
@@ -162,11 +156,11 @@ export default function TuingidsDashboard() {
 
 function QuickLink({ to, emoji, label, desc }: { to: string; emoji: string; label: string; desc: string }) {
   return (
-    <Link to={to} className="rounded-2xl border border-border/60 bg-card p-4 flex items-center gap-3 hover:bg-accent/30 transition-colors">
+    <Link to={to} className="sv-panel p-4 flex items-center gap-3 hover:opacity-90 transition-opacity">
       <span className="text-2xl">{emoji}</span>
       <div>
-        <p className="font-semibold text-sm">{label}</p>
-        <p className="text-xs text-muted-foreground">{desc}</p>
+        <p className="sv-heading text-xl">{label}</p>
+        <p className="text-xs sv-muted">{desc}</p>
       </div>
     </Link>
   );

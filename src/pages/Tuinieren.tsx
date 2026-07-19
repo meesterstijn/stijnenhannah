@@ -181,6 +181,7 @@ type PlantDraft = {
   greenhouse_notes: string;
   general_notes: string;
   photo_url: string;
+  planted_at: string;
   reminders_enabled: boolean;
 };
 
@@ -239,6 +240,7 @@ const emptyDraft: PlantDraft = {
   greenhouse_notes: "",
   general_notes: "",
   photo_url: "",
+  planted_at: "",
   reminders_enabled: true,
 };
 
@@ -308,6 +310,7 @@ function plantToDraft(p: Plant): PlantDraft {
     greenhouse_notes: parseGreenhouseNotes(p.greenhouse_notes).notes,
     general_notes: p.general_notes ?? "",
     photo_url: p.photo_url ?? "",
+    planted_at: p.planted_at ? p.planted_at.slice(0, 10) : "",
     reminders_enabled: p.reminders_enabled,
   };
 }
@@ -382,6 +385,7 @@ function draftToRow(d: PlantDraft) {
       [d.greenhouse_pref, d.greenhouse_notes.trim()].filter(Boolean).join("\n") || null,
     general_notes: d.general_notes.trim() || null,
     photo_url: d.photo_url.trim() || null,
+    planted_at: d.planted_at ? new Date(d.planted_at).toISOString() : null,
     reminders_enabled: d.reminders_enabled,
   };
 }
@@ -423,6 +427,21 @@ function feedingStatus(p: Plant): { label: string; overdue: boolean } | null {
   if (daysLeft <= 0) return { label: "Voeding geven!", overdue: true };
   if (daysLeft === 1) return { label: "Morgen voeding geven", overdue: false };
   return { label: `Over ${daysLeft} dagen`, overdue: false };
+}
+
+function plantAge(dateStr: string | null): string | null {
+  if (!dateStr) return null;
+  const diffMs = Date.now() - new Date(dateStr).getTime();
+  if (diffMs < 0) return null;
+  const days = Math.floor(diffMs / 86400000);
+  if (days < 7) return `${days} dag${days === 1 ? "" : "en"}`;
+  const weeks = Math.floor(days / 7);
+  if (weeks < 8) return `${weeks} week${weeks === 1 ? "" : "en"}`;
+  const months = Math.floor(days / 30.44);
+  if (months < 24) return `${months} maand${months === 1 ? "" : "en"}`;
+  const years = Math.floor(days / 365.25);
+  const remMonths = Math.floor((days - years * 365.25) / 30.44);
+  return remMonths > 0 ? `${years} jaar en ${remMonths} maand${remMonths === 1 ? "" : "en"}` : `${years} jaar`;
 }
 
 async function fetchPlants(): Promise<Plant[]> {
@@ -679,6 +698,14 @@ function PlantForm({
           />
           Gepland (in de grond/pot gezet)
         </label>
+        <div className="space-y-1">
+          <p className="text-xs sv-muted">Datum geplant / gezaaid</p>
+          <Input
+            type="date"
+            value={draft.planted_at}
+            onChange={(e) => onChange({ planted_at: e.target.value })}
+          />
+        </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1">
             <p className="text-xs sv-muted">Elke hoeveel dagen water (volle grond)</p>
@@ -1303,6 +1330,7 @@ export default function Tuinieren() {
           pot_recommended_liters: p.pot_recommended_liters ? Number(p.pot_recommended_liters) : null,
           pot_water_notes: p.pot_water_notes || null,
           planted: p.planted ?? false,
+          planted_at: p.planted_at ? new Date(p.planted_at).toISOString() : null,
           water_interval_days: p.water_interval_days ? Number(p.water_interval_days) : null,
           pot_water_interval_days: p.pot_water_interval_days ? Number(p.pot_water_interval_days) : null,
           last_watered_at: p.last_watered_at ? new Date(p.last_watered_at).toISOString() : null,
@@ -1744,6 +1772,7 @@ export default function Tuinieren() {
       general_notes: p.general_notes,
       photo_url: p.photo_url,
       planted: p.planted,
+      planted_at: p.planted_at,
     }));
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -2011,6 +2040,13 @@ export default function Tuinieren() {
               <div className="grid sm:grid-cols-2 gap-4">
                 <InfoRow label="Soort" value={view.species} />
                 <InfoRow label="Levensduur" value={view.lifecycle} />
+                <InfoRow
+                  label="Geplant / gezaaid"
+                  value={view.planted_at ? sn(
+                    [new Date(view.planted_at).toLocaleDateString("nl-NL", { day: "numeric", month: "long", year: "numeric" })],
+                    [plantAge(view.planted_at) ? `${plantAge(view.planted_at)} oud` : null],
+                  ) : null}
+                />
                 <InfoRow label="Locatie" value={view.location} />
                 <InfoRow label="Zon" value={view.sun_needs ? view.sun_needs.replace(/,/g, " · ") : null} />
                 <InfoRow

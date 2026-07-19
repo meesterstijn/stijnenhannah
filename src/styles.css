@@ -176,6 +176,11 @@
  * screenshot, scoped entirely under .tuinieren-theme so it never leaks
  * into the rest of the app's design system.
  */
+.tuin-font {
+  font-family: "TuinTitel", "Pixelify Sans", var(--font-serif), serif;
+  letter-spacing: 0.01em;
+}
+
 .tuinieren-theme {
   --sv-wood-dark: #6b3f1f;
   --sv-wood-mid: #e8a44c;

@@ -48,12 +48,14 @@ export function WifiWidget() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="rounded-2xl bg-card border border-border/60 p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all flex items-center gap-3 sm:min-h-[100px] w-full text-left"
+        className="sv-panel group p-4 hover:-translate-y-0.5 transition-transform flex items-center gap-3 sm:min-h-[100px] w-full text-left"
       >
-        <Wifi className="h-5 w-5 text-primary shrink-0" strokeWidth={1.6} />
+        <div className="sv-icon-slot h-10 w-10 flex items-center justify-center shrink-0">
+          <Wifi className="h-5 w-5" strokeWidth={1.6} />
+        </div>
         <div className="flex-1 min-w-0">
-          <p className="font-serif text-base font-semibold leading-tight">Wifi</p>
-          <p className="text-xs text-muted-foreground mt-0.5 leading-tight">Toon QR code</p>
+          <p className="sv-heading text-2xl leading-tight">Wifi</p>
+          <p className="text-xs sv-muted mt-0.5 leading-tight">Toon QR code</p>
         </div>
       </button>
 
@@ -63,28 +65,28 @@ export function WifiWidget() {
           onClick={() => setOpen(false)}
         >
           <div
-            className="bg-background rounded-3xl p-8 flex flex-col items-center gap-5 shadow-2xl mx-4"
+            className="tuinieren-theme sv-panel p-8 flex flex-col items-center gap-5 mx-4"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between w-full">
               <div>
-                <p className="font-serif text-xl font-semibold">{data?.ssid ?? "Wifi"}</p>
-                <p className="text-sm text-muted-foreground mt-0.5">Scan om te verbinden</p>
+                <p className="sv-heading text-3xl">{data?.ssid ?? "Wifi"}</p>
+                <p className="text-sm sv-muted mt-0.5">Scan om te verbinden</p>
               </div>
               <button
                 onClick={() => setOpen(false)}
-                className="h-8 w-8 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent/40 transition-colors"
+                className="sv-icon-slot h-8 w-8 flex items-center justify-center transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
             {isLoading ? (
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              <Loader2 className="h-8 w-8 animate-spin sv-muted" />
             ) : (
               <>
                 <div ref={qrRef} />
-                <p className="text-xs text-muted-foreground">{data?.password}</p>
+                <p className="text-xs sv-muted">{data?.password}</p>
               </>
             )}
           </div>

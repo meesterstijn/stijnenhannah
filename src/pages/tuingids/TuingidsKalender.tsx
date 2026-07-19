@@ -36,7 +36,7 @@ const MONTH_OPTIONS = [
 export default function TuingidsKalender() {
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
-  const [month, setMonth] = useState(today.getMonth()); // 0-indexed
+  const [month, setMonth] = useState(today.getMonth());
   const [selectedDay, setSelectedDay] = useState<number | null>(today.getDate());
 
   const { data: plants = [], isLoading } = useQuery({
@@ -50,7 +50,6 @@ export default function TuingidsKalender() {
 
   const monthName = MONTH_OPTIONS[month];
 
-  // Get tasks for the current month
   const monthTasksRaw: CalendarTask[] = [
     { type: "zaaien" as TaskType, plants: plants.filter((p) => p.sow_months?.includes(monthName)).map((p) => p.name) },
     { type: "bloei" as TaskType, plants: plants.filter((p) => p.bloom_months?.includes(monthName)).map((p) => p.name) },
@@ -58,10 +57,8 @@ export default function TuingidsKalender() {
   ];
   const monthTasks = monthTasksRaw.filter((t) => t.plants.length > 0);
 
-  // Build calendar grid
   const firstDay = new Date(year, month, 1);
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  // Mon=0 offset
   const startOffset = (firstDay.getDay() + 6) % 7;
   const cells: (number | null)[] = [
     ...Array(startOffset).fill(null),
@@ -77,31 +74,31 @@ export default function TuingidsKalender() {
     setSelectedDay(null);
   }
 
-  if (isLoading) return <div className="flex justify-center py-16"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
+  if (isLoading) return <div className="flex justify-center py-16"><Loader2 className="h-5 w-5 animate-spin sv-muted" /></div>;
 
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Tuingids</p>
-        <h1 className="font-serif text-3xl font-semibold mt-1">Kalender</h1>
+        <p className="text-xs uppercase tracking-[0.2em] sv-muted">Tuingids</p>
+        <h1 className="sv-heading text-3xl mt-1">Kalender</h1>
       </div>
 
       {/* Month nav */}
       <div className="flex items-center gap-3">
-        <button onClick={prevMonth} className="h-9 w-9 rounded-xl border border-border flex items-center justify-center hover:bg-accent/30 transition-colors">
+        <button onClick={prevMonth} className="sv-icon-slot h-9 w-9 flex items-center justify-center" aria-label="Vorige maand">
           <ChevronLeft className="h-4 w-4" />
         </button>
-        <p className="flex-1 text-center font-semibold">{MONTH_NAMES[month]} {year}</p>
-        <button onClick={nextMonth} className="h-9 w-9 rounded-xl border border-border flex items-center justify-center hover:bg-accent/30 transition-colors">
+        <p className="sv-heading text-2xl flex-1 text-center">{MONTH_NAMES[month]} {year}</p>
+        <button onClick={nextMonth} className="sv-icon-slot h-9 w-9 flex items-center justify-center" aria-label="Volgende maand">
           <ChevronRight className="h-4 w-4" />
         </button>
       </div>
 
       {/* Calendar grid */}
-      <div className="rounded-2xl border border-border/60 bg-card overflow-hidden">
-        <div className="grid grid-cols-7 border-b border-border/60">
+      <div className="sv-panel overflow-hidden">
+        <div className="grid grid-cols-7 border-b border-current/20">
           {SHORT_DAYS.map((d) => (
-            <div key={d} className="py-2 text-center text-xs font-medium text-muted-foreground">{d}</div>
+            <div key={d} className="py-2 text-center text-xs font-medium sv-muted">{d}</div>
           ))}
         </div>
         <div className="grid grid-cols-7">
@@ -114,10 +111,10 @@ export default function TuingidsKalender() {
                 type="button"
                 disabled={!day}
                 onClick={() => day && setSelectedDay(day === selectedDay ? null : day)}
-                className={`relative py-3 text-sm transition-colors ${!day ? "opacity-0 pointer-events-none" : "hover:bg-accent/30"} ${isSelected ? "bg-primary/10" : ""}`}
+                className={`relative py-3 text-sm transition-colors ${!day ? "opacity-0 pointer-events-none" : "hover:bg-black/5"} ${isSelected ? "bg-black/10" : ""}`}
               >
                 {day && (
-                  <span className={`mx-auto h-7 w-7 flex items-center justify-center rounded-full text-sm ${isToday ? "bg-primary text-primary-foreground font-bold" : ""}`}>
+                  <span className={`mx-auto h-7 w-7 flex items-center justify-center rounded-full text-sm ${isToday ? "sv-badge-ok font-bold border-2" : ""}`}>
                     {day}
                   </span>
                 )}
@@ -130,10 +127,10 @@ export default function TuingidsKalender() {
       {/* Month overview */}
       {monthTasks.length > 0 && (
         <div className="space-y-3">
-          <p className="font-semibold text-sm">Deze maand — {MONTH_NAMES[month]}</p>
+          <p className="sv-heading text-xl">Deze maand — {MONTH_NAMES[month]}</p>
           {monthTasks.map((task) => (
-            <div key={task.type} className="rounded-2xl border border-border/60 bg-card p-4 space-y-2">
-              <p className="text-sm font-medium">
+            <div key={task.type} className="sv-panel p-4 space-y-2">
+              <p className="sv-heading text-xl">
                 <span className="mr-1.5">{TASK_EMOJI[task.type]}</span>
                 {task.type.charAt(0).toUpperCase() + task.type.slice(1)}
               </p>
@@ -148,7 +145,7 @@ export default function TuingidsKalender() {
       )}
 
       {monthTasks.length === 0 && (
-        <p className="text-sm text-muted-foreground text-center py-4">Geen taken gepland voor {MONTH_NAMES[month].toLowerCase()}.</p>
+        <p className="text-sm sv-muted text-center py-4">Geen taken gepland voor {MONTH_NAMES[month].toLowerCase()}.</p>
       )}
     </div>
   );

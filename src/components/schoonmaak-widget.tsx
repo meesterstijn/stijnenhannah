@@ -43,12 +43,14 @@ export function SchoonmaakWidget() {
   return (
     <Link
       to="/schoonmaak"
-      className="group rounded-2xl bg-card border border-border/60 p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all flex items-center gap-3 sm:min-h-[100px]"
+      className="sv-panel group p-4 hover:-translate-y-0.5 transition-transform flex items-center gap-3 sm:min-h-[100px]"
     >
-      <Sparkles className="h-5 w-5 text-primary shrink-0" strokeWidth={1.6} />
+      <div className="sv-icon-slot h-10 w-10 flex items-center justify-center shrink-0">
+        <Sparkles className="h-5 w-5" strokeWidth={1.6} />
+      </div>
       <div className="flex-1 min-w-0">
-        <p className="font-serif text-base font-semibold leading-tight truncate">Schoonmaak</p>
-        <p className="text-xs text-muted-foreground mt-0.5 leading-tight truncate">{desc}</p>
+        <p className="sv-heading text-2xl leading-tight truncate">Schoonmaak</p>
+        <p className="text-xs sv-muted mt-0.5 leading-tight truncate">{desc}</p>
       </div>
     </Link>
   );

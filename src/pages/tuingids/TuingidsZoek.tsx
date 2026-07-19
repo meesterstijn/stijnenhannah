@@ -86,45 +86,45 @@ export default function TuingidsZoek() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
-        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Tuingids</p>
-        <h1 className="font-serif text-3xl font-semibold mt-1">Zoeken</h1>
-        <p className="text-muted-foreground text-sm mt-1">Zoek door planten, encyclopedie en diagnoses.</p>
+        <p className="text-xs uppercase tracking-[0.2em] sv-muted">Tuingids</p>
+        <h1 className="sv-heading text-3xl mt-1">Zoeken</h1>
+        <p className="sv-muted text-sm mt-1">Zoek door planten, encyclopedie en diagnoses.</p>
       </div>
 
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 sv-muted" />
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Typ minimaal 2 tekens..."
           autoFocus
-          className="w-full rounded-xl border border-input bg-card pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          className="w-full rounded-xl pl-9 pr-4 py-2.5 text-sm focus:outline-none"
         />
       </div>
 
       {query.trim().length < 2 && (
-        <p className="text-sm text-muted-foreground text-center py-8">Begin te typen om te zoeken</p>
+        <p className="text-sm sv-muted text-center py-8">Begin te typen om te zoeken</p>
       )}
 
       {query.trim().length >= 2 && results.length === 0 && (
-        <p className="text-sm text-muted-foreground text-center py-8">Geen resultaten voor '{query}'</p>
+        <p className="text-sm sv-muted text-center py-8">Geen resultaten voor '{query}'</p>
       )}
 
       {results.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs text-muted-foreground">{results.length} resultaten</p>
+          <p className="text-xs sv-muted">{results.length} resultaten</p>
           {results.map((r) => (
             <Link
               key={r.id}
               to={r.href}
-              className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card p-3.5 hover:bg-accent/30 transition-colors"
+              className="sv-panel flex items-center gap-3 p-3.5 hover:opacity-90 transition-opacity"
             >
               <span className="text-xl shrink-0">{r.emoji}</span>
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm truncate">{r.title}</p>
-                <p className="text-xs text-muted-foreground truncate">{r.description}</p>
+                <p className="sv-heading text-xl truncate">{r.title}</p>
+                <p className="text-xs sv-muted truncate">{r.description}</p>
               </div>
-              <span className="text-xs bg-muted text-muted-foreground rounded-full px-2 py-0.5 shrink-0">
+              <span className="sv-badge-ok text-xs rounded-full px-2 py-0.5 shrink-0">
                 {TYPE_LABELS[r.type]}
               </span>
             </Link>

@@ -103,6 +103,7 @@ export type Plant = {
   category: string | null;
   photo_url: string | null;
   planted: boolean;
+  planted_at: string | null;
   reminders_enabled: boolean;
   created_at: string;
 };

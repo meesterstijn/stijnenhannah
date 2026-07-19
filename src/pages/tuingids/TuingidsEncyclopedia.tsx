@@ -14,31 +14,31 @@ export default function TuingidsEncyclopedia() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Tuingids</p>
-        <h1 className="font-serif text-3xl font-semibold mt-1">Encyclopedie</h1>
-        <p className="text-muted-foreground text-sm mt-1">Alles over tuinieren, van A tot Z.</p>
+        <p className="text-xs uppercase tracking-[0.2em] sv-muted">Tuingids</p>
+        <h1 className="sv-heading text-3xl mt-1">Encyclopedie</h1>
+        <p className="sv-muted text-sm mt-1">Alles over tuinieren, van A tot Z.</p>
       </div>
 
       <input
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Zoek een onderwerp..."
-        className="w-full rounded-xl border border-input bg-card px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+        className="w-full rounded-xl px-4 py-2.5 text-sm focus:outline-none"
       />
 
       {filtered.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-8">Geen resultaten voor '{query}'</p>
+        <p className="text-sm sv-muted text-center py-8">Geen resultaten voor '{query}'</p>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {filtered.map((cat) => (
             <Link
               key={cat.id}
               to={`/tuingids/encyclopedie/${cat.id}`}
-              className="rounded-2xl border border-border/60 bg-card p-4 hover:bg-accent/30 transition-colors flex flex-col gap-2"
+              className="sv-panel p-4 hover:opacity-90 transition-opacity flex flex-col gap-2"
             >
               <span className="text-2xl">{cat.emoji}</span>
-              <p className="font-semibold text-sm leading-snug">{cat.title}</p>
-              <p className="text-xs text-muted-foreground leading-snug line-clamp-2">{cat.description}</p>
+              <p className="sv-heading text-xl leading-snug">{cat.title}</p>
+              <p className="text-xs sv-muted leading-snug line-clamp-2">{cat.description}</p>
             </Link>
           ))}
         </div>

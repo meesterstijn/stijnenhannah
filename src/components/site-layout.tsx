@@ -22,14 +22,14 @@ export function SiteLayout() {
             ) : (
               <Home className="h-5 w-5" />
             )}
-            <span className={isTuinieren ? "sv-heading text-2xl" : "font-serif text-xl font-semibold tracking-tight"}>
+            <span className={isTuinieren ? "sv-heading text-2xl" : "tuin-font text-xl font-semibold"}>
               {isTuinieren ? "Tuinieren" : "Ons Huisje"}
             </span>
           </Link>
           {isTuinieren ? (
             <span />
           ) : (
-            <span className="hidden md:block text-center text-xs text-muted-foreground font-sans font-normal capitalize">
+            <span className="hidden md:block text-center text-sm text-muted-foreground tuin-font font-normal capitalize">
               {new Date().toLocaleDateString("nl-NL", {
                 weekday: "long",
                 day: "numeric",
@@ -55,8 +55,8 @@ export function SiteLayout() {
                           : "text-muted-foreground hover:bg-secondary hover:text-foreground"
                       }`}
                     >
-                      <Icon className="h-4 w-4" />
-                      <span className="hidden sm:inline">{item.label}</span>
+                      <Icon className="h-5 w-5" />
+                      <span className="hidden sm:inline text-base">{item.label}</span>
                     </Link>
                   );
                 })}

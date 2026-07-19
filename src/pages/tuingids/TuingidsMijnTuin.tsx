@@ -37,10 +37,10 @@ function HealthBar({ score }: { score: number }) {
   const color = score >= 80 ? "bg-green-500" : score >= 50 ? "bg-yellow-400" : "bg-red-400";
   return (
     <div className="flex items-center gap-2">
-      <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+      <div className="flex-1 h-1.5 rounded-full overflow-hidden sv-inset">
         <div className={`h-full rounded-full ${color}`} style={{ width: `${score}%` }} />
       </div>
-      <span className="text-xs text-muted-foreground w-8 text-right">{score}%</span>
+      <span className="text-xs sv-muted w-8 text-right">{score}%</span>
     </div>
   );
 }
@@ -82,7 +82,7 @@ export default function TuingidsMijnTuin() {
   const currentMonth = MONTH_OPTIONS[new Date().getMonth()];
 
   if (isLoading) {
-    return <div className="flex justify-center py-16"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
+    return <div className="flex justify-center py-16"><Loader2 className="h-5 w-5 animate-spin sv-muted" /></div>;
   }
 
   if (planted.length === 0) {
@@ -98,9 +98,9 @@ export default function TuingidsMijnTuin() {
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Tuingids</p>
-        <h1 className="font-serif text-3xl font-semibold mt-1">Mijn tuin</h1>
-        <p className="text-muted-foreground text-sm mt-1">{planted.length} ingeplante planten</p>
+        <p className="text-xs uppercase tracking-[0.2em] sv-muted">Tuingids</p>
+        <h1 className="sv-heading text-3xl mt-1">Mijn tuin</h1>
+        <p className="sv-muted text-sm mt-1">{planted.length} ingeplante planten</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -109,29 +109,29 @@ export default function TuingidsMijnTuin() {
           const blooming = p.bloom_months?.includes(currentMonth);
           const harvesting = p.harvest_months?.includes(currentMonth);
           return (
-            <div key={p.id} className="rounded-2xl border border-border/60 bg-card p-4 space-y-3">
+            <div key={p.id} className="sv-panel p-4 space-y-3">
               <div className="flex items-center gap-3">
                 {p.photo_url
-                  ? <img src={p.photo_url} alt="" className="h-12 w-12 rounded-xl object-cover shrink-0" />
-                  : <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center shrink-0"><Sprout className="h-5 w-5 text-muted-foreground" /></div>
+                  ? <img src={p.photo_url} alt="" className="sv-icon-slot h-12 w-12 rounded-xl object-cover shrink-0" />
+                  : <div className="sv-icon-slot h-12 w-12 rounded-xl flex items-center justify-center shrink-0"><Sprout className="h-5 w-5" /></div>
                 }
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold truncate">{p.name}</p>
+                  <p className="sv-heading text-2xl truncate">{p.name}</p>
                   <div className="flex gap-1 mt-0.5 flex-wrap">
-                    {blooming && <span className="text-xs bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300 rounded-full px-2 py-0.5">🌸 In bloei</span>}
-                    {harvesting && <span className="text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 rounded-full px-2 py-0.5">🍅 Oogsten</span>}
-                    {p.location && <span className="text-xs text-muted-foreground">{p.location}</span>}
+                    {blooming && <span className="sv-badge-ok text-xs rounded-full px-2 py-0.5">🌸 In bloei</span>}
+                    {harvesting && <span className="sv-badge-ok text-xs rounded-full px-2 py-0.5">🍅 Oogsten</span>}
+                    {p.location && <span className="text-xs sv-muted">{p.location}</span>}
                   </div>
                 </div>
               </div>
 
               <div>
-                <p className="text-xs text-muted-foreground mb-1">Gezondheid</p>
+                <p className="text-xs sv-muted mb-1">Gezondheid</p>
                 <HealthBar score={score} />
               </div>
 
               {p.last_watered_at && (
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs sv-muted">
                   Laatste water: {new Date(p.last_watered_at).toLocaleDateString("nl-NL", { day: "numeric", month: "short" })}
                 </p>
               )}
@@ -140,7 +140,7 @@ export default function TuingidsMijnTuin() {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="flex-1 text-xs gap-1 rounded-xl"
+                  className="sv-button sv-button-thin-border flex-1 text-xs gap-1"
                   onClick={() => markWatered.mutate(p.id)}
                   disabled={markWatered.isPending}
                 >
@@ -149,14 +149,14 @@ export default function TuingidsMijnTuin() {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="flex-1 text-xs gap-1 rounded-xl"
+                  className="sv-button sv-button-thin-border flex-1 text-xs gap-1"
                   onClick={() => markFed.mutate(p.id)}
                   disabled={markFed.isPending}
                 >
                   <Leaf className="h-3 w-3" /> Bemest
                 </Button>
                 <Link to="/tuinieren">
-                  <Button size="sm" variant="outline" className="text-xs rounded-xl">Bekijk</Button>
+                  <Button size="sm" variant="outline" className="sv-button sv-button-thin-border text-xs">Bekijk</Button>
                 </Link>
               </div>
             </div>
