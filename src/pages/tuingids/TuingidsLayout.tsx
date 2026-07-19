@@ -23,7 +23,7 @@ export default function TuingidsLayout() {
             <Link
               key={item.to}
               to={item.to}
-              className={`sv-button flex items-center gap-1.5 px-3 py-2 text-sm whitespace-nowrap shrink-0${active ? "" : " sv-button-thin-border"}`}
+              className="sv-button flex items-center gap-1.5 px-3 py-2 text-base whitespace-nowrap shrink-0"
             >
               <span>{item.emoji}</span>
               <span>{item.label}</span>

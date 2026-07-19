@@ -1893,6 +1893,374 @@ function WaterSection({
   );
 }
 
+// ─── FeedingSection component ───────────────────────────────────────────────
+
+function FeedingSection({
+  plant,
+  onSyncLastFed,
+  isUpdating,
+}: {
+  plant: Plant;
+  onSyncLastFed: (isoDate: string | null) => void;
+  isUpdating: boolean;
+}) {
+  const { entries, addEntry, updateEntry, deleteEntry } = useGrowthLog();
+
+  const feedHistory = entries
+    .filter(
+      (e) =>
+        e.fertilized &&
+        (e.plant_id === plant.id || e.plant_name === plant.name),
+    )
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  const lastFedDateStr =
+    feedHistory[0]?.date ?? plant.last_fed_at?.slice(0, 10) ?? null;
+
+  const interval = plant.feeding_interval_days ?? null;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const lastFedDate = lastFedDateStr
+    ? new Date(lastFedDateStr + "T00:00:00")
+    : null;
+
+  const daysAgo =
+    lastFedDate !== null
+      ? Math.floor((today.getTime() - lastFedDate.getTime()) / 86_400_000)
+      : null;
+
+  const nextFeedDate =
+    lastFedDate && interval
+      ? new Date(lastFedDate.getTime() + interval * 86_400_000)
+      : null;
+
+  const daysLeft =
+    nextFeedDate !== null
+      ? Math.ceil((nextFeedDate.getTime() - today.getTime()) / 86_400_000)
+      : null;
+
+  const currentMonth = MONTH_OPTIONS[new Date().getMonth()];
+  const outsideFeedingSeason =
+    plant.feeding_months.length > 0 &&
+    !plant.feeding_months.includes(currentMonth);
+
+  const [quickNote, setQuickNote] = useState("");
+  const [adviceOpen, setAdviceOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editNote, setEditNote] = useState("");
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  function recordFeeding(note: string) {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    addEntry({
+      plant_id: plant.id,
+      plant_name: plant.name,
+      date: todayStr,
+      notes: note || "Voeding gegeven",
+      height_cm: null,
+      flower_count: null,
+      fruit_count: null,
+      watered: false,
+      fertilized: true,
+      photo_url: "",
+    });
+    onSyncLastFed(todayStr);
+    setQuickNote("");
+  }
+
+  function handleDelete(id: string) {
+    const remaining = entries
+      .filter(
+        (e) =>
+          e.id !== id &&
+          e.fertilized &&
+          (e.plant_id === plant.id || e.plant_name === plant.name),
+      )
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    deleteEntry(id);
+    onSyncLastFed(remaining[0]?.date ?? null);
+    setConfirmDeleteId(null);
+  }
+
+  function handleSaveNote(id: string) {
+    updateEntry(id, { notes: editNote.trim() || "Voeding gegeven" });
+    setEditingId(null);
+  }
+
+  function daysAgoLabel(n: number) {
+    if (n === 0) return "vandaag";
+    if (n === 1) return "gisteren";
+    return `${n} dagen geleden`;
+  }
+
+  function daysLeftBadge() {
+    if (daysLeft === null || !interval) return null;
+    if (daysLeft < 0)
+      return {
+        label: `${Math.abs(daysLeft)} dag${Math.abs(daysLeft) !== 1 ? "en" : ""} te laat`,
+        overdue: true,
+      };
+    if (daysLeft === 0) return { label: "Vandaag voeding geven", overdue: true };
+    if (daysLeft === 1) return { label: "Morgen voeding geven", overdue: false };
+    return { label: `Over ${daysLeft} dagen`, overdue: false };
+  }
+
+  const badge = daysLeftBadge();
+
+  const hasAdvice = !!(
+    plant.feeding_notes ||
+    plant.feeding_interval_days ||
+    plant.feeding_months.length > 0
+  );
+
+  return (
+    <div className="sv-panel p-4 space-y-4">
+      <h3 className="sv-heading text-xl flex items-center gap-2">
+        <Leaf className="h-4 w-4" /> Voeding geven
+      </h3>
+
+      {/* Huidige voedingsstatus */}
+      <div className="space-y-2">
+        {outsideFeedingSeason && (
+          <p className="text-sm sv-muted italic">
+            Deze plant hoeft normaal gesproken deze maand geen voeding te krijgen.
+          </p>
+        )}
+        {!lastFedDate ? (
+          <p className="text-sm sv-muted">Nog geen voedingsgift geregistreerd.</p>
+        ) : (
+          <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+            <span className="sv-muted">Laatste voedingsgift</span>
+            <span>
+              {lastFedDate.toLocaleDateString("nl-NL", {
+                day: "numeric",
+                month: "long",
+              })}
+              {daysAgo !== null && (
+                <span className="sv-muted ml-1.5">({daysAgoLabel(daysAgo)})</span>
+              )}
+            </span>
+            {nextFeedDate && (
+              <>
+                <span className="sv-muted">Volgende voedingsgift</span>
+                <span>
+                  {nextFeedDate.toLocaleDateString("nl-NL", {
+                    day: "numeric",
+                    month: "long",
+                  })}
+                </span>
+              </>
+            )}
+            {interval && (
+              <>
+                <span className="sv-muted">Voedingsinterval</span>
+                <span>
+                  elke {interval} dag{interval !== 1 ? "en" : ""}
+                </span>
+              </>
+            )}
+          </div>
+        )}
+        {!interval && (
+          <p className="text-xs sv-muted">
+            Geen vast voedingsinterval beschikbaar — geef alleen voeding wanneer de plant actief groeit.
+          </p>
+        )}
+        {badge && (
+          <span
+            className={`inline-flex items-center gap-1.5 text-sm px-3 py-1 rounded-full sv-heading ${
+              badge.overdue ? "sv-badge-overdue" : "sv-badge-ok"
+            }`}
+          >
+            <Leaf className="h-3 w-3" /> {badge.label}
+          </span>
+        )}
+      </div>
+
+      {/* Snelle voedingsactie */}
+      <div className="flex gap-2">
+        <Input
+          placeholder="Notitie (optioneel)..."
+          value={quickNote}
+          onChange={(e) => setQuickNote(e.target.value)}
+          className="text-sm"
+          onKeyDown={(e) => e.key === "Enter" && recordFeeding(quickNote)}
+        />
+        <Button
+          size="sm"
+          className="sv-button shrink-0 gap-1.5"
+          onClick={() => recordFeeding(quickNote)}
+          disabled={isUpdating}
+        >
+          <Leaf className="h-3.5 w-3.5" /> Voeding gegeven
+        </Button>
+      </div>
+
+      {/* Voedingsadvies */}
+      {hasAdvice && (
+        <div>
+          <button
+            type="button"
+            onClick={() => setAdviceOpen(!adviceOpen)}
+            className="sv-button sv-button-thin-border w-full flex items-center justify-between gap-2 px-4 py-2 text-sm"
+          >
+            <span>Voedingsadvies</span>
+            {adviceOpen ? (
+              <ChevronUp className="h-3.5 w-3.5" />
+            ) : (
+              <ChevronDown className="h-3.5 w-3.5" />
+            )}
+          </button>
+          {adviceOpen && (
+            <div className="sv-inset mt-2 px-4 py-3 space-y-1.5 text-sm rounded-xl">
+              {plant.feeding_notes && (
+                <p>
+                  <span className="sv-muted">Advies: </span>
+                  {plant.feeding_notes}
+                </p>
+              )}
+              {plant.feeding_interval_days && (
+                <p>
+                  <span className="sv-muted">Interval: </span>
+                  elke {plant.feeding_interval_days} dagen
+                </p>
+              )}
+              {plant.feeding_months.length > 0 && (
+                <p>
+                  <span className="sv-muted">Voedingsmaanden: </span>
+                  {plant.feeding_months
+                    .map((m) => m.charAt(0).toUpperCase() + m.slice(1))
+                    .join(", ")}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Voedingsgeschiedenis */}
+      <div>
+        <button
+          type="button"
+          onClick={() => setHistoryOpen(!historyOpen)}
+          className="sv-button sv-button-thin-border w-full flex items-center justify-between gap-2 px-4 py-2 text-sm"
+        >
+          <span>
+            Voedingsgeschiedenis
+            {feedHistory.length > 0 && (
+              <span className="sv-muted ml-1">({feedHistory.length})</span>
+            )}
+          </span>
+          {historyOpen ? (
+            <ChevronUp className="h-3.5 w-3.5" />
+          ) : (
+            <ChevronDown className="h-3.5 w-3.5" />
+          )}
+        </button>
+        {historyOpen && (
+          <div className="mt-2 space-y-1.5 max-h-72 overflow-y-auto pr-0.5">
+            {feedHistory.length === 0 ? (
+              <p className="text-sm sv-muted text-center py-4">
+                Nog geen voedingsgiften geregistreerd.
+              </p>
+            ) : (
+              feedHistory.map((entry) => (
+                <div
+                  key={entry.id}
+                  className="sv-inset px-3 py-2.5 rounded-xl space-y-1.5"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-xs sv-muted font-medium">
+                      {new Date(entry.date + "T00:00:00").toLocaleDateString(
+                        "nl-NL",
+                        { day: "numeric", month: "long", year: "numeric" },
+                      )}
+                    </p>
+                    {confirmDeleteId === entry.id ? (
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="text-xs sv-muted">Verwijderen?</span>
+                        <button
+                          onClick={() => handleDelete(entry.id)}
+                          className="text-xs sv-badge-overdue px-2 py-0.5 rounded-full"
+                        >
+                          Ja
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeleteId(null)}
+                          className="text-xs sv-badge-ok px-2 py-0.5 rounded-full"
+                        >
+                          Nee
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => {
+                            setEditingId(entry.id);
+                            setEditNote(
+                              entry.notes === "Voeding gegeven" ? "" : entry.notes,
+                            );
+                          }}
+                          className="sv-icon-slot h-6 w-6 flex items-center justify-center opacity-60 hover:opacity-100"
+                          title="Notitie bewerken"
+                        >
+                          <Pencil className="h-2.5 w-2.5" />
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeleteId(entry.id)}
+                          className="sv-icon-slot h-6 w-6 flex items-center justify-center opacity-60 hover:opacity-100"
+                          title="Verwijderen"
+                        >
+                          <X className="h-2.5 w-2.5" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  {editingId === entry.id ? (
+                    <div className="flex gap-1.5">
+                      <Input
+                        value={editNote}
+                        onChange={(e) => setEditNote(e.target.value)}
+                        placeholder="Notitie..."
+                        className="text-xs h-7"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleSaveNote(entry.id);
+                          if (e.key === "Escape") setEditingId(null);
+                        }}
+                      />
+                      <button
+                        onClick={() => handleSaveNote(entry.id)}
+                        className="sv-button sv-button-thin-border px-2 py-1 text-xs shrink-0"
+                      >
+                        ✓
+                      </button>
+                      <button
+                        onClick={() => setEditingId(null)}
+                        className="sv-button sv-button-ghost px-2 py-1 text-xs shrink-0"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ) : (
+                    entry.notes &&
+                    entry.notes !== "Voeding gegeven" && (
+                      <p className="text-sm">{entry.notes}</p>
+                    )
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── PlantLogboek component ─────────────────────────────────────────────────
 
 function PlantLogboek({ plantName }: { plantName: string }) {
@@ -2263,12 +2631,12 @@ export default function Tuinieren() {
     });
   }
 
-  function markFed() {
+  function handleSyncLastFed(isoDate: string | null) {
     if (!view) return;
     updatePlant.mutate({
       id: view.id,
       patch: {
-        last_fed_at: new Date().toISOString(),
+        last_fed_at: isoDate ? new Date(isoDate).toISOString() : null,
         last_feeding_reminder_sent_at: null,
       },
     });
@@ -2734,51 +3102,35 @@ export default function Tuinieren() {
               )}
 
               {/* Action row */}
-              {(() => {
-                const feedStatus = feedingStatus(view);
-                return (
-                  <div className="flex items-center gap-3 flex-wrap">
-                    {feedStatus && (
-                      <span
-                        className={`sv-heading inline-flex items-center gap-1 text-sm px-3 py-1.5 rounded-full ${
-                          feedStatus.overdue ? "sv-badge-overdue" : "sv-badge-ok"
-                        }`}
-                      >
-                        <Leaf className="h-3.5 w-3.5" /> {feedStatus.label}
-                      </span>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="sv-button sv-button-thin-border text-xl"
-                      onClick={markFed}
-                      disabled={updatePlant.isPending}
-                    >
-                      <Leaf className="h-3.5 w-3.5" /> Voeding gegeven vandaag
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="sv-button sv-button-thin-border text-xl"
-                      onClick={() =>
-                        updatePlant.mutate({
-                          id: view.id,
-                          patch: { planted: !view.planted },
-                        })
-                      }
-                      disabled={updatePlant.isPending}
-                    >
-                      <Sprout className="h-3.5 w-3.5" />{" "}
-                      {view.planted ? "Gepland" : "Markeer als gepland"}
-                    </Button>
-                  </div>
-                );
-              })()}
+              <div className="flex items-center gap-3 flex-wrap">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="sv-button sv-button-thin-border text-xl"
+                  onClick={() =>
+                    updatePlant.mutate({
+                      id: view.id,
+                      patch: { planted: !view.planted },
+                    })
+                  }
+                  disabled={updatePlant.isPending}
+                >
+                  <Sprout className="h-3.5 w-3.5" />{" "}
+                  {view.planted ? "Gepland" : "Markeer als gepland"}
+                </Button>
+              </div>
 
               {/* Water sectie */}
               <WaterSection
                 plant={view}
                 onSyncLastWatered={handleSyncLastWatered}
+                isUpdating={updatePlant.isPending}
+              />
+
+              {/* Voeding sectie */}
+              <FeedingSection
+                plant={view}
+                onSyncLastFed={handleSyncLastFed}
                 isUpdating={updatePlant.isPending}
               />
 
