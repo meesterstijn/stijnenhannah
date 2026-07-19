@@ -1076,6 +1076,23 @@ function InfoRow({ label, value }: { label: string; value: string | null }) {
   );
 }
 
+function CompactInfo({ label, value }: { label: string; value: string | null }) {
+  if (!value) return null;
+  return (
+    <div>
+      <p className="text-xs sv-muted uppercase tracking-wider">{label}</p>
+      <p className="text-sm font-medium mt-0.5">{value}</p>
+    </div>
+  );
+}
+
+function sn(structured: (string | null | undefined)[], notes: (string | null | undefined)[]): string | null {
+  const s = structured.filter(Boolean).join(" · ");
+  const n = notes.filter(Boolean).join(" · ");
+  if (s && n) return `${s}\n${n}`;
+  return s || n || null;
+}
+
 function PlantCard({
   p,
   onOpen,
@@ -1987,177 +2004,137 @@ export default function Tuinieren() {
               <div className="grid sm:grid-cols-2 gap-4">
                 <InfoRow label="Soort" value={view.species} />
                 <InfoRow label="Levensduur" value={view.lifecycle} />
-                <InfoRow
-                  label="Grootte"
-                  value={view.size_cm ? `${view.size_cm} cm` : null}
-                />
-                <InfoRow
-                  label="Plantafstand"
-                  value={view.spacing_cm ? `${view.spacing_cm} cm` : null}
-                />
-                <InfoRow
-                  label="Groeiwijze"
-                  value={
-                    view.growth_habit.length > 0
-                      ? view.growth_habit.join(", ")
-                      : null
-                  }
-                />
                 <InfoRow label="Locatie" value={view.location} />
                 <InfoRow label="Zon" value={view.sun_needs ? view.sun_needs.replace(/,/g, " · ") : null} />
-                <InfoRow label="Seizoen" value={view.season_notes} />
+                <InfoRow
+                  label="Groeiwijze"
+                  value={view.growth_habit.length > 0 ? view.growth_habit.join(", ") : null}
+                />
+                <InfoRow
+                  label="Grootte"
+                  value={[
+                    view.size_cm ? `${view.size_cm} cm hoog` : null,
+                    view.spacing_cm ? `${view.spacing_cm} cm afstand` : null,
+                  ].filter(Boolean).join(" · ") || null}
+                />
                 <InfoRow label="Volle grond of pot" value={view.growing_method} />
                 {view.growing_method === "Pot" && (
                   <InfoRow
                     label="Potgrootte"
-                    value={
-                      [
-                        view.pot_min_liters
-                          ? `Minimaal ${view.pot_min_liters} liter`
-                          : null,
-                        view.pot_recommended_liters
-                          ? `Aanbevolen ${view.pot_recommended_liters} liter`
-                          : null,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ") || null
-                    }
+                    value={[
+                      view.pot_min_liters ? `min. ${view.pot_min_liters} L` : null,
+                      view.pot_recommended_liters ? `aanbevolen ${view.pot_recommended_liters} L` : null,
+                    ].filter(Boolean).join(" · ") || null}
                   />
                 )}
                 <InfoRow
                   label="Water"
-                  value={
+                  value={sn(
                     [
-                      view.watering_method.length > 0
-                        ? view.watering_method.join(", ")
+                      view.water_interval_days ? `elke ${view.water_interval_days} d (grond)` : null,
+                      view.pot_water_interval_days ? `elke ${view.pot_water_interval_days} d (pot)` : null,
+                      view.watering_method.length > 0 ? view.watering_method.join(", ") : null,
+                      view.watering_method.includes("Onder de voet (weken)") && view.watering_soak_minutes
+                        ? `${view.watering_soak_minutes} min. weken`
                         : null,
-                      view.watering_method.includes("Onder de voet (weken)") &&
-                      view.watering_soak_minutes
-                        ? `${view.watering_soak_minutes} minuten weken`
-                        : null,
-                      view.growing_method === "Pot"
-                        ? view.pot_water_notes
-                        : null,
+                    ],
+                    [
+                      view.growing_method === "Pot" ? view.pot_water_notes : null,
                       view.water_notes,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ") || null
-                  }
+                    ],
+                  )}
+                />
+                <InfoRow
+                  label="Seizoen"
+                  value={view.season_notes}
                 />
                 <InfoRow
                   label="Zaaien"
-                  value={
+                  value={sn(
                     [
-                      view.sow_months.length > 0
-                        ? view.sow_months.join(", ")
-                        : null,
-                      view.sow_week,
-                      view.sow_notes,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ") || null
-                  }
+                      view.sow_months.length > 0 ? view.sow_months.join(", ") : null,
+                      view.sow_week || null,
+                    ],
+                    [view.sow_notes],
+                  )}
                 />
                 <InfoRow
-                  label="Bloeien"
-                  value={
+                  label="Bloei"
+                  value={sn(
                     [
-                      view.bloom_months.length > 0
-                        ? view.bloom_months.join(", ")
-                        : null,
-                      view.bloom_week,
-                      view.bloom_notes,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ") || null
-                  }
+                      view.bloom_months.length > 0 ? view.bloom_months.join(", ") : null,
+                      view.bloom_week || null,
+                    ],
+                    [view.bloom_notes],
+                  )}
                 />
                 <InfoRow
                   label="Oogst"
-                  value={
+                  value={sn(
                     [
-                      view.harvest_months.length > 0
-                        ? view.harvest_months.join(", ")
-                        : null,
-                      view.harvest_week,
-                      view.harvest_notes,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ") || null
-                  }
+                      view.harvest_months.length > 0 ? view.harvest_months.join(", ") : null,
+                      view.harvest_week || null,
+                    ],
+                    [view.harvest_notes],
+                  )}
                 />
-                <InfoRow label="Kas" value={view.greenhouse_notes} />
+                <InfoRow
+                  label="Kas"
+                  value={sn(
+                    [parseGreenhouseNotes(view.greenhouse_notes).pref || null],
+                    [parseGreenhouseNotes(view.greenhouse_notes).notes || null],
+                  )}
+                />
                 <InfoRow
                   label="Voeding"
-                  value={
+                  value={sn(
                     [
-                      view.feeding_interval_days
-                        ? `Elke ${view.feeding_interval_days} dagen`
-                        : null,
-                      view.feeding_months.length > 0
-                        ? view.feeding_months.join(", ")
-                        : null,
-                      view.feeding_notes,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ") || null
-                  }
+                      view.feeding_interval_days ? `elke ${view.feeding_interval_days} dagen` : null,
+                      view.feeding_months.length > 0 ? view.feeding_months.join(", ") : null,
+                    ],
+                    [view.feeding_notes],
+                  )}
                 />
                 <InfoRow
                   label="Grond"
-                  value={
+                  value={sn(
                     [
                       view.soil_ph_min || view.soil_ph_max
                         ? `pH ${view.soil_ph_min ?? "?"}–${view.soil_ph_max ?? "?"}`
                         : null,
-                      view.soil_notes,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ") || null
-                  }
+                    ],
+                    [view.soil_notes],
+                  )}
                 />
                 <InfoRow
                   label="Klimaat"
-                  value={
-                    [view.temperature_notes, view.humidity_notes]
-                      .filter(Boolean)
-                      .join(" · ") || null
-                  }
+                  value={[view.temperature_notes, view.humidity_notes].filter(Boolean).join(" · ") || null}
                 />
                 <InfoRow
                   label="Winterhardheid"
-                  value={
-                    [view.winter_hardiness, view.winter_notes]
-                      .filter(Boolean)
-                      .join(" · ") || null
-                  }
+                  value={sn(
+                    [view.winter_hardiness],
+                    [view.winter_notes],
+                  )}
                 />
                 <InfoRow label="Snoeien" value={view.pruning_notes} />
                 <InfoRow label="Ziektes & plagen" value={view.pest_notes} />
                 <InfoRow
                   label="Vermeerderen"
-                  value={
-                    [
-                      view.propagation_methods.length > 0
-                        ? view.propagation_methods.join(", ")
-                        : null,
-                      view.propagation_notes,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ") || null
-                  }
+                  value={sn(
+                    [view.propagation_methods.length > 0 ? view.propagation_methods.join(", ") : null],
+                    [view.propagation_notes],
+                  )}
                 />
                 <InfoRow
                   label="Giftig voor"
-                  value={
+                  value={sn(
                     [
                       view.toxic_to_humans ? "Mens" : null,
                       view.toxic_to_cats ? "Kat" : null,
-                      view.toxicity_notes,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ") || null
-                  }
+                    ],
+                    [view.toxicity_notes],
+                  )}
                 />
                 <InfoRow label="Overig" value={view.general_notes} />
               </div>
