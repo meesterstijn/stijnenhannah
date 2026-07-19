@@ -96,7 +96,7 @@ export const diagnoses: Diagnose[] = [
       "Regelmatig en gelijkmatig water geven",
       "Geen blad nat maken in felle zon",
       "Nooit overdoseren bij bemesten",
-      "Goede luchcirculatie tussen planten",
+      "Goede luchtcirculatie tussen planten",
     ],
     related: ["bladeren-geel", "bladeren-vlekken"],
   },
@@ -371,7 +371,7 @@ export const diagnoses: Diagnose[] = [
       {
         title: "Plotselinge omgevingsverandering",
         probability: 5,
-        symptoms: ["masaal bladverlies na verplaatsen", "of na verwarming aanzetten in herfst"],
+        symptoms: ["massaal bladverlies na verplaatsen", "of na verwarming aanzetten in herfst"],
         solution: ["plant laten acclimatiseren", "niet direct in tocht of droge lucht zetten", "gewone bladval door seizoen is normaal"],
       },
       {
@@ -452,7 +452,7 @@ export const diagnoses: Diagnose[] = [
         title: "Hittestress",
         probability: 5,
         symptoms: ["plotseling bloemen verliezen bij warmte", "boven 35°C is stuifmeel steriel"],
-        solution: ["schaduw bieden in de hitte", "extra water geven", "luchtdruk verbeteren"],
+        solution: ["schaduw bieden in de hitte", "extra water geven", "luchtcirculatie verbeteren"],
       },
       {
         title: "Onregelmatig water geven",
@@ -504,8 +504,8 @@ export const diagnoses: Diagnose[] = [
       {
         title: "Enkelvoudig exemplaar van kruisbestuivend gewas",
         probability: 4,
-        symptoms: ["bloeit maar geen vrucht", "appel, peer, kers of courgette"],
-        solution: ["tweede exemplaar planten", "nabijgelegen buurplant controleren"],
+        symptoms: ["bloeit maar geen vrucht", "appel, peer of kers — hebben een andere variëteit nodig"],
+        solution: ["tweede exemplaar (andere variëteit) planten", "nabijgelegen buurplant controleren"],
       },
     ],
     prevention: [
