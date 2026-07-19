@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase, type Plant, type PlantPhoto } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
@@ -30,6 +31,7 @@ import {
   ChevronUp,
   ChevronLeft,
   ChevronRight,
+  Lightbulb,
 } from "lucide-react";
 
 const SUN_OPTIONS = ["Volle zon", "Halfvolle zon", "Half schaduw", "Schaduw"] as const;
@@ -1770,6 +1772,11 @@ export default function Tuinieren() {
         </Button>
 
         <div className="flex items-center gap-2 justify-end">
+          <Link to="/tuingids">
+            <Button className="sv-button text-2xl h-11 px-3 sm:px-6">
+              <Lightbulb className="h-4 w-4" /><span className="hidden sm:inline">Tuingids</span>
+            </Button>
+          </Link>
           <Button
             className="sv-button text-2xl h-11 px-3 sm:px-6"
             onClick={handleExport}

@@ -24,6 +24,18 @@ import Weer from "@/pages/Weer";
 import Verjaardagen from "@/pages/Verjaardagen";
 import Schoonmaak from "@/pages/Schoonmaak";
 import Vakantie from "@/pages/Vakantie";
+import Tips from "@/pages/Tips";
+import TuingidsLayout from "@/pages/tuingids/TuingidsLayout";
+import TuingidsDashboard from "@/pages/tuingids/TuingidsDashboard";
+import TuingidsEncyclopedia from "@/pages/tuingids/TuingidsEncyclopedia";
+import TuingidsEncyclopediaDetail from "@/pages/tuingids/TuingidsEncyclopediaDetail";
+import TuingidsDokter from "@/pages/tuingids/TuingidsDokter";
+import TuingidsDokterDetail from "@/pages/tuingids/TuingidsDokterDetail";
+import TuingidsLogboek from "@/pages/tuingids/TuingidsLogboek";
+import TuingidsMijnTuin from "@/pages/tuingids/TuingidsMijnTuin";
+import TuingidsKalender from "@/pages/tuingids/TuingidsKalender";
+import TuingidsStatistieken from "@/pages/tuingids/TuingidsStatistieken";
+import TuingidsZoek from "@/pages/tuingids/TuingidsZoek";
 import { Link } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 
@@ -96,6 +108,19 @@ function AppRoutes() {
         <Route path="/verjaardagen" element={<Verjaardagen />} />
         <Route path="/schoonmaak" element={<Schoonmaak />} />
         <Route path="/vakantie" element={<Vakantie />} />
+        <Route path="/tips" element={<Tips />} />
+        <Route path="/tuingids" element={<TuingidsLayout />}>
+          <Route index element={<TuingidsDashboard />} />
+          <Route path="encyclopedie" element={<TuingidsEncyclopedia />} />
+          <Route path="encyclopedie/:id" element={<TuingidsEncyclopediaDetail />} />
+          <Route path="dokter" element={<TuingidsDokter />} />
+          <Route path="dokter/:id" element={<TuingidsDokterDetail />} />
+          <Route path="logboek" element={<TuingidsLogboek />} />
+          <Route path="mijn-tuin" element={<TuingidsMijnTuin />} />
+          <Route path="kalender" element={<TuingidsKalender />} />
+          <Route path="statistieken" element={<TuingidsStatistieken />} />
+          <Route path="zoek" element={<TuingidsZoek />} />
+        </Route>
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>

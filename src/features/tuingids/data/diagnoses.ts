@@ -1,0 +1,761 @@
+import type { Diagnose } from "../types";
+
+export const diagnoses: Diagnose[] = [
+  // BLADEREN
+  {
+    id: "bladeren-geel",
+    category: "bladeren",
+    title: "Gele bladeren",
+    emoji: "🟡",
+    description: "Bladeren verkleuren geel, gedeeltelijk of volledig.",
+    oorzaken: [
+      {
+        title: "Overbewatering",
+        probability: 5,
+        symptoms: ["hele plant geel", "grond continu nat", "slap blad ondanks water", "zure geur uit grond"],
+        solution: ["minder water geven", "drainagegaten controleren", "pot met betere drainage", "wortels controleren op rot"],
+      },
+      {
+        title: "Stikstoftekort",
+        probability: 4,
+        symptoms: ["oudere onderste bladeren worden geel", "nieuwe bladeren blijven groen", "langzame groei"],
+        solution: ["stikstofrijke meststof geven (bijv. brandnetelwater)", "NPK-meststof 20-10-10", "wekelijks bijmesten"],
+      },
+      {
+        title: "IJzertekort",
+        probability: 4,
+        symptoms: ["jonge bladeren geel", "nerven blijven groen (chlorose)", "pH grond hoog (>7)"],
+        solution: ["pH verlagen met zwavelkorrels", "ijzerchelaat spuiten op blad", "ericagrond bijmengen"],
+      },
+      {
+        title: "Te weinig licht",
+        probability: 3,
+        symptoms: ["plant staat donker", "lange, zwakke stengels", "bladeren geel en vallen af"],
+        solution: ["verplaats naar lichtere plek", "groeilamp toevoegen (16u/dag)", "blad dat al geel is verwijderen"],
+      },
+      {
+        title: "Vorstschade",
+        probability: 2,
+        symptoms: ["plotseling geel na koude nacht", "bladranden eerst aangetast", "bovenste bladeren"],
+        solution: ["bescherm met vliesplastic", "beschadigde bladeren verwijderen", "plant naar binnen bij vorst"],
+      },
+      {
+        title: "Wortelrot",
+        probability: 2,
+        symptoms: ["plant kwijnend ondanks water", "wortels bruin en zacht bij controle"],
+        solution: ["rotte wortels wegknippen", "herbeplanten in droge grond", "kaneel op wondvlak als schimmelbescherming"],
+      },
+    ],
+    prevention: [
+      "Vinger in grond steken voor water geven — pas water als het droog aanvoelt",
+      "Planten op een lichte plek zetten",
+      "Elke 2 weken bijmesten tijdens het groeiseizoen",
+      "Goede drainage in potten en borders",
+    ],
+    related: ["bladeren-bruin", "bladeren-slap", "bladeren-vallen-af"],
+  },
+  {
+    id: "bladeren-bruin",
+    category: "bladeren",
+    title: "Bruine bladeren",
+    emoji: "🟤",
+    description: "Bladeren worden bruin, gedeeltelijk of volledig.",
+    oorzaken: [
+      {
+        title: "Te droog",
+        probability: 5,
+        symptoms: ["bladranden bruin en droog", "blad voelt droog en broos", "grond kurkdroog"],
+        solution: ["direct water geven", "grond laat water af — potgrond verversen", "mulch toevoegen"],
+      },
+      {
+        title: "Zonnebrand",
+        probability: 4,
+        symptoms: ["bruine vlekken op de kant die zon vangt", "plotseling na zonnige dag", "vlekken zijn droog"],
+        solution: ["plant verplaatsen naar halfschaduw", "schaduwdoek plaatsen", "aangetast blad laten zitten (beschermt rest)"],
+      },
+      {
+        title: "Teveel meststof",
+        probability: 4,
+        symptoms: ["bladpunten bruin en droog", "witte korst op grond bij potten", "vlak na bemesting"],
+        solution: ["grond doorspoelen met water (3x potvolume)", "2 weken niet bemesten", "grond verversen"],
+      },
+      {
+        title: "Wortelschade",
+        probability: 3,
+        symptoms: ["plotselinge bruine bladeren na graven of verpotten", "plant kwijnend"],
+        solution: ["plant niet verstoren", "extra water geven", "wortels tijd geven om te herstellen"],
+      },
+      {
+        title: "Bladziekte (schimmel of bacterie)",
+        probability: 3,
+        symptoms: ["bruine vlekken met gele rand", "verspreiding zichtbaar over de tijd", "vochtig weer"],
+        solution: ["aangetaste bladeren verwijderen", "koperpreparaat spuiten", "luchtigheid verbeteren"],
+      },
+    ],
+    prevention: [
+      "Regelmatig en gelijkmatig water geven",
+      "Geen blad nat maken in felle zon",
+      "Nooit overdoseren bij bemesten",
+      "Goede luchcirculatie tussen planten",
+    ],
+    related: ["bladeren-geel", "bladeren-vlekken"],
+  },
+  {
+    id: "bladeren-slap",
+    category: "bladeren",
+    title: "Slappe bladeren",
+    emoji: "😔",
+    description: "Bladeren hangen slap, plant ziet er uitgeput uit.",
+    oorzaken: [
+      {
+        title: "Droogte",
+        probability: 5,
+        symptoms: ["grond kurkdroog", "pot lichtgewicht", "blad voelt droog"],
+        solution: ["direct grondig water geven", "pot in bak water zetten (30 min)", "voor de toekomst vaste waterschema"],
+      },
+      {
+        title: "Overbewatering",
+        probability: 4,
+        symptoms: ["grond drassig", "slappe bladeren ondanks nat grond", "geur van verrotting"],
+        solution: ["water inhouden", "drainagegaten vrijmaken", "wortelrot controleren"],
+      },
+      {
+        title: "Hitte",
+        probability: 4,
+        symptoms: ["slap in het heetst van de dag (12–16u)", "blad herstelt 's avonds"],
+        solution: ["schaduw bieden tijdens hittegolven", "water geven 's ochtends vroeg", "mulchen"],
+      },
+      {
+        title: "Wortelschade",
+        probability: 3,
+        symptoms: ["slap na verpotten of beschadiging", "wortels zichtbaar beschadigd"],
+        solution: ["rust geven", "licht water geven", "snoeien om verdamping te verminderen"],
+      },
+    ],
+    prevention: [
+      "Vaste waterschema aanhouden",
+      "Mulch om bodemvocht vast te houden",
+      "Planten niet in extreme hitte verpotten of verstoren",
+    ],
+    related: ["bladeren-geel", "bladeren-vallen-af"],
+  },
+  {
+    id: "bladeren-zwart",
+    category: "bladeren",
+    title: "Zwarte bladeren",
+    emoji: "⚫",
+    description: "Bladeren kleuren zwart of vertonen zwarte vlekken.",
+    oorzaken: [
+      {
+        title: "Vorstschade",
+        probability: 5,
+        symptoms: ["zwart na koude nacht", "water in cellen bevroren en geknapt", "begint aan buitenste delen"],
+        solution: ["bevroren bladeren laten zitten tot vorst voorbij is", "geleidelijk laten ontdooien", "daarna dood weefsel weghalen"],
+      },
+      {
+        title: "Roetdauw (schimmel op honingdauw)",
+        probability: 4,
+        symptoms: ["zwarte, vuilachtige aanslag", "veegbaar", "bladluis aanwezig of aanwezig geweest"],
+        solution: ["bladluis bestrijden als oorzaak", "blad afwassen met lauw water en zeep", "roetdauw verdwijnt na aanpak bladluis"],
+      },
+      {
+        title: "Bacteriële infectie",
+        probability: 3,
+        symptoms: ["zwarte, natte vlekken die uitbreiden", "onaangename geur", "stengel ook aangetast"],
+        solution: ["aangetaste delen wegknippen met ontsmet gereedschap", "koperpreparaat spuiten", "plant isoleren"],
+      },
+      {
+        title: "Overbewatering (ernstig)",
+        probability: 3,
+        symptoms: ["zwarte, zachte bladeren onderkant", "wortelrot gevorderd"],
+        solution: ["water stoppen", "wortelrot behandelen of plant laten gaan"],
+      },
+    ],
+    prevention: [
+      "Plant beschermen tegen vorst",
+      "Bladluis vroeg bestrijden",
+      "Niet te nat houden",
+    ],
+    related: ["bladeren-bruin", "bladeren-geel"],
+  },
+  {
+    id: "bladeren-wit",
+    category: "bladeren",
+    title: "Witte aanslag op blad",
+    emoji: "⬜",
+    description: "Witte vlekken, aanslag of poeder op de bladeren.",
+    oorzaken: [
+      {
+        title: "Meeldauw (echte)",
+        probability: 5,
+        symptoms: ["wit poederig laagje op bovenkant blad", "verspreidt zich snel", "warm droog weer"],
+        solution: ["verdund melkoplossing spuiten (1:9 met water)", "baking soda oplossing", "aangetast blad verwijderen", "luchtigheid verbeteren"],
+      },
+      {
+        title: "Valse meeldauw",
+        probability: 4,
+        symptoms: ["wit/grijs pluis onderkant blad", "gele vlekken bovenkant", "koel en vochtig weer"],
+        solution: ["koperpreparaat spuiten", "aangetaste delen verwijderen", "luchtvochtigheid verlagen"],
+      },
+      {
+        title: "Kalkafzetting",
+        probability: 3,
+        symptoms: ["witte vlekken na besproeien", "veegbaar", "hard kraanwater"],
+        solution: ["afvegen met vochtige doek", "overschakelen op regenwater", "geen blad besproeien bij bekalkt water"],
+      },
+      {
+        title: "Spint (webben + stippen)",
+        probability: 3,
+        symptoms: ["fijn webje onderkant", "kleine witte/gele stippen bovenkant", "droog en warm"],
+        solution: ["onderkant blad flink nat spuiten", "roofmijten uitzetten", "neem-olie spray"],
+      },
+    ],
+    prevention: [
+      "Goede luchtcirculatie tussen planten",
+      "Regenwater gebruiken",
+      "Geen blad nat maken in de avond",
+    ],
+    related: ["bladeren-vlekken", "bladeren-bruin"],
+  },
+  {
+    id: "bladeren-paars",
+    category: "bladeren",
+    title: "Paarse bladeren",
+    emoji: "🟣",
+    description: "Bladeren kleuren paars of rood-paars.",
+    oorzaken: [
+      {
+        title: "Fosfortekort",
+        probability: 5,
+        symptoms: ["onderkant blad paars-rood", "begint bij oudere bladeren", "trage groei", "koude temperaturen"],
+        solution: ["fosfaatrijke meststof geven (bijv. beenmeel)", "pH controleren en aanpassen", "temperatuur verbeteren"],
+      },
+      {
+        title: "Kou / koudestress",
+        probability: 4,
+        symptoms: ["paarsige kleur na koude nacht", "met name bij jonge planten", "herstelt als het warmer wordt"],
+        solution: ["planten beschermen tegen kou", "vliesplastic gebruiken", "binnenshuis overwinteren"],
+      },
+    ],
+    prevention: [
+      "Plant niet uitplanten voor de ijsheiligen",
+      "Fosfor toevoegen bij start groeiseizoen",
+      "Vorstbescherming gereed hebben",
+    ],
+    related: ["bladeren-geel", "bladeren-slap"],
+  },
+  {
+    id: "bladeren-krullen",
+    category: "bladeren",
+    title: "Krullende bladeren",
+    emoji: "🌀",
+    description: "Bladeren krullen op, naar binnen of naar buiten.",
+    oorzaken: [
+      {
+        title: "Hittestress",
+        probability: 5,
+        symptoms: ["krullen naar boven of naar binnen", "overdag, in hete perioden", "bladeren herstellen 's avonds"],
+        solution: ["schaduw bieden", "extra water geven", "mulchen rond de plant"],
+      },
+      {
+        title: "Bladluis of trips",
+        probability: 4,
+        symptoms: ["bladeren krullen en zijn vervormd", "kleine insecten zichtbaar of sporen", "groei vertraagd"],
+        solution: ["insecten verwijderen met water", "insectenzeep spuiten", "biologische bestrijders inzetten"],
+      },
+      {
+        title: "Virusinfectie",
+        probability: 3,
+        symptoms: ["onregelmatige vervorming", "mozaiekpatroon op blad", "verspreiding naar andere planten"],
+        solution: ["aangetaste planten verwijderen (niet composteren)", "bladluisbestrijding (vectoren)", "resistant ras kiezen"],
+      },
+      {
+        title: "Onregelmatige watertoediening",
+        probability: 3,
+        symptoms: ["krullen bij tomaten — blaadjes rollen op", "groei gaat door", "geen andere symptomen"],
+        solution: ["regelmatiger water geven", "mulchen om temperatuur en vocht te stabiliseren"],
+      },
+    ],
+    prevention: [
+      "Regelmatig water geven",
+      "Insectenplagen vroeg aanpakken",
+      "Resistente rassen kiezen",
+    ],
+    related: ["bladeren-vlekken", "bladeren-geel"],
+  },
+  {
+    id: "bladeren-gaten",
+    category: "bladeren",
+    title: "Gaten in bladeren",
+    emoji: "🕳️",
+    description: "Bladeren vertonen onregelmatige of ronde gaten.",
+    oorzaken: [
+      {
+        title: "Slakken",
+        probability: 5,
+        symptoms: ["slijmspoor aanwezig", "schade 's nachts of na regen", "jonge planten zwaar aangetast"],
+        solution: ["slakkenkorrels (ijzerfosfaat)", "beerval", "koperen barrière", "planten verhogen"],
+      },
+      {
+        title: "Rupsen",
+        probability: 4,
+        symptoms: ["grote onregelmatige gaten", "uitwerpselen (zwarte bolletjes) zichtbaar", "vlinder of mot aanwezig"],
+        solution: ["rupsen handmatig verwijderen", "Bacillus thuringiensis spray", "insectengaas preventief"],
+      },
+      {
+        title: "Kevers (bladkever, aardvlo)",
+        probability: 3,
+        symptoms: ["kleine ronde gaatjes (hagelslagpatroon bij aardvlo)", "kleine donkere kevertjes zichtbaar"],
+        solution: ["insectengaas", "diatomeeënaarde strooien", "neem-olie spray"],
+      },
+      {
+        title: "Hagelschade",
+        probability: 2,
+        symptoms: ["plotseling na onweersbui", "uniform over alle planten", "randen van gaten zacht"],
+        solution: ["niets — plant herstelt zichzelf", "ernstig beschadigd blad verwijderen"],
+      },
+    ],
+    prevention: [
+      "Insectengaas over gevoelige koolgewassen",
+      "Regelmatige controle onderkant blad",
+      "Struikgewas rondom tuin verwijdert slakkenhabitat",
+    ],
+    related: ["bladeren-vlekken", "bladeren-bruin"],
+  },
+  {
+    id: "bladeren-vlekken",
+    category: "bladeren",
+    title: "Vlekken op bladeren",
+    emoji: "🔴",
+    description: "Bladeren vertonen gekleurde vlekken.",
+    oorzaken: [
+      {
+        title: "Schimmelziekte",
+        probability: 5,
+        symptoms: ["bruine of zwarte vlekken met gele ring", "verspreidt zich van blad tot blad", "vochtig weer"],
+        solution: ["aangetaste bladeren verwijderen", "koperpreparaat spuiten", "luchtigheid verbeteren"],
+      },
+      {
+        title: "Bacteriële vlek",
+        probability: 4,
+        symptoms: ["waterdoorweekte vlekken die bruin worden", "hoekige begrenzing langs nerven"],
+        solution: ["koperpreparaat", "aangetaste planten isoleren", "gereedschap ontsmetten"],
+      },
+      {
+        title: "Spint",
+        probability: 3,
+        symptoms: ["gele of witte stippen over het blad verspreid", "webje onderkant blad"],
+        solution: ["blad flink nat spuiten", "roofmijten Phytoseiulus inzetten", "neem-olie"],
+      },
+      {
+        title: "Zonnebrand",
+        probability: 2,
+        symptoms: ["bleke of bruine vlekken op de zonkant", "na plotselinge blootstelling aan felle zon"],
+        solution: ["geleidelijk aan zon wennen", "beschermen in het heetst van de dag"],
+      },
+    ],
+    prevention: [
+      "Droog blad houden (water bij de voet)",
+      "Ruim planten zodat lucht kan circuleren",
+      "Resistente rassen kiezen",
+    ],
+    related: ["bladeren-bruin", "bladeren-zwart"],
+  },
+  {
+    id: "bladeren-vallen-af",
+    category: "bladeren",
+    title: "Bladeren vallen af",
+    emoji: "🍂",
+    description: "Plant verliest bladeren, soms massaal.",
+    oorzaken: [
+      {
+        title: "Plotselinge omgevingsverandering",
+        probability: 5,
+        symptoms: ["masaal bladverlies na verplaatsen", "of na verwarming aanzetten in herfst"],
+        solution: ["plant laten acclimatiseren", "niet direct in tocht of droge lucht zetten", "gewone bladval door seizoen is normaal"],
+      },
+      {
+        title: "Overbewatering",
+        probability: 4,
+        symptoms: ["gele bladeren die vallen", "grond altijd nat"],
+        solution: ["minder water geven", "drainagegaten controleren"],
+      },
+      {
+        title: "Te droog",
+        probability: 4,
+        symptoms: ["bruine bladranden, dan bladval", "grond kurkdroog"],
+        solution: ["direct water geven en waterschema aanpassen"],
+      },
+      {
+        title: "Tocht of te koude lucht",
+        probability: 3,
+        symptoms: ["bladval bij de ramen, in de winter", "tocht van ventilatierooster of openstaand raam"],
+        solution: ["plant verplaatsen weg van tocht", "minimumtemperatuur 15°C voor tropische planten"],
+      },
+    ],
+    prevention: [
+      "Stabiele omgeving voor kamerplanten",
+      "Consistent waterschema",
+      "Niet verpotten in de winter",
+    ],
+    related: ["bladeren-geel", "bladeren-slap"],
+  },
+
+  // BLOEMEN
+  {
+    id: "bloemen-bloeit-niet",
+    category: "bloemen",
+    title: "Plant bloeit niet",
+    emoji: "🚫",
+    description: "Plant maakt geen bloemen, ook niet op het verwachte moment.",
+    oorzaken: [
+      {
+        title: "Te weinig licht",
+        probability: 5,
+        symptoms: ["plant staat donker", "veel blad, weinig bloemen"],
+        solution: ["verplaats naar zonnigere plek", "groeilamp gebruiken", "takken snoeien die de lichttoevoer blokkeren"],
+      },
+      {
+        title: "Teveel stikstof",
+        probability: 4,
+        symptoms: ["weelderig groen blad", "geen bloemen", "na intensief bemesten"],
+        solution: ["stoppen met stikstofrijke meststof", "kaliumrijke meststof geven (bevordert bloei)"],
+      },
+      {
+        title: "Nog niet rijp / jong",
+        probability: 4,
+        symptoms: ["jonge plant", "bloeit voor het eerst"],
+        solution: ["geduld hebben", "plant optimale condities bieden"],
+      },
+      {
+        title: "Rustperiode nodig",
+        probability: 3,
+        symptoms: ["kamerplanten die elk jaar bloeien (orchidee, clivia)", "na een periode niet gebloeid"],
+        solution: ["periode koeler houden (orchidee: 15°C 's nachts)", "minder water geven in rustfase", "daglicht aanpassen"],
+      },
+    ],
+    prevention: [
+      "Juiste lichtcondities bieden",
+      "Gebalanceerde bemesting (niet te stikstofrijk in de zomer)",
+      "Rustperiodes respecteren bij kamerplanten",
+    ],
+    related: ["bladeren-geel", "vruchten-geen-vruchten"],
+  },
+  {
+    id: "bloemen-vallen-af",
+    category: "bloemen",
+    title: "Bloemen vallen af",
+    emoji: "🌸",
+    description: "Bloemen of bloemknoppen vallen voortijdig af.",
+    oorzaken: [
+      {
+        title: "Hittestress",
+        probability: 5,
+        symptoms: ["plotseling bloemen verliezen bij warmte", "boven 35°C is stuifmeel steriel"],
+        solution: ["schaduw bieden in de hitte", "extra water geven", "luchtdruk verbeteren"],
+      },
+      {
+        title: "Onregelmatig water geven",
+        probability: 4,
+        symptoms: ["bloemknoppen vallen bij tomaten, paprika", "grond wisselend droog en nat"],
+        solution: ["gelijkmatig water geven", "mulchen"],
+      },
+      {
+        title: "Tocht of kou (kamerplanten)",
+        probability: 3,
+        symptoms: ["bloemknoppen vallen bij orchidee, gardenia na verplaatsen"],
+        solution: ["niet verplaatsen tijdens bloei", "stabiele temperatuur (>15°C)"],
+      },
+      {
+        title: "Slechte bestuiving",
+        probability: 3,
+        symptoms: ["bloemen komen maar vallen af zonder vrucht te zetten", "geen insecten aanwezig"],
+        solution: ["handmatig bestuiven (penseel)", "ramen openen voor insecten", "bloemrijke planten ernaast planten"],
+      },
+    ],
+    prevention: [
+      "Tijdens bloei niet verplaatsen of verpotten",
+      "Gelijkmatig water geven",
+      "Bestuivers aantrekken",
+    ],
+    related: ["vruchten-geen-vruchten", "vruchten-vallen-af"],
+  },
+
+  // VRUCHTEN
+  {
+    id: "vruchten-geen-vruchten",
+    category: "vruchten",
+    title: "Geen vruchten",
+    emoji: "🍅",
+    description: "Plant bloeit maar zet geen vruchten, of maakt helemaal geen vruchten.",
+    oorzaken: [
+      {
+        title: "Slechte bestuiving",
+        probability: 5,
+        symptoms: ["bloemen komen en vallen af", "geen insecten actief", "in kas of binnenshuis"],
+        solution: ["handmatig bestuiven met penseel", "bloei van twee exemplaren voor kruisbestuiving", "ramen en deuren openen"],
+      },
+      {
+        title: "Temperatuur te hoog (>35°C)",
+        probability: 4,
+        symptoms: ["stuifmeel steriel boven 35°C", "bloemen vallen af", "weinig vruchtzetting in hittegolf"],
+        solution: ["schaduwdoek", "extra water", "ventilatie in kas"],
+      },
+      {
+        title: "Enkelvoudig exemplaar van kruisbestuivend gewas",
+        probability: 4,
+        symptoms: ["bloeit maar geen vrucht", "appel, peer, kers of courgette"],
+        solution: ["tweede exemplaar planten", "nabijgelegen buurplant controleren"],
+      },
+    ],
+    prevention: [
+      "Bestuivers in de buurt planten (borage, dille)",
+      "Temperatuur in kas bewaken",
+      "Kruisbestuivende gewassen in paren planten",
+    ],
+    related: ["bloemen-vallen-af", "bloemen-bloeit-niet"],
+  },
+  {
+    id: "vruchten-kleine-vruchten",
+    category: "vruchten",
+    title: "Kleine vruchten",
+    emoji: "🫐",
+    description: "Vruchten groeien maar blijven klein.",
+    oorzaken: [
+      {
+        title: "Te veel vruchten (overproductie)",
+        probability: 5,
+        symptoms: ["veel kleine vruchten", "plant trekt energie te breed"],
+        solution: ["uitdunnen: kleine en misvormde vruchten verwijderen", "zo blijven de overblijvende groter"],
+      },
+      {
+        title: "Waterstress",
+        probability: 4,
+        symptoms: ["vruchten groeien niet in droge perioden"],
+        solution: ["regelmatig en ruim water geven tijdens vruchtzetting"],
+      },
+      {
+        title: "Voedingstekort (kalium)",
+        probability: 3,
+        symptoms: ["kleine vruchten met slechte smaak", "bladranden bruin"],
+        solution: ["kaliumrijke meststof geven", "tomatenmest is kaliumrijk"],
+      },
+    ],
+    prevention: [
+      "Tijdig uitdunnen van overtollige vruchten",
+      "Voldoende kalium in de meststof",
+      "Consistent water geven",
+    ],
+    related: ["vruchten-geen-vruchten", "vruchten-vallen-af"],
+  },
+  {
+    id: "vruchten-rotten",
+    category: "vruchten",
+    title: "Rotte vruchten",
+    emoji: "🦠",
+    description: "Vruchten rotten aan de plant of direct na de oogst.",
+    oorzaken: [
+      {
+        title: "Neusrot (calciumtekort bij tomaten)",
+        probability: 5,
+        symptoms: ["zwart-bruine plek onderkant tomaat", "plek droog en hard", "onregelmatig water geven"],
+        solution: ["gelijkmatig water geven", "calciumnitraat spuiten op blad", "mulchen om vochtigheid te stabiliseren"],
+      },
+      {
+        title: "Botrytis (grauwe schimmel)",
+        probability: 4,
+        symptoms: ["grijze wollige schimmel op vrucht", "begint bij beschadigd weefsel"],
+        solution: ["goede luchtcirculatie", "aangetaste vruchten direct verwijderen", "niet overdag nat laten staan"],
+      },
+      {
+        title: "Insectenschade die rot uitlokt",
+        probability: 3,
+        symptoms: ["kleine opening of gaatje in vrucht", "rot begint van binnenuit"],
+        solution: ["insectengaas", "aangetaste vruchten direct oogsten"],
+      },
+    ],
+    prevention: [
+      "Gelijkmatig water geven (neusrotpreventie)",
+      "Droog houden bovengronds",
+      "Regelmatig controleren en rot direct verwijderen",
+    ],
+    related: ["vruchten-vallen-af", "vruchten-kleine-vruchten"],
+  },
+  {
+    id: "vruchten-vallen-af",
+    category: "vruchten",
+    title: "Vruchten vallen af",
+    emoji: "⬇️",
+    description: "Onrijpe vruchten vallen voortijdig van de plant.",
+    oorzaken: [
+      {
+        title: "Onregelmatig water geven",
+        probability: 5,
+        symptoms: ["vruchten vallen bij droogteperiode of na overgieten", "meerdere vruchten tegelijk"],
+        solution: ["consistent water geven", "mulchen"],
+      },
+      {
+        title: "Hittestress",
+        probability: 4,
+        symptoms: ["vruchten vallen bij hittegolf", "boven 35°C"],
+        solution: ["schaduw bieden", "extra water"],
+      },
+      {
+        title: "Zelfbeperking door plant (June drop)",
+        probability: 4,
+        symptoms: ["appels en peren gooien in juni kleine vruchten af", "normaal fenomeen"],
+        solution: ["niets — dit is normaal en zelfs gewenst", "daarna uitdunnen tot 1 vrucht per tros"],
+      },
+    ],
+    prevention: [
+      "Regelmatig en gelijkmatig water geven",
+      "Schaduw bij extreme hitte",
+    ],
+    related: ["bloemen-vallen-af", "vruchten-rotten"],
+  },
+
+  // GROEI
+  {
+    id: "groei-langzaam",
+    category: "groei",
+    title: "Plant groeit langzaam",
+    emoji: "🐌",
+    description: "Plant groeit, maar duidelijk trager dan normaal.",
+    oorzaken: [
+      {
+        title: "Te weinig licht",
+        probability: 5,
+        symptoms: ["lange slappe stengels", "blad smal en lichtgroen", "groei richting raam"],
+        solution: ["verplaatsen naar lichter raam", "groeilamp (16u/dag)", "overhangende takken snoeien"],
+      },
+      {
+        title: "Te koud",
+        probability: 4,
+        symptoms: ["groei stopt bij lage temperaturen", "tropische planten stilstaan in de winter"],
+        solution: ["minimumtemperatuur 18–22°C voor tropische gewassen", "verwarmingsmat onder zaaitrays"],
+      },
+      {
+        title: "Pot te klein / wortels verstikt",
+        probability: 4,
+        symptoms: ["wortels groeien uit de pot", "plant stopt met groeien", "grond droogt razendsnel op"],
+        solution: ["verpotten naar een pot 3–5 cm groter"],
+      },
+      {
+        title: "Voedingstekort",
+        probability: 3,
+        symptoms: ["lichtgroene bladeren", "trage groei ondanks goede omstandigheden"],
+        solution: ["bijmesten met uitgebalanceerde meststof", "wortelthee of vloeibare meststof voor snel resultaat"],
+      },
+    ],
+    prevention: [
+      "Voldoende licht bieden",
+      "Jaarlijks verpotten in het voorjaar",
+      "Regelmatig bijmesten tijdens groeiseizoen",
+    ],
+    related: ["groei-groeit-niet", "bladeren-geel"],
+  },
+  {
+    id: "groei-groeit-niet",
+    category: "groei",
+    title: "Plant groeit helemaal niet",
+    emoji: "⏸️",
+    description: "Plant staat stil: geen nieuwe bladeren, scheuten of hoogte.",
+    oorzaken: [
+      {
+        title: "Rustperiode / seizoenslatentie",
+        probability: 5,
+        symptoms: ["wintermaanden", "bollen of vaste planten bovengronds weg"],
+        solution: ["geduld — dit is normaal", "grond licht vochtig houden", "niet bemesten"],
+      },
+      {
+        title: "Wortelrot (ernstig)",
+        probability: 4,
+        symptoms: ["grond continu nat", "plant kwijnend, geen nieuwe groei"],
+        solution: ["uit pot halen, wortels inspecteren", "rotte wortels wegknippen", "herbeplanten in droge grond"],
+      },
+      {
+        title: "Extreme omstandigheden (hitte of kou)",
+        probability: 4,
+        symptoms: ["groei stopt in hittegolf of bij kou"],
+        solution: ["omstandigheden optimaliseren", "schaduw of warmte naar behoefte"],
+      },
+    ],
+    prevention: [
+      "Seizoensritmiek respecteren",
+      "Goede drainage voorkomen wortelrot",
+      "Beschermen tegen extreme temperaturen",
+    ],
+    related: ["groei-langzaam", "bladeren-vallen-af"],
+  },
+
+  // WORTELS
+  {
+    id: "wortels-wortelrot",
+    category: "wortels",
+    title: "Wortelrot",
+    emoji: "🍄",
+    description: "Wortels worden bruin of zwart, zacht en stinkend.",
+    oorzaken: [
+      {
+        title: "Overbewatering",
+        probability: 5,
+        symptoms: ["wortels bruin en zacht", "grond altijd nat", "plant kwijnend maar grond nat"],
+        solution: ["water stoppen", "plant uit pot halen", "rotte wortels wegknippen", "wond inwrijven met kaneel", "herbeplanten in droge schone grond met betere drainage"],
+      },
+      {
+        title: "Slechte drainage",
+        probability: 4,
+        symptoms: ["water staat lang op de bodem", "zware kleigrond of pot zonder gaten"],
+        solution: ["pot met gaten gebruiken", "drainage laag (leca, grind) toevoegen", "luchtigere grond"],
+      },
+      {
+        title: "Pythium of Phytophthora (watermal)",
+        probability: 3,
+        symptoms: ["snelle ineenstorting van plantje", "wortels zwart"],
+        solution: ["aangetaste plant verwijderen", "grond verversen", "biologische schimmelweerstandmiddelen"],
+      },
+    ],
+    prevention: [
+      "Nooit in staand water laten staan",
+      "Vinger in grond steken voor water geven",
+      "Lichte grond met goede drainage",
+    ],
+    related: ["bladeren-geel", "bladeren-slap", "groei-groeit-niet"],
+  },
+  {
+    id: "wortels-uit-pot",
+    category: "wortels",
+    title: "Wortels groeien uit de pot",
+    emoji: "🌿",
+    description: "Wortels groeien uit de drainagegaten of over de rand.",
+    oorzaken: [
+      {
+        title: "Pot te klein",
+        probability: 5,
+        symptoms: ["wortels groeien uit drainagegaten", "plant groeit nauwelijks", "grond droogt snel op"],
+        solution: ["verpotten naar pot die 3–5 cm groter is", "beste moment: vroeg voorjaar"],
+      },
+    ],
+    prevention: [
+      "Jaarlijks controleren of wortels uit pot komen",
+      "In het voorjaar preventief verpotten bij snel groeiende planten",
+    ],
+    related: ["groei-langzaam"],
+  },
+];
+
+export const diagnoseCategories = [
+  { id: "bladeren", label: "Bladeren", emoji: "🍃" },
+  { id: "bloemen", label: "Bloemen", emoji: "🌸" },
+  { id: "vruchten", label: "Vruchten", emoji: "🍅" },
+  { id: "groei", label: "Groei", emoji: "📈" },
+  { id: "wortels", label: "Wortels", emoji: "🌱" },
+] as const;
+
+export function getDiagnose(id: string): Diagnose | undefined {
+  return diagnoses.find((d) => d.id === id);
+}
+
+export function getDiagnosesByCategory(category: string): Diagnose[] {
+  return diagnoses.filter((d) => d.category === category);
+}

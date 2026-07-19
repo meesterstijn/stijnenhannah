@@ -50,7 +50,7 @@ export function SiteLayout() {
                       key={item.to}
                       to={item.to}
                       className={`flex items-center gap-2 px-3 py-2 rounded-full text-sm transition-colors ${
-                        active
+                        pathname === item.to || pathname.startsWith(item.to + "/")
                           ? "bg-primary text-primary-foreground shadow-sm"
                           : "text-muted-foreground hover:bg-secondary hover:text-foreground"
                       }`}
