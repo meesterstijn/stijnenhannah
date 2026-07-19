@@ -32,7 +32,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Lightbulb,
+  BookOpen,
 } from "lucide-react";
+import { useGrowthLog } from "@/features/tuingids/hooks/useGrowthLog";
 
 const SUN_OPTIONS = ["Volle zon", "Halfvolle zon", "Half schaduw", "Schaduw"] as const;
 
@@ -1277,6 +1279,381 @@ function SeasonalOverview({ plants }: { plants: Plant[] }) {
   );
 }
 
+// ─── Water skip localStorage ───────────────────────────────────────────────
+
+const WATER_SKIP_KEY = "tuinieren_water_skips";
+
+function getWaterSkips(): Record<string, string> {
+  try { return JSON.parse(localStorage.getItem(WATER_SKIP_KEY) ?? "{}"); } catch { return {}; }
+}
+function setWaterSkip(plantId: string) {
+  const s = getWaterSkips();
+  s[plantId] = new Date().toISOString().slice(0, 10);
+  localStorage.setItem(WATER_SKIP_KEY, JSON.stringify(s));
+}
+function isSkippedToday(plantId: string) {
+  return getWaterSkips()[plantId] === new Date().toISOString().slice(0, 10);
+}
+
+// ─── Water advice ───────────────────────────────────────────────────────────
+
+type SoilMoisture = "kurkdroog" | "droog" | "vochtig" | "nat" | "";
+type PotMaterial = "terracotta" | "kunststof" | "";
+type WaterUrgency = "hoog" | "middel" | "laag" | "overslaan";
+
+interface WaterAdvice {
+  urgency: WaterUrgency;
+  message: string;
+  suggestedLiters: number | null;
+}
+
+function computeWaterAdvice(
+  plant: Plant,
+  opts: { soilMoisture: SoilMoisture; rainToday: boolean; tempHigh: boolean; strongWind: boolean; potMaterial: PotMaterial },
+): WaterAdvice | null {
+  const { soilMoisture, rainToday, tempHigh, strongWind, potMaterial } = opts;
+  if (!soilMoisture && !rainToday && !tempHigh && !strongWind && !potMaterial) return null;
+
+  const inPot = plant.growing_method === "Pot";
+  const greenPref = parseGreenhouseNotes(plant.greenhouse_notes).pref?.toLowerCase() ?? "";
+  const inGreenhouse = greenPref.includes("kas") && !greenPref.includes("alleen buiten");
+
+  if (soilMoisture === "nat")
+    return { urgency: "overslaan", message: "De grond is nog nat — wacht nog even met water geven.", suggestedLiters: null };
+
+  if (soilMoisture === "vochtig" && rainToday && !inGreenhouse)
+    return { urgency: "overslaan", message: "Het heeft geregend en de grond is vochtig — sla vandaag over.", suggestedLiters: null };
+
+  if (soilMoisture === "vochtig")
+    return { urgency: "laag", message: "De grond is licht vochtig. Wacht een dag of geef een kleine hoeveelheid.", suggestedLiters: null };
+
+  if (rainToday && !inGreenhouse && !inPot && soilMoisture !== "kurkdroog" && soilMoisture !== "droog")
+    return { urgency: "laag", message: "Het heeft geregend — volle-grond planten hebben genoeg water gekregen.", suggestedLiters: null };
+
+  const mods: string[] = [];
+  if (tempHigh) mods.push("warmte versnelt verdamping");
+  if (strongWind) mods.push("wind droogt de aarde sneller uit");
+  if (potMaterial === "terracotta") mods.push("terracotta droogt sneller uit dan kunststof");
+  if (inPot && rainToday && !inGreenhouse) mods.push("pot vangt geen regen op — toch water geven");
+
+  const urgency: WaterUrgency =
+    soilMoisture === "kurkdroog" || soilMoisture === "droog" ? "hoog" : "middel";
+
+  let suggestedLiters: number | null = null;
+  if (inPot) {
+    const potSize = plant.pot_recommended_liters ?? plant.pot_min_liters;
+    if (potSize) {
+      let f = 0.2;
+      if (potMaterial === "terracotta") f += 0.05;
+      if (tempHigh) f += 0.05;
+      if (strongWind) f += 0.03;
+      suggestedLiters = Math.round(potSize * f * 10) / 10;
+    }
+  }
+
+  let message =
+    urgency === "hoog"
+      ? "Geef nu water — de plant heeft het zeker nodig."
+      : "Het is een goed moment om water te geven.";
+  if (mods.length > 0) message += ` Let op: ${mods.join("; ")}.`;
+
+  return { urgency, message, suggestedLiters };
+}
+
+// ─── WaterPanel component ───────────────────────────────────────────────────
+
+function WaterPanel({
+  plant,
+  onWatered,
+  onSkipWet,
+  onSkipToday,
+}: {
+  plant: Plant;
+  onWatered: (liters: number | null) => void;
+  onSkipWet: () => void;
+  onSkipToday: () => void;
+}) {
+  const inPot = plant.growing_method === "Pot";
+  const { addEntry } = useGrowthLog();
+
+  const [soilMoisture, setSoilMoisture] = useState<SoilMoisture>("");
+  const [rainToday, setRainToday] = useState(false);
+  const [tempHigh, setTempHigh] = useState(false);
+  const [strongWind, setStrongWind] = useState(false);
+  const [potMaterial, setPotMaterial] = useState<PotMaterial>("");
+  const [waterLiters, setWaterLiters] = useState("");
+
+  const advice = computeWaterAdvice(plant, { soilMoisture, rainToday, tempHigh, strongWind, potMaterial });
+  const suggestedL = advice?.suggestedLiters ?? null;
+  const enteredL = waterLiters.trim() ? parseFloat(waterLiters) : null;
+  const finalLiters = enteredL !== null ? enteredL : suggestedL;
+
+  function handleWatered() {
+    addEntry({
+      plant_id: null,
+      plant_name: plant.name,
+      date: new Date().toISOString().slice(0, 10),
+      notes: finalLiters != null ? `${finalLiters} liter water gegeven` : "Water gegeven",
+      height_cm: null,
+      flower_count: null,
+      fruit_count: null,
+      watered: true,
+      fertilized: false,
+      photo_url: "",
+    });
+    onWatered(finalLiters);
+  }
+
+  const soilBtns: { value: Exclude<SoilMoisture, "">; emoji: string; label: string }[] = [
+    { value: "kurkdroog", emoji: "🏜️", label: "Kurkdroog" },
+    { value: "droog", emoji: "🌵", label: "Droog" },
+    { value: "vochtig", emoji: "💧", label: "Vochtig" },
+    { value: "nat", emoji: "💦", label: "Nat" },
+  ];
+
+  const urgencyStyle: Record<WaterUrgency, string> = {
+    hoog: "sv-badge-overdue rounded-xl px-4 py-3",
+    middel: "sv-badge-ok rounded-xl px-4 py-3",
+    laag: "sv-badge-ok rounded-xl px-4 py-3",
+    overslaan: "sv-inset px-4 py-3",
+  };
+  const urgencyLabel: Record<WaterUrgency, string> = {
+    hoog: "🔴 Dringend water geven",
+    middel: "🟡 Tijd om water te geven",
+    laag: "🟢 Nog even wachten",
+    overslaan: "⏭️ Overslaan vandaag",
+  };
+
+  function toggleChip(label: string, active: boolean, onToggle: () => void) {
+    return (
+      <button
+        type="button"
+        onClick={onToggle}
+        className={`sv-button sv-button-thin-border px-3 py-1.5 text-xs whitespace-nowrap flex items-center gap-1${active ? " ring-2 ring-offset-1 ring-[var(--sv-wood-dark)]" : ""}`}
+      >
+        {active && <span>✓</span>}
+        {label}
+      </button>
+    );
+  }
+
+  return (
+    <div className="sv-inset p-4 space-y-5 rounded-xl">
+      {/* Grondvocht meting */}
+      <div className="space-y-2">
+        <p className="text-[11px] sv-muted uppercase tracking-wider font-semibold">Hoe voelt de grond?</p>
+        <div className="grid grid-cols-4 gap-1.5">
+          {soilBtns.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => setSoilMoisture(soilMoisture === opt.value ? "" : opt.value)}
+              className={`sv-button sv-button-thin-border flex flex-col items-center gap-1 py-2.5 text-xs leading-snug${soilMoisture === opt.value ? " ring-2 ring-offset-1 ring-[var(--sv-wood-dark)]" : ""}`}
+            >
+              <span className="text-lg">{opt.emoji}</span>
+              <span>{opt.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Omstandigheden */}
+      <div className="space-y-2">
+        <p className="text-[11px] sv-muted uppercase tracking-wider font-semibold">Omstandigheden vandaag</p>
+        <div className="flex flex-wrap gap-1.5">
+          {toggleChip("🌧️ Regen", rainToday, () => setRainToday(!rainToday))}
+          {toggleChip("🌡️ Heet (>25°C)", tempHigh, () => setTempHigh(!tempHigh))}
+          {toggleChip("💨 Sterke wind", strongWind, () => setStrongWind(!strongWind))}
+          {inPot && toggleChip("🏺 Terracotta", potMaterial === "terracotta", () => setPotMaterial(potMaterial === "terracotta" ? "" : "terracotta"))}
+          {inPot && toggleChip("🪣 Kunststof", potMaterial === "kunststof", () => setPotMaterial(potMaterial === "kunststof" ? "" : "kunststof"))}
+        </div>
+      </div>
+
+      {/* Advieskaart */}
+      {advice && (
+        <div className={urgencyStyle[advice.urgency]}>
+          <p className="sv-heading text-sm font-semibold">{urgencyLabel[advice.urgency]}</p>
+          <p className="text-sm mt-0.5">{advice.message}</p>
+          {advice.suggestedLiters !== null && (
+            <p className="text-xs sv-muted mt-1">Aanbevolen hoeveelheid: ~{advice.suggestedLiters} liter</p>
+          )}
+        </div>
+      )}
+
+      {/* Liter invoer */}
+      <div className="space-y-1.5">
+        <label className="text-[11px] sv-muted uppercase tracking-wider font-semibold block">
+          Hoeveel water geven? <span className="normal-case opacity-60">(optioneel)</span>
+        </label>
+        <div className="flex items-center gap-2">
+          <Input
+            type="number"
+            placeholder={suggestedL != null ? `${suggestedL} (advies)` : "0.0"}
+            value={waterLiters}
+            onChange={(e) => setWaterLiters(e.target.value)}
+            className="text-sm"
+            step="0.1"
+            min="0"
+          />
+          <span className="text-sm sv-muted whitespace-nowrap">liter</span>
+        </div>
+      </div>
+
+      {/* Actieknoppen */}
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" className="sv-button gap-1.5" onClick={handleWatered}>
+          <Droplet className="h-3.5 w-3.5" />
+          {finalLiters != null ? `Water gegeven (${finalLiters} L)` : "Water gegeven"}
+        </Button>
+        <Button size="sm" className="sv-button sv-button-ghost gap-1.5" onClick={onSkipWet}>
+          💧 Grond nog nat
+        </Button>
+        <Button size="sm" className="sv-button sv-button-ghost gap-1.5" onClick={onSkipToday}>
+          ⏭️ Sla vandaag over
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ─── PlantLogboek component ─────────────────────────────────────────────────
+
+function PlantLogboek({ plantName }: { plantName: string }) {
+  const { addEntry, deleteEntry, getEntriesForPlant } = useGrowthLog();
+  const entries = getEntriesForPlant(plantName);
+
+  const [formOpen, setFormOpen] = useState(false);
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [notes, setNotes] = useState("");
+  const [heightCm, setHeightCm] = useState("");
+  const [watered, setWatered] = useState(false);
+  const [fertilized, setFertilized] = useState(false);
+
+  function resetForm() {
+    setNotes("");
+    setHeightCm("");
+    setWatered(false);
+    setFertilized(false);
+    setDate(new Date().toISOString().slice(0, 10));
+    setFormOpen(false);
+  }
+
+  function handleSave() {
+    addEntry({
+      plant_id: null,
+      plant_name: plantName,
+      date,
+      notes,
+      height_cm: heightCm ? Number(heightCm) : null,
+      flower_count: null,
+      fruit_count: null,
+      watered,
+      fertilized,
+      photo_url: "",
+    });
+    resetForm();
+  }
+
+  return (
+    <div className="sv-inset p-4 space-y-4 rounded-xl">
+      <div className="flex items-center justify-between">
+        <p className="text-xs sv-muted">{entries.length === 0 ? "Nog geen notities" : `${entries.length} notitie${entries.length !== 1 ? "s" : ""}`}</p>
+        {!formOpen && (
+          <button
+            type="button"
+            onClick={() => setFormOpen(true)}
+            className="sv-button sv-button-thin-border flex items-center gap-1 px-3 py-1.5 text-xs"
+          >
+            <Plus className="h-3 w-3" /> Notitie
+          </button>
+        )}
+      </div>
+
+      {formOpen && (
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-xs sv-muted block mb-1">Datum</label>
+              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="text-sm" />
+            </div>
+            <div>
+              <label className="text-xs sv-muted block mb-1">Hoogte (cm)</label>
+              <Input
+                type="number"
+                placeholder="bijv. 45"
+                value={heightCm}
+                onChange={(e) => setHeightCm(e.target.value)}
+                className="text-sm"
+              />
+            </div>
+          </div>
+          <Textarea
+            placeholder="Notities..."
+            rows={2}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            className="text-sm resize-none"
+          />
+          <div className="flex gap-5 text-sm">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={watered} onChange={(e) => setWatered(e.target.checked)} />
+              <span>💧 Water</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={fertilized} onChange={(e) => setFertilized(e.target.checked)} />
+              <span>🌿 Bemest</span>
+            </label>
+          </div>
+          <div className="flex gap-2">
+            <Button size="sm" className="sv-button" onClick={handleSave}>
+              Opslaan
+            </Button>
+            <Button size="sm" className="sv-button sv-button-ghost" onClick={resetForm}>
+              Annuleer
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {entries.length > 0 && (
+        <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+          {entries.map((entry) => (
+            <div key={entry.id} className="sv-panel p-3 space-y-1.5">
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-xs sv-muted font-medium">
+                  {new Date(entry.date).toLocaleDateString("nl-NL", {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  })}
+                </p>
+                <button
+                  onClick={() => deleteEntry(entry.id)}
+                  className="sv-icon-slot h-5 w-5 flex items-center justify-center shrink-0 opacity-60 hover:opacity-100"
+                >
+                  <X className="h-2.5 w-2.5" />
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {entry.height_cm !== null && (
+                  <span className="sv-badge-ok text-xs px-2 py-0.5 rounded-full">📏 {entry.height_cm} cm</span>
+                )}
+                {entry.watered && (
+                  <span className="sv-badge-ok text-xs px-2 py-0.5 rounded-full">💧 Water</span>
+                )}
+                {entry.fertilized && (
+                  <span className="sv-badge-ok text-xs px-2 py-0.5 rounded-full">🌿 Bemest</span>
+                )}
+              </div>
+              {entry.notes && <p className="text-sm">{entry.notes}</p>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Tuinieren() {
   const { session } = useAuth();
   const queryClient = useQueryClient();
@@ -1290,6 +1667,8 @@ export default function Tuinieren() {
   const [editDraft, setEditDraft] = useState<PlantDraft>(emptyDraft);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [photoUrlDraft, setPhotoUrlDraft] = useState("");
+  const [logOpen, setLogOpen] = useState(false);
+  const [waterOpen, setWaterOpen] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importMsg, setImportMsg] = useState<string | null>(null);
@@ -1496,6 +1875,17 @@ export default function Tuinieren() {
         last_water_reminder_sent_at: null,
       },
     });
+  }
+
+  function handleWaterWithAmount(_liters: number | null) {
+    markWatered();
+    setWaterOpen(false);
+  }
+
+  function handleWaterSkipToday() {
+    if (!view) return;
+    setWaterSkip(view.id);
+    setWaterOpen(false);
   }
 
   function handleWaterFromCard(p: Plant) {
@@ -1906,6 +2296,8 @@ export default function Tuinieren() {
             setView(null);
             setConfirmDelete(false);
             setEditMode(false);
+            setLogOpen(false);
+            setWaterOpen(false);
           }
         }}
       >
@@ -1980,60 +2372,73 @@ export default function Tuinieren() {
               {(() => {
                 const status = waterStatus(view);
                 const feedStatus = feedingStatus(view);
+                const skipped = isSkippedToday(view.id);
                 return (
-                  <div className="flex items-center gap-3 flex-wrap">
-                    {status && (
-                      <span
-                        className={`sv-heading inline-flex items-center gap-1 text-sm px-3 py-1.5 rounded-full ${
-                          status.overdue ? "sv-badge-overdue" : "sv-badge-ok"
-                        }`}
+                  <>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      {status && (
+                        <span
+                          className={`sv-heading inline-flex items-center gap-1 text-sm px-3 py-1.5 rounded-full ${
+                            status.overdue ? "sv-badge-overdue" : "sv-badge-ok"
+                          }`}
+                        >
+                          <Droplet className="h-3.5 w-3.5" /> {status.label}
+                        </span>
+                      )}
+                      {feedStatus && (
+                        <span
+                          className={`sv-heading inline-flex items-center gap-1 text-sm px-3 py-1.5 rounded-full ${
+                            feedStatus.overdue ? "sv-badge-overdue" : "sv-badge-ok"
+                          }`}
+                        >
+                          <Leaf className="h-3.5 w-3.5" /> {feedStatus.label}
+                        </span>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className={`sv-button sv-button-thin-border text-xl${waterOpen ? " ring-2 ring-offset-1 ring-[var(--sv-wood-dark)]" : ""}`}
+                        onClick={() => setWaterOpen(!waterOpen)}
+                        disabled={updatePlant.isPending}
                       >
-                        <Droplet className="h-3.5 w-3.5" /> {status.label}
-                      </span>
-                    )}
-                    {feedStatus && (
-                      <span
-                        className={`sv-heading inline-flex items-center gap-1 text-sm px-3 py-1.5 rounded-full ${
-                          feedStatus.overdue ? "sv-badge-overdue" : "sv-badge-ok"
-                        }`}
+                        <Droplet className="h-3.5 w-3.5" />
+                        {skipped ? "Overgeslagen vandaag" : "Water bijhouden"}
+                        {waterOpen ? <ChevronUp className="h-3.5 w-3.5 ml-1" /> : <ChevronDown className="h-3.5 w-3.5 ml-1" />}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="sv-button sv-button-thin-border text-xl"
+                        onClick={markFed}
+                        disabled={updatePlant.isPending}
                       >
-                        <Leaf className="h-3.5 w-3.5" /> {feedStatus.label}
-                      </span>
+                        <Leaf className="h-3.5 w-3.5" /> Voeding gegeven vandaag
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="sv-button sv-button-thin-border text-xl"
+                        onClick={() =>
+                          updatePlant.mutate({
+                            id: view.id,
+                            patch: { planted: !view.planted },
+                          })
+                        }
+                        disabled={updatePlant.isPending}
+                      >
+                        <Sprout className="h-3.5 w-3.5" />{" "}
+                        {view.planted ? "Gepland" : "Markeer als gepland"}
+                      </Button>
+                    </div>
+                    {waterOpen && (
+                      <WaterPanel
+                        plant={view}
+                        onWatered={handleWaterWithAmount}
+                        onSkipWet={() => setWaterOpen(false)}
+                        onSkipToday={handleWaterSkipToday}
+                      />
                     )}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="sv-button sv-button-thin-border text-xl"
-                      onClick={markWatered}
-                      disabled={updatePlant.isPending}
-                    >
-                      <Droplet className="h-3.5 w-3.5" /> Water gegeven vandaag
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="sv-button sv-button-thin-border text-xl"
-                      onClick={markFed}
-                      disabled={updatePlant.isPending}
-                    >
-                      <Leaf className="h-3.5 w-3.5" /> Voeding gegeven vandaag
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="sv-button sv-button-thin-border text-xl"
-                      onClick={() =>
-                        updatePlant.mutate({
-                          id: view.id,
-                          patch: { planted: !view.planted },
-                        })
-                      }
-                      disabled={updatePlant.isPending}
-                    >
-                      <Sprout className="h-3.5 w-3.5" />{" "}
-                      {view.planted ? "Gepland" : "Markeer als gepland"}
-                    </Button>
-                  </div>
+                  </>
                 );
               })()}
 
@@ -2238,6 +2643,21 @@ export default function Tuinieren() {
                     ))}
                   </div>
                 )}
+              </div>
+
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => setLogOpen((o) => !o)}
+                  className="sv-button sv-button-thin-border w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm"
+                >
+                  <span className="flex items-center gap-2">
+                    <BookOpen className="h-4 w-4" />
+                    Groeilogboek
+                  </span>
+                  {logOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </button>
+                {logOpen && view && <PlantLogboek plantName={view.name} />}
               </div>
 
               <DialogFooter>

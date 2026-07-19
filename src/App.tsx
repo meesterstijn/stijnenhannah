@@ -1,45 +1,54 @@
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import {
   HashRouter,
   Routes,
   Route,
-  Navigate,
   useLocation,
 } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { SiteLayout } from "@/components/site-layout";
 import { handleSpotifyCallback } from "@/lib/spotify";
-import Login from "@/pages/Login";
-import Home from "@/pages/Home";
-import Boodschappen from "@/pages/Boodschappen";
-import Recepten from "@/pages/Recepten";
-import Weekmenu from "@/pages/Weekmenu";
-import Dagvraag from "@/pages/Dagvraag";
-import Tuinieren from "@/pages/Tuinieren";
-import Fotografie from "@/pages/Fotografie";
-import Notities from "@/pages/Notities";
-import Todo from "@/pages/Todo";
-import Weer from "@/pages/Weer";
-import Verjaardagen from "@/pages/Verjaardagen";
-import Schoonmaak from "@/pages/Schoonmaak";
-import Vakantie from "@/pages/Vakantie";
-import Tips from "@/pages/Tips";
-import TuingidsLayout from "@/pages/tuingids/TuingidsLayout";
-import TuingidsDashboard from "@/pages/tuingids/TuingidsDashboard";
-import TuingidsEncyclopedia from "@/pages/tuingids/TuingidsEncyclopedia";
-import TuingidsEncyclopediaDetail from "@/pages/tuingids/TuingidsEncyclopediaDetail";
-import TuingidsDokter from "@/pages/tuingids/TuingidsDokter";
-import TuingidsDokterDetail from "@/pages/tuingids/TuingidsDokterDetail";
-import TuingidsLogboek from "@/pages/tuingids/TuingidsLogboek";
-import TuingidsMijnTuin from "@/pages/tuingids/TuingidsMijnTuin";
-import TuingidsKalender from "@/pages/tuingids/TuingidsKalender";
-import TuingidsStatistieken from "@/pages/tuingids/TuingidsStatistieken";
-import TuingidsZoek from "@/pages/tuingids/TuingidsZoek";
 import { Link } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 
+// Lazy-loaded pages — each becomes its own chunk
+const Login = lazy(() => import("@/pages/Login"));
+const Home = lazy(() => import("@/pages/Home"));
+const Boodschappen = lazy(() => import("@/pages/Boodschappen"));
+const Recepten = lazy(() => import("@/pages/Recepten"));
+const Weekmenu = lazy(() => import("@/pages/Weekmenu"));
+const Dagvraag = lazy(() => import("@/pages/Dagvraag"));
+const Tuinieren = lazy(() => import("@/pages/Tuinieren"));
+const Fotografie = lazy(() => import("@/pages/Fotografie"));
+const Notities = lazy(() => import("@/pages/Notities"));
+const Todo = lazy(() => import("@/pages/Todo"));
+const Weer = lazy(() => import("@/pages/Weer"));
+const Verjaardagen = lazy(() => import("@/pages/Verjaardagen"));
+const Schoonmaak = lazy(() => import("@/pages/Schoonmaak"));
+const Vakantie = lazy(() => import("@/pages/Vakantie"));
+const Tips = lazy(() => import("@/pages/Tips"));
+const TuingidsLayout = lazy(() => import("@/pages/tuingids/TuingidsLayout"));
+const TuingidsDashboard = lazy(() => import("@/pages/tuingids/TuingidsDashboard"));
+const TuingidsEncyclopedia = lazy(() => import("@/pages/tuingids/TuingidsEncyclopedia"));
+const TuingidsEncyclopediaDetail = lazy(() => import("@/pages/tuingids/TuingidsEncyclopediaDetail"));
+const TuingidsDokter = lazy(() => import("@/pages/tuingids/TuingidsDokter"));
+const TuingidsDokterDetail = lazy(() => import("@/pages/tuingids/TuingidsDokterDetail"));
+const TuingidsLogboek = lazy(() => import("@/pages/tuingids/TuingidsLogboek"));
+const TuingidsMijnTuin = lazy(() => import("@/pages/tuingids/TuingidsMijnTuin"));
+const TuingidsKalender = lazy(() => import("@/pages/tuingids/TuingidsKalender"));
+const TuingidsStatistieken = lazy(() => import("@/pages/tuingids/TuingidsStatistieken"));
+const TuingidsZoek = lazy(() => import("@/pages/tuingids/TuingidsZoek"));
+
 const queryClient = new QueryClient();
+
+function PageLoader() {
+  return (
+    <div className="min-h-[40vh] flex items-center justify-center">
+      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+    </div>
+  );
+}
 
 function NotFound() {
   return (
@@ -86,44 +95,48 @@ function AppRoutes() {
 
   if (!session) {
     return (
-      <Routes>
-        <Route path="*" element={<Login />} />
-      </Routes>
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          <Route path="*" element={<Login />} />
+        </Routes>
+      </Suspense>
     );
   }
 
   return (
-    <Routes>
-      <Route element={<SiteLayout />}>
-        <Route path="/" element={<Home />} />
-        <Route path="/boodschappen" element={<Boodschappen />} />
-        <Route path="/recepten" element={<Recepten />} />
-        <Route path="/weekmenu" element={<Weekmenu />} />
-        <Route path="/dagvraag" element={<Dagvraag />} />
-        <Route path="/tuinieren" element={<Tuinieren />} />
-        <Route path="/fotografie" element={<Fotografie />} />
-        <Route path="/notities" element={<Notities />} />
-        <Route path="/todo" element={<Todo />} />
-        <Route path="/weer" element={<Weer />} />
-        <Route path="/verjaardagen" element={<Verjaardagen />} />
-        <Route path="/schoonmaak" element={<Schoonmaak />} />
-        <Route path="/vakantie" element={<Vakantie />} />
-        <Route path="/tips" element={<Tips />} />
-        <Route path="/tuingids" element={<TuingidsLayout />}>
-          <Route index element={<TuingidsDashboard />} />
-          <Route path="encyclopedie" element={<TuingidsEncyclopedia />} />
-          <Route path="encyclopedie/:id" element={<TuingidsEncyclopediaDetail />} />
-          <Route path="dokter" element={<TuingidsDokter />} />
-          <Route path="dokter/:id" element={<TuingidsDokterDetail />} />
-          <Route path="logboek" element={<TuingidsLogboek />} />
-          <Route path="mijn-tuin" element={<TuingidsMijnTuin />} />
-          <Route path="kalender" element={<TuingidsKalender />} />
-          <Route path="statistieken" element={<TuingidsStatistieken />} />
-          <Route path="zoek" element={<TuingidsZoek />} />
+    <Suspense fallback={<PageLoader />}>
+      <Routes>
+        <Route element={<SiteLayout />}>
+          <Route path="/" element={<Home />} />
+          <Route path="/boodschappen" element={<Boodschappen />} />
+          <Route path="/recepten" element={<Recepten />} />
+          <Route path="/weekmenu" element={<Weekmenu />} />
+          <Route path="/dagvraag" element={<Dagvraag />} />
+          <Route path="/tuinieren" element={<Tuinieren />} />
+          <Route path="/fotografie" element={<Fotografie />} />
+          <Route path="/notities" element={<Notities />} />
+          <Route path="/todo" element={<Todo />} />
+          <Route path="/weer" element={<Weer />} />
+          <Route path="/verjaardagen" element={<Verjaardagen />} />
+          <Route path="/schoonmaak" element={<Schoonmaak />} />
+          <Route path="/vakantie" element={<Vakantie />} />
+          <Route path="/tips" element={<Tips />} />
+          <Route path="/tuingids" element={<TuingidsLayout />}>
+            <Route index element={<TuingidsDashboard />} />
+            <Route path="encyclopedie" element={<TuingidsEncyclopedia />} />
+            <Route path="encyclopedie/:id" element={<TuingidsEncyclopediaDetail />} />
+            <Route path="dokter" element={<TuingidsDokter />} />
+            <Route path="dokter/:id" element={<TuingidsDokterDetail />} />
+            <Route path="logboek" element={<TuingidsLogboek />} />
+            <Route path="mijn-tuin" element={<TuingidsMijnTuin />} />
+            <Route path="kalender" element={<TuingidsKalender />} />
+            <Route path="statistieken" element={<TuingidsStatistieken />} />
+            <Route path="zoek" element={<TuingidsZoek />} />
+          </Route>
+          <Route path="*" element={<NotFound />} />
         </Route>
-        <Route path="*" element={<NotFound />} />
-      </Route>
-    </Routes>
+      </Routes>
+    </Suspense>
   );
 }
 
