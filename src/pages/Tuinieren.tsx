@@ -2520,7 +2520,14 @@ function FeedingSection({
 
 function PlantLogboek({ plantName }: { plantName: string }) {
   const { addEntry, deleteEntry, getEntriesForPlant } = useGrowthLog();
-  const entries = getEntriesForPlant(plantName);
+  // Alleen groei-notities tonen; automatische water-/voedingsregistraties horen
+  // al thuis in de Water-/Voedingsgeschiedenis en worden hier niet herhaald.
+  const entries = getEntriesForPlant(plantName).filter((entry) => {
+    const isDefaultActionNote =
+      !entry.notes || entry.notes === "Water gegeven" || entry.notes === "Voeding gegeven";
+    const isPureAction = entry.height_cm === null && isDefaultActionNote && (entry.watered || entry.fertilized);
+    return !isPureAction;
+  });
 
   const [formOpen, setFormOpen] = useState(false);
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -2634,17 +2641,11 @@ function PlantLogboek({ plantName }: { plantName: string }) {
                   <X className="h-2.5 w-2.5" />
                 </button>
               </div>
-              <div className="flex flex-wrap gap-1.5">
-                {entry.height_cm !== null && (
+              {entry.height_cm !== null && (
+                <div className="flex flex-wrap gap-1.5">
                   <span className="sv-badge-ok text-xs px-2 py-0.5 rounded-full">📏 {entry.height_cm} cm</span>
-                )}
-                {entry.watered && (
-                  <span className="sv-badge-ok text-xs px-2 py-0.5 rounded-full">💧 Water</span>
-                )}
-                {entry.fertilized && (
-                  <span className="sv-badge-ok text-xs px-2 py-0.5 rounded-full">🌿 Bemest</span>
-                )}
-              </div>
+                </div>
+              )}
               {entry.notes && <p className="text-sm">{entry.notes}</p>}
             </div>
           ))}
@@ -4142,6 +4143,115 @@ export default function Tuinieren() {
                 isRecording={recordingFeedId === view.id}
               />
 
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => setLogOpen((o) => !o)}
+                  className="sv-button sv-button-thin-border w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm"
+                >
+                  <span className="flex items-center gap-2">
+                    <BookOpen className="h-4 w-4" />
+                    Groeilogboek
+                  </span>
+                  {logOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </button>
+                {logOpen && view && <PlantLogboek plantName={view.name} />}
+              </div>
+
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => setHarvestOpen((o) => !o)}
+                  className="sv-button sv-button-thin-border w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm"
+                >
+                  <span className="flex items-center gap-2">
+                    <Apple className="h-4 w-4" />
+                    Oogst
+                  </span>
+                  {harvestOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </button>
+                {harvestOpen && view && (
+                  <HarvestLogSection
+                    plantId={view.id}
+                    logs={harvestLogs}
+                    onAdd={(row) => addHarvestLog.mutate(row)}
+                    onDelete={(id) => deleteHarvestLog.mutate(id)}
+                    isSaving={addHarvestLog.isPending}
+                  />
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => setPruningOpen((o) => !o)}
+                  className="sv-button sv-button-thin-border w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm"
+                >
+                  <span className="flex items-center gap-2">
+                    <Scissors className="h-4 w-4" />
+                    Snoeien
+                  </span>
+                  {pruningOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </button>
+                {pruningOpen && view && (
+                  <PruningLogSection
+                    plantId={view.id}
+                    logs={pruningLogs}
+                    onAdd={(row) => addPruningLog.mutate(row)}
+                    onDelete={(id) => deletePruningLog.mutate(id)}
+                    isSaving={addPruningLog.isPending}
+                  />
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => setRepotOpen((o) => !o)}
+                  className="sv-button sv-button-thin-border w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm"
+                >
+                  <span className="flex items-center gap-2">
+                    <Boxes className="h-4 w-4" />
+                    Verpotten
+                  </span>
+                  {repotOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </button>
+                {repotOpen && view && (
+                  <RepotLogSection
+                    plant={view}
+                    logs={repotLogs}
+                    onAdd={(row) => addRepotLog.mutate(row)}
+                    onDelete={(id) => deleteRepotLog.mutate(id)}
+                    isSaving={addRepotLog.isPending}
+                  />
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => setTimelineOpen((o) => !o)}
+                  className="sv-button sv-button-thin-border w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm"
+                >
+                  <span className="flex items-center gap-2">
+                    <Clock className="h-4 w-4" />
+                    Tijdlijn
+                  </span>
+                  {timelineOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </button>
+                {timelineOpen && view && (
+                  <div className="sv-inset p-4 rounded-xl">
+                    <TimelineSection
+                      plant={view}
+                      photos={photos}
+                      harvestLogs={harvestLogs}
+                      pruningLogs={pruningLogs}
+                      repotLogs={repotLogs}
+                    />
+                  </div>
+                )}
+              </div>
+
               <div className="grid sm:grid-cols-2 gap-4">
                 <InfoRow label="Soort" value={view.species} />
                 <InfoRow label="Levensduur" value={view.lifecycle} />
@@ -4394,115 +4504,6 @@ export default function Tuinieren() {
                         </button>
                       </div>
                     ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-3">
-                <button
-                  type="button"
-                  onClick={() => setLogOpen((o) => !o)}
-                  className="sv-button sv-button-thin-border w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm"
-                >
-                  <span className="flex items-center gap-2">
-                    <BookOpen className="h-4 w-4" />
-                    Groeilogboek
-                  </span>
-                  {logOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                </button>
-                {logOpen && view && <PlantLogboek plantName={view.name} />}
-              </div>
-
-              <div className="space-y-3">
-                <button
-                  type="button"
-                  onClick={() => setHarvestOpen((o) => !o)}
-                  className="sv-button sv-button-thin-border w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm"
-                >
-                  <span className="flex items-center gap-2">
-                    <Apple className="h-4 w-4" />
-                    Oogst
-                  </span>
-                  {harvestOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                </button>
-                {harvestOpen && view && (
-                  <HarvestLogSection
-                    plantId={view.id}
-                    logs={harvestLogs}
-                    onAdd={(row) => addHarvestLog.mutate(row)}
-                    onDelete={(id) => deleteHarvestLog.mutate(id)}
-                    isSaving={addHarvestLog.isPending}
-                  />
-                )}
-              </div>
-
-              <div className="space-y-3">
-                <button
-                  type="button"
-                  onClick={() => setPruningOpen((o) => !o)}
-                  className="sv-button sv-button-thin-border w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm"
-                >
-                  <span className="flex items-center gap-2">
-                    <Scissors className="h-4 w-4" />
-                    Snoeien
-                  </span>
-                  {pruningOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                </button>
-                {pruningOpen && view && (
-                  <PruningLogSection
-                    plantId={view.id}
-                    logs={pruningLogs}
-                    onAdd={(row) => addPruningLog.mutate(row)}
-                    onDelete={(id) => deletePruningLog.mutate(id)}
-                    isSaving={addPruningLog.isPending}
-                  />
-                )}
-              </div>
-
-              <div className="space-y-3">
-                <button
-                  type="button"
-                  onClick={() => setRepotOpen((o) => !o)}
-                  className="sv-button sv-button-thin-border w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm"
-                >
-                  <span className="flex items-center gap-2">
-                    <Boxes className="h-4 w-4" />
-                    Verpotten
-                  </span>
-                  {repotOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                </button>
-                {repotOpen && view && (
-                  <RepotLogSection
-                    plant={view}
-                    logs={repotLogs}
-                    onAdd={(row) => addRepotLog.mutate(row)}
-                    onDelete={(id) => deleteRepotLog.mutate(id)}
-                    isSaving={addRepotLog.isPending}
-                  />
-                )}
-              </div>
-
-              <div className="space-y-3">
-                <button
-                  type="button"
-                  onClick={() => setTimelineOpen((o) => !o)}
-                  className="sv-button sv-button-thin-border w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm"
-                >
-                  <span className="flex items-center gap-2">
-                    <Clock className="h-4 w-4" />
-                    Tijdlijn
-                  </span>
-                  {timelineOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                </button>
-                {timelineOpen && view && (
-                  <div className="sv-inset p-4 rounded-xl">
-                    <TimelineSection
-                      plant={view}
-                      photos={photos}
-                      harvestLogs={harvestLogs}
-                      pruningLogs={pruningLogs}
-                      repotLogs={repotLogs}
-                    />
                   </div>
                 )}
               </div>
