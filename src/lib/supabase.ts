@@ -69,6 +69,7 @@ export type Plant = {
   pot_water_interval_days: number | null;
   last_watered_at: string | null;
   last_water_reminder_sent_at: string | null;
+  water_skip_until: string | null;
   feeding_notes: string | null;
   feeding_interval_days: number | null;
   last_fed_at: string | null;

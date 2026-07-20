@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
     const { data: plants, error: plantsError } = await supabase
       .from("plants")
       .select(
-        "id, name, growing_method, water_interval_days, pot_water_interval_days, last_watered_at, last_water_reminder_sent_at, reminders_enabled, feeding_interval_days, last_fed_at, last_feeding_reminder_sent_at, feeding_reminders_enabled, feeding_months",
+        "id, name, growing_method, water_interval_days, pot_water_interval_days, last_watered_at, last_water_reminder_sent_at, water_skip_until, reminders_enabled, feeding_interval_days, last_fed_at, last_feeding_reminder_sent_at, feeding_reminders_enabled, feeding_months",
       )
       .eq("planted", true)
       .or("water_interval_days.not.is.null,pot_water_interval_days.not.is.null,feeding_interval_days.not.is.null");
@@ -83,6 +83,7 @@ Deno.serve(async (req) => {
 
     const now = Date.now();
     const currentMonth = currentAmsterdamMonthName();
+    const today = todayInAmsterdam();
 
     const dueWater = (plants ?? []).filter((p) => {
       const intervalDays =
@@ -90,6 +91,7 @@ Deno.serve(async (req) => {
           ? p.pot_water_interval_days
           : p.water_interval_days;
       if (!p.reminders_enabled || !intervalDays) return false;
+      if (p.water_skip_until && today < p.water_skip_until) return false;
       if (isSameLocalDay(p.last_water_reminder_sent_at)) return false;
       if (!p.last_watered_at) return true;
       const dueAt = new Date(p.last_watered_at).getTime() + intervalDays * 24 * 60 * 60 * 1000;

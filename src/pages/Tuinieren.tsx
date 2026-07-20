@@ -510,6 +510,10 @@ function waterStatus(p: Plant): { label: string; overdue: boolean } | null {
   if (!p.planted) return null;
   const intervalDays = effectiveWaterIntervalDays(p);
   if (!intervalDays) return null;
+  const todayIso = new Date().toISOString().slice(0, 10);
+  if (p.water_skip_until && todayIso < p.water_skip_until) {
+    return { label: "Uitgesteld tot morgen", overdue: false };
+  }
   if (!p.last_watered_at)
     return { label: "Nog geen water gegeven", overdue: true };
   const dueAt =
@@ -536,6 +540,12 @@ function feedingStatus(p: Plant): { label: string; overdue: boolean } | null {
   if (daysLeft <= 0) return { label: "Voeding geven!", overdue: true };
   if (daysLeft === 1) return { label: "Morgen voeding geven", overdue: false };
   return { label: `Over ${daysLeft} dagen`, overdue: false };
+}
+
+function daysAgoLabel(n: number): string {
+  if (n === 0) return "vandaag";
+  if (n === 1) return "gisteren";
+  return `${n} dagen geleden`;
 }
 
 function plantAge(dateStr: string | null): string | null {
@@ -1740,10 +1750,12 @@ function WaterPanel({
 function WaterSection({
   plant,
   onSyncLastWatered,
+  onSkipToday,
   isUpdating,
 }: {
   plant: Plant;
   onSyncLastWatered: (isoDate: string | null) => void;
+  onSkipToday: () => void;
   isUpdating: boolean;
 }) {
   const { entries, addEntry, updateEntry, deleteEntry } = useGrowthLog();
@@ -1785,6 +1797,9 @@ function WaterSection({
     nextWaterDate !== null
       ? Math.ceil((nextWaterDate.getTime() - today.getTime()) / 86_400_000)
       : null;
+
+  const todayIso = today.toISOString().slice(0, 10);
+  const isSkippedToday = !!plant.water_skip_until && todayIso < plant.water_skip_until;
 
   const [quickNote, setQuickNote] = useState("");
   const [grondcheckOpen, setGrondcheckOpen] = useState(false);
@@ -1832,13 +1847,8 @@ function WaterSection({
     setEditingId(null);
   }
 
-  function daysAgoLabel(n: number) {
-    if (n === 0) return "vandaag";
-    if (n === 1) return "gisteren";
-    return `${n} dagen geleden`;
-  }
-
   function daysLeftBadge() {
+    if (isSkippedToday) return { label: "Uitgesteld tot morgen", overdue: false };
     if (daysLeft === null || !interval) return null;
     if (daysLeft < 0)
       return {
@@ -1961,11 +1971,7 @@ function WaterSection({
               onWatered={(note) => recordWatering(note)}
               onSkipWet={() => setGrondcheckOpen(false)}
               onSkipToday={() => {
-                if (lastWaterDateStr) {
-                  const shifted = new Date(lastWaterDateStr + "T00:00:00");
-                  shifted.setDate(shifted.getDate() + 1);
-                  onSyncLastWatered(shifted.toISOString().slice(0, 10));
-                }
+                onSkipToday();
                 setGrondcheckOpen(false);
               }}
             />
@@ -2251,12 +2257,6 @@ function FeedingSection({
   function handleSaveNote(id: string) {
     updateEntry(id, { notes: editNote.trim() || "Voeding gegeven" });
     setEditingId(null);
-  }
-
-  function daysAgoLabel(n: number) {
-    if (n === 0) return "vandaag";
-    if (n === 1) return "gisteren";
-    return `${n} dagen geleden`;
   }
 
   function daysLeftBadge() {
@@ -3515,7 +3515,18 @@ export default function Tuinieren() {
       patch: {
         last_watered_at: isoDate ? new Date(isoDate).toISOString() : null,
         last_water_reminder_sent_at: null,
+        water_skip_until: null,
       },
+    });
+  }
+
+  function handleSkipWaterToday() {
+    if (!view) return;
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    updatePlant.mutate({
+      id: view.id,
+      patch: { water_skip_until: tomorrow.toISOString().slice(0, 10) },
     });
   }
 
@@ -4071,6 +4082,7 @@ export default function Tuinieren() {
               <WaterSection
                 plant={view}
                 onSyncLastWatered={handleSyncLastWatered}
+                onSkipToday={handleSkipWaterToday}
                 isUpdating={updatePlant.isPending}
               />
 
