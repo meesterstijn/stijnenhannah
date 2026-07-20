@@ -103,6 +103,11 @@ export function useGrowthLog() {
     [addMutation],
   );
 
+  const addEntryAsync = useCallback(
+    (entry: Omit<LogEntry, "id" | "created_at">) => addMutation.mutateAsync(entry),
+    [addMutation],
+  );
+
   const updateEntry = useCallback(
     (id: string, patch: Partial<LogEntry>) => updateMutation.mutate({ id, patch }),
     [updateMutation],
@@ -121,6 +126,7 @@ export function useGrowthLog() {
   return {
     entries,
     addEntry,
+    addEntryAsync,
     updateEntry,
     deleteEntry,
     getEntriesForPlant,

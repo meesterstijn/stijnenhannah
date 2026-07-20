@@ -1749,16 +1749,20 @@ function WaterPanel({
 
 function WaterSection({
   plant,
+  onRecordWatering,
   onSyncLastWatered,
   onSkipToday,
   isUpdating,
+  isRecording,
 }: {
   plant: Plant;
+  onRecordWatering: (plant: Plant, note?: string) => void;
   onSyncLastWatered: (isoDate: string | null) => void;
   onSkipToday: () => void;
   isUpdating: boolean;
+  isRecording: boolean;
 }) {
-  const { entries, addEntry, updateEntry, deleteEntry } = useGrowthLog();
+  const { entries, updateEntry, deleteEntry } = useGrowthLog();
   const inPot = plant.growing_method === "Pot";
 
   // Water history: growth log entries where watered=true for this plant
@@ -1810,20 +1814,7 @@ function WaterSection({
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   function recordWatering(note: string) {
-    const todayStr = new Date().toISOString().slice(0, 10);
-    addEntry({
-      plant_id: plant.id,
-      plant_name: plant.name,
-      date: todayStr,
-      notes: note || "Water gegeven",
-      height_cm: null,
-      flower_count: null,
-      fruit_count: null,
-      watered: true,
-      fertilized: false,
-      photo_url: "",
-    });
-    onSyncLastWatered(todayStr);
+    onRecordWatering(plant, note);
     setQuickNote("");
     setGrondcheckOpen(false);
   }
@@ -1944,9 +1935,14 @@ function WaterSection({
           size="sm"
           className="sv-button shrink-0 gap-1.5"
           onClick={() => recordWatering(quickNote)}
-          disabled={isUpdating}
+          disabled={isUpdating || isRecording}
         >
-          <Droplet className="h-3.5 w-3.5" /> Water gegeven
+          {isRecording ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Droplet className="h-3.5 w-3.5" />
+          )}{" "}
+          Water gegeven
         </Button>
       </div>
 
@@ -2166,14 +2162,18 @@ function WaterSection({
 
 function FeedingSection({
   plant,
+  onRecordFeeding,
   onSyncLastFed,
   isUpdating,
+  isRecording,
 }: {
   plant: Plant;
+  onRecordFeeding: (plant: Plant, note?: string) => void;
   onSyncLastFed: (isoDate: string | null) => void;
   isUpdating: boolean;
+  isRecording: boolean;
 }) {
-  const { entries, addEntry, updateEntry, deleteEntry } = useGrowthLog();
+  const { entries, updateEntry, deleteEntry } = useGrowthLog();
 
   const feedHistory = entries
     .filter(
@@ -2223,20 +2223,7 @@ function FeedingSection({
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   function recordFeeding(note: string) {
-    const todayStr = new Date().toISOString().slice(0, 10);
-    addEntry({
-      plant_id: plant.id,
-      plant_name: plant.name,
-      date: todayStr,
-      notes: note || "Voeding gegeven",
-      height_cm: null,
-      flower_count: null,
-      fruit_count: null,
-      watered: false,
-      fertilized: true,
-      photo_url: "",
-    });
-    onSyncLastFed(todayStr);
+    onRecordFeeding(plant, note);
     setQuickNote("");
   }
 
@@ -2356,9 +2343,14 @@ function FeedingSection({
           size="sm"
           className="sv-button shrink-0 gap-1.5"
           onClick={() => recordFeeding(quickNote)}
-          disabled={isUpdating}
+          disabled={isUpdating || isRecording}
         >
-          <Leaf className="h-3.5 w-3.5" /> Voeding gegeven
+          {isRecording ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Leaf className="h-3.5 w-3.5" />
+          )}{" "}
+          Voeding gegeven
         </Button>
       </div>
 
@@ -3187,10 +3179,13 @@ function TimelineSection({
 export default function Tuinieren() {
   const { session } = useAuth();
   const queryClient = useQueryClient();
+  const { addEntryAsync } = useGrowthLog();
 
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<PlantDraft>(emptyDraft);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [recordingWaterId, setRecordingWaterId] = useState<string | null>(null);
+  const [recordingFeedId, setRecordingFeedId] = useState<string | null>(null);
 
   const [view, setView] = useState<Plant | null>(null);
   const [editMode, setEditMode] = useState(false);
@@ -3530,14 +3525,42 @@ export default function Tuinieren() {
     });
   }
 
-  function handleWaterFromCard(p: Plant) {
-    updatePlant.mutate({
-      id: p.id,
-      patch: {
-        last_watered_at: new Date().toISOString(),
-        last_water_reminder_sent_at: null,
-      },
-    });
+  // Single source of truth for "water given": always writes one growth-log
+  // entry AND syncs plants.last_watered_at, in that order, so the plant is
+  // never marked watered without a matching log entry. Used by both the
+  // detail-view water button and the quick-water badge on the tile.
+  async function recordWatering(plant: Plant, note?: string) {
+    if (recordingWaterId === plant.id) return;
+    setRecordingWaterId(plant.id);
+    setSaveError(null);
+    try {
+      await addEntryAsync({
+        plant_id: plant.id,
+        plant_name: plant.name,
+        date: new Date().toISOString().slice(0, 10),
+        notes: note?.trim() || "Water gegeven",
+        height_cm: null,
+        flower_count: null,
+        fruit_count: null,
+        watered: true,
+        fertilized: false,
+        photo_url: "",
+      });
+      await updatePlant.mutateAsync({
+        id: plant.id,
+        patch: {
+          last_watered_at: new Date().toISOString(),
+          last_water_reminder_sent_at: null,
+          water_skip_until: null,
+        },
+      });
+    } catch (err) {
+      setSaveError(
+        err instanceof Error ? err.message : "Waterregistratie mislukt.",
+      );
+    } finally {
+      setRecordingWaterId(null);
+    }
   }
 
   function handleSyncLastFed(isoDate: string | null) {
@@ -3551,14 +3574,38 @@ export default function Tuinieren() {
     });
   }
 
-  function handleFeedFromCard(p: Plant) {
-    updatePlant.mutate({
-      id: p.id,
-      patch: {
-        last_fed_at: new Date().toISOString(),
-        last_feeding_reminder_sent_at: null,
-      },
-    });
+  // Single source of truth for "feeding given" — mirrors recordWatering.
+  async function recordFeeding(plant: Plant, note?: string) {
+    if (recordingFeedId === plant.id) return;
+    setRecordingFeedId(plant.id);
+    setSaveError(null);
+    try {
+      await addEntryAsync({
+        plant_id: plant.id,
+        plant_name: plant.name,
+        date: new Date().toISOString().slice(0, 10),
+        notes: note?.trim() || "Voeding gegeven",
+        height_cm: null,
+        flower_count: null,
+        fruit_count: null,
+        watered: false,
+        fertilized: true,
+        photo_url: "",
+      });
+      await updatePlant.mutateAsync({
+        id: plant.id,
+        patch: {
+          last_fed_at: new Date().toISOString(),
+          last_feeding_reminder_sent_at: null,
+        },
+      });
+    } catch (err) {
+      setSaveError(
+        err instanceof Error ? err.message : "Voedingsregistratie mislukt.",
+      );
+    } finally {
+      setRecordingFeedId(null);
+    }
   }
 
   function markChecked() {
@@ -3950,14 +3997,14 @@ export default function Tuinieren() {
             <div key={group.label} className="space-y-3">
               <p className="sv-heading text-2xl">{group.label}</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {group.plants.map((p) => <PlantCard key={p.id} p={p} onOpen={setView} onWater={handleWaterFromCard} onFeed={handleFeedFromCard} />)}
+                {group.plants.map((p) => <PlantCard key={p.id} p={p} onOpen={setView} onWater={(p) => recordWatering(p)} onFeed={(p) => recordFeeding(p)} />)}
               </div>
             </div>
           ))}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {filteredPlants.map((p) => <PlantCard key={p.id} p={p} onOpen={setView} onWater={handleWaterFromCard} onFeed={handleFeedFromCard} />)}
+          {filteredPlants.map((p) => <PlantCard key={p.id} p={p} onOpen={setView} onWater={(p) => recordWatering(p)} onFeed={(p) => recordFeeding(p)} />)}
         </div>
       )}
 
@@ -4079,16 +4126,20 @@ export default function Tuinieren() {
               {/* Water sectie */}
               <WaterSection
                 plant={view}
+                onRecordWatering={recordWatering}
                 onSyncLastWatered={handleSyncLastWatered}
                 onSkipToday={handleSkipWaterToday}
                 isUpdating={updatePlant.isPending}
+                isRecording={recordingWaterId === view.id}
               />
 
               {/* Voeding sectie */}
               <FeedingSection
                 plant={view}
+                onRecordFeeding={recordFeeding}
                 onSyncLastFed={handleSyncLastFed}
                 isUpdating={updatePlant.isPending}
+                isRecording={recordingFeedId === view.id}
               />
 
               <div className="grid sm:grid-cols-2 gap-4">
