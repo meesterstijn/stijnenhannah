@@ -3853,7 +3853,7 @@ export default function Tuinieren() {
 
   return (
     <div className="tuinieren-theme space-y-8">
-      <header className="grid grid-cols-[auto_1fr] items-center gap-2">
+      <header className="flex flex-wrap items-center justify-center gap-2">
         <Button
           className="sv-button text-2xl h-11 px-3 sm:px-6"
           onClick={() => setFilterOpen(true)}
@@ -3866,32 +3866,31 @@ export default function Tuinieren() {
           )}
         </Button>
 
-        <div className="flex items-center gap-2 justify-end">
-          <Link to="/tuingids">
-            <Button className="sv-button text-2xl h-11 px-3 sm:px-6">
-              <Lightbulb className="h-4 w-4" /><span className="hidden sm:inline">Tuingids</span>
-            </Button>
-          </Link>
-          <Button
-            className="sv-button text-2xl h-11 px-3 sm:px-6"
-            onClick={handleExport}
-            disabled={plants.length === 0}
-          >
-            <Download className="h-4 w-4" /><span className="hidden sm:inline">Exporteer</span>
+        <Link to="/tuingids">
+          <Button className="sv-button text-2xl h-11 px-3 sm:px-6">
+            <Lightbulb className="h-4 w-4" /><span className="hidden sm:inline">Tuingids</span>
           </Button>
-          <Button
-            className="sv-button text-2xl h-11 px-3 sm:px-6"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <Upload className="h-4 w-4" /><span className="hidden sm:inline">Importeer</span>
-          </Button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".json"
-            className="hidden"
-            onChange={handleImport}
-          />
+        </Link>
+        <Button
+          className="sv-button text-2xl h-11 px-3 sm:px-6"
+          onClick={handleExport}
+          disabled={plants.length === 0}
+        >
+          <Download className="h-4 w-4" /><span className="hidden sm:inline">Exporteer</span>
+        </Button>
+        <Button
+          className="sv-button text-2xl h-11 px-3 sm:px-6"
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <Upload className="h-4 w-4" /><span className="hidden sm:inline">Importeer</span>
+        </Button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".json"
+          className="hidden"
+          onChange={handleImport}
+        />
 
         <Dialog open={open} onOpenChange={handleOpenChange}>
           <DialogTrigger asChild>
@@ -3927,7 +3926,6 @@ export default function Tuinieren() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-        </div>
       </header>
 
       {importMsg && (

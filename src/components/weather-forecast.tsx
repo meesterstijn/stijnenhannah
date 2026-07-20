@@ -80,7 +80,7 @@ export function WeatherForecast({
   }
 
   return (
-    <div className="flex items-center justify-end gap-2 sm:gap-4">
+    <div className="flex items-center justify-end gap-1.5 sm:gap-4">
       {time.map((day, i) => {
         const Icon = iconForCode(weathercode[i]);
         const label = new Date(day).toLocaleDateString("nl-NL", {
@@ -89,11 +89,11 @@ export function WeatherForecast({
         return (
           <div
             key={day}
-            className="flex items-center gap-1 sm:gap-1.5"
+            className="flex items-center gap-1"
           >
-            <span className="capitalize text-sm">{label}</span>
-            <Icon className="h-4 w-4 shrink-0" />
-            <span className="text-sm whitespace-nowrap">
+            <span className="capitalize text-xs sm:text-sm">{label}</span>
+            <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+            <span className="text-xs sm:text-sm whitespace-nowrap">
               {Math.round(temperature_2m_max[i])}°/
               {Math.round(temperature_2m_min[i])}°
             </span>

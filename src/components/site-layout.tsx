@@ -15,7 +15,7 @@ export function SiteLayout() {
   return (
     <div className="min-h-screen flex flex-col">
       <header className="border-b border-border/60 backdrop-blur-sm bg-background/70 sticky top-0 z-40">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 grid grid-cols-[auto_1fr_auto] items-center gap-4">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-4 md:grid md:grid-cols-[auto_1fr_auto]">
           <Link to="/" className="flex items-center gap-2 group">
             {isTuinieren ? (
               <Sprout className="h-5 w-5" strokeWidth={1.6} />
