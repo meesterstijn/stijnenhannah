@@ -78,11 +78,6 @@ export default function TuingidsKalender() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-xs uppercase tracking-[0.2em] sv-muted">Tuingids</p>
-        <h1 className="sv-heading text-3xl mt-1">Kalender</h1>
-      </div>
-
       {/* Month nav */}
       <div className="flex items-center gap-3">
         <button onClick={prevMonth} className="sv-icon-slot h-9 w-9 flex items-center justify-center" aria-label="Vorige maand">

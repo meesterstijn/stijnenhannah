@@ -40,7 +40,11 @@ async function fetchForecast(): Promise<ForecastResponse> {
   return res.json();
 }
 
-export function WeatherForecast() {
+export function WeatherForecast({
+  variant = "inline",
+}: {
+  variant?: "inline" | "stacked";
+}) {
   const { data } = useQuery({
     queryKey: ["weather-forecast"],
     queryFn: fetchForecast,
@@ -51,6 +55,29 @@ export function WeatherForecast() {
 
   const { time, weathercode, temperature_2m_max, temperature_2m_min } =
     data.daily;
+
+  if (variant === "stacked") {
+    return (
+      <div className="space-y-1.5">
+        {time.map((day, i) => {
+          const Icon = iconForCode(weathercode[i]);
+          const label = new Date(day).toLocaleDateString("nl-NL", {
+            weekday: "long",
+          });
+          return (
+            <div key={day} className="flex items-center gap-2 sv-heading">
+              <span className="capitalize text-sm w-20 shrink-0">{label}</span>
+              <Icon className="h-4 w-4 shrink-0" />
+              <span className="text-sm whitespace-nowrap">
+                {Math.round(temperature_2m_max[i])}°/
+                {Math.round(temperature_2m_min[i])}°
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center justify-end gap-2 sm:gap-4">
@@ -64,7 +91,7 @@ export function WeatherForecast() {
             key={day}
             className="flex items-center gap-1 sm:gap-1.5"
           >
-            <span className="hidden sm:inline capitalize text-sm">{label}</span>
+            <span className="capitalize text-sm">{label}</span>
             <Icon className="h-4 w-4 shrink-0" />
             <span className="text-sm whitespace-nowrap">
               {Math.round(temperature_2m_max[i])}°/

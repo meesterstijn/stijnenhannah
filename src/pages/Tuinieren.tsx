@@ -4278,6 +4278,17 @@ export default function Tuinieren() {
                   )}
                 />
                 <InfoRow label="Overig" value={view.general_notes} />
+                <InfoRow
+                  label="Laatste controle"
+                  value={
+                    view.last_checked_at
+                      ? sn(
+                          [new Date(view.last_checked_at).toLocaleDateString("nl-NL", { day: "numeric", month: "long", year: "numeric" })],
+                          [plantAge(view.last_checked_at) ? `${plantAge(view.last_checked_at)} geleden` : null],
+                        )
+                      : null
+                  }
+                />
               </div>
 
               <div className="space-y-3">

@@ -18,9 +18,7 @@ export default function TuingidsDokter() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-xs uppercase tracking-[0.2em] sv-muted">Tuingids</p>
-        <h1 className="sv-heading text-3xl mt-1">Plantendokter</h1>
-        <p className="sv-muted text-sm mt-1">Kies een symptoom en ontdek mogelijke oorzaken en oplossingen.</p>
+        <p className="sv-muted text-sm">Kies een symptoom en ontdek mogelijke oorzaken en oplossingen.</p>
       </div>
 
       <input

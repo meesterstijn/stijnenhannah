@@ -94,16 +94,16 @@ export default function Home() {
           desc="Plan de week en genereer je lijst"
         />
         <QuickCard
-          to="/dagvraag"
-          icon={Sparkles}
-          title="Dagvraag"
-          desc="Elke dag een antwoord van Gemini"
-        />
-        <QuickCard
           to="/tuinieren"
           icon={Sprout}
           title="Tuinieren"
           desc="Houd de verzorging van je planten bij"
+        />
+        <QuickCard
+          to="/dagvraag"
+          icon={Sparkles}
+          title="Dagvraag"
+          desc="Elke dag een antwoord van Gemini"
         />
         <SpotifyWidget />
         <VerjaarDagWidget />

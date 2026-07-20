@@ -80,16 +80,9 @@ export default function TuingidsDashboard() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-xs uppercase tracking-[0.2em] sv-muted">Tuingids</p>
-        <h1 className="sv-heading text-3xl mt-1">Dashboard</h1>
-      </div>
-
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <Widget emoji="🌦" title="Weer vandaag">
-          <div className="scale-90 origin-left">
-            <WeatherForecast />
-          </div>
+          <WeatherForecast variant="stacked" />
         </Widget>
 
         <Widget emoji="💧" title={`Water geven (${waterPlants.length})`} to="/tuinieren">

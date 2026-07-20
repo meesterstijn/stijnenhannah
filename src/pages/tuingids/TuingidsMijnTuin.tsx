@@ -98,9 +98,7 @@ export default function TuingidsMijnTuin() {
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-xs uppercase tracking-[0.2em] sv-muted">Tuingids</p>
-        <h1 className="sv-heading text-3xl mt-1">Mijn tuin</h1>
-        <p className="sv-muted text-sm mt-1">{planted.length} ingeplante planten</p>
+        <p className="sv-muted text-sm">{planted.length} ingeplante planten</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

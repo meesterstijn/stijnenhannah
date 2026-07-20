@@ -14,9 +14,7 @@ export default function TuingidsEncyclopedia() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-xs uppercase tracking-[0.2em] sv-muted">Tuingids</p>
-        <h1 className="sv-heading text-3xl mt-1">Encyclopedie</h1>
-        <p className="sv-muted text-sm mt-1">Alles over tuinieren, van A tot Z.</p>
+        <p className="sv-muted text-sm">Alles over tuinieren, van A tot Z.</p>
       </div>
 
       <input

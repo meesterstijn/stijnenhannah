@@ -59,12 +59,8 @@ export default function TuingidsLogboek() {
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-xs uppercase tracking-[0.2em] sv-muted">Tuingids</p>
-          <h1 className="sv-heading text-3xl mt-1">Groeilogboek</h1>
-          <p className="sv-muted text-sm mt-1">Groei, foto's en observaties bijhouden.</p>
-        </div>
-        <Button onClick={() => setFormOpen((v) => !v)} className="sv-button gap-2 shrink-0 mt-1">
+        <p className="sv-muted text-sm">Groei, foto's en observaties bijhouden.</p>
+        <Button onClick={() => setFormOpen((v) => !v)} className="sv-button gap-2 shrink-0">
           <Plus className="h-4 w-4" /> Toevoegen
         </Button>
       </div>

@@ -60,16 +60,12 @@ export default function TuingidsStatistieken() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-xs uppercase tracking-[0.2em] sv-muted">Tuingids</p>
-          <h1 className="sv-heading text-3xl mt-1">Statistieken</h1>
-        </div>
+      <div className="flex items-start justify-end gap-4">
         {plantNames.length > 1 && (
           <select
             value={selectedPlant}
             onChange={(e) => setSelectedPlant(e.target.value)}
-            className="px-3 py-2 text-sm focus:outline-none mt-1"
+            className="px-3 py-2 text-sm focus:outline-none"
           >
             <option value="all">Alle planten</option>
             {plantNames.map((n) => <option key={n} value={n}>{n}</option>)}
