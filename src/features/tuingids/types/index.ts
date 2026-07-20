@@ -36,6 +36,8 @@ export interface LogEntry {
   height_cm: number | null;
   flower_count: number | null;
   fruit_count: number | null;
+  fruit_length_cm: number | null;
+  fruit_width_cm: number | null;
   notes: string;
   watered: boolean;
   fertilized: boolean;

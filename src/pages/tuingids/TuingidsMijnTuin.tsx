@@ -1,23 +1,19 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase, type Plant } from "@/lib/supabase";
 import { Loader2, Droplet, Leaf, Sprout } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/features/tuingids/components/EmptyState";
-
-const MONTH_OPTIONS = [
-  "januari","februari","maart","april","mei","juni",
-  "juli","augustus","september","oktober","november","december",
-];
+import { MONTH_OPTIONS, effectiveWaterIntervalDays, isWaterSkippedToday } from "@/features/tuingids/lib/plantStatus";
+import { useRecordPlantCare } from "@/features/tuingids/hooks/usePlantCareActions";
 
 function healthScore(p: Plant): number {
   let score = 100;
   if (p.planted) {
-    const interval = p.growing_method === "Pot" && p.pot_water_interval_days
-      ? p.pot_water_interval_days : p.water_interval_days;
+    const interval = effectiveWaterIntervalDays(p);
     if (interval) {
       if (!p.last_watered_at) { score -= 30; }
-      else {
+      else if (!isWaterSkippedToday(p)) {
         const daysLeft = Math.ceil((new Date(p.last_watered_at).getTime() + interval * 86400000 - Date.now()) / 86400000);
         if (daysLeft < 0) score += daysLeft * 5;
       }
@@ -46,7 +42,6 @@ function HealthBar({ score }: { score: number }) {
 }
 
 export default function TuingidsMijnTuin() {
-  const queryClient = useQueryClient();
   const { data: plants = [], isLoading } = useQuery({
     queryKey: ["plants"],
     queryFn: async () => {
@@ -56,27 +51,7 @@ export default function TuingidsMijnTuin() {
     },
   });
 
-  const markWatered = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("plants").update({
-        last_watered_at: new Date().toISOString(),
-        last_water_reminder_sent_at: null,
-      }).eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["plants"] }),
-  });
-
-  const markFed = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("plants").update({
-        last_fed_at: new Date().toISOString(),
-        last_feeding_reminder_sent_at: null,
-      }).eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["plants"] }),
-  });
+  const { recordWatering, recordFeeding, recordingWaterId, recordingFeedId } = useRecordPlantCare();
 
   const planted = plants.filter((p) => p.planted);
   const currentMonth = MONTH_OPTIONS[new Date().getMonth()];
@@ -139,8 +114,8 @@ export default function TuingidsMijnTuin() {
                   size="sm"
                   variant="outline"
                   className="sv-button sv-button-thin-border flex-1 text-xs gap-1"
-                  onClick={() => markWatered.mutate(p.id)}
-                  disabled={markWatered.isPending}
+                  onClick={() => recordWatering(p)}
+                  disabled={recordingWaterId === p.id}
                 >
                   <Droplet className="h-3 w-3" /> Water
                 </Button>
@@ -148,8 +123,8 @@ export default function TuingidsMijnTuin() {
                   size="sm"
                   variant="outline"
                   className="sv-button sv-button-thin-border flex-1 text-xs gap-1"
-                  onClick={() => markFed.mutate(p.id)}
-                  disabled={markFed.isPending}
+                  onClick={() => recordFeeding(p)}
+                  disabled={recordingFeedId === p.id}
                 >
                   <Leaf className="h-3 w-3" /> Bemest
                 </Button>

@@ -13,6 +13,8 @@ type GrowthLogRow = {
   height_cm: number | null;
   flower_count: number | null;
   fruit_count: number | null;
+  fruit_length_cm: number | null;
+  fruit_width_cm: number | null;
   notes: string | null;
   watered: boolean;
   fertilized: boolean;
@@ -29,6 +31,8 @@ function rowToEntry(row: GrowthLogRow): LogEntry {
     height_cm: row.height_cm,
     flower_count: row.flower_count,
     fruit_count: row.fruit_count,
+    fruit_length_cm: row.fruit_length_cm ?? null,
+    fruit_width_cm: row.fruit_width_cm ?? null,
     notes: row.notes ?? "",
     watered: row.watered,
     fertilized: row.fertilized,
@@ -63,6 +67,8 @@ export function useGrowthLog() {
         height_cm: entry.height_cm,
         flower_count: entry.flower_count,
         fruit_count: entry.fruit_count,
+        fruit_length_cm: entry.fruit_length_cm,
+        fruit_width_cm: entry.fruit_width_cm,
         notes: entry.notes || null,
         watered: entry.watered,
         fertilized: entry.fertilized,
@@ -80,6 +86,8 @@ export function useGrowthLog() {
       if (patch.height_cm !== undefined) row.height_cm = patch.height_cm;
       if (patch.flower_count !== undefined) row.flower_count = patch.flower_count;
       if (patch.fruit_count !== undefined) row.fruit_count = patch.fruit_count;
+      if (patch.fruit_length_cm !== undefined) row.fruit_length_cm = patch.fruit_length_cm;
+      if (patch.fruit_width_cm !== undefined) row.fruit_width_cm = patch.fruit_width_cm;
       if (patch.watered !== undefined) row.watered = patch.watered;
       if (patch.fertilized !== undefined) row.fertilized = patch.fertilized;
       if (patch.photo_url !== undefined) row.photo_url = patch.photo_url || null;

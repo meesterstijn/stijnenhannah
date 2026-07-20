@@ -1,12 +1,21 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase, type Plant } from "@/lib/supabase";
+import { type Plant } from "@/lib/supabase";
 import { useGrowthLog } from "@/features/tuingids/hooks/useGrowthLog";
+import {
+  fetchPlants,
+  fetchAllHarvestLogs,
+  fetchAllPruningLogs,
+  fetchAllRepotLogs,
+} from "@/features/tuingids/lib/plantLogs";
+import { buildAllLogboekEvents } from "@/features/tuingids/lib/events";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react";
-import { EmptyState } from "@/features/tuingids/components/EmptyState";
+import { Plus } from "lucide-react";
+import { LogboekDashboard } from "@/features/tuingids/components/LogboekDashboard";
+import { LogboekTimeline } from "@/features/tuingids/components/LogboekTimeline";
+import { GrowthComparisonChart } from "@/features/tuingids/components/GrowthComparisonChart";
 import type { LogEntry } from "@/features/tuingids/types";
 
 type FormState = Omit<LogEntry, "id" | "created_at">;
@@ -18,6 +27,8 @@ const emptyForm = (): FormState => ({
   height_cm: null,
   flower_count: null,
   fruit_count: null,
+  fruit_length_cm: null,
+  fruit_width_cm: null,
   notes: "",
   watered: false,
   fertilized: false,
@@ -25,19 +36,31 @@ const emptyForm = (): FormState => ({
 });
 
 export default function TuingidsLogboek() {
-  const { entries, addEntry, deleteEntry } = useGrowthLog();
+  const { entries, addEntry } = useGrowthLog();
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState<FormState>(emptyForm());
-  const [filterPlant, setFilterPlant] = useState("all");
 
-  const { data: plants = [] } = useQuery({
+  const { data: plants = [] } = useQuery<Plant[]>({
     queryKey: ["plants"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("plants").select("id, name").order("name");
-      if (error) throw error;
-      return (data ?? []) as Pick<Plant, "id" | "name">[];
-    },
+    queryFn: fetchPlants,
   });
+  const { data: harvestLogs = [] } = useQuery({
+    queryKey: ["plant_harvest_logs", "all"],
+    queryFn: fetchAllHarvestLogs,
+  });
+  const { data: pruningLogs = [] } = useQuery({
+    queryKey: ["plant_pruning_logs", "all"],
+    queryFn: fetchAllPruningLogs,
+  });
+  const { data: repotLogs = [] } = useQuery({
+    queryKey: ["plant_repot_logs", "all"],
+    queryFn: fetchAllRepotLogs,
+  });
+
+  const events = useMemo(
+    () => buildAllLogboekEvents({ entries, harvestLogs, pruningLogs, repotLogs, plants }),
+    [entries, harvestLogs, pruningLogs, repotLogs, plants],
+  );
 
   function patch(p: Partial<FormState>) {
     setForm((prev) => ({ ...prev, ...p }));
@@ -49,12 +72,6 @@ export default function TuingidsLogboek() {
     setForm(emptyForm());
     setFormOpen(false);
   }
-
-  const displayed = entries.filter(
-    (e) => filterPlant === "all" || e.plant_name === filterPlant,
-  );
-
-  const plantNames = [...new Set(entries.map((e) => e.plant_name))].sort();
 
   return (
     <div className="space-y-6">
@@ -128,89 +145,11 @@ export default function TuingidsLogboek() {
         </div>
       )}
 
-      {plantNames.length > 0 && (
-        <div className="flex gap-2 flex-wrap">
-          <button
-            type="button"
-            onClick={() => setFilterPlant("all")}
-            className={`sv-chip px-3 py-1.5 text-xs font-medium${filterPlant === "all" ? " active" : ""}`}
-          >
-            Alle planten
-          </button>
-          {plantNames.map((name) => (
-            <button
-              key={name}
-              type="button"
-              onClick={() => setFilterPlant(name)}
-              className={`sv-chip px-3 py-1.5 text-xs font-medium${filterPlant === name ? " active" : ""}`}
-            >
-              {name}
-            </button>
-          ))}
-        </div>
-      )}
+      <LogboekDashboard events={events} />
 
-      {displayed.length === 0 ? (
-        <EmptyState emoji="📷" title="Nog geen notities" description="Voeg je eerste groeinotitie toe via de knop hierboven." />
-      ) : (
-        <div className="relative space-y-0">
-          <div className="absolute left-[22px] top-6 bottom-6 w-px" style={{ background: "var(--sv-wood-dark)", opacity: 0.3 }} />
-          {displayed.map((entry) => (
-            <LogEntryCard key={entry.id} entry={entry} onDelete={deleteEntry} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
+      <LogboekTimeline events={events} />
 
-function LogEntryCard({ entry, onDelete }: { entry: LogEntry; onDelete: (id: string) => void }) {
-  const [expanded, setExpanded] = useState(false);
-  const date = new Date(entry.date).toLocaleDateString("nl-NL", { day: "numeric", month: "long", year: "numeric" });
-
-  return (
-    <div className="flex gap-4 pb-4">
-      <div className="sv-icon-slot shrink-0 h-11 w-11 rounded-full flex items-center justify-center text-lg z-10">
-        {entry.photo_url ? <img src={entry.photo_url} alt="" className="h-full w-full rounded-full object-cover" /> : "🌱"}
-      </div>
-      <div className="flex-1 sv-panel p-4 space-y-2">
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <p className="sv-heading text-xl">{entry.plant_name}</p>
-            <p className="text-xs sv-muted">{date}</p>
-          </div>
-          <div className="flex items-center gap-1">
-            {entry.watered && <span className="sv-badge-ok text-xs rounded-full px-2 py-0.5">💧</span>}
-            {entry.fertilized && <span className="sv-badge-ok text-xs rounded-full px-2 py-0.5">🌿</span>}
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          {entry.height_cm !== null && <span className="sv-badge-ok text-xs rounded-full px-2 py-0.5">📏 {entry.height_cm} cm</span>}
-          {entry.flower_count !== null && <span className="sv-badge-ok text-xs rounded-full px-2 py-0.5">🌸 {entry.flower_count} bloemen</span>}
-          {entry.fruit_count !== null && <span className="sv-badge-ok text-xs rounded-full px-2 py-0.5">🍅 {entry.fruit_count} vruchten</span>}
-        </div>
-
-        {entry.notes && (
-          <div>
-            <p className={`text-sm sv-muted ${expanded ? "" : "line-clamp-2"}`}>{entry.notes}</p>
-            {entry.notes.length > 100 && (
-              <button type="button" onClick={() => setExpanded((v) => !v)} className="text-xs sv-muted mt-0.5">
-                {expanded ? <ChevronUp className="h-3 w-3 inline" /> : <ChevronDown className="h-3 w-3 inline" />}
-                {expanded ? " Minder" : " Meer"}
-              </button>
-            )}
-          </div>
-        )}
-
-        <button
-          type="button"
-          onClick={() => onDelete(entry.id)}
-          className="text-xs sv-muted hover:opacity-60 transition-opacity"
-        >
-          <Trash2 className="h-3 w-3 inline" /> verwijderen
-        </button>
-      </div>
+      <GrowthComparisonChart entries={entries} />
     </div>
   );
 }

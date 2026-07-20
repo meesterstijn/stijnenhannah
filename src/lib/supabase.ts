@@ -119,6 +119,8 @@ export type Plant = {
   acquired_at: string | null;
   source: string | null;
   price: number | null;
+  first_flower_at: string | null;
+  first_fruit_at: string | null;
   created_at: string;
 };
 

@@ -48,9 +48,15 @@ import {
   Boxes,
   Apple,
   Clock,
+  Check,
 } from "lucide-react";
 import { useGrowthLog } from "@/features/tuingids/hooks/useGrowthLog";
 import type { LogEntry } from "@/features/tuingids/types";
+import { fetchPlants, fetchHarvestLogs, fetchPruningLogs, fetchRepotLogs } from "@/features/tuingids/lib/plantLogs";
+import { buildAllLogboekEvents, EVENT_META } from "@/features/tuingids/lib/events";
+import { MONTH_OPTIONS, effectiveWaterIntervalDays, waterStatus, feedingStatus } from "@/features/tuingids/lib/plantStatus";
+import { formatMeasurement, formatFruitSize } from "@/features/tuingids/lib/growthStats";
+import { useRecordPlantCare } from "@/features/tuingids/hooks/usePlantCareActions";
 
 const SUN_OPTIONS = ["Volle zon", "Halfvolle zon", "Half schaduw", "Schaduw"] as const;
 
@@ -154,21 +160,6 @@ const PROPAGATION_OPTIONS = [
   "Uitlopers",
   "Bladstek",
   "Knollen / bollen",
-] as const;
-
-const MONTH_OPTIONS = [
-  "januari",
-  "februari",
-  "maart",
-  "april",
-  "mei",
-  "juni",
-  "juli",
-  "augustus",
-  "september",
-  "oktober",
-  "november",
-  "december",
 ] as const;
 
 function toggleInArray(arr: string[], value: string): string[] {
@@ -499,49 +490,6 @@ function draftToRow(d: PlantDraft) {
   };
 }
 
-function effectiveWaterIntervalDays(p: Plant): number | null {
-  if (p.growing_method === "Pot" && p.pot_water_interval_days) {
-    return p.pot_water_interval_days;
-  }
-  return p.water_interval_days;
-}
-
-function waterStatus(p: Plant): { label: string; overdue: boolean } | null {
-  if (!p.planted) return null;
-  const intervalDays = effectiveWaterIntervalDays(p);
-  if (!intervalDays) return null;
-  const todayIso = new Date().toISOString().slice(0, 10);
-  if (p.water_skip_until && todayIso < p.water_skip_until) {
-    return { label: "Uitgesteld tot morgen", overdue: false };
-  }
-  if (!p.last_watered_at)
-    return { label: "Nog geen water gegeven", overdue: true };
-  const dueAt =
-    new Date(p.last_watered_at).getTime() + intervalDays * 24 * 60 * 60 * 1000;
-  const daysLeft = Math.ceil((dueAt - Date.now()) / (24 * 60 * 60 * 1000));
-  if (daysLeft <= 0) return { label: "Water geven!", overdue: true };
-  if (daysLeft === 1) return { label: "Morgen water geven", overdue: false };
-  return { label: `Over ${daysLeft} dagen`, overdue: false };
-}
-
-function feedingStatus(p: Plant): { label: string; overdue: boolean } | null {
-  if (!p.planted) return null;
-  if (!p.feeding_interval_days) return null;
-  if (p.feeding_months.length > 0) {
-    const currentMonth = MONTH_OPTIONS[new Date().getMonth()];
-    if (!p.feeding_months.includes(currentMonth)) return null;
-  }
-  if (!p.last_fed_at)
-    return { label: "Nog geen voeding gegeven", overdue: true };
-  const dueAt =
-    new Date(p.last_fed_at).getTime() +
-    p.feeding_interval_days * 24 * 60 * 60 * 1000;
-  const daysLeft = Math.ceil((dueAt - Date.now()) / (24 * 60 * 60 * 1000));
-  if (daysLeft <= 0) return { label: "Voeding geven!", overdue: true };
-  if (daysLeft === 1) return { label: "Morgen voeding geven", overdue: false };
-  return { label: `Over ${daysLeft} dagen`, overdue: false };
-}
-
 function daysAgoLabel(n: number): string {
   if (n === 0) return "vandaag";
   if (n === 1) return "gisteren";
@@ -573,51 +521,12 @@ function checkedLabel(dateStr: string | null): string | null {
   return `${days} dagen geleden gecontroleerd`;
 }
 
-async function fetchPlants(): Promise<Plant[]> {
-  const { data, error } = await supabase
-    .from("plants")
-    .select("*")
-    .order("name", { ascending: true });
-  if (error) throw error;
-  return data ?? [];
-}
-
 async function fetchPhotos(plantId: string): Promise<PlantPhoto[]> {
   const { data, error } = await supabase
     .from("plant_photos")
     .select("*")
     .eq("plant_id", plantId)
     .order("taken_at", { ascending: false });
-  if (error) throw error;
-  return data ?? [];
-}
-
-async function fetchHarvestLogs(plantId: string): Promise<PlantHarvestLog[]> {
-  const { data, error } = await supabase
-    .from("plant_harvest_logs")
-    .select("*")
-    .eq("plant_id", plantId)
-    .order("harvested_at", { ascending: false });
-  if (error) throw error;
-  return data ?? [];
-}
-
-async function fetchPruningLogs(plantId: string): Promise<PlantPruningLog[]> {
-  const { data, error } = await supabase
-    .from("plant_pruning_logs")
-    .select("*")
-    .eq("plant_id", plantId)
-    .order("pruned_at", { ascending: false });
-  if (error) throw error;
-  return data ?? [];
-}
-
-async function fetchRepotLogs(plantId: string): Promise<PlantRepotLog[]> {
-  const { data, error } = await supabase
-    .from("plant_repot_logs")
-    .select("*")
-    .eq("plant_id", plantId)
-    .order("repotted_at", { ascending: false });
   if (error) throw error;
   return data ?? [];
 }
@@ -1765,12 +1674,15 @@ function WaterSection({
   const { entries, updateEntry, deleteEntry } = useGrowthLog();
   const inPot = plant.growing_method === "Pot";
 
-  // Water history: growth log entries where watered=true for this plant
+  // Water history: growth log entries where watered=true for this plant.
+  // Entries with a plant_id must match it exactly; only legacy entries
+  // without a plant_id (freehand notes) fall back to matching by name —
+  // otherwise two plants sharing a name could "inherit" each other's history.
   const waterHistory = entries
     .filter(
       (e) =>
         e.watered &&
-        (e.plant_id === plant.id || e.plant_name === plant.name),
+        (e.plant_id ? e.plant_id === plant.id : e.plant_name === plant.name),
     )
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
@@ -1825,7 +1737,7 @@ function WaterSection({
         (e) =>
           e.id !== id &&
           e.watered &&
-          (e.plant_id === plant.id || e.plant_name === plant.name),
+          (e.plant_id ? e.plant_id === plant.id : e.plant_name === plant.name),
       )
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     deleteEntry(id);
@@ -2179,7 +2091,7 @@ function FeedingSection({
     .filter(
       (e) =>
         e.fertilized &&
-        (e.plant_id === plant.id || e.plant_name === plant.name),
+        (e.plant_id ? e.plant_id === plant.id : e.plant_name === plant.name),
     )
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
@@ -2233,7 +2145,7 @@ function FeedingSection({
         (e) =>
           e.id !== id &&
           e.fertilized &&
-          (e.plant_id === plant.id || e.plant_name === plant.name),
+          (e.plant_id ? e.plant_id === plant.id : e.plant_name === plant.name),
       )
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     deleteEntry(id);
@@ -2519,7 +2431,7 @@ function FeedingSection({
 // ─── PlantLogboek component ─────────────────────────────────────────────────
 
 function PlantLogboek({ plantName }: { plantName: string }) {
-  const { addEntry, deleteEntry, getEntriesForPlant } = useGrowthLog();
+  const { addEntry, deleteEntry, getEntriesForPlant, isAdding, addError } = useGrowthLog();
   // Alleen groei-notities tonen; automatische water-/voedingsregistraties horen
   // al thuis in de Water-/Voedingsgeschiedenis en worden hier niet herhaald.
   const entries = getEntriesForPlant(plantName).filter((entry) => {
@@ -2533,27 +2445,59 @@ function PlantLogboek({ plantName }: { plantName: string }) {
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");
   const [heightCm, setHeightCm] = useState("");
+  const [fruitLengthCm, setFruitLengthCm] = useState("");
+  const [fruitWidthCm, setFruitWidthCm] = useState("");
   const [watered, setWatered] = useState(false);
   const [fertilized, setFertilized] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   function resetForm() {
     setNotes("");
     setHeightCm("");
+    setFruitLengthCm("");
+    setFruitWidthCm("");
     setWatered(false);
     setFertilized(false);
     setDate(new Date().toISOString().slice(0, 10));
+    setFormError(null);
     setFormOpen(false);
   }
 
   function handleSave() {
+    setFormError(null);
+
+    const height = heightCm.trim() ? Number(heightCm) : null;
+    const fruitLength = fruitLengthCm.trim() ? Number(fruitLengthCm) : null;
+    const fruitWidth = fruitWidthCm.trim() ? Number(fruitWidthCm) : null;
+    const noteText = notes.trim();
+
+    if (height === null && fruitLength === null && fruitWidth === null && !noteText && !watered && !fertilized) {
+      setFormError("Vul minimaal een planthoogte, vruchtgrootte of notitie in.");
+      return;
+    }
+    if (height !== null && (!Number.isFinite(height) || height <= 0)) {
+      setFormError("Planthoogte moet een getal groter dan nul zijn.");
+      return;
+    }
+    if (fruitLength !== null && (!Number.isFinite(fruitLength) || fruitLength <= 0)) {
+      setFormError("Vruchtlengte moet een getal groter dan nul zijn.");
+      return;
+    }
+    if (fruitWidth !== null && (!Number.isFinite(fruitWidth) || fruitWidth <= 0)) {
+      setFormError("Vruchtbreedte/diameter moet een getal groter dan nul zijn.");
+      return;
+    }
+
     addEntry({
       plant_id: null,
       plant_name: plantName,
       date,
-      notes,
-      height_cm: heightCm ? Number(heightCm) : null,
+      notes: noteText,
+      height_cm: height,
       flower_count: null,
       fruit_count: null,
+      fruit_length_cm: fruitLength,
+      fruit_width_cm: fruitWidth,
       watered,
       fertilized,
       photo_url: "",
@@ -2577,16 +2521,18 @@ function PlantLogboek({ plantName }: { plantName: string }) {
       </div>
 
       {formOpen && (
-        <div className="space-y-3">
+        <div className="space-y-4">
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-xs sv-muted block mb-1">Datum</label>
               <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="text-sm" />
             </div>
             <div>
-              <label className="text-xs sv-muted block mb-1">Hoogte (cm)</label>
+              <label className="text-xs sv-muted block mb-1">Hoogte plant (cm)</label>
               <Input
                 type="number"
+                step="0.1"
+                min="0"
                 placeholder="bijv. 45"
                 value={heightCm}
                 onChange={(e) => setHeightCm(e.target.value)}
@@ -2594,13 +2540,48 @@ function PlantLogboek({ plantName }: { plantName: string }) {
               />
             </div>
           </div>
-          <Textarea
-            placeholder="Notities..."
-            rows={2}
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            className="text-sm resize-none"
-          />
+
+          <div className="space-y-1.5">
+            <p className="text-xs sv-muted font-medium uppercase tracking-wide">Vrucht of groente</p>
+            <div className="grid sm:grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs sv-muted block mb-1">Lengte (cm)</label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  placeholder="bijv. 18"
+                  value={fruitLengthCm}
+                  onChange={(e) => setFruitLengthCm(e.target.value)}
+                  className="text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-xs sv-muted block mb-1">Breedte / diameter (cm)</label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  placeholder="bijv. 4"
+                  value={fruitWidthCm}
+                  onChange={(e) => setFruitWidthCm(e.target.value)}
+                  className="text-sm"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <p className="text-xs sv-muted font-medium uppercase tracking-wide">Notitie</p>
+            <Textarea
+              placeholder="bijv. Eerste kleine tomaat zichtbaar..."
+              rows={2}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="text-sm resize-none"
+            />
+          </div>
+
           <div className="flex gap-5 text-sm">
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={watered} onChange={(e) => setWatered(e.target.checked)} />
@@ -2611,11 +2592,17 @@ function PlantLogboek({ plantName }: { plantName: string }) {
               <span>🌿 Bemest</span>
             </label>
           </div>
+
+          {formError && <p className="text-xs sv-destructive-text">{formError}</p>}
+          {!formError && addError && (
+            <p className="text-xs sv-destructive-text">Opslaan mislukt: {addError.message}</p>
+          )}
+
           <div className="flex gap-2">
-            <Button size="sm" className="sv-button" onClick={handleSave}>
-              Opslaan
+            <Button size="sm" className="sv-button" onClick={handleSave} disabled={isAdding}>
+              {isAdding ? <Loader2 className="h-4 w-4 animate-spin" /> : "Opslaan"}
             </Button>
-            <Button size="sm" className="sv-button sv-button-ghost" onClick={resetForm}>
+            <Button size="sm" className="sv-button sv-button-ghost" onClick={resetForm} disabled={isAdding}>
               Annuleer
             </Button>
           </div>
@@ -2641,9 +2628,18 @@ function PlantLogboek({ plantName }: { plantName: string }) {
                   <X className="h-2.5 w-2.5" />
                 </button>
               </div>
-              {entry.height_cm !== null && (
+              {(entry.height_cm !== null || entry.fruit_length_cm !== null || entry.fruit_width_cm !== null) && (
                 <div className="flex flex-wrap gap-1.5">
-                  <span className="sv-badge-ok text-xs px-2 py-0.5 rounded-full">📏 {entry.height_cm} cm</span>
+                  {entry.height_cm !== null && (
+                    <span className="sv-badge-ok text-xs px-2 py-0.5 rounded-full">
+                      📏 {formatMeasurement(entry.height_cm)} cm
+                    </span>
+                  )}
+                  {(entry.fruit_length_cm !== null || entry.fruit_width_cm !== null) && (
+                    <span className="sv-badge-ok text-xs px-2 py-0.5 rounded-full">
+                      🍅 {formatFruitSize(entry.fruit_length_cm, entry.fruit_width_cm)}
+                    </span>
+                  )}
                 </div>
               )}
               {entry.notes && <p className="text-sm">{entry.notes}</p>}
@@ -3095,6 +3091,101 @@ function RepotLogSection({
   );
 }
 
+// ─── FirstEventButton component ────────────────────────────────────────────
+// Shared UI for "Eerste bloem" / "Eerste vrucht": registers a one-off date on
+// the plant itself, editable/removable afterwards. Reused for both events so
+// there is only one implementation of the register/edit/delete behavior.
+
+function FirstEventButton({
+  label,
+  emoji,
+  value,
+  onSave,
+  onDelete,
+  isSaving,
+}: {
+  label: string;
+  emoji: string;
+  value: string | null;
+  onSave: (date: string) => void;
+  onDelete: () => void;
+  isSaving: boolean;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [date, setDate] = useState(() => value ?? new Date().toISOString().slice(0, 10));
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-1.5 sv-inset px-2 py-1 rounded-full">
+        <Input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          className="h-7 text-xs w-[8.5rem]"
+        />
+        <Button
+          size="icon"
+          className="sv-button h-7 w-7 shrink-0"
+          disabled={isSaving || !date}
+          onClick={() => {
+            onSave(date);
+            setEditing(false);
+          }}
+        >
+          <Check className="h-3.5 w-3.5" />
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          className="sv-button sv-button-ghost h-7 w-7 shrink-0"
+          onClick={() => setEditing(false)}
+        >
+          <X className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+    );
+  }
+
+  if (value) {
+    return (
+      <div className="sv-badge-ok flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full">
+        <span>
+          {emoji} {label}:{" "}
+          {new Date(value + "T00:00:00").toLocaleDateString("nl-NL", { day: "numeric", month: "long", year: "numeric" })}
+        </span>
+        <button
+          type="button"
+          onClick={() => {
+            setDate(value);
+            setEditing(true);
+          }}
+          className="opacity-70 hover:opacity-100"
+          aria-label={`${label} wijzigen`}
+        >
+          <Pencil className="h-3 w-3" />
+        </button>
+        <button type="button" onClick={onDelete} className="opacity-70 hover:opacity-100" aria-label={`${label} verwijderen`}>
+          <X className="h-3 w-3" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <Button
+      size="sm"
+      variant="outline"
+      className="sv-button sv-button-thin-border text-xl"
+      onClick={() => {
+        setDate(new Date().toISOString().slice(0, 10));
+        setEditing(true);
+      }}
+    >
+      <span className="text-base">{emoji}</span> {label}
+    </Button>
+  );
+}
+
 // ─── TimelineSection component ─────────────────────────────────────────────
 // Merges existing history sources (growth log, photos) with the new log
 // tables into one read-only chronological view. No new storage — every
@@ -3129,23 +3220,14 @@ function TimelineSection({
   for (const photo of photos) {
     items.push({ date: photo.taken_at, icon: ImageIcon, label: photo.note ? `Foto toegevoegd — ${photo.note}` : "Foto toegevoegd" });
   }
-  for (const log of harvestLogs) {
+  for (const event of buildAllLogboekEvents({ entries: growthEntries, harvestLogs, pruningLogs, repotLogs, plants: [plant] })) {
     items.push({
-      date: log.harvested_at,
-      icon: Apple,
-      label: `Oogst — ${sn([log.weight_grams ? `${log.weight_grams} g` : null, log.quantity ? `${log.quantity} ${log.unit ?? "stuks"}` : null], []) ?? "geregistreerd"}`,
+      date: event.date,
+      icon: EVENT_META[event.type].icon,
+      label: event.detail ? `${event.label} (${event.detail})` : event.label,
     });
   }
-  for (const log of pruningLogs) {
-    items.push({ date: log.pruned_at, icon: Scissors, label: log.pruning_type ? `Gesnoeid — ${log.pruning_type}` : "Gesnoeid" });
-  }
-  for (const log of repotLogs) {
-    items.push({ date: log.repotted_at, icon: Boxes, label: "Verpot" });
-  }
   for (const entry of growthEntries) {
-    if (entry.watered) items.push({ date: entry.date, icon: Droplet, label: "Water gegeven" });
-    if (entry.fertilized) items.push({ date: entry.date, icon: Leaf, label: "Voeding gegeven" });
-    if (entry.height_cm) items.push({ date: entry.date, icon: Ruler, label: `Hoogte bijgewerkt naar ${entry.height_cm} cm` });
     if (entry.notes && !entry.watered && !entry.fertilized && !entry.height_cm) {
       items.push({ date: entry.date, icon: BookOpen, label: entry.notes });
     }
@@ -3180,13 +3262,10 @@ function TimelineSection({
 export default function Tuinieren() {
   const { session } = useAuth();
   const queryClient = useQueryClient();
-  const { addEntryAsync } = useGrowthLog();
 
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<PlantDraft>(emptyDraft);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [recordingWaterId, setRecordingWaterId] = useState<string | null>(null);
-  const [recordingFeedId, setRecordingFeedId] = useState<string | null>(null);
 
   const [view, setView] = useState<Plant | null>(null);
   const [editMode, setEditMode] = useState(false);
@@ -3240,6 +3319,10 @@ export default function Tuinieren() {
           planted: p.planted ?? false,
           planted_at: p.planted_at ? new Date(p.planted_at).toISOString() : null,
           health_status: p.health_status || null,
+          last_checked_at: p.last_checked_at || null,
+          water_skip_until: p.water_skip_until || null,
+          first_flower_at: p.first_flower_at || null,
+          first_fruit_at: p.first_fruit_at || null,
           pot_size_liters: p.pot_size_liters ? Number(p.pot_size_liters) : null,
           pot_material: p.pot_material || null,
           pot_color: p.pot_color || null,
@@ -3371,6 +3454,22 @@ export default function Tuinieren() {
     },
     onError: (err: Error) => setSaveError(err.message),
   });
+
+  // Single source of truth for "water/feeding given" — shared with Mijn Tuin
+  // so both entry points always write a matching growth-log entry.
+  const {
+    recordWatering,
+    recordFeeding,
+    recordingWaterId,
+    recordingFeedId,
+    error: careError,
+  } = useRecordPlantCare({
+    patchPlant: ({ id, patch }) => updatePlant.mutateAsync({ id, patch }),
+  });
+
+  useEffect(() => {
+    if (careError) setSaveError(careError);
+  }, [careError]);
 
   const deletePlant = useMutation({
     mutationFn: async (id: string) => {
@@ -3526,44 +3625,6 @@ export default function Tuinieren() {
     });
   }
 
-  // Single source of truth for "water given": always writes one growth-log
-  // entry AND syncs plants.last_watered_at, in that order, so the plant is
-  // never marked watered without a matching log entry. Used by both the
-  // detail-view water button and the quick-water badge on the tile.
-  async function recordWatering(plant: Plant, note?: string) {
-    if (recordingWaterId === plant.id) return;
-    setRecordingWaterId(plant.id);
-    setSaveError(null);
-    try {
-      await addEntryAsync({
-        plant_id: plant.id,
-        plant_name: plant.name,
-        date: new Date().toISOString().slice(0, 10),
-        notes: note?.trim() || "Water gegeven",
-        height_cm: null,
-        flower_count: null,
-        fruit_count: null,
-        watered: true,
-        fertilized: false,
-        photo_url: "",
-      });
-      await updatePlant.mutateAsync({
-        id: plant.id,
-        patch: {
-          last_watered_at: new Date().toISOString(),
-          last_water_reminder_sent_at: null,
-          water_skip_until: null,
-        },
-      });
-    } catch (err) {
-      setSaveError(
-        err instanceof Error ? err.message : "Waterregistratie mislukt.",
-      );
-    } finally {
-      setRecordingWaterId(null);
-    }
-  }
-
   function handleSyncLastFed(isoDate: string | null) {
     if (!view) return;
     updatePlant.mutate({
@@ -3573,40 +3634,6 @@ export default function Tuinieren() {
         last_feeding_reminder_sent_at: null,
       },
     });
-  }
-
-  // Single source of truth for "feeding given" — mirrors recordWatering.
-  async function recordFeeding(plant: Plant, note?: string) {
-    if (recordingFeedId === plant.id) return;
-    setRecordingFeedId(plant.id);
-    setSaveError(null);
-    try {
-      await addEntryAsync({
-        plant_id: plant.id,
-        plant_name: plant.name,
-        date: new Date().toISOString().slice(0, 10),
-        notes: note?.trim() || "Voeding gegeven",
-        height_cm: null,
-        flower_count: null,
-        fruit_count: null,
-        watered: false,
-        fertilized: true,
-        photo_url: "",
-      });
-      await updatePlant.mutateAsync({
-        id: plant.id,
-        patch: {
-          last_fed_at: new Date().toISOString(),
-          last_feeding_reminder_sent_at: null,
-        },
-      });
-    } catch (err) {
-      setSaveError(
-        err instanceof Error ? err.message : "Voedingsregistratie mislukt.",
-      );
-    } finally {
-      setRecordingFeedId(null);
-    }
   }
 
   function markChecked() {
@@ -3855,6 +3882,7 @@ export default function Tuinieren() {
       soil_ph_min: p.soil_ph_min,
       soil_ph_max: p.soil_ph_max,
       temperature_notes: p.temperature_notes,
+      humidity_notes: p.humidity_notes,
       winter_hardiness: p.winter_hardiness,
       winter_notes: p.winter_notes,
       pruning_notes: p.pruning_notes,
@@ -3877,7 +3905,11 @@ export default function Tuinieren() {
       photo_url: p.photo_url,
       planted: p.planted,
       planted_at: p.planted_at,
+      reminders_enabled: p.reminders_enabled,
+      feeding_reminders_enabled: p.feeding_reminders_enabled,
+      water_skip_until: p.water_skip_until,
       health_status: p.health_status,
+      last_checked_at: p.last_checked_at,
       pot_size_liters: p.pot_size_liters,
       pot_material: p.pot_material,
       pot_color: p.pot_color,
@@ -3887,6 +3919,8 @@ export default function Tuinieren() {
       acquired_at: p.acquired_at,
       source: p.source,
       price: p.price,
+      first_flower_at: p.first_flower_at,
+      first_fruit_at: p.first_fruit_at,
     }));
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -4110,7 +4144,7 @@ export default function Tuinieren() {
                   disabled={updatePlant.isPending}
                 >
                   <Sprout className="h-3.5 w-3.5" />{" "}
-                  {view.planted ? "Gepland" : "Markeer als gepland"}
+                  {view.planted ? "Markeer als niet gepland" : "Markeer als gepland"}
                 </Button>
                 <Button
                   size="sm"
@@ -4122,6 +4156,22 @@ export default function Tuinieren() {
                   <ClipboardCheck className="h-3.5 w-3.5" />{" "}
                   {checkedLabel(view.last_checked_at) ?? "Plant gecontroleerd"}
                 </Button>
+                <FirstEventButton
+                  label="Eerste bloem"
+                  emoji="🌸"
+                  value={view.first_flower_at}
+                  isSaving={updatePlant.isPending}
+                  onSave={(date) => updatePlant.mutate({ id: view.id, patch: { first_flower_at: date } })}
+                  onDelete={() => updatePlant.mutate({ id: view.id, patch: { first_flower_at: null } })}
+                />
+                <FirstEventButton
+                  label="Eerste vrucht"
+                  emoji="🍅"
+                  value={view.first_fruit_at}
+                  isSaving={updatePlant.isPending}
+                  onSave={(date) => updatePlant.mutate({ id: view.id, patch: { first_fruit_at: date } })}
+                  onDelete={() => updatePlant.mutate({ id: view.id, patch: { first_fruit_at: null } })}
+                />
               </div>
 
               {/* Water sectie */}

@@ -3,30 +3,14 @@ import { supabase, type Plant } from "@/lib/supabase";
 import { Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { WeatherForecast } from "@/components/weather-forecast";
-
-const MONTH_OPTIONS = [
-  "januari","februari","maart","april","mei","juni",
-  "juli","augustus","september","oktober","november","december",
-];
-
-function effectiveWaterInterval(p: Plant): number | null {
-  if (p.growing_method === "Pot" && p.pot_water_interval_days) return p.pot_water_interval_days;
-  return p.water_interval_days;
-}
+import { MONTH_OPTIONS, waterStatus, feedingStatus } from "@/features/tuingids/lib/plantStatus";
 
 function isOverdue(p: Plant): boolean {
-  const interval = effectiveWaterInterval(p);
-  if (!p.planted || !interval) return false;
-  if (!p.last_watered_at) return true;
-  const due = new Date(p.last_watered_at).getTime() + interval * 86400000;
-  return due <= Date.now();
+  return waterStatus(p)?.overdue ?? false;
 }
 
 function isFeedingOverdue(p: Plant): boolean {
-  if (!p.planted || !p.feeding_interval_days) return false;
-  if (!p.last_fed_at) return true;
-  const due = new Date(p.last_fed_at).getTime() + p.feeding_interval_days * 86400000;
-  return due <= Date.now();
+  return feedingStatus(p)?.overdue ?? false;
 }
 
 function Widget({ emoji, title, children, to }: { emoji: string; title: string; children: React.ReactNode; to?: string }) {
