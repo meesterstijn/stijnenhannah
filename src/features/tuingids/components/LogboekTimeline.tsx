@@ -6,7 +6,19 @@ function filterChipClass(active: boolean): string {
   return `sv-chip px-3 py-1.5 text-xs font-medium${active ? " active" : ""}`;
 }
 
-export function LogboekTimeline({ events }: { events: LogboekEvent[] }) {
+export type LogboekEventMeta = { species?: string; location?: string; season?: string };
+
+export function LogboekTimeline({
+  events,
+  metaById,
+}: {
+  events: LogboekEvent[];
+  // Optional per-event extra display info (species/locatie/seizoen) — keyed
+  // by event.id. Kept optional and separate from LogboekEvent itself so
+  // simpler single-plant consumers (e.g. an instance's own timeline) don't
+  // need to build this map just to render.
+  metaById?: Map<string, LogboekEventMeta>;
+}) {
   const [filter, setFilter] = useState<"all" | EventType>("all");
   const filtered = filter === "all" ? events : events.filter((e) => e.type === filter);
 
@@ -33,6 +45,7 @@ export function LogboekTimeline({ events }: { events: LogboekEvent[] }) {
         <div className="space-y-2 max-h-[32rem] overflow-y-auto pr-1">
           {filtered.map((event) => {
             const Icon = EVENT_META[event.type].icon;
+            const meta = metaById?.get(event.id);
             return (
               <div key={event.id} className="sv-panel px-4 py-3 flex items-start gap-3">
                 <Icon className="h-4 w-4 shrink-0 mt-0.5 sv-muted" />
@@ -43,6 +56,9 @@ export function LogboekTimeline({ events }: { events: LogboekEvent[] }) {
                   </p>
                   <p className="text-xs sv-muted">
                     {new Date(event.date).toLocaleDateString("nl-NL", { day: "numeric", month: "long", year: "numeric" })}
+                    {meta && [meta.species, meta.location, meta.season].filter(Boolean).length > 0
+                      ? ` · ${[meta.species, meta.location, meta.season].filter(Boolean).join(" · ")}`
+                      : ""}
                   </p>
                 </div>
               </div>

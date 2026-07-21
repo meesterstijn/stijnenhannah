@@ -32,6 +32,12 @@ export interface LogEntry {
   id: string;
   plant_id: string | null;
   plant_name: string;
+  // Instance/season linkage — nullable because legacy entries (recorded
+  // before the species/instance split, or free-text notes with no matching
+  // plant) cannot always be reliably linked. New entries recorded from a
+  // concrete plant instance always populate both.
+  plant_instance_id: string | null;
+  growing_season_id: string | null;
   date: string;
   height_cm: number | null;
   flower_count: number | null;

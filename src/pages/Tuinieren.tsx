@@ -8,6 +8,10 @@ import {
   type PlantHarvestLog,
   type PlantPruningLog,
   type PlantRepotLog,
+  type PlantInspectionLog,
+  type PlantInstance,
+  type GrowingSeason,
+  type CultivationType,
 } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -21,6 +25,8 @@ import {
   DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandInput, CommandList, CommandEmpty, CommandItem } from "@/components/ui/command";
 import {
   Plus,
   Sprout,
@@ -52,11 +58,49 @@ import {
 } from "lucide-react";
 import { useGrowthLog } from "@/features/tuingids/hooks/useGrowthLog";
 import type { LogEntry } from "@/features/tuingids/types";
-import { fetchPlants, fetchHarvestLogs, fetchPruningLogs, fetchRepotLogs } from "@/features/tuingids/lib/plantLogs";
-import { buildAllLogboekEvents, EVENT_META } from "@/features/tuingids/lib/events";
-import { MONTH_OPTIONS, effectiveWaterIntervalDays, waterStatus, feedingStatus } from "@/features/tuingids/lib/plantStatus";
-import { formatMeasurement, formatFruitSize } from "@/features/tuingids/lib/growthStats";
-import { useRecordPlantCare } from "@/features/tuingids/hooks/usePlantCareActions";
+import {
+  fetchPlants,
+  fetchHarvestLogs,
+  fetchPruningLogs,
+  fetchRepotLogs,
+  fetchHarvestLogsForInstance,
+  fetchPruningLogsForInstance,
+  fetchRepotLogsForInstance,
+  fetchInspectionLogsForInstance,
+} from "@/features/tuingids/lib/plantLogs";
+import {
+  buildWaterEvents,
+  buildFeedingEvents,
+  buildGrowthEvents,
+  buildHarvestEvents,
+  buildPruningEvents,
+  buildRepotEvents,
+  buildInspectionEvents,
+  buildPhotoEvents,
+  EVENT_META,
+  type LogboekEvent,
+} from "@/features/tuingids/lib/events";
+import { MONTH_OPTIONS } from "@/features/tuingids/lib/plantStatus";
+import {
+  instanceWaterStatus,
+  instanceFeedingStatus,
+  effectiveInstanceWaterIntervalDays,
+  isInstanceWaterSkippedToday,
+  INSTANCE_STATUS_LABELS,
+} from "@/features/tuingids/lib/plantInstanceStatus";
+import { formatMeasurement, formatFruitSize, computeSeasonStats } from "@/features/tuingids/lib/growthStats";
+import { useRecordInstanceCare } from "@/features/tuingids/hooks/usePlantCareActions";
+import {
+  fetchPlantInstances,
+  fetchActivePlantInstances,
+  fetchAllGrowingSeasons,
+  fetchGrowingSeasons,
+  plantInstanceDisplayName,
+  suggestInstanceName,
+  getActiveInstancesForSpecies,
+  hasActiveInstancesForSpecies,
+} from "@/features/tuingids/lib/plantInstances";
+import { usePlantInstances } from "@/features/tuingids/hooks/usePlantInstances";
 
 const SUN_OPTIONS = ["Volle zon", "Halfvolle zon", "Half schaduw", "Schaduw"] as const;
 
@@ -204,7 +248,6 @@ type PlantDraft = {
   pot_min_liters: string;
   pot_recommended_liters: string;
   pot_water_notes: string;
-  planted: boolean;
   water_interval_days: string;
   pot_water_interval_days: string;
   last_watered_at: string;
@@ -273,7 +316,6 @@ const emptyDraft: PlantDraft = {
   pot_min_liters: "",
   pot_recommended_liters: "",
   pot_water_notes: "",
-  planted: false,
   water_interval_days: "",
   pot_water_interval_days: "",
   last_watered_at: "",
@@ -347,7 +389,6 @@ function plantToDraft(p: Plant): PlantDraft {
       ? String(p.pot_recommended_liters)
       : "",
     pot_water_notes: p.pot_water_notes ?? "",
-    planted: p.planted,
     water_interval_days: p.water_interval_days
       ? String(p.water_interval_days)
       : "",
@@ -428,7 +469,6 @@ function draftToRow(d: PlantDraft) {
       ? Number(d.pot_recommended_liters)
       : null,
     pot_water_notes: d.pot_water_notes.trim() || null,
-    planted: d.planted,
     water_interval_days: d.water_interval_days
       ? Number(d.water_interval_days)
       : null,
@@ -521,11 +561,27 @@ function checkedLabel(dateStr: string | null): string | null {
   return `${days} dagen geleden gecontroleerd`;
 }
 
+// Species-level gallery only ever shows legacy/general photos
+// (plant_instance_id is null) — instance photos live exclusively in their
+// own instance dialog now, so two instances of the same species never
+// share or mix photos, and existing pre-instance species photos keep
+// showing here exactly as before this column existed.
 async function fetchPhotos(plantId: string): Promise<PlantPhoto[]> {
   const { data, error } = await supabase
     .from("plant_photos")
     .select("*")
     .eq("plant_id", plantId)
+    .is("plant_instance_id", null)
+    .order("taken_at", { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+async function fetchPhotosForInstance(plantInstanceId: string): Promise<PlantPhoto[]> {
+  const { data, error } = await supabase
+    .from("plant_photos")
+    .select("*")
+    .eq("plant_instance_id", plantInstanceId)
     .order("taken_at", { ascending: false });
   if (error) throw error;
   return data ?? [];
@@ -776,14 +832,6 @@ function PlantForm({
             onChange={(e) => onChange({ pot_water_notes: e.target.value })}
           />
         </div>
-        <label className="flex items-center gap-2 text-sm sv-muted">
-          <input
-            type="checkbox"
-            checked={draft.planted}
-            onChange={(e) => onChange({ planted: e.target.checked })}
-          />
-          Gepland (in de grond/pot gezet)
-        </label>
         <div className="space-y-1">
           <p className="text-xs sv-muted">Datum geplant / gezaaid</p>
           <Input
@@ -1299,26 +1347,44 @@ function sn(structured: (string | null | undefined)[], notes: (string | null | u
   return s || n || null;
 }
 
-function PlantCard({
-  p,
+// ─── Shared card shell ──────────────────────────────────────────────────────
+// One presentational shell for both "Alle plantsoorten" (species) and "Mijn
+// geplante exemplaren" (instance) tiles, so the two views are visually
+// identical by construction instead of two hand-maintained card designs.
+
+type PlantCardBadgeDef = {
+  key: string;
+  label: string;
+  icon: typeof Droplet;
+  overdue: boolean;
+  onClick: () => void;
+};
+
+function PlantCardShell({
+  photoUrl,
+  healthEmoji,
+  title,
+  subtitle,
+  extraLines,
+  badges,
   onOpen,
-  onWater,
-  onFeed,
 }: {
-  p: Plant;
-  onOpen: (p: Plant) => void;
-  onWater: (p: Plant) => void;
-  onFeed: (p: Plant) => void;
+  photoUrl: string | null;
+  healthEmoji?: string | null;
+  title: string;
+  subtitle?: string | null;
+  extraLines?: (string | null | undefined)[];
+  badges: PlantCardBadgeDef[];
+  onOpen: () => void;
 }) {
-  const status = waterStatus(p);
-  const feedStatus = feedingStatus(p);
+  const visibleExtraLines = (extraLines ?? []).filter((l): l is string => !!l);
   return (
     <button
-      onClick={() => onOpen(p)}
+      onClick={onOpen}
       className="sv-panel text-left p-5 hover:-translate-y-0.5 transition-transform flex items-center gap-3"
     >
-      {p.photo_url ? (
-        <img src={p.photo_url} alt="" className="h-12 w-12 rounded-lg object-cover shrink-0 sv-icon-slot" />
+      {photoUrl ? (
+        <img src={photoUrl} alt="" className="h-12 w-12 rounded-lg object-cover shrink-0 sv-icon-slot" />
       ) : (
         <div className="h-12 w-12 sv-icon-slot flex items-center justify-center shrink-0">
           <Sprout className="h-5 w-5" strokeWidth={1.6} />
@@ -1326,43 +1392,88 @@ function PlantCard({
       )}
       <div className="min-w-0">
         <p className="sv-heading text-2xl leading-snug truncate">
-          {p.health_status && (
-            <span aria-label={p.health_status}>
-              {HEALTH_STATUS_EMOJI[p.health_status]}{" "}
-            </span>
-          )}
-          {p.name}
+          {healthEmoji && <span aria-label={healthEmoji}>{healthEmoji} </span>}
+          {title}
         </p>
-        {(status || feedStatus) && (
+        {subtitle && <p className="text-xs sv-muted truncate">{subtitle}</p>}
+        {visibleExtraLines.map((line, i) => (
+          <p key={i} className="text-xs sv-muted truncate">{line}</p>
+        ))}
+        {badges.length > 0 && (
           <div className="flex items-center gap-1.5 flex-wrap mt-1">
-            {status && (
+            {badges.map((b) => (
               <span
+                key={b.key}
                 role="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onWater(p);
+                  b.onClick();
                 }}
-                className={`sv-heading inline-flex items-center gap-1 text-sm px-2 py-1 rounded-full w-fit cursor-pointer hover:brightness-95 ${status.overdue ? "sv-badge-overdue" : "sv-badge-ok"}`}
+                className={`sv-heading inline-flex items-center gap-1 text-sm px-2 py-1 rounded-full w-fit cursor-pointer hover:brightness-95 ${b.overdue ? "sv-badge-overdue" : "sv-badge-ok"}`}
               >
-                <Droplet className="h-3 w-3" /> {status.label}
+                <b.icon className="h-3 w-3" /> {b.label}
               </span>
-            )}
-            {feedStatus && (
-              <span
-                role="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onFeed(p);
-                }}
-                className={`sv-heading inline-flex items-center gap-1 text-sm px-2 py-1 rounded-full w-fit cursor-pointer hover:brightness-95 ${feedStatus.overdue ? "sv-badge-overdue" : "sv-badge-ok"}`}
-              >
-                <Leaf className="h-3 w-3" /> {feedStatus.label}
-              </span>
-            )}
+            ))}
           </div>
         )}
       </div>
     </button>
+  );
+}
+
+function PlantCard({
+  p,
+  onOpen,
+}: {
+  p: Plant;
+  onOpen: (p: Plant) => void;
+}) {
+  return (
+    <PlantCardShell
+      photoUrl={p.photo_url}
+      healthEmoji={p.health_status ? HEALTH_STATUS_EMOJI[p.health_status] : null}
+      title={p.name}
+      badges={[]}
+      onOpen={() => onOpen(p)}
+    />
+  );
+}
+
+function PlantInstanceCard({
+  instance,
+  species,
+  activeSeason,
+  onOpen,
+  onWater,
+  onFeed,
+}: {
+  instance: PlantInstance;
+  species: Plant | undefined;
+  activeSeason: GrowingSeason | null;
+  onOpen: (instance: PlantInstance) => void;
+  onWater: (instance: PlantInstance) => void;
+  onFeed: (instance: PlantInstance) => void;
+}) {
+  const name = plantInstanceDisplayName(instance, species);
+  const status = species ? instanceWaterStatus(instance, species) : null;
+  const feedStatus = species ? instanceFeedingStatus(instance, species) : null;
+  const badges: PlantCardBadgeDef[] = [];
+  if (status) badges.push({ key: "water", label: status.label, icon: Droplet, overdue: status.overdue, onClick: () => onWater(instance) });
+  if (feedStatus) badges.push({ key: "feed", label: feedStatus.label, icon: Leaf, overdue: feedStatus.overdue, onClick: () => onFeed(instance) });
+
+  const statusLabel = instance.status !== "active" ? INSTANCE_STATUS_LABELS[instance.status] : null;
+  const seasonLabel = activeSeason ? activeSeason.label ?? `Seizoen ${activeSeason.year}` : null;
+
+  return (
+    <PlantCardShell
+      photoUrl={species?.photo_url ?? null}
+      healthEmoji={instance.health_status ? HEALTH_STATUS_EMOJI[instance.health_status] : null}
+      title={name}
+      subtitle={species && species.name !== name ? species.name : undefined}
+      extraLines={[instance.location, seasonLabel, statusLabel]}
+      badges={badges}
+      onOpen={() => onOpen(instance)}
+    />
   );
 }
 
@@ -1387,6 +1498,15 @@ function calendarFilterButtonClass(active: boolean): string {
   return `px-3 py-1 rounded-full transition-colors ${active ? "sv-badge-ok" : "sv-muted"}`;
 }
 
+// Single source of truth for the plant detail popup's outer look — used by
+// both the species detail dialog and the plant-instance detail dialog so
+// the two are provably, exactly visually identical (same width, height,
+// border, radius, shadow — the `sv-dialog` class, not `sv-panel` which is
+// for in-page tiles/cards). Keep in sync if the species dialog's classes
+// ever change.
+const PLANT_DIALOG_CONTENT_CLASS = "tuinieren-theme sv-dialog w-full max-w-2xl max-h-[90vh]";
+const PLANT_DIALOG_TITLE_CLASS = "sv-heading text-3xl sm:text-4xl leading-snug";
+
 function SeasonalOverview({ plants }: { plants: Plant[] }) {
   const [open, setOpen] = useState(true);
   const [monthIndex, setMonthIndex] = useState(new Date().getMonth());
@@ -1395,21 +1515,22 @@ function SeasonalOverview({ plants }: { plants: Plant[] }) {
   const monthLabel = currentMonth.charAt(0).toUpperCase() + currentMonth.slice(1);
   const isCurrentMonth = monthIndex === new Date().getMonth();
 
-  // "Mijn geplante planten" only: same planted flag already used everywhere
-  // else (waterStatus/feedingStatus/Mijn Tuin), deduped by name so multiple
-  // planted exemplaren of the same species only show up once here.
+  const { data: activeInstancesForCalendar = [] } = useQuery({
+    queryKey: ["plant_instances", "active"],
+    queryFn: fetchActivePlantInstances,
+  });
+
+  // "Mijn geplante planten": a species counts as planted when it has at
+  // least one active plant_instances row — the only source of truth since
+  // phase 4 (the legacy `plants.planted` boolean is no longer read here).
+  // `plants` already has exactly one row per species, so filtering it —
+  // rather than filtering instances — dedupes by species_id for free: two
+  // active Koralik exemplaren still only match the one Koralik species row
+  // once.
   const visiblePlants = useMemo(() => {
     if (plantFilter === "all") return plants;
-    const planted = plants.filter((p) => p.planted === true);
-    const seen = new Set<string>();
-    const deduped: Plant[] = [];
-    for (const p of planted) {
-      if (seen.has(p.name)) continue;
-      seen.add(p.name);
-      deduped.push(p);
-    }
-    return deduped;
-  }, [plants, plantFilter]);
+    return plants.filter((p) => hasActiveInstancesForSpecies(p.id, activeInstancesForCalendar));
+  }, [plants, plantFilter, activeInstancesForCalendar]);
 
   const noPlantedPlants = plantFilter === "planted" && visiblePlants.length === 0;
 
@@ -1521,12 +1642,12 @@ interface WaterAdvice {
 
 function computeWaterAdvice(
   plant: Plant,
-  opts: { soilMoisture: SoilMoisture; rainToday: boolean; tempHigh: boolean; strongWind: boolean; potMaterial: PotMaterial },
+  opts: { soilMoisture: SoilMoisture; rainToday: boolean; tempHigh: boolean; strongWind: boolean; potMaterial: PotMaterial; inPotOverride?: boolean },
 ): WaterAdvice | null {
-  const { soilMoisture, rainToday, tempHigh, strongWind, potMaterial } = opts;
+  const { soilMoisture, rainToday, tempHigh, strongWind, potMaterial, inPotOverride } = opts;
   if (!soilMoisture && !rainToday && !tempHigh && !strongWind && !potMaterial) return null;
 
-  const inPot = plant.growing_method === "Pot";
+  const inPot = inPotOverride ?? plant.growing_method === "Pot";
   const greenPref = parseGreenhouseNotes(plant.greenhouse_notes).pref?.toLowerCase() ?? "";
   const inGreenhouse = greenPref.includes("kas") && !greenPref.includes("alleen buiten");
 
@@ -1564,16 +1685,21 @@ function computeWaterAdvice(
 
 function WaterPanel({
   plant,
+  inPotOverride,
   onWatered,
   onSkipWet,
   onSkipToday,
 }: {
   plant: Plant;
+  // Set from an instance's actual cultivation_type when this panel is shown
+  // for a concrete PlantInstance, since that can differ from the species'
+  // general growing_method recommendation.
+  inPotOverride?: boolean;
   onWatered: (note: string) => void;
   onSkipWet: () => void;
   onSkipToday: () => void;
 }) {
-  const inPot = plant.growing_method === "Pot";
+  const inPot = inPotOverride ?? plant.growing_method === "Pot";
 
   const [soilMoisture, setSoilMoisture] = useState<SoilMoisture>("");
   const [rainToday, setRainToday] = useState(false);
@@ -1582,7 +1708,7 @@ function WaterPanel({
   const [potMaterial, setPotMaterial] = useState<PotMaterial>("");
   const [note, setNote] = useState("");
 
-  const advice = computeWaterAdvice(plant, { soilMoisture, rainToday, tempHigh, strongWind, potMaterial });
+  const advice = computeWaterAdvice(plant, { soilMoisture, rainToday, tempHigh, strongWind, potMaterial, inPotOverride });
 
   const wateringTip = inPot
     ? "Geef water totdat er water uit de drainagegaten onder de pot begint te lopen. Geef liever één keer goed water dan meerdere kleine beetjes."
@@ -1701,8 +1827,18 @@ function WaterPanel({
 
 // ─── WaterSection component ─────────────────────────────────────────────────
 
+type InstanceCareState = {
+  id: string;
+  name: string;
+  last_watered_at: string | null;
+  last_fed_at: string | null;
+  water_skip_until: string | null;
+  cultivation_type: CultivationType | null;
+};
+
 function WaterSection({
   plant,
+  instanceState,
   onRecordWatering,
   onSyncLastWatered,
   onSkipToday,
@@ -1710,32 +1846,41 @@ function WaterSection({
   isRecording,
 }: {
   plant: Plant;
-  onRecordWatering: (plant: Plant, note?: string) => void;
+  // When set, this section is being shown for a concrete PlantInstance
+  // rather than the species directly — `plant` still supplies general
+  // advice text/intervals, but state (last watered, skip-until, cultivation)
+  // and history/actions are scoped to this instance instead.
+  instanceState?: InstanceCareState;
+  onRecordWatering: (note?: string) => void;
   onSyncLastWatered: (isoDate: string | null) => void;
   onSkipToday: () => void;
   isUpdating: boolean;
   isRecording: boolean;
 }) {
   const { entries, updateEntry, deleteEntry } = useGrowthLog();
-  const inPot = plant.growing_method === "Pot";
+  const inPot = instanceState ? instanceState.cultivation_type === "pot" : plant.growing_method === "Pot";
 
   // Water history: growth log entries where watered=true for this plant.
-  // Entries with a plant_id must match it exactly; only legacy entries
-  // without a plant_id (freehand notes) fall back to matching by name —
-  // otherwise two plants sharing a name could "inherit" each other's history.
+  // In instance mode, matched strictly by plant_instance_id so two instances
+  // of the same species never share history. In legacy species mode, a
+  // plant_id match is required; only legacy entries without a plant_id
+  // (freehand notes) fall back to matching by name.
   const waterHistory = entries
     .filter(
       (e) =>
         e.watered &&
-        (e.plant_id ? e.plant_id === plant.id : e.plant_name === plant.name),
+        (instanceState
+          ? e.plant_instance_id === instanceState.id
+          : e.plant_id ? e.plant_id === plant.id : e.plant_name === plant.name),
     )
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-  // Fallback to Supabase field when no local history yet
+  // Fallback to the Supabase field when no local history yet
+  const lastWateredAtField = instanceState ? instanceState.last_watered_at : plant.last_watered_at;
   const lastWaterDateStr =
-    waterHistory[0]?.date ?? plant.last_watered_at?.slice(0, 10) ?? null;
+    waterHistory[0]?.date ?? lastWateredAtField?.slice(0, 10) ?? null;
 
-  const interval = effectiveWaterIntervalDays(plant);
+  const interval = inPot && plant.pot_water_interval_days ? plant.pot_water_interval_days : plant.water_interval_days;
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -1760,7 +1905,8 @@ function WaterSection({
       : null;
 
   const todayIso = today.toISOString().slice(0, 10);
-  const isSkippedToday = !!plant.water_skip_until && todayIso < plant.water_skip_until;
+  const waterSkipUntil = instanceState ? instanceState.water_skip_until : plant.water_skip_until;
+  const isSkippedToday = !!waterSkipUntil && todayIso < waterSkipUntil;
 
   const [quickNote, setQuickNote] = useState("");
   const [grondcheckOpen, setGrondcheckOpen] = useState(false);
@@ -1771,7 +1917,7 @@ function WaterSection({
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   function recordWatering(note: string) {
-    onRecordWatering(plant, note);
+    onRecordWatering(note);
     setQuickNote("");
     setGrondcheckOpen(false);
   }
@@ -1782,7 +1928,9 @@ function WaterSection({
         (e) =>
           e.id !== id &&
           e.watered &&
-          (e.plant_id ? e.plant_id === plant.id : e.plant_name === plant.name),
+          (instanceState
+            ? e.plant_instance_id === instanceState.id
+            : e.plant_id ? e.plant_id === plant.id : e.plant_name === plant.name),
       )
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     deleteEntry(id);
@@ -1921,6 +2069,7 @@ function WaterSection({
           <div className="mt-2">
             <WaterPanel
               plant={plant}
+              inPotOverride={instanceState ? inPot : undefined}
               onWatered={(note) => recordWatering(note)}
               onSkipWet={() => setGrondcheckOpen(false)}
               onSkipToday={() => {
@@ -2119,13 +2268,15 @@ function WaterSection({
 
 function FeedingSection({
   plant,
+  instanceState,
   onRecordFeeding,
   onSyncLastFed,
   isUpdating,
   isRecording,
 }: {
   plant: Plant;
-  onRecordFeeding: (plant: Plant, note?: string) => void;
+  instanceState?: InstanceCareState;
+  onRecordFeeding: (note?: string) => void;
   onSyncLastFed: (isoDate: string | null) => void;
   isUpdating: boolean;
   isRecording: boolean;
@@ -2136,12 +2287,15 @@ function FeedingSection({
     .filter(
       (e) =>
         e.fertilized &&
-        (e.plant_id ? e.plant_id === plant.id : e.plant_name === plant.name),
+        (instanceState
+          ? e.plant_instance_id === instanceState.id
+          : e.plant_id ? e.plant_id === plant.id : e.plant_name === plant.name),
     )
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
+  const lastFedAtField = instanceState ? instanceState.last_fed_at : plant.last_fed_at;
   const lastFedDateStr =
-    feedHistory[0]?.date ?? plant.last_fed_at?.slice(0, 10) ?? null;
+    feedHistory[0]?.date ?? lastFedAtField?.slice(0, 10) ?? null;
 
   const interval = plant.feeding_interval_days ?? null;
 
@@ -2180,7 +2334,7 @@ function FeedingSection({
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   function recordFeeding(note: string) {
-    onRecordFeeding(plant, note);
+    onRecordFeeding(note);
     setQuickNote("");
   }
 
@@ -2190,7 +2344,9 @@ function FeedingSection({
         (e) =>
           e.id !== id &&
           e.fertilized &&
-          (e.plant_id ? e.plant_id === plant.id : e.plant_name === plant.name),
+          (instanceState
+            ? e.plant_instance_id === instanceState.id
+            : e.plant_id ? e.plant_id === plant.id : e.plant_name === plant.name),
       )
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     deleteEntry(id);
@@ -2475,16 +2631,39 @@ function FeedingSection({
 
 // ─── PlantLogboek component ─────────────────────────────────────────────────
 
-function PlantLogboek({ plantName }: { plantName: string }) {
-  const { addEntry, deleteEntry, getEntriesForPlant, isAdding, addError } = useGrowthLog();
+function PlantLogboek({
+  plantName,
+  plantInstanceId = null,
+  growingSeasonId = null,
+  seasons = [],
+}: {
+  plantName: string;
+  // Set when logging from a concrete plant instance's detail view, so the
+  // entry is properly linked instead of being a legacy name-only row.
+  plantInstanceId?: string | null;
+  growingSeasonId?: string | null;
+  // All seasons for this instance, used to build the "Huidig seizoen /
+  // Specifiek seizoen / Alle seizoenen" filter. Ignored in the legacy
+  // name-only mode (plantInstanceId not set).
+  seasons?: GrowingSeason[];
+}) {
+  const { addEntry, deleteEntry, getEntriesForPlant, getEntriesForPlantInstance, isAdding, addError } = useGrowthLog();
+  const [seasonFilter, setSeasonFilter] = useState<"current" | "all" | string>("current");
   // Alleen groei-notities tonen; automatische water-/voedingsregistraties horen
   // al thuis in de Water-/Voedingsgeschiedenis en worden hier niet herhaald.
-  const entries = getEntriesForPlant(plantName).filter((entry) => {
+  const allEntries = plantInstanceId ? getEntriesForPlantInstance(plantInstanceId) : getEntriesForPlant(plantName);
+  const scopedEntries = allEntries.filter((entry) => {
     const isDefaultActionNote =
       !entry.notes || entry.notes === "Water gegeven" || entry.notes === "Voeding gegeven";
     const isPureAction = entry.height_cm === null && isDefaultActionNote && (entry.watered || entry.fertilized);
     return !isPureAction;
   });
+  const entries =
+    !plantInstanceId || seasonFilter === "all"
+      ? scopedEntries
+      : seasonFilter === "current"
+        ? scopedEntries.filter((e) => e.growing_season_id === growingSeasonId)
+        : scopedEntries.filter((e) => e.growing_season_id === seasonFilter);
 
   const [formOpen, setFormOpen] = useState(false);
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -2495,6 +2674,7 @@ function PlantLogboek({ plantName }: { plantName: string }) {
   const [watered, setWatered] = useState(false);
   const [fertilized, setFertilized] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const isSavingRef = useRef(false);
 
   function resetForm() {
     setNotes("");
@@ -2506,9 +2686,11 @@ function PlantLogboek({ plantName }: { plantName: string }) {
     setDate(new Date().toISOString().slice(0, 10));
     setFormError(null);
     setFormOpen(false);
+    isSavingRef.current = false;
   }
 
   function handleSave() {
+    if (isSavingRef.current) return;
     setFormError(null);
 
     const height = heightCm.trim() ? Number(heightCm) : null;
@@ -2533,9 +2715,12 @@ function PlantLogboek({ plantName }: { plantName: string }) {
       return;
     }
 
+    isSavingRef.current = true;
     addEntry({
       plant_id: null,
       plant_name: plantName,
+      plant_instance_id: plantInstanceId,
+      growing_season_id: growingSeasonId,
       date,
       notes: noteText,
       height_cm: height,
@@ -2564,6 +2749,32 @@ function PlantLogboek({ plantName }: { plantName: string }) {
           </button>
         )}
       </div>
+
+      {plantInstanceId && seasons.length > 0 && (
+        <div className="flex gap-1.5 flex-wrap">
+          <button type="button" onClick={() => setSeasonFilter("current")} className={chipClass(seasonFilter === "current")}>
+            Huidig seizoen
+          </button>
+          {seasons.length > 1 && (
+            <button type="button" onClick={() => setSeasonFilter("all")} className={chipClass(seasonFilter === "all")}>
+              Alle seizoenen
+            </button>
+          )}
+          {[...seasons]
+            .sort((a, b) => b.started_at.localeCompare(a.started_at))
+            .filter((s) => s.id !== growingSeasonId)
+            .map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => setSeasonFilter(s.id)}
+                className={chipClass(seasonFilter === s.id)}
+              >
+                {s.label ?? `Seizoen ${s.year}`}
+              </button>
+            ))}
+        </div>
+      )}
 
       {formOpen && (
         <div className="space-y-4">
@@ -2700,15 +2911,21 @@ function PlantLogboek({ plantName }: { plantName: string }) {
 
 function HarvestLogSection({
   plantId,
+  plantInstanceId,
+  growingSeasonId,
   logs,
   onAdd,
   onDelete,
   isSaving,
 }: {
   plantId: string;
+  plantInstanceId?: string;
+  growingSeasonId?: string | null;
   logs: PlantHarvestLog[];
   onAdd: (row: {
     plant_id: string;
+    plant_instance_id?: string;
+    growing_season_id?: string | null;
     harvested_at: string;
     weight_grams: number | null;
     quantity: number | null;
@@ -2725,6 +2942,10 @@ function HarvestLogSection({
   const [unit, setUnit] = useState("");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
+  // Synchronous double-submit guard — `isSaving` (mutation.isPending) only
+  // flips after the next render, so two clicks in the same tick can both
+  // pass that check; a ref updates immediately and closes that race.
+  const isSavingRef = useRef(false);
 
   function resetForm() {
     setWeight("");
@@ -2734,9 +2955,11 @@ function HarvestLogSection({
     setDate(new Date().toISOString().slice(0, 10));
     setError(null);
     setFormOpen(false);
+    isSavingRef.current = false;
   }
 
   function handleSave() {
+    if (isSavingRef.current) return;
     setError(null);
     if (!weight.trim() && !quantity.trim() && !notes.trim()) {
       setError("Vul minimaal een gewicht, aantal of notitie in.");
@@ -2750,8 +2973,11 @@ function HarvestLogSection({
       setError("Datum ligt te ver in de toekomst.");
       return;
     }
+    isSavingRef.current = true;
     onAdd({
       plant_id: plantId,
+      plant_instance_id: plantInstanceId,
+      growing_season_id: growingSeasonId,
       harvested_at: date,
       weight_grams: weight.trim() ? Number(weight) : null,
       quantity: quantity.trim() ? Number(quantity) : null,
@@ -2877,15 +3103,21 @@ function HarvestLogSection({
 
 function PruningLogSection({
   plantId,
+  plantInstanceId,
+  growingSeasonId,
   logs,
   onAdd,
   onDelete,
   isSaving,
 }: {
   plantId: string;
+  plantInstanceId?: string;
+  growingSeasonId?: string | null;
   logs: PlantPruningLog[];
   onAdd: (row: {
     plant_id: string;
+    plant_instance_id?: string;
+    growing_season_id?: string | null;
     pruned_at: string;
     pruning_type: string | null;
     notes: string | null;
@@ -2897,17 +3129,23 @@ function PruningLogSection({
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [type, setType] = useState("");
   const [notes, setNotes] = useState("");
+  const isSavingRef = useRef(false);
 
   function resetForm() {
     setType("");
     setNotes("");
     setDate(new Date().toISOString().slice(0, 10));
     setFormOpen(false);
+    isSavingRef.current = false;
   }
 
   function handleSave() {
+    if (isSavingRef.current) return;
+    isSavingRef.current = true;
     onAdd({
       plant_id: plantId,
+      plant_instance_id: plantInstanceId,
+      growing_season_id: growingSeasonId,
       pruned_at: date,
       pruning_type: type || null,
       notes: notes.trim() || null,
@@ -2993,15 +3231,28 @@ function PruningLogSection({
 
 function RepotLogSection({
   plant,
+  plantInstanceId,
+  growingSeasonId,
+  legacyPlantId,
   logs,
   onAdd,
   onDelete,
   isSaving,
 }: {
-  plant: Plant;
+  // Structurally compatible with both Plant (species, legacy) and
+  // PlantInstance — both share these three fields with the same shape.
+  plant: Pick<Plant, "id" | "pot_size_liters" | "last_repotted_at">;
+  plantInstanceId?: string;
+  growingSeasonId?: string | null;
+  // The species-level plant_id the log row's (legacy) plant_id column
+  // should point to; defaults to `plant.id` when `plant` already is the
+  // species (legacy mode).
+  legacyPlantId?: string;
   logs: PlantRepotLog[];
   onAdd: (row: {
     plant_id: string;
+    plant_instance_id?: string;
+    growing_season_id?: string | null;
     repotted_at: string;
     old_pot_size_liters: number | null;
     new_pot_size_liters: number | null;
@@ -3018,6 +3269,7 @@ function RepotLogSection({
   const [material, setMaterial] = useState("");
   const [soil, setSoil] = useState("");
   const [notes, setNotes] = useState("");
+  const isSavingRef = useRef(false);
 
   function resetForm() {
     setNewSize("");
@@ -3026,11 +3278,16 @@ function RepotLogSection({
     setNotes("");
     setDate(new Date().toISOString().slice(0, 10));
     setFormOpen(false);
+    isSavingRef.current = false;
   }
 
   function handleSave() {
+    if (isSavingRef.current) return;
+    isSavingRef.current = true;
     onAdd({
-      plant_id: plant.id,
+      plant_id: legacyPlantId ?? plant.id,
+      plant_instance_id: plantInstanceId,
+      growing_season_id: growingSeasonId,
       repotted_at: date,
       old_pot_size_liters: plant.pot_size_liters,
       new_pot_size_liters: newSize.trim() ? Number(newSize) : null,
@@ -3231,6 +3488,167 @@ function FirstEventButton({
   );
 }
 
+// ─── InspectionLogSection component ────────────────────────────────────────
+// Instance-only: full inspection history (health status + observations,
+// issues, action taken), replacing the single last_checked_at timestamp
+// with a real log. Mirrors HarvestLogSection/PruningLogSection/
+// RepotLogSection's collapsible-form-plus-list pattern.
+
+function InspectionLogSection({
+  plantInstanceId,
+  growingSeasonId,
+  logs,
+  onAdd,
+  onDelete,
+  isSaving,
+}: {
+  plantInstanceId: string;
+  growingSeasonId?: string | null;
+  logs: PlantInspectionLog[];
+  onAdd: (row: {
+    plant_instance_id: string;
+    growing_season_id?: string | null;
+    checked_at: string;
+    health_status: string | null;
+    notes: string | null;
+    issues: string | null;
+    action_taken: string | null;
+    photo_url: string | null;
+  }) => void;
+  onDelete: (id: string) => void;
+  isSaving: boolean;
+}) {
+  const [formOpen, setFormOpen] = useState(false);
+  const [checkedAt, setCheckedAt] = useState(() => new Date().toISOString().slice(0, 10));
+  const [healthStatus, setHealthStatus] = useState("");
+  const [notes, setNotes] = useState("");
+  const [issues, setIssues] = useState("");
+  const [actionTaken, setActionTaken] = useState("");
+  const [photoUrl, setPhotoUrl] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const isSavingRef = useRef(false);
+
+  function resetForm() {
+    setHealthStatus("");
+    setNotes("");
+    setIssues("");
+    setActionTaken("");
+    setPhotoUrl("");
+    setCheckedAt(new Date().toISOString().slice(0, 10));
+    setError(null);
+    setFormOpen(false);
+    isSavingRef.current = false;
+  }
+
+  function handleSave() {
+    if (isSavingRef.current) return;
+    setError(null);
+    if (new Date(checkedAt).getTime() > Date.now() + 24 * 60 * 60 * 1000) {
+      setError("Datum ligt te ver in de toekomst.");
+      return;
+    }
+    isSavingRef.current = true;
+    onAdd({
+      plant_instance_id: plantInstanceId,
+      growing_season_id: growingSeasonId,
+      checked_at: checkedAt,
+      health_status: healthStatus || null,
+      notes: notes.trim() || null,
+      issues: issues.trim() || null,
+      action_taken: actionTaken.trim() || null,
+      photo_url: photoUrl.trim() || null,
+    });
+    resetForm();
+  }
+
+  return (
+    <div className="sv-inset p-4 space-y-4 rounded-xl">
+      <div className="flex items-center justify-between">
+        <p className="text-xs sv-muted">
+          {logs.length === 0 ? "Nog geen inspecties" : `${logs.length} inspectie${logs.length !== 1 ? "s" : ""}`}
+        </p>
+        {!formOpen && (
+          <button
+            type="button"
+            onClick={() => setFormOpen(true)}
+            className="sv-button sv-button-thin-border flex items-center gap-1 px-3 py-1.5 text-xs"
+          >
+            <Plus className="h-3 w-3" /> Inspectie
+          </button>
+        )}
+      </div>
+
+      {formOpen && (
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs sv-muted block mb-1">Datum</label>
+            <Input type="date" value={checkedAt} onChange={(e) => setCheckedAt(e.target.value)} className="text-sm max-w-[10rem]" />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs sv-muted block">Gezondheid</label>
+            <div className="flex gap-2 flex-wrap">
+              {HEALTH_STATUS_OPTIONS.map((opt) => (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => setHealthStatus((v) => (v === opt ? "" : opt))}
+                  className={chipClass(healthStatus === opt)}
+                >
+                  {HEALTH_STATUS_EMOJI[opt]} {opt}
+                </button>
+              ))}
+            </div>
+          </div>
+          <Textarea placeholder="Observaties / notities..." rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} className="text-sm resize-none" />
+          <Textarea placeholder="Problemen (plagen, ziektes, gebreksverschijnselen...)" rows={2} value={issues} onChange={(e) => setIssues(e.target.value)} className="text-sm resize-none" />
+          <Input placeholder="Ondernomen actie" value={actionTaken} onChange={(e) => setActionTaken(e.target.value)} className="text-sm" />
+          <Input placeholder="Foto-URL (optioneel)" value={photoUrl} onChange={(e) => setPhotoUrl(e.target.value)} className="text-sm" />
+          {error && <p className="text-xs sv-destructive-text">{error}</p>}
+          <div className="flex gap-2">
+            <Button size="sm" className="sv-button" onClick={handleSave} disabled={isSaving}>
+              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Opslaan"}
+            </Button>
+            <Button size="sm" className="sv-button sv-button-ghost" onClick={resetForm}>
+              Annuleer
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {logs.length > 0 && (
+        <div className="space-y-2 max-h-64 overflow-y-auto scrollbar-none">
+          {logs.map((log) => (
+            <div key={log.id} className="flex items-start justify-between gap-2 text-sm border-t border-black/10 pt-2">
+              <div>
+                <p className="sv-muted text-xs">
+                  {new Date(log.checked_at).toLocaleDateString("nl-NL", { day: "numeric", month: "short", year: "numeric" })}
+                  {log.health_status && ` · ${HEALTH_STATUS_EMOJI[log.health_status] ?? ""} ${log.health_status}`}
+                </p>
+                {log.notes && <p>{log.notes}</p>}
+                {log.issues && <p className="text-xs sv-destructive-text">⚠ {log.issues}</p>}
+                {log.action_taken && <p className="text-xs sv-muted">Actie: {log.action_taken}</p>}
+                {log.photo_url && (
+                  <a href={log.photo_url} target="_blank" rel="noreferrer" className="text-xs underline sv-muted">
+                    Foto
+                  </a>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => onDelete(log.id)}
+                className="sv-muted hover:sv-destructive-text shrink-0"
+                aria-label="Verwijder inspectie"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── TimelineSection component ─────────────────────────────────────────────
 // Merges existing history sources (growth log, photos) with the new log
 // tables into one read-only chronological view. No new storage — every
@@ -3238,55 +3656,19 @@ function FirstEventButton({
 
 type TimelineItem = { date: string; icon: typeof Droplet; label: string };
 
-function TimelineSection({
-  plant,
-  photos,
-  harvestLogs,
-  pruningLogs,
-  repotLogs,
-}: {
-  plant: Plant;
-  photos: PlantPhoto[];
-  harvestLogs: PlantHarvestLog[];
-  pruningLogs: PlantPruningLog[];
-  repotLogs: PlantRepotLog[];
-}) {
-  const { getEntriesForPlant } = useGrowthLog();
-  const growthEntries: LogEntry[] = getEntriesForPlant(plant.name);
+// Shared read-only renderer for both the species timeline (legacy,
+// name-based) and the instance timeline (new, plant_instance_id-based) — the
+// two differ only in how `items` gets built, never in how it's displayed.
+function TimelineList({ items }: { items: TimelineItem[] }) {
+  const sorted = [...items].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-  const items: TimelineItem[] = [];
-
-  if (plant.acquired_at) {
-    items.push({ date: plant.acquired_at, icon: MapPin, label: sn([plant.source ? `Verkregen — ${plant.source}` : "Verkregen"], []) ?? "Verkregen" });
-  }
-  if (plant.planted_at) {
-    items.push({ date: plant.planted_at, icon: Sprout, label: "Geplant / gezaaid" });
-  }
-  for (const photo of photos) {
-    items.push({ date: photo.taken_at, icon: ImageIcon, label: photo.note ? `Foto toegevoegd — ${photo.note}` : "Foto toegevoegd" });
-  }
-  for (const event of buildAllLogboekEvents({ entries: growthEntries, harvestLogs, pruningLogs, repotLogs, plants: [plant] })) {
-    items.push({
-      date: event.date,
-      icon: EVENT_META[event.type].icon,
-      label: event.detail ? `${event.label} (${event.detail})` : event.label,
-    });
-  }
-  for (const entry of growthEntries) {
-    if (entry.notes && !entry.watered && !entry.fertilized && !entry.height_cm) {
-      items.push({ date: entry.date, icon: BookOpen, label: entry.notes });
-    }
-  }
-
-  items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-  if (items.length === 0) {
+  if (sorted.length === 0) {
     return <p className="text-sm sv-muted px-1">Nog geen gebeurtenissen vastgelegd.</p>;
   }
 
   return (
     <div className="space-y-3 max-h-80 overflow-y-auto scrollbar-none">
-      {items.map((item, i) => {
+      {sorted.map((item, i) => {
         const Icon = item.icon;
         return (
           <div key={i} className="flex items-start gap-2 text-sm">
@@ -3304,6 +3686,1480 @@ function TimelineSection({
   );
 }
 
+// Instance-scoped timeline: builds the same kind of
+// chronological item list but from plant_instance_id-scoped data (growth
+// entries via getEntriesForPlantInstance, logs already fetched per instance)
+// instead of name-based lookups — reuses the events.ts builder functions
+// directly rather than duplicating their event-shaping logic.
+function InstanceTimelineSection({
+  instance,
+  species,
+  harvestLogs,
+  pruningLogs,
+  repotLogs,
+  inspectionLogs,
+  photos,
+}: {
+  instance: PlantInstance;
+  species: Plant | undefined;
+  harvestLogs: PlantHarvestLog[];
+  pruningLogs: PlantPruningLog[];
+  repotLogs: PlantRepotLog[];
+  inspectionLogs: PlantInspectionLog[];
+  photos: PlantPhoto[];
+}) {
+  const { getEntriesForPlantInstance } = useGrowthLog();
+  const growthEntries: LogEntry[] = getEntriesForPlantInstance(instance.id);
+  const name = plantInstanceDisplayName(instance, species);
+  const plantNameById = new Map([[instance.species_id, name], [instance.id, name]]);
+
+  const items: TimelineItem[] = [];
+
+  if (instance.acquired_at) {
+    items.push({ date: instance.acquired_at, icon: MapPin, label: sn([instance.source ? `Verkregen — ${instance.source}` : "Verkregen"], []) ?? "Verkregen" });
+  }
+  if (instance.planted_at) {
+    items.push({ date: instance.planted_at, icon: Sprout, label: "Geplant / gezaaid" });
+  }
+  const events: LogboekEvent[] = [
+    ...buildWaterEvents(growthEntries),
+    ...buildFeedingEvents(growthEntries),
+    ...buildGrowthEvents(growthEntries),
+    ...buildHarvestEvents(harvestLogs, plantNameById),
+    ...buildPruningEvents(pruningLogs, plantNameById),
+    ...buildRepotEvents(repotLogs, plantNameById),
+    ...buildInspectionEvents(inspectionLogs, plantNameById),
+    ...buildPhotoEvents(photos, plantNameById),
+  ];
+  if (instance.first_flower_at) {
+    events.push({ id: `first_flower-${instance.id}`, type: "first_flower", date: instance.first_flower_at, plantId: null, instanceId: instance.id, growingSeasonId: null, plantName: name, label: "Kreeg de eerste bloem" });
+  }
+  if (instance.first_fruit_at) {
+    events.push({ id: `first_fruit-${instance.id}`, type: "first_fruit", date: instance.first_fruit_at, plantId: null, instanceId: instance.id, growingSeasonId: null, plantName: name, label: "Kreeg de eerste vrucht" });
+  }
+  for (const event of events) {
+    items.push({
+      date: event.date,
+      icon: EVENT_META[event.type].icon,
+      label: event.detail ? `${event.label} (${event.detail})` : event.label,
+    });
+  }
+  for (const entry of growthEntries) {
+    if (entry.notes && !entry.watered && !entry.fertilized && !entry.height_cm) {
+      items.push({ date: entry.date, icon: BookOpen, label: entry.notes });
+    }
+  }
+
+  return <TimelineList items={items} />;
+}
+
+// ─── SpeciesCombobox ────────────────────────────────────────────────────────
+// A real searchable combobox (Popover + cmdk Command, both already used
+// elsewhere in the shadcn setup but never wired up for this form): clicking
+// the trigger immediately opens a floating, scrollable list of every
+// species (alphabetical, since `fetchPlants()` already orders by name) —
+// typing only filters it, it never becomes free text. Replaces the old
+// plain <Input> + inline conditional list, which only ever showed results
+// once the user had typed something and was never a real dropdown (no
+// click-to-open, no floating overlay, no keyboard navigation). Popover
+// renders through a portal at a higher z-index than the surrounding Dialog,
+// so it can never be clipped or covered by it.
+function SpeciesCombobox({
+  speciesList,
+  value,
+  onSelect,
+  autoFocusOpen,
+}: {
+  speciesList: Plant[];
+  value: string | null;
+  onSelect: (species: Plant) => void;
+  // Opens the popover immediately on mount — used for "Wijzig", which should
+  // behave like clicking the trigger itself.
+  autoFocusOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(!!autoFocusOpen);
+  const selected = speciesList.find((s) => s.id === value) ?? null;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          role="combobox"
+          aria-expanded={open}
+          className="sv-inset rounded-lg px-3 py-2 w-full flex items-center justify-between gap-2 text-left text-sm hover:opacity-90"
+        >
+          {selected ? (
+            <span className="min-w-0 flex items-center gap-2">
+              {selected.photo_url ? (
+                <img src={selected.photo_url} alt="" className="h-6 w-6 rounded object-cover shrink-0" />
+              ) : (
+                <Sprout className="h-4 w-4 shrink-0 sv-muted" />
+              )}
+              <span className="truncate">{selected.name}</span>
+            </span>
+          ) : (
+            <span className="sv-muted">Zoek een plantsoort...</span>
+          )}
+          <ChevronDown className="h-4 w-4 shrink-0 sv-muted" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        className="p-0 z-[60] w-[var(--radix-popover-trigger-width)]"
+      >
+        <Command
+          filter={(value, search) => (value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0)}
+        >
+          <CommandInput placeholder="Zoek op naam, cultivar of soort..." />
+          <CommandList className="max-h-60">
+            <CommandEmpty>
+              <p className="text-xs sv-muted px-3 py-2">Geen plantsoort gevonden.</p>
+            </CommandEmpty>
+            {speciesList.map((s) => (
+              <CommandItem
+                key={s.id}
+                value={`${s.name} ${s.species ?? ""} ${s.category ?? ""}`}
+                onSelect={() => {
+                  onSelect(s);
+                  setOpen(false);
+                }}
+                className="flex items-center gap-2 cursor-pointer"
+              >
+                {s.photo_url ? (
+                  <img src={s.photo_url} alt="" className="h-8 w-8 rounded object-cover shrink-0" />
+                ) : (
+                  <Sprout className="h-4 w-4 shrink-0 sv-muted" />
+                )}
+                <div className="min-w-0">
+                  <p className="truncate">{s.name}</p>
+                  {(s.species || s.category) && (
+                    <p className="text-xs sv-muted truncate">{[s.species, s.category].filter(Boolean).join(" · ")}</p>
+                  )}
+                </div>
+              </CommandItem>
+            ))}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+// ─── Nieuw exemplaar planten ────────────────────────────────────────────────
+// Same collapsible-panel pattern as the groeilogboek (sv-panel + a toggle
+// button that expands into a form). Creates one PlantInstance + one active
+// GrowingSeason, linked via species_id — never touches the species catalog.
+
+const CULTIVATION_TYPE_OPTIONS: { value: CultivationType; label: string }[] = [
+  { value: "pot", label: "Pot" },
+  { value: "open_ground", label: "Volle grond" },
+  { value: "raised_bed", label: "Verhoogde border" },
+  { value: "greenhouse", label: "Kas" },
+];
+
+function NewPlantInstanceForm({
+  speciesList,
+  allInstances,
+  preselectedSpecies,
+  onCreated,
+}: {
+  speciesList: Plant[];
+  allInstances: PlantInstance[];
+  // Set when opened from a species tile/detail ("Nieuw exemplaar planten"
+  // for THIS soort) — the species search is skipped and locked in, matching
+  // the shared workflow used from every entry point.
+  preselectedSpecies?: Plant;
+  onCreated?: () => void;
+}) {
+  const [open, setOpen] = useState(!!preselectedSpecies);
+  const [locked, setLocked] = useState(!!preselectedSpecies);
+  const [speciesId, setSpeciesId] = useState<string | null>(preselectedSpecies?.id ?? null);
+  const [customName, setCustomName] = useState(() =>
+    preselectedSpecies
+      ? suggestInstanceName(preselectedSpecies.name, allInstances.filter((i) => i.species_id === preselectedSpecies.id).length)
+      : "",
+  );
+  const [nameTouched, setNameTouched] = useState(false);
+  const [location, setLocation] = useState("");
+  const [cultivationType, setCultivationType] = useState<CultivationType | "">("");
+  const [potSizeLiters, setPotSizeLiters] = useState("");
+  const [potMaterial, setPotMaterial] = useState("");
+  const [potColor, setPotColor] = useState("");
+  const [soilType, setSoilType] = useState("");
+  const [soilMixNotes, setSoilMixNotes] = useState("");
+  const [plantedAt, setPlantedAt] = useState(() => new Date().toISOString().slice(0, 10));
+  const [acquiredAt, setAcquiredAt] = useState("");
+  const [source, setSource] = useState("");
+  const [price, setPrice] = useState("");
+  const [seasonStartedAt, setSeasonStartedAt] = useState(() => new Date().toISOString().slice(0, 10));
+  const [seasonLabel, setSeasonLabel] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const { createInstanceWithSeason, isCreating } = usePlantInstances();
+  // Synchronous guard against double-submit: `isCreating` (mutation.isPending)
+  // only flips after React commits the next render, so two clicks fired in
+  // the same tick (e.g. a fast double-click) can both pass the `disabled`
+  // check before either registers — a ref updates immediately, closing that
+  // race window.
+  const isSavingRef = useRef(false);
+
+  function selectSpecies(s: Plant) {
+    setSpeciesId(s.id);
+    if (!nameTouched) {
+      const count = allInstances.filter((i) => i.species_id === s.id).length;
+      setCustomName(suggestInstanceName(s.name, count));
+    }
+  }
+
+  function resetForm() {
+    setSpeciesId(preselectedSpecies?.id ?? null);
+    setLocked(!!preselectedSpecies);
+    setCustomName(
+      preselectedSpecies
+        ? suggestInstanceName(preselectedSpecies.name, allInstances.filter((i) => i.species_id === preselectedSpecies.id).length)
+        : "",
+    );
+    setNameTouched(false);
+    setLocation("");
+    setCultivationType("");
+    setPotSizeLiters("");
+    setPotMaterial("");
+    setPotColor("");
+    setSoilType("");
+    setSoilMixNotes("");
+    setPlantedAt(new Date().toISOString().slice(0, 10));
+    setAcquiredAt("");
+    setSource("");
+    setPrice("");
+    setSeasonStartedAt(new Date().toISOString().slice(0, 10));
+    setSeasonLabel("");
+    setFormError(null);
+    setOpen(!!preselectedSpecies);
+  }
+
+  async function handleSave() {
+    if (isSavingRef.current) return;
+    setFormError(null);
+    if (!speciesId) {
+      setFormError("Kies eerst een plantsoort.");
+      return;
+    }
+    if (!seasonStartedAt) {
+      setFormError("Vul een startdatum in.");
+      return;
+    }
+    isSavingRef.current = true;
+    try {
+      await createInstanceWithSeason({
+        speciesId,
+        customName: customName.trim() || null,
+        location: location.trim() || null,
+        cultivationType: cultivationType || null,
+        potSizeLiters: potSizeLiters ? Number(potSizeLiters) : null,
+        potMaterial: potMaterial.trim() || null,
+        potColor: potColor.trim() || null,
+        soilType: soilType.trim() || null,
+        soilMixNotes: soilMixNotes.trim() || null,
+        plantedAt: plantedAt ? new Date(plantedAt).toISOString() : null,
+        acquiredAt: acquiredAt || null,
+        source: source.trim() || null,
+        price: price ? Number(price) : null,
+        seasonStartedAt,
+        seasonLabel: seasonLabel.trim() || null,
+      });
+      resetForm();
+      onCreated?.();
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "Opslaan mislukt.");
+    } finally {
+      isSavingRef.current = false;
+    }
+  }
+
+  return (
+    <div className={preselectedSpecies ? "space-y-3" : "sv-panel p-4 space-y-3"}>
+      {!preselectedSpecies && !open ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="sv-button w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm"
+        >
+          <Plus className="h-4 w-4" /> Nieuw exemplaar planten
+        </button>
+      ) : (
+        <div className="space-y-4">
+          {!preselectedSpecies && <p className="sv-heading text-xl">Nieuw exemplaar planten</p>}
+
+          <div className="space-y-1">
+            <label className="text-xs sv-muted block mb-1">Plantsoort</label>
+            {locked && preselectedSpecies ? (
+              <div className="sv-inset rounded-lg px-3 py-2 flex items-center justify-between gap-2">
+                <div className="min-w-0 flex items-center gap-2">
+                  {preselectedSpecies.photo_url ? (
+                    <img src={preselectedSpecies.photo_url} alt="" className="h-6 w-6 rounded object-cover shrink-0" />
+                  ) : (
+                    <Sprout className="h-4 w-4 shrink-0 sv-muted" />
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-sm truncate">{preselectedSpecies.name}</p>
+                    {(preselectedSpecies.species || preselectedSpecies.category) && (
+                      <p className="text-xs sv-muted truncate">
+                        {[preselectedSpecies.species, preselectedSpecies.category].filter(Boolean).join(" · ")}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLocked(false);
+                    setSpeciesId(null);
+                  }}
+                  className="text-xs sv-muted underline shrink-0"
+                >
+                  Wijzig
+                </button>
+              </div>
+            ) : (
+              <SpeciesCombobox
+                speciesList={speciesList}
+                value={speciesId}
+                onSelect={selectSpecies}
+                autoFocusOpen={!!preselectedSpecies}
+              />
+            )}
+          </div>
+
+          {speciesId && (
+            <>
+              <div className="grid sm:grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs sv-muted block mb-1">Herkenningsnaam</label>
+                  <Input
+                    value={customName}
+                    onChange={(e) => {
+                      setCustomName(e.target.value);
+                      setNameTouched(true);
+                    }}
+                    className="text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs sv-muted block mb-1">Locatie</label>
+                  <Input
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    placeholder="bijv. Kas, dakterras..."
+                    className="text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <p className="text-xs sv-muted font-medium uppercase tracking-wide">Teeltvorm</p>
+                <div className="flex flex-wrap gap-2">
+                  {CULTIVATION_TYPE_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setCultivationType((v) => (v === opt.value ? "" : opt.value))}
+                      className={chipClass(cultivationType === opt.value)}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {cultivationType === "pot" && (
+                <div className="grid sm:grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-xs sv-muted block mb-1">Potgrootte (L)</label>
+                    <Input type="number" min="0" step="0.5" value={potSizeLiters} onChange={(e) => setPotSizeLiters(e.target.value)} className="text-sm" />
+                  </div>
+                  <div>
+                    <label className="text-xs sv-muted block mb-1">Potmateriaal</label>
+                    <Input value={potMaterial} onChange={(e) => setPotMaterial(e.target.value)} className="text-sm" />
+                  </div>
+                  <div>
+                    <label className="text-xs sv-muted block mb-1">Potkleur</label>
+                    <Input value={potColor} onChange={(e) => setPotColor(e.target.value)} className="text-sm" />
+                  </div>
+                </div>
+              )}
+
+              <div className="grid sm:grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs sv-muted block mb-1">Grondsoort</label>
+                  <Input value={soilType} onChange={(e) => setSoilType(e.target.value)} className="text-sm" />
+                </div>
+                <div>
+                  <label className="text-xs sv-muted block mb-1">Grondmengsel notities</label>
+                  <Input value={soilMixNotes} onChange={(e) => setSoilMixNotes(e.target.value)} className="text-sm" />
+                </div>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs sv-muted block mb-1">Plantdatum</label>
+                  <Input type="date" value={plantedAt} onChange={(e) => setPlantedAt(e.target.value)} className="text-sm" />
+                </div>
+                <div>
+                  <label className="text-xs sv-muted block mb-1">Aankoopdatum</label>
+                  <Input type="date" value={acquiredAt} onChange={(e) => setAcquiredAt(e.target.value)} className="text-sm" />
+                </div>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs sv-muted block mb-1">Herkomst</label>
+                  <Input value={source} onChange={(e) => setSource(e.target.value)} placeholder="bijv. tuincentrum..." className="text-sm" />
+                </div>
+                <div>
+                  <label className="text-xs sv-muted block mb-1">Prijs (€)</label>
+                  <Input type="number" min="0" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} className="text-sm" />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <p className="text-xs sv-muted font-medium uppercase tracking-wide">Eerste seizoen</p>
+                <div className="grid sm:grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-xs sv-muted block mb-1">Startdatum</label>
+                    <Input type="date" value={seasonStartedAt} onChange={(e) => setSeasonStartedAt(e.target.value)} className="text-sm" />
+                  </div>
+                  <div>
+                    <label className="text-xs sv-muted block mb-1">Seizoenslabel (optioneel)</label>
+                    <Input
+                      value={seasonLabel}
+                      onChange={(e) => setSeasonLabel(e.target.value)}
+                      placeholder={`Seizoen ${new Date(seasonStartedAt).getFullYear()}`}
+                      className="text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {formError && <p className="text-xs sv-destructive-text">{formError}</p>}
+
+          <div className="flex gap-2">
+            <Button size="sm" className="sv-button" onClick={handleSave} disabled={isCreating || !speciesId}>
+              {isCreating ? <Loader2 className="h-4 w-4 animate-spin" /> : "Opslaan"}
+            </Button>
+            <Button
+              size="sm"
+              className="sv-button sv-button-ghost"
+              onClick={() => {
+                resetForm();
+                if (preselectedSpecies) onCreated?.();
+              }}
+              disabled={isCreating}
+            >
+              Annuleer
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Teelt afronden ─────────────────────────────────────────────────────────
+
+const SEASON_CLOSING_REASONS = [
+  "Seizoen afgelopen",
+  "Oogst afgerond",
+  "Plant afgestorven",
+  "Ziekte of plaag",
+  "Plant verwijderd",
+  "Anders",
+];
+
+function CompleteSeasonPanel({
+  season,
+  instance,
+  onClose,
+}: {
+  season: GrowingSeason;
+  instance: PlantInstance;
+  onClose: () => void;
+}) {
+  const [status, setStatus] = useState<"completed" | "failed">("completed");
+  const [endedAt, setEndedAt] = useState(() => new Date().toISOString().slice(0, 10));
+  const [reason, setReason] = useState("");
+  const [notes, setNotes] = useState("");
+  const [nextStep, setNextStep] = useState<"new_season" | "archive" | "dormant" | "later">("later");
+  const [error, setError] = useState<string | null>(null);
+  const { completeSeason, isCompletingSeason, startNewSeason, archiveInstance, setInstanceDormant } = usePlantInstances();
+
+  async function handleConfirm() {
+    setError(null);
+    try {
+      await completeSeason({
+        seasonId: season.id,
+        status,
+        endedAt,
+        closingReason: reason || null,
+        closingNotes: notes.trim() || null,
+      });
+      if (nextStep === "new_season") {
+        await startNewSeason({ plantInstanceId: instance.id, startedAt: new Date().toISOString().slice(0, 10), label: null });
+      } else if (nextStep === "archive") {
+        await archiveInstance(instance.id);
+      } else if (nextStep === "dormant") {
+        await setInstanceDormant(instance.id);
+      }
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Afronden mislukt.");
+    }
+  }
+
+  return (
+    <div className="sv-inset p-4 space-y-3 rounded-xl">
+      <p className="sv-heading text-lg">Teelt afronden — {season.label ?? `Seizoen ${season.year}`}</p>
+
+      <div className="grid sm:grid-cols-2 gap-2">
+        <div>
+          <label className="text-xs sv-muted block mb-1">Einddatum</label>
+          <Input type="date" value={endedAt} onChange={(e) => setEndedAt(e.target.value)} className="text-sm" />
+        </div>
+        <div>
+          <label className="text-xs sv-muted block mb-1">Eindstatus</label>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setStatus("completed")} className={chipClass(status === "completed")}>Afgerond</button>
+            <button type="button" onClick={() => setStatus("failed")} className={chipClass(status === "failed")}>Mislukt</button>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <p className="text-xs sv-muted block mb-1">Reden</p>
+        <div className="flex flex-wrap gap-2">
+          {SEASON_CLOSING_REASONS.map((r) => (
+            <button key={r} type="button" onClick={() => setReason((v) => (v === r ? "" : r))} className={chipClass(reason === r)}>
+              {r}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <Textarea placeholder="Eindnotitie (optioneel)..." rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} className="text-sm resize-none" />
+
+      <div className="space-y-1.5">
+        <p className="text-xs sv-muted block mb-1">Wat gebeurt er met dit exemplaar?</p>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={() => setNextStep("new_season")} className={chipClass(nextStep === "new_season")}>Nieuw seizoen starten</button>
+          <button type="button" onClick={() => setNextStep("archive")} className={chipClass(nextStep === "archive")}>Exemplaar archiveren</button>
+          <button type="button" onClick={() => setNextStep("dormant")} className={chipClass(nextStep === "dormant")}>Plant in rust zetten</button>
+          <button type="button" onClick={() => setNextStep("later")} className={chipClass(nextStep === "later")}>Later beslissen</button>
+        </div>
+      </div>
+
+      {error && <p className="text-xs sv-destructive-text">{error}</p>}
+
+      <div className="flex gap-2">
+        <Button size="sm" className="sv-button" onClick={handleConfirm} disabled={isCompletingSeason}>
+          {isCompletingSeason ? <Loader2 className="h-4 w-4 animate-spin" /> : "Bevestigen"}
+        </Button>
+        <Button size="sm" className="sv-button sv-button-ghost" onClick={onClose} disabled={isCompletingSeason}>
+          Annuleer
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ─── InstanceSettingsSection component ─────────────────────────────────────
+// Full instance edit form (name, location, pot/soil, dates, status, health,
+// reminders) — everything on plant_instances that a user might reasonably
+// want to correct after creation, all written via the same generic
+// patchInstance() used everywhere else in this dialog. There is no
+// per-instance water/feeding interval override field on plant_instances
+// (intervals come from the species advice, see plantInstanceStatus.ts), so
+// that part of the spec's optional list is intentionally not present here.
+
+function InstanceSettingsSection({
+  instance,
+  onSave,
+  isSaving,
+}: {
+  instance: PlantInstance;
+  onSave: (patch: Record<string, unknown>) => void;
+  isSaving: boolean;
+}) {
+  const [customName, setCustomName] = useState(instance.custom_name ?? "");
+  const [location, setLocation] = useState(instance.location ?? "");
+  const [cultivationType, setCultivationType] = useState<CultivationType | "">(instance.cultivation_type ?? "");
+  const [potSizeLiters, setPotSizeLiters] = useState(instance.pot_size_liters?.toString() ?? "");
+  const [potMaterial, setPotMaterial] = useState(instance.pot_material ?? "");
+  const [potColor, setPotColor] = useState(instance.pot_color ?? "");
+  const [soilType, setSoilType] = useState(instance.soil_type ?? "");
+  const [soilMixNotes, setSoilMixNotes] = useState(instance.soil_mix_notes ?? "");
+  const [plantedAt, setPlantedAt] = useState(instance.planted_at ? instance.planted_at.slice(0, 10) : "");
+  const [acquiredAt, setAcquiredAt] = useState(instance.acquired_at ?? "");
+  const [source, setSource] = useState(instance.source ?? "");
+  const [price, setPrice] = useState(instance.price?.toString() ?? "");
+  const [status, setStatus] = useState(instance.status);
+  const [healthStatus, setHealthStatus] = useState(instance.health_status ?? "");
+  const [remindersEnabled, setRemindersEnabled] = useState(instance.reminders_enabled);
+  const [feedingRemindersEnabled, setFeedingRemindersEnabled] = useState(instance.feeding_reminders_enabled);
+
+  function handleSave() {
+    onSave({
+      custom_name: customName.trim() || null,
+      location: location.trim() || null,
+      cultivation_type: cultivationType || null,
+      pot_size_liters: potSizeLiters.trim() ? Number(potSizeLiters) : null,
+      pot_material: potMaterial.trim() || null,
+      pot_color: potColor.trim() || null,
+      soil_type: soilType.trim() || null,
+      soil_mix_notes: soilMixNotes.trim() || null,
+      planted_at: plantedAt ? new Date(plantedAt).toISOString() : null,
+      acquired_at: acquiredAt || null,
+      source: source.trim() || null,
+      price: price.trim() ? Number(price) : null,
+      status,
+      health_status: healthStatus || null,
+      reminders_enabled: remindersEnabled,
+      feeding_reminders_enabled: feedingRemindersEnabled,
+    });
+  }
+
+  return (
+    <div className="sv-inset p-4 space-y-4 rounded-xl">
+      <div className="grid sm:grid-cols-2 gap-2">
+        <div>
+          <label className="text-xs sv-muted block mb-1">Herkenningsnaam</label>
+          <Input value={customName} onChange={(e) => setCustomName(e.target.value)} className="text-sm" />
+        </div>
+        <div>
+          <label className="text-xs sv-muted block mb-1">Locatie</label>
+          <Input value={location} onChange={(e) => setLocation(e.target.value)} className="text-sm" />
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <p className="text-xs sv-muted font-medium uppercase tracking-wide">Teeltvorm</p>
+        <div className="flex flex-wrap gap-2">
+          {CULTIVATION_TYPE_OPTIONS.map((opt) => (
+            <button key={opt.value} type="button" onClick={() => setCultivationType((v) => (v === opt.value ? "" : opt.value))} className={chipClass(cultivationType === opt.value)}>
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid sm:grid-cols-3 gap-2">
+        <div>
+          <label className="text-xs sv-muted block mb-1">Potgrootte (L)</label>
+          <Input type="number" min="0" value={potSizeLiters} onChange={(e) => setPotSizeLiters(e.target.value)} className="text-sm" />
+        </div>
+        <div>
+          <label className="text-xs sv-muted block mb-1">Potmateriaal</label>
+          <Input value={potMaterial} onChange={(e) => setPotMaterial(e.target.value)} className="text-sm" />
+        </div>
+        <div>
+          <label className="text-xs sv-muted block mb-1">Potkleur</label>
+          <Input value={potColor} onChange={(e) => setPotColor(e.target.value)} className="text-sm" />
+        </div>
+      </div>
+
+      <div className="grid sm:grid-cols-2 gap-2">
+        <div>
+          <label className="text-xs sv-muted block mb-1">Grondsoort</label>
+          <Input value={soilType} onChange={(e) => setSoilType(e.target.value)} className="text-sm" />
+        </div>
+        <div>
+          <label className="text-xs sv-muted block mb-1">Grondmengsel notitie</label>
+          <Input value={soilMixNotes} onChange={(e) => setSoilMixNotes(e.target.value)} className="text-sm" />
+        </div>
+      </div>
+
+      <div className="grid sm:grid-cols-2 gap-2">
+        <div>
+          <label className="text-xs sv-muted block mb-1">Geplant / gezaaid op</label>
+          <Input type="date" value={plantedAt} onChange={(e) => setPlantedAt(e.target.value)} className="text-sm" />
+        </div>
+        <div>
+          <label className="text-xs sv-muted block mb-1">Verkregen op</label>
+          <Input type="date" value={acquiredAt} onChange={(e) => setAcquiredAt(e.target.value)} className="text-sm" />
+        </div>
+      </div>
+
+      <div className="grid sm:grid-cols-2 gap-2">
+        <div>
+          <label className="text-xs sv-muted block mb-1">Bron</label>
+          <Input value={source} onChange={(e) => setSource(e.target.value)} className="text-sm" />
+        </div>
+        <div>
+          <label className="text-xs sv-muted block mb-1">Prijs (€)</label>
+          <Input type="number" min="0" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} className="text-sm" />
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <p className="text-xs sv-muted font-medium uppercase tracking-wide">Status</p>
+        <div className="flex flex-wrap gap-2">
+          {(Object.keys(INSTANCE_STATUS_LABELS) as PlantInstance["status"][]).map((s) => (
+            <button key={s} type="button" onClick={() => setStatus(s)} className={chipClass(status === s)}>
+              {INSTANCE_STATUS_LABELS[s]}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <p className="text-xs sv-muted font-medium uppercase tracking-wide">Gezondheid</p>
+        <div className="flex flex-wrap gap-2">
+          {HEALTH_STATUS_OPTIONS.map((opt) => (
+            <button key={opt} type="button" onClick={() => setHealthStatus((v) => (v === opt ? "" : opt))} className={chipClass(healthStatus === opt)}>
+              {HEALTH_STATUS_EMOJI[opt]} {opt}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <p className="text-xs sv-muted font-medium uppercase tracking-wide">Herinneringen</p>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={() => setRemindersEnabled((v) => !v)} className={chipClass(remindersEnabled)}>
+            💧 Waterherinneringen {remindersEnabled ? "aan" : "uit"}
+          </button>
+          <button type="button" onClick={() => setFeedingRemindersEnabled((v) => !v)} className={chipClass(feedingRemindersEnabled)}>
+            🌿 Voedingsherinneringen {feedingRemindersEnabled ? "aan" : "uit"}
+          </button>
+        </div>
+      </div>
+
+      <Button size="sm" className="sv-button" onClick={handleSave} disabled={isSaving}>
+        {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Instellingen opslaan"}
+      </Button>
+    </div>
+  );
+}
+
+// ─── Instance detail dialog ─────────────────────────────────────────────────
+
+function PlantInstanceDetailDialog({
+  instance,
+  species,
+  activeSeason,
+  onClose,
+}: {
+  instance: PlantInstance;
+  species: Plant | undefined;
+  activeSeason: GrowingSeason | null;
+  onClose: () => void;
+}) {
+  const [closingSeason, setClosingSeason] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [harvestOpen, setHarvestOpen] = useState(false);
+  const [pruningOpen, setPruningOpen] = useState(false);
+  const [repotOpen, setRepotOpen] = useState(false);
+  const [inspectionOpen, setInspectionOpen] = useState(false);
+  const [photosOpen, setPhotosOpen] = useState(false);
+  const [photoUrlDraft, setPhotoUrlDraft] = useState("");
+  const addingPhotoRef = useRef(false);
+  const [timelineOpen, setTimelineOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const name = plantInstanceDisplayName(instance, species);
+  const { patchInstance } = usePlantInstances();
+  const { recordWatering, recordFeeding, recordingWaterId, recordingFeedId, error: careError } = useRecordInstanceCare({ patchInstance });
+  const queryClient = useQueryClient();
+
+  const { data: seasons = [] } = useQuery({
+    queryKey: ["growing_seasons", instance.id],
+    queryFn: () => fetchGrowingSeasons(instance.id),
+  });
+  const { getEntriesForGrowingSeason } = useGrowthLog();
+
+  const { data: harvestLogs = [] } = useQuery({
+    queryKey: ["plant_harvest_logs", "instance", instance.id],
+    queryFn: () => fetchHarvestLogsForInstance(instance.id),
+  });
+  const { data: pruningLogs = [] } = useQuery({
+    queryKey: ["plant_pruning_logs", "instance", instance.id],
+    queryFn: () => fetchPruningLogsForInstance(instance.id),
+  });
+  const { data: repotLogs = [] } = useQuery({
+    queryKey: ["plant_repot_logs", "instance", instance.id],
+    queryFn: () => fetchRepotLogsForInstance(instance.id),
+  });
+  const { data: inspectionLogs = [] } = useQuery({
+    queryKey: ["plant_inspection_logs", "instance", instance.id],
+    queryFn: () => fetchInspectionLogsForInstance(instance.id),
+  });
+  const { data: instancePhotos = [] } = useQuery({
+    queryKey: ["plant_photos", "instance", instance.id],
+    queryFn: () => fetchPhotosForInstance(instance.id),
+  });
+
+  const addHarvestLog = useMutation({
+    mutationFn: async (row: { plant_id: string; plant_instance_id?: string; growing_season_id?: string | null; harvested_at: string; weight_grams: number | null; quantity: number | null; unit: string | null; notes: string | null }) => {
+      const { error } = await supabase.from("plant_harvest_logs").insert(row);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["plant_harvest_logs", "instance", instance.id] }),
+  });
+  const deleteHarvestLog = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("plant_harvest_logs").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["plant_harvest_logs", "instance", instance.id] }),
+  });
+
+  const addPruningLog = useMutation({
+    mutationFn: async (row: { plant_id: string; plant_instance_id?: string; growing_season_id?: string | null; pruned_at: string; pruning_type: string | null; notes: string | null }) => {
+      const { error } = await supabase.from("plant_pruning_logs").insert(row);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["plant_pruning_logs", "instance", instance.id] }),
+  });
+  const deletePruningLog = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("plant_pruning_logs").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["plant_pruning_logs", "instance", instance.id] }),
+  });
+
+  const addRepotLog = useMutation({
+    mutationFn: async (row: { plant_id: string; plant_instance_id?: string; growing_season_id?: string | null; repotted_at: string; old_pot_size_liters: number | null; new_pot_size_liters: number | null; pot_material: string | null; soil_type: string | null; notes: string | null }) => {
+      const { error } = await supabase.from("plant_repot_logs").insert(row);
+      if (error) throw error;
+      if (row.new_pot_size_liters !== null) {
+        await patchInstance({ id: instance.id, patch: { last_repotted_at: row.repotted_at, pot_size_liters: row.new_pot_size_liters } });
+      } else {
+        await patchInstance({ id: instance.id, patch: { last_repotted_at: row.repotted_at } });
+      }
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["plant_repot_logs", "instance", instance.id] }),
+  });
+  const deleteRepotLog = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("plant_repot_logs").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["plant_repot_logs", "instance", instance.id] }),
+  });
+
+  const addInspectionLog = useMutation({
+    mutationFn: async (row: { plant_instance_id: string; growing_season_id?: string | null; checked_at: string; health_status: string | null; notes: string | null; issues: string | null; action_taken: string | null; photo_url: string | null }) => {
+      const { error } = await supabase.from("plant_inspection_logs").insert(row);
+      if (error) throw error;
+      if (row.health_status) {
+        await patchInstance({ id: instance.id, patch: { health_status: row.health_status, last_checked_at: row.checked_at } });
+      } else {
+        await patchInstance({ id: instance.id, patch: { last_checked_at: row.checked_at } });
+      }
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["plant_inspection_logs", "instance", instance.id] }),
+  });
+  const deleteInspectionLog = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("plant_inspection_logs").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["plant_inspection_logs", "instance", instance.id] }),
+  });
+
+  const addInstancePhoto = useMutation({
+    mutationFn: async (url: string) => {
+      const { error } = await supabase.from("plant_photos").insert({
+        plant_id: instance.species_id,
+        plant_instance_id: instance.id,
+        growing_season_id: activeSeason?.id ?? null,
+        photo_url: url,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["plant_photos", "instance", instance.id] });
+      setPhotoUrlDraft("");
+    },
+    onSettled: () => {
+      addingPhotoRef.current = false;
+    },
+  });
+  const deleteInstancePhoto = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("plant_photos").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["plant_photos", "instance", instance.id] }),
+  });
+
+  const pastSeasons = seasons.filter((s) => s.id !== activeSeason?.id);
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className={PLANT_DIALOG_CONTENT_CLASS}>
+        <DialogHeader>
+          <div className="flex items-center gap-3">
+            {species?.photo_url ? (
+              <img src={species.photo_url} alt="" className="h-12 w-12 rounded-lg object-cover shrink-0 sv-icon-slot" />
+            ) : (
+              <div className="h-12 w-12 sv-icon-slot flex items-center justify-center shrink-0">
+                <Sprout className="h-5 w-5" strokeWidth={1.6} />
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <DialogTitle className={`${PLANT_DIALOG_TITLE_CLASS} truncate`}>{name}</DialogTitle>
+              {species && species.name !== name && <p className="text-sm sv-muted truncate">{species.name}</p>}
+            </div>
+            {instance.health_status && (
+              <span className="sv-heading inline-flex items-center gap-1 text-sm px-3 py-1.5 rounded-full sv-badge-ok shrink-0">
+                {HEALTH_STATUS_EMOJI[instance.health_status]} {instance.health_status}
+              </span>
+            )}
+          </div>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {instance.location && <p className="text-sm sv-muted">📍 {instance.location}</p>}
+
+          {activeSeason && (
+            <p className="text-sm sv-muted">
+              Actief seizoen: <span className="text-foreground">{activeSeason.label ?? `Seizoen ${activeSeason.year}`}</span>
+              {" · "}
+              {activeSeason.status === "active" ? "Actief" : activeSeason.status === "completed" ? "Afgerond" : "Mislukt"}
+            </p>
+          )}
+
+          {(() => {
+            const waterStat = species ? instanceWaterStatus(instance, species) : null;
+            const feedStat = species ? instanceFeedingStatus(instance, species) : null;
+            const lastInspection = inspectionLogs[0] ?? null;
+            const seasonEntries = activeSeason ? getEntriesForGrowingSeason(activeSeason.id) : [];
+            const heightEntries = seasonEntries.filter((e) => e.height_cm !== null).sort((a, b) => b.date.localeCompare(a.date));
+            const fruitEntries = seasonEntries
+              .filter((e) => e.fruit_length_cm !== null || e.fruit_width_cm !== null)
+              .sort((a, b) => b.date.localeCompare(a.date));
+            const currentSeasonHarvestWeights = harvestLogs
+              .filter((h) => h.growing_season_id === activeSeason?.id)
+              .map((h) => h.weight_grams)
+              .filter((w): w is number => w !== null);
+            const chips: { key: string; label: string; overdue?: boolean }[] = [];
+            if (waterStat) chips.push({ key: "water", label: `💧 ${waterStat.label}`, overdue: waterStat.overdue });
+            if (feedStat) chips.push({ key: "feed", label: `🌿 ${feedStat.label}`, overdue: feedStat.overdue });
+            chips.push({
+              key: "inspection",
+              label: lastInspection
+                ? `🔍 Laatst geïnspecteerd: ${new Date(lastInspection.checked_at).toLocaleDateString("nl-NL", { day: "numeric", month: "short" })}`
+                : "🔍 Nog niet geïnspecteerd",
+            });
+            chips.push({
+              key: "height",
+              label: heightEntries.length > 0 ? `📏 Huidige hoogte: ${formatMeasurement(heightEntries[0].height_cm as number)} cm` : "📏 Hoogte: nog niet gemeten",
+            });
+            chips.push({
+              key: "fruit",
+              label: fruitEntries.length > 0
+                ? `🍅 ${formatFruitSize(fruitEntries[0].fruit_length_cm, fruitEntries[0].fruit_width_cm) ?? "gemeten"}`
+                : "🍅 Vruchtgrootte: nog niet gemeten",
+            });
+            chips.push({
+              key: "harvest",
+              label: currentSeasonHarvestWeights.length > 0
+                ? `🧺 Oogst dit seizoen: ${currentSeasonHarvestWeights.reduce((a, b) => a + b, 0)} g`
+                : "🧺 Nog geen oogst dit seizoen",
+            });
+            return (
+              <div className="sv-inset rounded-xl p-3 flex flex-wrap gap-1.5">
+                {chips.map((c) => (
+                  <span
+                    key={c.key}
+                    className={`sv-heading inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full ${c.overdue ? "sv-badge-overdue" : "sv-badge-ok"}`}
+                  >
+                    {c.label}
+                  </span>
+                ))}
+              </div>
+            );
+          })()}
+
+          <div className="flex items-center gap-3 flex-wrap">
+            <Button
+              size="sm"
+              variant="outline"
+              className="sv-button sv-button-thin-border text-xl"
+              onClick={() => patchInstance({ id: instance.id, patch: { last_checked_at: new Date().toISOString().slice(0, 10) } })}
+            >
+              <ClipboardCheck className="h-3.5 w-3.5" />{" "}
+              {checkedLabel(instance.last_checked_at) ?? "Plant gecontroleerd"}
+            </Button>
+            <FirstEventButton
+              label="Eerste bloem"
+              emoji="🌸"
+              value={instance.first_flower_at}
+              isSaving={false}
+              onSave={(date) => patchInstance({ id: instance.id, patch: { first_flower_at: date } })}
+              onDelete={() => patchInstance({ id: instance.id, patch: { first_flower_at: null } })}
+            />
+            <FirstEventButton
+              label="Eerste vrucht"
+              emoji="🍅"
+              value={instance.first_fruit_at}
+              isSaving={false}
+              onSave={(date) => patchInstance({ id: instance.id, patch: { first_fruit_at: date } })}
+              onDelete={() => patchInstance({ id: instance.id, patch: { first_fruit_at: null } })}
+            />
+          </div>
+
+          {careError && <p className="text-xs sv-destructive-text">{careError}</p>}
+
+          {species && (
+            <>
+              <WaterSection
+                plant={species}
+                instanceState={{
+                  id: instance.id,
+                  name,
+                  last_watered_at: instance.last_watered_at,
+                  last_fed_at: instance.last_fed_at,
+                  water_skip_until: instance.water_skip_until,
+                  cultivation_type: instance.cultivation_type,
+                }}
+                onRecordWatering={(note) => recordWatering(instance, name, activeSeason?.id ?? null, note)}
+                onSyncLastWatered={(isoDate) =>
+                  patchInstance({ id: instance.id, patch: { last_watered_at: isoDate ? new Date(isoDate).toISOString() : null } })
+                }
+                onSkipToday={() => {
+                  const tomorrow = new Date();
+                  tomorrow.setDate(tomorrow.getDate() + 1);
+                  patchInstance({ id: instance.id, patch: { water_skip_until: tomorrow.toISOString().slice(0, 10) } });
+                }}
+                isUpdating={false}
+                isRecording={recordingWaterId === instance.id}
+              />
+
+              <FeedingSection
+                plant={species}
+                instanceState={{
+                  id: instance.id,
+                  name,
+                  last_watered_at: instance.last_watered_at,
+                  last_fed_at: instance.last_fed_at,
+                  water_skip_until: instance.water_skip_until,
+                  cultivation_type: instance.cultivation_type,
+                }}
+                onRecordFeeding={(note) => recordFeeding(instance, name, activeSeason?.id ?? null, note)}
+                onSyncLastFed={(isoDate) =>
+                  patchInstance({ id: instance.id, patch: { last_fed_at: isoDate ? new Date(isoDate).toISOString() : null } })
+                }
+                isUpdating={false}
+                isRecording={recordingFeedId === instance.id}
+              />
+            </>
+          )}
+
+          {activeSeason && (
+            <PlantLogboek
+              plantName={name}
+              plantInstanceId={instance.id}
+              growingSeasonId={activeSeason.id}
+              seasons={seasons}
+            />
+          )}
+
+          <div className="space-y-3">
+            <button
+              type="button"
+              onClick={() => setHarvestOpen((o) => !o)}
+              className="sv-button sv-button-thin-border w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm"
+            >
+              <span className="flex items-center gap-2"><Apple className="h-4 w-4" /> Oogst</span>
+              {harvestOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+            {harvestOpen && (
+              <HarvestLogSection
+                plantId={instance.species_id}
+                plantInstanceId={instance.id}
+                growingSeasonId={activeSeason?.id ?? null}
+                logs={harvestLogs}
+                onAdd={(row) => addHarvestLog.mutate(row)}
+                onDelete={(id) => deleteHarvestLog.mutate(id)}
+                isSaving={addHarvestLog.isPending}
+              />
+            )}
+          </div>
+
+          <div className="space-y-3">
+            <button
+              type="button"
+              onClick={() => setPruningOpen((o) => !o)}
+              className="sv-button sv-button-thin-border w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm"
+            >
+              <span className="flex items-center gap-2"><Scissors className="h-4 w-4" /> Snoeien</span>
+              {pruningOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+            {pruningOpen && (
+              <PruningLogSection
+                plantId={instance.species_id}
+                plantInstanceId={instance.id}
+                growingSeasonId={activeSeason?.id ?? null}
+                logs={pruningLogs}
+                onAdd={(row) => addPruningLog.mutate(row)}
+                onDelete={(id) => deletePruningLog.mutate(id)}
+                isSaving={addPruningLog.isPending}
+              />
+            )}
+          </div>
+
+          <div className="space-y-3">
+            <button
+              type="button"
+              onClick={() => setRepotOpen((o) => !o)}
+              className="sv-button sv-button-thin-border w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm"
+            >
+              <span className="flex items-center gap-2"><Boxes className="h-4 w-4" /> Verpotten</span>
+              {repotOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+            {repotOpen && (
+              <RepotLogSection
+                plant={instance}
+                plantInstanceId={instance.id}
+                growingSeasonId={activeSeason?.id ?? null}
+                legacyPlantId={instance.species_id}
+                logs={repotLogs}
+                onAdd={(row) => addRepotLog.mutate(row)}
+                onDelete={(id) => deleteRepotLog.mutate(id)}
+                isSaving={addRepotLog.isPending}
+              />
+            )}
+          </div>
+
+          <div className="space-y-3">
+            <button
+              type="button"
+              onClick={() => setInspectionOpen((o) => !o)}
+              className="sv-button sv-button-thin-border w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm"
+            >
+              <span className="flex items-center gap-2"><ClipboardCheck className="h-4 w-4" /> Inspecties</span>
+              {inspectionOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+            {inspectionOpen && (
+              <InspectionLogSection
+                plantInstanceId={instance.id}
+                growingSeasonId={activeSeason?.id ?? null}
+                logs={inspectionLogs}
+                onAdd={(row) => addInspectionLog.mutate(row)}
+                onDelete={(id) => deleteInspectionLog.mutate(id)}
+                isSaving={addInspectionLog.isPending}
+              />
+            )}
+          </div>
+
+          <div className="space-y-3">
+            <button
+              type="button"
+              onClick={() => setPhotosOpen((o) => !o)}
+              className="sv-button sv-button-thin-border w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm"
+            >
+              <span className="flex items-center gap-2"><ImageIcon className="h-4 w-4" /> Foto's</span>
+              {photosOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+            {photosOpen && (
+              <div className="sv-inset p-4 space-y-3 rounded-xl">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Plak een foto-URL..."
+                    value={photoUrlDraft}
+                    onChange={(e) => setPhotoUrlDraft(e.target.value)}
+                    className="text-sm"
+                  />
+                  <Button
+                    type="button"
+                    size="icon"
+                    className="sv-button shrink-0"
+                    disabled={!photoUrlDraft.trim() || addInstancePhoto.isPending}
+                    onClick={() => {
+                      if (addingPhotoRef.current) return;
+                      addingPhotoRef.current = true;
+                      addInstancePhoto.mutate(photoUrlDraft.trim());
+                    }}
+                  >
+                    {addInstancePhoto.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                  </Button>
+                </div>
+                {instancePhotos.length > 0 && (
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                    {instancePhotos.map((photo) => (
+                      <div key={photo.id} className="relative group">
+                        <img src={photo.photo_url} alt="" className="w-full aspect-square object-cover rounded-lg sv-icon-slot" />
+                        <p className="text-[10px] sv-muted mt-1">
+                          {new Date(photo.taken_at).toLocaleDateString("nl-NL", { day: "numeric", month: "short" })}
+                        </p>
+                        <button
+                          onClick={() => deleteInstancePhoto.mutate(photo.id)}
+                          className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full sv-icon-slot flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          aria-label="Verwijder foto"
+                        >
+                          <X className="h-2.5 w-2.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            <button
+              type="button"
+              onClick={() => setTimelineOpen((o) => !o)}
+              className="sv-button sv-button-thin-border w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm"
+            >
+              <span className="flex items-center gap-2"><Clock className="h-4 w-4" /> Tijdlijn</span>
+              {timelineOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+            {timelineOpen && (
+              <div className="sv-inset p-4 rounded-xl">
+                <InstanceTimelineSection
+                  instance={instance}
+                  species={species}
+                  harvestLogs={harvestLogs}
+                  pruningLogs={pruningLogs}
+                  repotLogs={repotLogs}
+                  inspectionLogs={inspectionLogs}
+                  photos={instancePhotos}
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            <button
+              type="button"
+              onClick={() => setHistoryOpen((o) => !o)}
+              className="sv-button sv-button-thin-border w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm"
+            >
+              <span className="flex items-center gap-2"><Clock className="h-4 w-4" /> Geschiedenis</span>
+              {historyOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+            {historyOpen && (
+              <div className="sv-inset p-4 rounded-xl space-y-3">
+                {seasons.length === 0 ? (
+                  <p className="text-sm sv-muted">Nog geen seizoenen.</p>
+                ) : (
+                  [...seasons]
+                    .sort((a, b) => b.started_at.localeCompare(a.started_at))
+                    .map((s) => {
+                      const seasonEntries = getEntriesForGrowingSeason(s.id);
+                      const seasonRangeEnd = s.ended_at ?? new Date().toISOString().slice(0, 10);
+                      const flowerInSeason =
+                        instance.first_flower_at && instance.first_flower_at >= s.started_at && instance.first_flower_at <= seasonRangeEnd
+                          ? instance.first_flower_at
+                          : null;
+                      const fruitInSeason =
+                        instance.first_fruit_at && instance.first_fruit_at >= s.started_at && instance.first_fruit_at <= seasonRangeEnd
+                          ? instance.first_fruit_at
+                          : null;
+                      const stats = computeSeasonStats({
+                        startedAt: s.started_at,
+                        endedAt: s.ended_at,
+                        growthEntries: seasonEntries,
+                        harvestWeights: harvestLogs.filter((h) => h.growing_season_id === s.id).map((h) => h.weight_grams),
+                        fruitMeasurements: seasonEntries.map((e) => ({ length: e.fruit_length_cm, width: e.fruit_width_cm })),
+                      });
+                      return (
+                        <div key={s.id} className="sv-panel p-3 space-y-1">
+                          <div className="flex items-center justify-between">
+                            <p className="sv-heading text-base">{s.label ?? `Seizoen ${s.year}`}</p>
+                            <span className={`sv-badge-ok text-xs px-2 py-0.5 rounded-full${s.status !== "active" ? " opacity-70" : ""}`}>
+                              {s.status === "active" ? "Actief" : s.status === "completed" ? "Afgerond" : "Mislukt"}
+                            </span>
+                          </div>
+                          <p className="text-xs sv-muted">
+                            {new Date(s.started_at).toLocaleDateString("nl-NL", { day: "numeric", month: "long", year: "numeric" })}
+                            {s.ended_at && ` — ${new Date(s.ended_at).toLocaleDateString("nl-NL", { day: "numeric", month: "long", year: "numeric" })}`}
+                          </p>
+                          {s.closing_reason && <p className="text-xs sv-muted">Reden: {s.closing_reason}</p>}
+                          {s.closing_notes && <p className="text-sm">{s.closing_notes}</p>}
+                          <p className="text-xs sv-muted">{seasonEntries.length} registratie{seasonEntries.length !== 1 ? "s" : ""} in dit seizoen</p>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1 text-xs pt-2 mt-1 border-t border-black/10">
+                            <p className="sv-muted">Duur: <span className="text-foreground">{stats.durationDays} dagen</span></p>
+                            <p className="sv-muted">Max. hoogte: <span className="text-foreground">{stats.maxHeightCm !== null ? `${formatMeasurement(stats.maxHeightCm)} cm` : "Nog niet geregistreerd"}</span></p>
+                            <p className="sv-muted">Groei/week: <span className="text-foreground">{stats.growthPerWeekCm !== null ? `${formatMeasurement(stats.growthPerWeekCm)} cm` : "Nog niet geregistreerd"}</span></p>
+                            <p className="sv-muted">Eerste bloem: <span className="text-foreground">{flowerInSeason ? new Date(flowerInSeason).toLocaleDateString("nl-NL", { day: "numeric", month: "short" }) : "Niet beschikbaar"}</span></p>
+                            <p className="sv-muted">Eerste vrucht: <span className="text-foreground">{fruitInSeason ? new Date(fruitInSeason).toLocaleDateString("nl-NL", { day: "numeric", month: "short" }) : "Niet beschikbaar"}</span></p>
+                            <p className="sv-muted">Totale oogst: <span className="text-foreground">{stats.totalHarvestWeightGrams !== null ? `${stats.totalHarvestWeightGrams} g` : "Geen gegevens"}</span></p>
+                            <p className="sv-muted">Aantal oogsten: <span className="text-foreground">{stats.harvestCount > 0 ? stats.harvestCount : "Geen gegevens"}</span></p>
+                            <p className="sv-muted">Gem. vruchtgrootte: <span className="text-foreground">{formatFruitSize(stats.avgFruitLengthCm, stats.avgFruitWidthCm) ?? "Geen gegevens"}</span></p>
+                            <p className="sv-muted">Water gegeven: <span className="text-foreground">{stats.waterCount > 0 ? `${stats.waterCount}x` : "Geen gegevens"}</span></p>
+                            <p className="sv-muted">Voeding gegeven: <span className="text-foreground">{stats.feedingCount > 0 ? `${stats.feedingCount}x` : "Geen gegevens"}</span></p>
+                          </div>
+                        </div>
+                      );
+                    })
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            <button
+              type="button"
+              onClick={() => setSettingsOpen((o) => !o)}
+              className="sv-button sv-button-thin-border w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm"
+            >
+              <span className="flex items-center gap-2"><SlidersHorizontal className="h-4 w-4" /> Instellingen</span>
+              {settingsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+            {settingsOpen && (
+              <InstanceSettingsSection
+                instance={instance}
+                onSave={(patch) => patchInstance({ id: instance.id, patch })}
+                isSaving={false}
+              />
+            )}
+          </div>
+
+          {activeSeason && !closingSeason && (
+            <Button size="sm" variant="outline" className="sv-button sv-button-thin-border w-full" onClick={() => setClosingSeason(true)}>
+              Teelt afronden
+            </Button>
+          )}
+          {activeSeason && closingSeason && (
+            <CompleteSeasonPanel season={activeSeason} instance={instance} onClose={() => setClosingSeason(false)} />
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button size="sm" variant="ghost" className="sv-button sv-button-ghost" onClick={onClose}>
+            Sluiten
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Mijn geplante exemplaren ───────────────────────────────────────────────
+
+const INSTANCE_HEALTH_FILTER_OPTIONS = ["water_needed", "feeding_needed"] as const;
+
+function MyPlantInstances({
+  speciesList,
+  initialSearch,
+  initialNeedFilter,
+}: {
+  speciesList: Plant[];
+  initialSearch?: string;
+  initialNeedFilter?: "" | (typeof INSTANCE_HEALTH_FILTER_OPTIONS)[number];
+}) {
+  const { data: instances = [], isLoading } = useQuery({
+    queryKey: ["plant_instances", "active"],
+    queryFn: fetchActivePlantInstances,
+  });
+  const { data: seasons = [] } = useQuery({
+    queryKey: ["growing_seasons", "all"],
+    queryFn: fetchAllGrowingSeasons,
+  });
+  const [detailInstanceId, setDetailInstanceId] = useState<string | null>(null);
+  const [search, setSearch] = useState(initialSearch ?? "");
+  const [needFilter, setNeedFilter] = useState<"" | (typeof INSTANCE_HEALTH_FILTER_OPTIONS)[number]>(initialNeedFilter ?? "");
+  const { recordWatering, recordFeeding } = useRecordInstanceCare();
+
+  const speciesById = useMemo(() => new Map(speciesList.map((s) => [s.id, s])), [speciesList]);
+  const activeSeasonByInstance = useMemo(() => {
+    const map = new Map<string, GrowingSeason>();
+    for (const s of seasons) if (s.status === "active") map.set(s.plant_instance_id, s);
+    return map;
+  }, [seasons]);
+
+  const filteredInstances = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return instances.filter((instance) => {
+      const species = speciesById.get(instance.species_id);
+      const name = plantInstanceDisplayName(instance, species);
+      if (q && !name.toLowerCase().includes(q) && !(species?.name.toLowerCase().includes(q))) return false;
+      if (needFilter === "water_needed" && !(species && instanceWaterStatus(instance, species)?.overdue)) return false;
+      if (needFilter === "feeding_needed" && !(species && instanceFeedingStatus(instance, species)?.overdue)) return false;
+      return true;
+    });
+  }, [instances, speciesById, search, needFilter]);
+
+  const detailInstance = instances.find((i) => i.id === detailInstanceId) ?? null;
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-12 sv-muted">
+        <Loader2 className="h-5 w-5 animate-spin" />
+      </div>
+    );
+  }
+
+  if (instances.length === 0) {
+    return (
+      <div className="sv-panel p-12 text-center">
+        <Sprout className="h-10 w-10 mx-auto" strokeWidth={1.4} />
+        <p className="sv-heading text-2xl mt-4">Nog geen exemplaren geplant</p>
+        <p className="text-sm sv-muted mt-1">
+          Gebruik "Nieuw exemplaar planten" hierboven om je eerste exemplaar toe te voegen.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="flex flex-wrap items-center gap-2">
+        <Input
+          placeholder="Zoek op naam of soort..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="text-sm max-w-xs"
+        />
+        <button type="button" onClick={() => setNeedFilter((v) => (v === "water_needed" ? "" : "water_needed"))} className={chipClass(needFilter === "water_needed")}>
+          💧 Water nodig
+        </button>
+        <button type="button" onClick={() => setNeedFilter((v) => (v === "feeding_needed" ? "" : "feeding_needed"))} className={chipClass(needFilter === "feeding_needed")}>
+          🌿 Voeding nodig
+        </button>
+      </div>
+
+      {filteredInstances.length === 0 ? (
+        <p className="text-sm sv-muted px-1">Geen exemplaren gevonden voor deze zoekopdracht/filter.</p>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {filteredInstances.map((instance) => {
+            const species = speciesById.get(instance.species_id);
+            const activeSeason = activeSeasonByInstance.get(instance.id) ?? null;
+            return (
+              <PlantInstanceCard
+                key={instance.id}
+                instance={instance}
+                species={species}
+                activeSeason={activeSeason}
+                onOpen={(i) => setDetailInstanceId(i.id)}
+                onWater={(i) => recordWatering(i, plantInstanceDisplayName(i, speciesById.get(i.species_id)), activeSeasonByInstance.get(i.id)?.id ?? null)}
+                onFeed={(i) => recordFeeding(i, plantInstanceDisplayName(i, speciesById.get(i.species_id)), activeSeasonByInstance.get(i.id)?.id ?? null)}
+              />
+            );
+          })}
+        </div>
+      )}
+
+      {detailInstance && (
+        <PlantInstanceDetailDialog
+          instance={detailInstance}
+          species={speciesById.get(detailInstance.species_id)}
+          activeSeason={activeSeasonByInstance.get(detailInstance.id) ?? null}
+          onClose={() => setDetailInstanceId(null)}
+        />
+      )}
+    </>
+  );
+}
+
 export default function Tuinieren() {
   const { session } = useAuth();
   const queryClient = useQueryClient();
@@ -3317,13 +5173,9 @@ export default function Tuinieren() {
   const [editDraft, setEditDraft] = useState<PlantDraft>(emptyDraft);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [photoUrlDraft, setPhotoUrlDraft] = useState("");
-  const [logOpen, setLogOpen] = useState(false);
-  const [harvestOpen, setHarvestOpen] = useState(false);
-  const [pruningOpen, setPruningOpen] = useState(false);
-  const [repotOpen, setRepotOpen] = useState(false);
-  const [timelineOpen, setTimelineOpen] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const gardenBackupInputRef = useRef<HTMLInputElement>(null);
   const [importMsg, setImportMsg] = useState<string | null>(null);
 
   useEffect(() => {
@@ -3433,27 +5285,21 @@ export default function Tuinieren() {
     queryFn: fetchPlants,
   });
 
+  const [pageViewMode, setPageViewMode] = useState<"species" | "instances">("species");
+  const [instancesInitialSearch, setInstancesInitialSearch] = useState("");
+  const [instancesInitialNeedFilter, setInstancesInitialNeedFilter] = useState<"" | "water_needed" | "feeding_needed">("");
+  const [createInstanceForSpecies, setCreateInstanceForSpecies] = useState<Plant | null>(null);
+
+  // All instances (active + historical), used only to compute the next
+  // auto-name suggestion number so it's never reused after archiving.
+  const { data: allPlantInstances = [] } = useQuery({
+    queryKey: ["plant_instances", "all"],
+    queryFn: fetchPlantInstances,
+  });
+
   const { data: photos = [] } = useQuery({
     queryKey: ["plant_photos", view?.id],
     queryFn: () => fetchPhotos(view!.id),
-    enabled: !!view,
-  });
-
-  const { data: harvestLogs = [] } = useQuery({
-    queryKey: ["plant_harvest_logs", view?.id],
-    queryFn: () => fetchHarvestLogs(view!.id),
-    enabled: !!view,
-  });
-
-  const { data: pruningLogs = [] } = useQuery({
-    queryKey: ["plant_pruning_logs", view?.id],
-    queryFn: () => fetchPruningLogs(view!.id),
-    enabled: !!view,
-  });
-
-  const { data: repotLogs = [] } = useQuery({
-    queryKey: ["plant_repot_logs", view?.id],
-    queryFn: () => fetchRepotLogs(view!.id),
     enabled: !!view,
   });
 
@@ -3500,22 +5346,6 @@ export default function Tuinieren() {
     onError: (err: Error) => setSaveError(err.message),
   });
 
-  // Single source of truth for "water/feeding given" — shared with Mijn Tuin
-  // so both entry points always write a matching growth-log entry.
-  const {
-    recordWatering,
-    recordFeeding,
-    recordingWaterId,
-    recordingFeedId,
-    error: careError,
-  } = useRecordPlantCare({
-    patchPlant: ({ id, patch }) => updatePlant.mutateAsync({ id, patch }),
-  });
-
-  useEffect(() => {
-    if (careError) setSaveError(careError);
-  }, [careError]);
-
   const deletePlant = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("plants").delete().eq("id", id);
@@ -3552,87 +5382,6 @@ export default function Tuinieren() {
       queryClient.invalidateQueries({ queryKey: ["plant_photos", view?.id] }),
   });
 
-  const addHarvestLog = useMutation({
-    mutationFn: async (row: {
-      plant_id: string;
-      harvested_at: string;
-      weight_grams: number | null;
-      quantity: number | null;
-      unit: string | null;
-      notes: string | null;
-    }) => {
-      const { error } = await supabase.from("plant_harvest_logs").insert(row);
-      if (error) throw error;
-    },
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["plant_harvest_logs", view?.id] }),
-  });
-
-  const deleteHarvestLog = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("plant_harvest_logs").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["plant_harvest_logs", view?.id] }),
-  });
-
-  const addPruningLog = useMutation({
-    mutationFn: async (row: {
-      plant_id: string;
-      pruned_at: string;
-      pruning_type: string | null;
-      notes: string | null;
-    }) => {
-      const { error } = await supabase.from("plant_pruning_logs").insert(row);
-      if (error) throw error;
-    },
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["plant_pruning_logs", view?.id] }),
-  });
-
-  const deletePruningLog = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("plant_pruning_logs").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["plant_pruning_logs", view?.id] }),
-  });
-
-  const addRepotLog = useMutation({
-    mutationFn: async (row: {
-      plant_id: string;
-      repotted_at: string;
-      old_pot_size_liters: number | null;
-      new_pot_size_liters: number | null;
-      pot_material: string | null;
-      soil_type: string | null;
-      notes: string | null;
-    }) => {
-      const { error } = await supabase.from("plant_repot_logs").insert(row);
-      if (error) throw error;
-      return row;
-    },
-    onSuccess: (row) => {
-      queryClient.invalidateQueries({ queryKey: ["plant_repot_logs", view?.id] });
-      const patch: Record<string, unknown> = { last_repotted_at: row.repotted_at };
-      if (row.new_pot_size_liters !== null) patch.pot_size_liters = row.new_pot_size_liters;
-      if (row.pot_material !== null) patch.pot_material = row.pot_material;
-      if (row.soil_type !== null) patch.soil_type = row.soil_type;
-      updatePlant.mutate({ id: row.plant_id, patch });
-    },
-  });
-
-  const deleteRepotLog = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("plant_repot_logs").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["plant_repot_logs", view?.id] }),
-  });
-
   function startEdit() {
     if (!view) return;
     setEditDraft(plantToDraft(view));
@@ -3648,47 +5397,6 @@ export default function Tuinieren() {
     );
   }
 
-  function handleSyncLastWatered(isoDate: string | null) {
-    if (!view) return;
-    updatePlant.mutate({
-      id: view.id,
-      patch: {
-        last_watered_at: isoDate ? new Date(isoDate).toISOString() : null,
-        last_water_reminder_sent_at: null,
-        water_skip_until: null,
-      },
-    });
-  }
-
-  function handleSkipWaterToday() {
-    if (!view) return;
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    updatePlant.mutate({
-      id: view.id,
-      patch: { water_skip_until: tomorrow.toISOString().slice(0, 10) },
-    });
-  }
-
-  function handleSyncLastFed(isoDate: string | null) {
-    if (!view) return;
-    updatePlant.mutate({
-      id: view.id,
-      patch: {
-        last_fed_at: isoDate ? new Date(isoDate).toISOString() : null,
-        last_feeding_reminder_sent_at: null,
-      },
-    });
-  }
-
-  function markChecked() {
-    if (!view) return;
-    updatePlant.mutate({
-      id: view.id,
-      patch: { last_checked_at: new Date().toISOString().slice(0, 10) },
-    });
-  }
-
   type FilterState = {
     category: string[];
     sun_needs: string[];
@@ -3697,14 +5405,19 @@ export default function Tuinieren() {
     winter_hardiness: string[];
     toxic: string[];
     health_status: string[];
-    planted: "all" | "planted" | "not_planted";
+    // Replaces the old boolean `plants.planted` filter (phase 4): whether a
+    // species has any active plant_instances row is now the only source of
+    // truth for "does the user have this in the garden".
+    instanceStatus: "all" | "has_active" | "no_active";
     sow_months: string[];
     bloom_months: string[];
     harvest_months: string[];
     feeding_months: string[];
-    water: "all" | "overdue" | "soon";
-    feeding: "all" | "overdue" | "soon";
-    sort: "naam" | "water" | "categorie";
+    // Instance-based (phase 4): counts active instances that need water/
+    // feeding right now, never a species-level last_watered_at/last_fed_at.
+    water: "all" | "needed" | "on_schedule";
+    feeding: "all" | "needed" | "on_schedule";
+    sort: "naam" | "categorie" | "active_instances" | "water_needed" | "feeding_needed";
   };
 
   const initialFilters: FilterState = {
@@ -3715,7 +5428,7 @@ export default function Tuinieren() {
     winter_hardiness: [],
     toxic: [],
     health_status: [],
-    planted: "all",
+    instanceStatus: "all",
     sow_months: [],
     bloom_months: [],
     harvest_months: [],
@@ -3732,23 +5445,26 @@ export default function Tuinieren() {
     setFilters((prev) => ({ ...prev, ...patch }));
   }
 
-  function daysLeftForSort(p: Plant): number {
-    const intervalDays = effectiveWaterIntervalDays(p);
-    if (!p.planted || !intervalDays) return 9999;
-    if (!p.last_watered_at) return -9999;
-    const dueAt =
-      new Date(p.last_watered_at).getTime() + intervalDays * 24 * 60 * 60 * 1000;
-    return Math.ceil((dueAt - Date.now()) / (24 * 60 * 60 * 1000));
-  }
-
-  function daysLeftForFeedingSort(p: Plant): number {
-    if (!p.planted || !p.feeding_interval_days) return 9999;
-    if (!p.last_fed_at) return -9999;
-    const dueAt =
-      new Date(p.last_fed_at).getTime() +
-      p.feeding_interval_days * 24 * 60 * 60 * 1000;
-    return Math.ceil((dueAt - Date.now()) / (24 * 60 * 60 * 1000));
-  }
+  // Per-species summary of its ACTIVE instances' water/feeding urgency —
+  // the single computation both the filter/sort logic below and the species
+  // popup's summary block read from, so there is only one place that ever
+  // calls instanceWaterStatus/instanceFeedingStatus per species.
+  const speciesInstanceSummary = useMemo(() => {
+    const map = new Map<string, { activeCount: number; archivedCount: number; waterNeeded: number; waterOk: number; feedingNeeded: number; feedingOk: number }>();
+    for (const p of plants) {
+      const activeInstances = getActiveInstancesForSpecies(p.id, allPlantInstances);
+      const archivedCount = allPlantInstances.filter((i) => i.species_id === p.id && i.status !== "active").length;
+      let waterNeeded = 0, waterOk = 0, feedingNeeded = 0, feedingOk = 0;
+      for (const inst of activeInstances) {
+        const ws = instanceWaterStatus(inst, p);
+        if (ws) { if (ws.overdue) waterNeeded++; else waterOk++; }
+        const fs = instanceFeedingStatus(inst, p);
+        if (fs) { if (fs.overdue) feedingNeeded++; else feedingOk++; }
+      }
+      map.set(p.id, { activeCount: activeInstances.length, archivedCount, waterNeeded, waterOk, feedingNeeded, feedingOk });
+    }
+    return map;
+  }, [plants, allPlantInstances]);
 
   const filteredPlants = useMemo(() => {
     let result = plants;
@@ -3794,10 +5510,11 @@ export default function Tuinieren() {
       );
     }
 
-    if (filters.planted !== "all") {
-      result = result.filter((p) =>
-        filters.planted === "planted" ? p.planted : !p.planted,
-      );
+    if (filters.instanceStatus !== "all") {
+      result = result.filter((p) => {
+        const hasActive = (speciesInstanceSummary.get(p.id)?.activeCount ?? 0) > 0;
+        return filters.instanceStatus === "has_active" ? hasActive : !hasActive;
+      });
     }
 
     if (filters.sow_months.length > 0) {
@@ -3824,26 +5541,36 @@ export default function Tuinieren() {
       );
     }
 
-    if (filters.water === "overdue") {
-      result = result.filter((p) => waterStatus(p)?.overdue);
-    } else if (filters.water === "soon") {
+    if (filters.water === "needed") {
+      result = result.filter((p) => (speciesInstanceSummary.get(p.id)?.waterNeeded ?? 0) > 0);
+    } else if (filters.water === "on_schedule") {
       result = result.filter((p) => {
-        const days = daysLeftForSort(p);
-        return days <= 3 && days > 0;
+        const s = speciesInstanceSummary.get(p.id);
+        return !!s && s.activeCount > 0 && s.waterNeeded === 0;
       });
     }
 
-    if (filters.feeding === "overdue") {
-      result = result.filter((p) => feedingStatus(p)?.overdue);
-    } else if (filters.feeding === "soon") {
+    if (filters.feeding === "needed") {
+      result = result.filter((p) => (speciesInstanceSummary.get(p.id)?.feedingNeeded ?? 0) > 0);
+    } else if (filters.feeding === "on_schedule") {
       result = result.filter((p) => {
-        const days = daysLeftForFeedingSort(p);
-        return days <= 3 && days > 0;
+        const s = speciesInstanceSummary.get(p.id);
+        return !!s && s.activeCount > 0 && s.feedingNeeded === 0;
       });
     }
 
-    if (filters.sort === "water") {
-      result = [...result].sort((a, b) => daysLeftForSort(a) - daysLeftForSort(b));
+    if (filters.sort === "active_instances") {
+      result = [...result].sort((a, b) =>
+        (speciesInstanceSummary.get(b.id)?.activeCount ?? 0) - (speciesInstanceSummary.get(a.id)?.activeCount ?? 0)
+        || a.name.localeCompare(b.name, "nl"));
+    } else if (filters.sort === "water_needed") {
+      result = [...result].sort((a, b) =>
+        (speciesInstanceSummary.get(b.id)?.waterNeeded ?? 0) - (speciesInstanceSummary.get(a.id)?.waterNeeded ?? 0)
+        || a.name.localeCompare(b.name, "nl"));
+    } else if (filters.sort === "feeding_needed") {
+      result = [...result].sort((a, b) =>
+        (speciesInstanceSummary.get(b.id)?.feedingNeeded ?? 0) - (speciesInstanceSummary.get(a.id)?.feedingNeeded ?? 0)
+        || a.name.localeCompare(b.name, "nl"));
     } else if (filters.sort === "categorie") {
       result = [...result].sort((a, b) => {
         const ai = PLANT_CATEGORY_OPTIONS.indexOf(a.category as (typeof PLANT_CATEGORY_OPTIONS)[number]);
@@ -3854,16 +5581,11 @@ export default function Tuinieren() {
         return a.name.localeCompare(b.name, "nl");
       });
     } else {
-      result = [...result].sort((a, b) => {
-        const aUrgent = waterStatus(a)?.overdue || feedingStatus(a)?.overdue ? 0 : 1;
-        const bUrgent = waterStatus(b)?.overdue || feedingStatus(b)?.overdue ? 0 : 1;
-        if (aUrgent !== bUrgent) return aUrgent - bUrgent;
-        return a.name.localeCompare(b.name, "nl");
-      });
+      result = [...result].sort((a, b) => a.name.localeCompare(b.name, "nl"));
     }
 
     return result;
-  }, [plants, filters]);
+  }, [plants, filters, speciesInstanceSummary]);
 
   const groupedPlants = useMemo(() => {
     if (filters.sort !== "categorie") return null;
@@ -3887,7 +5609,7 @@ export default function Tuinieren() {
     filters.winter_hardiness.length +
     filters.toxic.length +
     filters.health_status.length +
-    (filters.planted !== "all" ? 1 : 0) +
+    (filters.instanceStatus !== "all" ? 1 : 0) +
     filters.sow_months.length +
     filters.bloom_months.length +
     filters.harvest_months.length +
@@ -3978,6 +5700,147 @@ export default function Tuinieren() {
     URL.revokeObjectURL(url);
   }
 
+  // ─── "Mijn tuin" back-up (separate from the species-catalog export above)
+  // Covers user/instance data: plant_instances, growing_seasons and every
+  // registration linked to them. Deliberately a different JSON shape
+  // (garden_backup) so it's never confused with the species-only export.
+  async function handleExportGardenBackup() {
+    const [instancesRes, seasonsRes, logsRes, harvestRes, pruningRes, repotRes, inspectionsRes, photosRes] = await Promise.all([
+      supabase.from("plant_instances").select("*"),
+      supabase.from("growing_seasons").select("*"),
+      supabase.from("growth_log_entries").select("*"),
+      supabase.from("plant_harvest_logs").select("*"),
+      supabase.from("plant_pruning_logs").select("*"),
+      supabase.from("plant_repot_logs").select("*"),
+      supabase.from("plant_inspection_logs").select("*"),
+      supabase.from("plant_photos").select("*"),
+    ]);
+    const speciesById = new Map(plants.map((p) => [p.id, p.name]));
+    const backup = {
+      version: 1,
+      type: "garden_backup",
+      exported_at: new Date().toISOString().slice(0, 10),
+      // species_name is denormalized purely so an import into a different
+      // database can re-match instances to species by name when the
+      // original species_id UUID doesn't exist there.
+      plant_instances: (instancesRes.data ?? []).map((i) => ({ ...i, species_name: speciesById.get(i.species_id) ?? null })),
+      growing_seasons: seasonsRes.data ?? [],
+      growth_log_entries: logsRes.data ?? [],
+      harvest_logs: harvestRes.data ?? [],
+      pruning_logs: pruningRes.data ?? [],
+      repot_logs: repotRes.data ?? [],
+      inspection_logs: inspectionsRes.data ?? [],
+      plant_photos: photosRes.data ?? [],
+    };
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `mijn-tuin-backup-${backup.exported_at}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleImportGardenBackup(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const backup = JSON.parse(await file.text());
+      if (backup?.type !== "garden_backup" || typeof backup.version !== "number") {
+        setImportMsg("Ongeldig back-upbestand (verwacht een 'Mijn tuin'-back-up).");
+        e.target.value = "";
+        return;
+      }
+
+      const speciesIdByName = new Map(plants.map((p) => [p.name, p.id]));
+      const validSpeciesIds = new Set(plants.map((p) => p.id));
+      let instancesImported = 0, instancesSkipped = 0;
+      const importedInstanceIds = new Set<string>();
+
+      for (const inst of backup.plant_instances ?? []) {
+        const { data: existing } = await supabase.from("plant_instances").select("id").eq("id", inst.id).maybeSingle();
+        if (existing) { importedInstanceIds.add(inst.id); instancesSkipped++; continue; }
+        let speciesId: string | null = validSpeciesIds.has(inst.species_id) ? inst.species_id : null;
+        if (!speciesId && inst.species_name) speciesId = speciesIdByName.get(inst.species_name) ?? null;
+        if (!speciesId) { instancesSkipped++; continue; }
+        const { species_name: _speciesName, ...row } = inst;
+        const { error } = await supabase.from("plant_instances").insert({ ...row, species_id: speciesId });
+        if (!error) { importedInstanceIds.add(inst.id); instancesImported++; }
+        else instancesSkipped++;
+      }
+
+      let seasonsImported = 0, seasonsSkipped = 0;
+      const importedSeasonIds = new Set<string>();
+      for (const season of backup.growing_seasons ?? []) {
+        const { data: existing } = await supabase.from("growing_seasons").select("id").eq("id", season.id).maybeSingle();
+        if (existing) { importedSeasonIds.add(season.id); seasonsSkipped++; continue; }
+        if (!importedInstanceIds.has(season.plant_instance_id)) { seasonsSkipped++; continue; }
+        const { error } = await supabase.from("growing_seasons").insert(season);
+        if (!error) { importedSeasonIds.add(season.id); seasonsImported++; }
+        else seasonsSkipped++;
+      }
+
+      async function importLinkedRows(
+        table: string,
+        rows: Array<Record<string, unknown>>,
+        requireSpeciesPlantId: boolean,
+        // Inspection logs have no plant_id (species) fallback at all — unlike
+        // harvest/pruning/repot logs, plant_instance_id is NOT NULL on
+        // plant_inspection_logs, so a row whose instance wasn't imported must
+        // be skipped entirely rather than falling back to a null instance id.
+        requireInstanceId = false,
+      ) {
+        let imported = 0, skipped = 0;
+        for (const row of rows) {
+          const { data: existing } = await supabase.from(table).select("id").eq("id", row.id as string).maybeSingle();
+          if (existing) { skipped++; continue; }
+          const plantInstanceId = row.plant_instance_id as string | null;
+          const growingSeasonId = row.growing_season_id as string | null;
+          const plantId = row.plant_id as string | null | undefined;
+          if (requireSpeciesPlantId && (!plantId || !validSpeciesIds.has(plantId))) { skipped++; continue; }
+          const resolvedInstanceId = plantInstanceId && importedInstanceIds.has(plantInstanceId) ? plantInstanceId : null;
+          if (requireInstanceId && !resolvedInstanceId) { skipped++; continue; }
+          const safeRow = {
+            ...row,
+            plant_instance_id: resolvedInstanceId,
+            growing_season_id: growingSeasonId && importedSeasonIds.has(growingSeasonId) ? growingSeasonId : null,
+          };
+          const { error } = await supabase.from(table).insert(safeRow);
+          if (!error) imported++;
+          else skipped++;
+        }
+        return { imported, skipped };
+      }
+
+      const logsResult = await importLinkedRows("growth_log_entries", backup.growth_log_entries ?? [], false);
+      const harvestResult = await importLinkedRows("plant_harvest_logs", backup.harvest_logs ?? [], true);
+      const pruningResult = await importLinkedRows("plant_pruning_logs", backup.pruning_logs ?? [], true);
+      const repotResult = await importLinkedRows("plant_repot_logs", backup.repot_logs ?? [], true);
+      const inspectionResult = await importLinkedRows("plant_inspection_logs", backup.inspection_logs ?? [], false, true);
+      const photosResult = await importLinkedRows("plant_photos", backup.plant_photos ?? [], true);
+
+      queryClient.invalidateQueries({ queryKey: ["plant_instances"] });
+      queryClient.invalidateQueries({ queryKey: ["growing_seasons"] });
+      queryClient.invalidateQueries({ queryKey: ["growth_log_entries"] });
+      queryClient.invalidateQueries({ queryKey: ["plant_harvest_logs"] });
+      queryClient.invalidateQueries({ queryKey: ["plant_pruning_logs"] });
+      queryClient.invalidateQueries({ queryKey: ["plant_repot_logs"] });
+      queryClient.invalidateQueries({ queryKey: ["plant_inspection_logs"] });
+      queryClient.invalidateQueries({ queryKey: ["plant_photos"] });
+
+      setImportMsg(
+        `Tuin-backup geïmporteerd: ${instancesImported} exemplaren, ${seasonsImported} seizoenen, ${logsResult.imported} logboekregels, ` +
+        `${harvestResult.imported} oogsten, ${pruningResult.imported} snoeimomenten, ${repotResult.imported} verpotmomenten, ${inspectionResult.imported} inspecties, ${photosResult.imported} foto's toegevoegd. ` +
+        `Overgeslagen (al aanwezig of niet te koppelen): ${instancesSkipped + seasonsSkipped + logsResult.skipped + harvestResult.skipped + pruningResult.skipped + repotResult.skipped + inspectionResult.skipped + photosResult.skipped}.`
+      );
+    } catch {
+      setImportMsg("Ongeldig JSON-bestand.");
+    }
+    e.target.value = "";
+  }
+
   return (
     <div className="tuinieren-theme space-y-8">
       <header className="flex flex-wrap items-center justify-center gap-2">
@@ -4017,6 +5880,25 @@ export default function Tuinieren() {
           accept=".json"
           className="hidden"
           onChange={handleImport}
+        />
+        <Button
+          className="sv-button text-2xl h-11 px-3 sm:px-6"
+          onClick={handleExportGardenBackup}
+        >
+          <Download className="h-4 w-4" /><span className="hidden sm:inline">Mijn tuin back-up</span>
+        </Button>
+        <Button
+          className="sv-button text-2xl h-11 px-3 sm:px-6"
+          onClick={() => gardenBackupInputRef.current?.click()}
+        >
+          <Upload className="h-4 w-4" /><span className="hidden sm:inline">Tuin herstellen</span>
+        </Button>
+        <input
+          ref={gardenBackupInputRef}
+          type="file"
+          accept=".json"
+          className="hidden"
+          onChange={handleImportGardenBackup}
         />
 
         <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -4059,34 +5941,75 @@ export default function Tuinieren() {
         <p className="text-sm sv-muted text-right -mt-4">{importMsg}</p>
       )}
 
-      {isLoading ? (
-        <div className="flex justify-center py-12 sv-muted">
-          <Loader2 className="h-5 w-5 animate-spin" />
+      <div className="flex justify-center">
+        <div className="flex sv-inset rounded-full p-1 gap-1 text-xs font-medium">
+          <button
+            type="button"
+            onClick={() => setPageViewMode("species")}
+            className={calendarFilterButtonClass(pageViewMode === "species")}
+          >
+            Alle plantsoorten
+          </button>
+          <button
+            type="button"
+            onClick={() => setPageViewMode("instances")}
+            className={calendarFilterButtonClass(pageViewMode === "instances")}
+          >
+            Mijn geplante exemplaren
+          </button>
         </div>
-      ) : plants.length === 0 ? (
-        <div className="sv-panel p-12 text-center">
-          <Sprout className="h-10 w-10 mx-auto" strokeWidth={1.4} />
-          <p className="sv-heading text-2xl mt-4">Nog geen planten</p>
-          <p className="text-sm sv-muted mt-1">
-            Voeg je eerste plant toe om bij te houden.
-          </p>
-        </div>
-      ) : groupedPlants ? (
-        <div className="space-y-6">
-          {groupedPlants.map((group) => (
-            <div key={group.label} className="space-y-3">
-              <p className="sv-heading text-2xl">{group.label}</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {group.plants.map((p) => <PlantCard key={p.id} p={p} onOpen={setView} onWater={(p) => recordWatering(p)} onFeed={(p) => recordFeeding(p)} />)}
+      </div>
+
+      <NewPlantInstanceForm speciesList={plants} allInstances={allPlantInstances} />
+
+      {pageViewMode === "species" ? (
+        isLoading ? (
+          <div className="flex justify-center py-12 sv-muted">
+            <Loader2 className="h-5 w-5 animate-spin" />
+          </div>
+        ) : plants.length === 0 ? (
+          <div className="sv-panel p-12 text-center">
+            <Sprout className="h-10 w-10 mx-auto" strokeWidth={1.4} />
+            <p className="sv-heading text-2xl mt-4">Nog geen planten</p>
+            <p className="text-sm sv-muted mt-1">
+              Voeg je eerste plant toe om bij te houden.
+            </p>
+          </div>
+        ) : groupedPlants ? (
+          <div className="space-y-6">
+            {groupedPlants.map((group) => (
+              <div key={group.label} className="space-y-3">
+                <p className="sv-heading text-2xl">{group.label}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {group.plants.map((p) => <PlantCard key={p.id} p={p} onOpen={setView} />)}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {filteredPlants.map((p) => <PlantCard key={p.id} p={p} onOpen={setView} />)}
+          </div>
+        )
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {filteredPlants.map((p) => <PlantCard key={p.id} p={p} onOpen={setView} onWater={(p) => recordWatering(p)} onFeed={(p) => recordFeeding(p)} />)}
-        </div>
+        <MyPlantInstances speciesList={plants} initialSearch={instancesInitialSearch} initialNeedFilter={instancesInitialNeedFilter} />
       )}
+
+      <Dialog open={!!createInstanceForSpecies} onOpenChange={(o) => !o && setCreateInstanceForSpecies(null)}>
+        <DialogContent className="tuinieren-theme sv-dialog w-full max-w-lg max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle className={PLANT_DIALOG_TITLE_CLASS}>Nieuw exemplaar planten</DialogTitle>
+          </DialogHeader>
+          {createInstanceForSpecies && (
+            <NewPlantInstanceForm
+              speciesList={plants}
+              allInstances={allPlantInstances}
+              preselectedSpecies={createInstanceForSpecies}
+              onCreated={() => setCreateInstanceForSpecies(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       <SeasonalOverview plants={plants} />
 
@@ -4097,11 +6020,10 @@ export default function Tuinieren() {
             setView(null);
             setConfirmDelete(false);
             setEditMode(false);
-            setLogOpen(false);
           }
         }}
       >
-        <DialogContent className="tuinieren-theme sv-dialog w-full max-w-2xl max-h-[90vh]">
+        <DialogContent className={PLANT_DIALOG_CONTENT_CLASS}>
           {view && editMode ? (
             <>
               <DialogHeader>
@@ -4157,7 +6079,7 @@ export default function Tuinieren() {
                       <Sprout className="h-5 w-5" strokeWidth={1.6} />
                     </div>
                   )}
-                  <DialogTitle className="sv-heading text-3xl sm:text-4xl leading-snug">
+                  <DialogTitle className={PLANT_DIALOG_TITLE_CLASS}>
                     {view.name}
                   </DialogTitle>
                   {view.health_status && (
@@ -4174,177 +6096,63 @@ export default function Tuinieren() {
                 </p>
               )}
 
-              {/* Action row */}
-              <div className="flex items-center gap-3 flex-wrap">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="sv-button sv-button-thin-border text-xl"
-                  onClick={() =>
-                    updatePlant.mutate({
-                      id: view.id,
-                      patch: { planted: !view.planted },
-                    })
-                  }
-                  disabled={updatePlant.isPending}
-                >
-                  <Sprout className="h-3.5 w-3.5" />{" "}
-                  {view.planted ? "Markeer als niet gepland" : "Markeer als gepland"}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="sv-button sv-button-thin-border text-xl"
-                  onClick={markChecked}
-                  disabled={updatePlant.isPending}
-                >
-                  <ClipboardCheck className="h-3.5 w-3.5" />{" "}
-                  {checkedLabel(view.last_checked_at) ?? "Plant gecontroleerd"}
-                </Button>
-                <FirstEventButton
-                  label="Eerste bloem"
-                  emoji="🌸"
-                  value={view.first_flower_at}
-                  isSaving={updatePlant.isPending}
-                  onSave={(date) => updatePlant.mutate({ id: view.id, patch: { first_flower_at: date } })}
-                  onDelete={() => updatePlant.mutate({ id: view.id, patch: { first_flower_at: null } })}
-                />
-                <FirstEventButton
-                  label="Eerste vrucht"
-                  emoji="🍅"
-                  value={view.first_fruit_at}
-                  isSaving={updatePlant.isPending}
-                  onSave={(date) => updatePlant.mutate({ id: view.id, patch: { first_fruit_at: date } })}
-                  onDelete={() => updatePlant.mutate({ id: view.id, patch: { first_fruit_at: null } })}
-                />
-              </div>
-
-              {/* Water sectie */}
-              <WaterSection
-                plant={view}
-                onRecordWatering={recordWatering}
-                onSyncLastWatered={handleSyncLastWatered}
-                onSkipToday={handleSkipWaterToday}
-                isUpdating={updatePlant.isPending}
-                isRecording={recordingWaterId === view.id}
-              />
-
-              {/* Voeding sectie */}
-              <FeedingSection
-                plant={view}
-                onRecordFeeding={recordFeeding}
-                onSyncLastFed={handleSyncLastFed}
-                isUpdating={updatePlant.isPending}
-                isRecording={recordingFeedId === view.id}
-              />
-
-              <div className="space-y-3">
-                <button
-                  type="button"
-                  onClick={() => setLogOpen((o) => !o)}
-                  className="sv-button sv-button-thin-border w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm"
-                >
-                  <span className="flex items-center gap-2">
-                    <BookOpen className="h-4 w-4" />
-                    Groeilogboek
-                  </span>
-                  {logOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                </button>
-                {logOpen && view && <PlantLogboek plantName={view.name} />}
-              </div>
-
-              <div className="space-y-3">
-                <button
-                  type="button"
-                  onClick={() => setHarvestOpen((o) => !o)}
-                  className="sv-button sv-button-thin-border w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm"
-                >
-                  <span className="flex items-center gap-2">
-                    <Apple className="h-4 w-4" />
-                    Oogst
-                  </span>
-                  {harvestOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                </button>
-                {harvestOpen && view && (
-                  <HarvestLogSection
-                    plantId={view.id}
-                    logs={harvestLogs}
-                    onAdd={(row) => addHarvestLog.mutate(row)}
-                    onDelete={(id) => deleteHarvestLog.mutate(id)}
-                    isSaving={addHarvestLog.isPending}
-                  />
-                )}
-              </div>
-
-              <div className="space-y-3">
-                <button
-                  type="button"
-                  onClick={() => setPruningOpen((o) => !o)}
-                  className="sv-button sv-button-thin-border w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm"
-                >
-                  <span className="flex items-center gap-2">
-                    <Scissors className="h-4 w-4" />
-                    Snoeien
-                  </span>
-                  {pruningOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                </button>
-                {pruningOpen && view && (
-                  <PruningLogSection
-                    plantId={view.id}
-                    logs={pruningLogs}
-                    onAdd={(row) => addPruningLog.mutate(row)}
-                    onDelete={(id) => deletePruningLog.mutate(id)}
-                    isSaving={addPruningLog.isPending}
-                  />
-                )}
-              </div>
-
-              <div className="space-y-3">
-                <button
-                  type="button"
-                  onClick={() => setRepotOpen((o) => !o)}
-                  className="sv-button sv-button-thin-border w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm"
-                >
-                  <span className="flex items-center gap-2">
-                    <Boxes className="h-4 w-4" />
-                    Verpotten
-                  </span>
-                  {repotOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                </button>
-                {repotOpen && view && (
-                  <RepotLogSection
-                    plant={view}
-                    logs={repotLogs}
-                    onAdd={(row) => addRepotLog.mutate(row)}
-                    onDelete={(id) => deleteRepotLog.mutate(id)}
-                    isSaving={addRepotLog.isPending}
-                  />
-                )}
-              </div>
-
-              <div className="space-y-3">
-                <button
-                  type="button"
-                  onClick={() => setTimelineOpen((o) => !o)}
-                  className="sv-button sv-button-thin-border w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm"
-                >
-                  <span className="flex items-center gap-2">
-                    <Clock className="h-4 w-4" />
-                    Tijdlijn
-                  </span>
-                  {timelineOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                </button>
-                {timelineOpen && view && (
-                  <div className="sv-inset p-4 rounded-xl">
-                    <TimelineSection
-                      plant={view}
-                      photos={photos}
-                      harvestLogs={harvestLogs}
-                      pruningLogs={pruningLogs}
-                      repotLogs={repotLogs}
-                    />
-                  </div>
-                )}
+              {/* Exemplaren van deze soort */}
+              <div className="sv-inset rounded-xl p-4 space-y-3">
+                {(() => {
+                  const summary = speciesInstanceSummary.get(view.id) ?? { activeCount: 0, archivedCount: 0, waterNeeded: 0, waterOk: 0, feedingNeeded: 0, feedingOk: 0 };
+                  const goToInstances = (needFilter?: "water_needed" | "feeding_needed") => {
+                    setInstancesInitialSearch(view.name);
+                    setInstancesInitialNeedFilter(needFilter ?? "");
+                    setPageViewMode("instances");
+                    setView(null);
+                  };
+                  return (
+                    <>
+                      <div className="flex items-center justify-between gap-3 flex-wrap">
+                        <p className="text-sm sv-muted">
+                          {summary.activeCount === 0
+                            ? "Nog geen actieve exemplaren van deze soort."
+                            : summary.activeCount === 1
+                              ? "1 actief exemplaar van deze soort."
+                              : `${summary.activeCount} actieve exemplaren van deze soort.`}
+                          {summary.archivedCount > 0 && ` (${summary.archivedCount} gearchiveerd)`}
+                        </p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Button size="sm" variant="outline" className="sv-button sv-button-thin-border text-xl" onClick={() => goToInstances()}>
+                            Bekijk mijn exemplaren
+                          </Button>
+                          <Button size="sm" className="sv-button text-xl" onClick={() => setCreateInstanceForSpecies(view)}>
+                            <Plus className="h-3.5 w-3.5" /> Nieuw exemplaar planten
+                          </Button>
+                        </div>
+                      </div>
+                      {summary.activeCount > 0 && (
+                        <div className="grid sm:grid-cols-2 gap-3 text-sm">
+                          <div className="space-y-1">
+                            <p className="sv-muted text-xs font-medium uppercase tracking-wide">Water</p>
+                            {summary.waterNeeded > 0 && (
+                              <button type="button" onClick={() => goToInstances("water_needed")} className="block text-left underline sv-destructive-text">
+                                💧 {summary.waterNeeded} {summary.waterNeeded === 1 ? "heeft" : "hebben"} water nodig
+                              </button>
+                            )}
+                            {summary.waterOk > 0 && <p>💧 {summary.waterOk} {summary.waterOk === 1 ? "is" : "zijn"} op schema</p>}
+                            {summary.waterNeeded === 0 && summary.waterOk === 0 && <p className="sv-muted">Geen waterinterval bekend</p>}
+                          </div>
+                          <div className="space-y-1">
+                            <p className="sv-muted text-xs font-medium uppercase tracking-wide">Voeding</p>
+                            {summary.feedingNeeded > 0 && (
+                              <button type="button" onClick={() => goToInstances("feeding_needed")} className="block text-left underline sv-destructive-text">
+                                🌿 {summary.feedingNeeded} {summary.feedingNeeded === 1 ? "heeft" : "hebben"} voeding nodig
+                              </button>
+                            )}
+                            {summary.feedingOk > 0 && <p>🌿 {summary.feedingOk} {summary.feedingOk === 1 ? "is" : "zijn"} op schema</p>}
+                            {summary.feedingNeeded === 0 && summary.feedingOk === 0 && <p className="sv-muted">Geen voedingsinterval bekend</p>}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
 
               <div className="grid sm:grid-cols-2 gap-4">
@@ -4666,8 +6474,10 @@ export default function Tuinieren() {
                 {(
                   [
                     { value: "naam", label: "Naam (A–Z)" },
-                    { value: "water", label: "Water urgentie" },
                     { value: "categorie", label: "Categorie" },
+                    { value: "active_instances", label: "Meeste actieve exemplaren" },
+                    { value: "water_needed", label: "Meeste water nodig" },
+                    { value: "feeding_needed", label: "Meeste voeding nodig" },
                   ] as const
                 ).map(({ value, label }) => (
                   <button
@@ -4796,8 +6606,8 @@ export default function Tuinieren() {
                 {(
                   [
                     { value: "all", label: "Alles" },
-                    { value: "overdue", label: "Te laat" },
-                    { value: "soon", label: "Binnenkort (≤ 3 dagen)" },
+                    { value: "needed", label: "Minstens 1 exemplaar heeft water nodig" },
+                    { value: "on_schedule", label: "Alle exemplaren op schema" },
                   ] as const
                 ).map(({ value, label }) => (
                   <button
@@ -4818,8 +6628,8 @@ export default function Tuinieren() {
                 {(
                   [
                     { value: "all", label: "Alles" },
-                    { value: "overdue", label: "Te laat" },
-                    { value: "soon", label: "Binnenkort (≤ 3 dagen)" },
+                    { value: "needed", label: "Minstens 1 exemplaar heeft voeding nodig" },
+                    { value: "on_schedule", label: "Alle exemplaren op schema" },
                   ] as const
                 ).map(({ value, label }) => (
                   <button
@@ -4867,20 +6677,20 @@ export default function Tuinieren() {
             </div>
 
             <div className="space-y-2">
-              <SectionHeading>Ingeplant</SectionHeading>
+              <SectionHeading>Exemplaren</SectionHeading>
               <div className="flex gap-2 flex-wrap">
                 {(
                   [
                     { value: "all", label: "Alles" },
-                    { value: "planted", label: "Ingeplant" },
-                    { value: "not_planted", label: "Nog te planten" },
+                    { value: "has_active", label: "Heeft actieve exemplaren" },
+                    { value: "no_active", label: "Geen actieve exemplaren" },
                   ] as const
                 ).map(({ value, label }) => (
                   <button
                     key={value}
                     type="button"
-                    onClick={() => patchFilter({ planted: value })}
-                    className={chipClass(filters.planted === value)}
+                    onClick={() => patchFilter({ instanceStatus: value })}
+                    className={chipClass(filters.instanceStatus === value)}
                   >
                     {label}
                   </button>

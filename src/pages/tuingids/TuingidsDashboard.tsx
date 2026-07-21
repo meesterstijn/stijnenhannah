@@ -1,17 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase, type Plant } from "@/lib/supabase";
 import { Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { WeatherForecast } from "@/components/weather-forecast";
-import { MONTH_OPTIONS, waterStatus, feedingStatus } from "@/features/tuingids/lib/plantStatus";
-
-function isOverdue(p: Plant): boolean {
-  return waterStatus(p)?.overdue ?? false;
-}
-
-function isFeedingOverdue(p: Plant): boolean {
-  return feedingStatus(p)?.overdue ?? false;
-}
+import { MONTH_OPTIONS } from "@/features/tuingids/lib/plantStatus";
+import { instanceWaterStatus, instanceFeedingStatus } from "@/features/tuingids/lib/plantInstanceStatus";
+import {
+  fetchActivePlantInstances,
+  plantInstanceDisplayName,
+  hasActiveInstancesForSpecies,
+} from "@/features/tuingids/lib/plantInstances";
+import { fetchPlants } from "@/features/tuingids/lib/plantLogs";
 
 function Widget({ emoji, title, children, to }: { emoji: string; title: string; children: React.ReactNode; to?: string }) {
   const inner = (
@@ -38,22 +36,38 @@ function PlantPill({ name, photo_url }: { name: string; photo_url?: string | nul
 }
 
 export default function TuingidsDashboard() {
-  const { data: plants = [], isLoading } = useQuery({
+  const { data: species = [], isLoading: speciesLoading } = useQuery({
     queryKey: ["plants"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("plants").select("*").order("name");
-      if (error) throw error;
-      return (data ?? []) as Plant[];
-    },
+    queryFn: fetchPlants,
+  });
+  const { data: instances = [], isLoading: instancesLoading } = useQuery({
+    queryKey: ["plant_instances", "active"],
+    queryFn: fetchActivePlantInstances,
   });
 
+  const speciesById = new Map(species.map((s) => [s.id, s]));
   const currentMonth = MONTH_OPTIONS[new Date().getMonth()];
-  const waterPlants = plants.filter(isOverdue);
-  const feedPlants = plants.filter(isFeedingOverdue);
-  const bloomPlants = plants.filter((p) => p.bloom_months?.includes(currentMonth));
-  const harvestPlants = plants.filter((p) => p.harvest_months?.includes(currentMonth));
-  const pruningPlants = plants.filter((p) => p.pruning_notes);
 
+  // Care widgets are exemplaar-gericht: two instances of the same species
+  // (e.g. "Koralik kas" and "Koralik dakterras") show as two separate pills,
+  // since watering/feeding is tracked per concrete plant.
+  const waterInstances = instances.filter((i) => {
+    const s = speciesById.get(i.species_id);
+    return s && instanceWaterStatus(i, s)?.overdue;
+  });
+  const feedInstances = instances.filter((i) => {
+    const s = speciesById.get(i.species_id);
+    return s && instanceFeedingStatus(i, s)?.overdue;
+  });
+
+  // Calendar/species-general widgets dedupe per species: a species with
+  // multiple planted instances still only needs to show up once here.
+  const plantedSpecies = species.filter((s) => hasActiveInstancesForSpecies(s.id, instances));
+  const bloomPlants = plantedSpecies.filter((s) => s.bloom_months?.includes(currentMonth));
+  const harvestPlants = plantedSpecies.filter((s) => s.harvest_months?.includes(currentMonth));
+  const pruningPlants = plantedSpecies.filter((s) => s.pruning_notes);
+
+  const isLoading = speciesLoading || instancesLoading;
   if (isLoading) {
     return (
       <div className="flex justify-center py-20 sv-muted">
@@ -69,24 +83,28 @@ export default function TuingidsDashboard() {
           <WeatherForecast variant="stacked" />
         </Widget>
 
-        <Widget emoji="💧" title={`Water geven (${waterPlants.length})`} to="/tuinieren">
-          {waterPlants.length === 0 ? (
-            <p className="text-xs sv-muted">Alle planten zijn bijgewerkt ✓</p>
+        <Widget emoji="💧" title={`Water geven (${waterInstances.length})`} to="/tuinieren">
+          {waterInstances.length === 0 ? (
+            <p className="text-xs sv-muted">Alle exemplaren zijn bijgewerkt ✓</p>
           ) : (
             <div className="flex flex-wrap gap-1.5">
-              {waterPlants.slice(0, 6).map((p) => <PlantPill key={p.id} name={p.name} photo_url={p.photo_url} />)}
-              {waterPlants.length > 6 && <span className="text-xs sv-muted">+{waterPlants.length - 6} meer</span>}
+              {waterInstances.slice(0, 6).map((i) => (
+                <PlantPill key={i.id} name={plantInstanceDisplayName(i, speciesById.get(i.species_id))} photo_url={speciesById.get(i.species_id)?.photo_url} />
+              ))}
+              {waterInstances.length > 6 && <span className="text-xs sv-muted">+{waterInstances.length - 6} meer</span>}
             </div>
           )}
         </Widget>
 
-        <Widget emoji="🌿" title={`Bemesten (${feedPlants.length})`} to="/tuinieren">
-          {feedPlants.length === 0 ? (
+        <Widget emoji="🌿" title={`Bemesten (${feedInstances.length})`} to="/tuinieren">
+          {feedInstances.length === 0 ? (
             <p className="text-xs sv-muted">Niets te bemesten vandaag ✓</p>
           ) : (
             <div className="flex flex-wrap gap-1.5">
-              {feedPlants.slice(0, 6).map((p) => <PlantPill key={p.id} name={p.name} photo_url={p.photo_url} />)}
-              {feedPlants.length > 6 && <span className="text-xs sv-muted">+{feedPlants.length - 6} meer</span>}
+              {feedInstances.slice(0, 6).map((i) => (
+                <PlantPill key={i.id} name={plantInstanceDisplayName(i, speciesById.get(i.species_id))} photo_url={speciesById.get(i.species_id)?.photo_url} />
+              ))}
+              {feedInstances.length > 6 && <span className="text-xs sv-muted">+{feedInstances.length - 6} meer</span>}
             </div>
           )}
         </Widget>

@@ -9,6 +9,8 @@ type GrowthLogRow = {
   id: string;
   plant_id: string | null;
   plant_name: string;
+  plant_instance_id: string | null;
+  growing_season_id: string | null;
   entry_date: string;
   height_cm: number | null;
   flower_count: number | null;
@@ -27,6 +29,8 @@ function rowToEntry(row: GrowthLogRow): LogEntry {
     id: row.id,
     plant_id: row.plant_id,
     plant_name: row.plant_name,
+    plant_instance_id: row.plant_instance_id ?? null,
+    growing_season_id: row.growing_season_id ?? null,
     date: row.entry_date,
     height_cm: row.height_cm,
     flower_count: row.flower_count,
@@ -63,6 +67,8 @@ export function useGrowthLog() {
       const { error } = await supabase.from("growth_log_entries").insert({
         plant_id: entry.plant_id,
         plant_name: entry.plant_name,
+        plant_instance_id: entry.plant_instance_id,
+        growing_season_id: entry.growing_season_id,
         entry_date: entry.date,
         height_cm: entry.height_cm,
         flower_count: entry.flower_count,
@@ -88,6 +94,8 @@ export function useGrowthLog() {
       if (patch.fruit_count !== undefined) row.fruit_count = patch.fruit_count;
       if (patch.fruit_length_cm !== undefined) row.fruit_length_cm = patch.fruit_length_cm;
       if (patch.fruit_width_cm !== undefined) row.fruit_width_cm = patch.fruit_width_cm;
+      if (patch.plant_instance_id !== undefined) row.plant_instance_id = patch.plant_instance_id;
+      if (patch.growing_season_id !== undefined) row.growing_season_id = patch.growing_season_id;
       if (patch.watered !== undefined) row.watered = patch.watered;
       if (patch.fertilized !== undefined) row.fertilized = patch.fertilized;
       if (patch.photo_url !== undefined) row.photo_url = patch.photo_url || null;
@@ -123,10 +131,30 @@ export function useGrowthLog() {
 
   const deleteEntry = useCallback((id: string) => deleteMutation.mutate(id), [deleteMutation]);
 
+  // Legacy fallback for pre-instance growth entries only — matches purely
+  // by name, so it can merge two same-named plants' history. Prefer
+  // getEntriesForPlantInstance for anything recorded through a concrete
+  // plant instance.
   const getEntriesForPlant = useCallback(
     (plantName: string) =>
       entries
         .filter((e) => e.plant_name === plantName)
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+    [entries],
+  );
+
+  const getEntriesForPlantInstance = useCallback(
+    (plantInstanceId: string) =>
+      entries
+        .filter((e) => e.plant_instance_id === plantInstanceId)
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+    [entries],
+  );
+
+  const getEntriesForGrowingSeason = useCallback(
+    (growingSeasonId: string) =>
+      entries
+        .filter((e) => e.growing_season_id === growingSeasonId)
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
     [entries],
   );
@@ -138,6 +166,8 @@ export function useGrowthLog() {
     updateEntry,
     deleteEntry,
     getEntriesForPlant,
+    getEntriesForPlantInstance,
+    getEntriesForGrowingSeason,
     isAdding: addMutation.isPending,
     addError: addMutation.error as Error | null,
   };

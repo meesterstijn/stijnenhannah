@@ -144,17 +144,91 @@ export type PotMaterial =
   | "Biologisch afbreekbaar"
   | "Anders";
 
+// ─── Species / instance / season split ─────────────────────────────────────
+// `Plant` (above) is the permanent species catalog (botanical + care advice).
+// `PlantInstance` is one physical planted specimen of a species — multiple
+// instances may share the same species_id. `GrowingSeason` is one
+// cultivation round for one instance. Deleting/completing an instance or
+// season never touches the species row (species_id uses on delete restrict).
+
+export type CultivationType = "pot" | "open_ground" | "raised_bed" | "greenhouse";
+
+export type PlantInstanceStatus = "active" | "dormant" | "archived" | "dead" | "removed";
+
+export type GrowingSeasonStatus = "active" | "completed" | "failed";
+
+export type PlantInstance = {
+  id: string;
+  species_id: string;
+  custom_name: string | null;
+  location: string | null;
+  cultivation_type: CultivationType | null;
+  pot_size_liters: number | null;
+  pot_material: string | null;
+  pot_color: string | null;
+  soil_type: string | null;
+  soil_mix_notes: string | null;
+  planted_at: string | null;
+  acquired_at: string | null;
+  source: string | null;
+  price: number | null;
+  health_status: PlantHealthStatus | null;
+  last_checked_at: string | null;
+  last_repotted_at: string | null;
+  first_flower_at: string | null;
+  first_fruit_at: string | null;
+  reminders_enabled: boolean;
+  feeding_reminders_enabled: boolean;
+  last_watered_at: string | null;
+  last_fed_at: string | null;
+  last_water_reminder_sent_at: string | null;
+  last_feeding_reminder_sent_at: string | null;
+  water_skip_until: string | null;
+  status: PlantInstanceStatus;
+  legacy_plant_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type GrowingSeason = {
+  id: string;
+  plant_instance_id: string;
+  year: number;
+  label: string | null;
+  started_at: string;
+  ended_at: string | null;
+  status: GrowingSeasonStatus;
+  closing_reason: string | null;
+  closing_notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PlantInstanceWithSpecies = PlantInstance & { species: Plant };
+
 export type PlantPhoto = {
   id: string;
   plant_id: string;
   photo_url: string;
   note: string | null;
   taken_at: string;
+  // Nullable, additive instance/season linkage (see
+  // 20260802060000_plant_photos_instance_columns.sql) — null means a
+  // legacy/general species-level photo, exactly as before this column
+  // existed; set means the photo belongs to one concrete instance.
+  plant_instance_id: string | null;
+  growing_season_id: string | null;
 };
 
 export type PlantHarvestLog = {
   id: string;
   plant_id: string;
+  // Nullable, additive instance/season linkage — populated whenever a
+  // harvest is logged from the instance detail dialog; null for legacy
+  // species-level rows created before instances existed (see
+  // 20260802040000_logs_instance_season_columns.sql).
+  plant_instance_id: string | null;
+  growing_season_id: string | null;
   harvested_at: string;
   weight_grams: number | null;
   quantity: number | null;
@@ -166,6 +240,8 @@ export type PlantHarvestLog = {
 export type PlantPruningLog = {
   id: string;
   plant_id: string;
+  plant_instance_id: string | null;
+  growing_season_id: string | null;
   pruned_at: string;
   pruning_type: string | null;
   notes: string | null;
@@ -175,6 +251,8 @@ export type PlantPruningLog = {
 export type PlantRepotLog = {
   id: string;
   plant_id: string;
+  plant_instance_id: string | null;
+  growing_season_id: string | null;
   repotted_at: string;
   old_pot_size_liters: number | null;
   new_pot_size_liters: number | null;
@@ -182,5 +260,21 @@ export type PlantRepotLog = {
   soil_type: string | null;
   notes: string | null;
   created_at: string;
+};
+
+// Instance-aware inspection history (phase 3) — always tied to a concrete
+// plant_instance_id, unlike the legacy species-level *_logs tables above.
+export type PlantInspectionLog = {
+  id: string;
+  plant_instance_id: string;
+  growing_season_id: string | null;
+  checked_at: string;
+  health_status: PlantHealthStatus | null;
+  notes: string | null;
+  issues: string | null;
+  action_taken: string | null;
+  photo_url: string | null;
+  created_at: string;
+  updated_at: string;
 };
 

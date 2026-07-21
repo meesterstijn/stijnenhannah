@@ -53,6 +53,15 @@ function namesList(names: string[]): string {
   return names.length <= 5 ? names.join(", ") : `${names.slice(0, 5).join(", ")} en ${names.length - 5} meer`;
 }
 
+// Instance display name mirrors plantInstanceDisplayName() on the client:
+// custom_name first, else the species name — e.g. "Koralik kas" instead of
+// just "Cherrytomaat 'Koralik'", so a reminder always names a recognizable
+// concrete plant, not just the species.
+function instanceDisplayName(instance: { custom_name: string | null }, species: { name: string } | null): string {
+  if (instance.custom_name && instance.custom_name.trim()) return instance.custom_name.trim();
+  return species?.name ?? "Onbekende plant";
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -72,60 +81,88 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { data: plants, error: plantsError } = await supabase
-      .from("plants")
+    // Reminders are computed per concrete plant_instances row (never per
+    // species) — a dormant, archived, dead or removed instance is excluded
+    // entirely by the `status = active` filter, so it never gets a normal
+    // urgent reminder. Species-level advice (intervals, feeding months)
+    // comes along via the `species:plants!plant_instances_species_id_fkey(...)`
+    // join.
+    const { data: instances, error: instancesError } = await supabase
+      .from("plant_instances")
       .select(
-        "id, name, growing_method, water_interval_days, pot_water_interval_days, last_watered_at, last_water_reminder_sent_at, water_skip_until, reminders_enabled, feeding_interval_days, last_fed_at, last_feeding_reminder_sent_at, feeding_reminders_enabled, feeding_months",
+        "id, custom_name, cultivation_type, last_watered_at, last_water_reminder_sent_at, water_skip_until, reminders_enabled, last_fed_at, last_feeding_reminder_sent_at, feeding_reminders_enabled, " +
+          // Disambiguated: plant_instances now has two FKs into plants
+          // (species_id and legacy_plant_id), so the embed must name which
+          // relationship to follow — otherwise PostgREST errors with
+          // PGRST201 ("more than one relationship was found") on every call.
+          "species:plants!plant_instances_species_id_fkey(id, name, water_interval_days, pot_water_interval_days, feeding_interval_days, feeding_months)",
       )
-      .eq("planted", true)
-      .or("water_interval_days.not.is.null,pot_water_interval_days.not.is.null,feeding_interval_days.not.is.null");
-    if (plantsError) throw plantsError;
+      .eq("status", "active");
+    if (instancesError) throw instancesError;
+
+    // An active instance with no currently-active growing season (season
+    // completed/failed and not yet replanted) has nothing growing in it
+    // right now, so it should never get a watering/feeding reminder even
+    // though the instance row itself is still `status = active`.
+    const { data: activeSeasons, error: seasonsError } = await supabase
+      .from("growing_seasons")
+      .select("plant_instance_id")
+      .eq("status", "active");
+    if (seasonsError) throw seasonsError;
+    const instanceIdsWithActiveSeason = new Set((activeSeasons ?? []).map((s) => s.plant_instance_id));
 
     const now = Date.now();
     const currentMonth = currentAmsterdamMonthName();
     const today = todayInAmsterdam();
 
-    const dueWater = (plants ?? []).filter((p) => {
+    const eligible = (instances ?? []).filter((i) => i.species && instanceIdsWithActiveSeason.has(i.id));
+
+    const dueWater = eligible.filter((i) => {
+      const species = i.species;
       const intervalDays =
-        p.growing_method === "Pot" && p.pot_water_interval_days
-          ? p.pot_water_interval_days
-          : p.water_interval_days;
-      if (!p.reminders_enabled || !intervalDays) return false;
-      if (p.water_skip_until && today < p.water_skip_until) return false;
-      if (isSameLocalDay(p.last_water_reminder_sent_at)) return false;
-      if (!p.last_watered_at) return true;
-      const dueAt = new Date(p.last_watered_at).getTime() + intervalDays * 24 * 60 * 60 * 1000;
+        i.cultivation_type === "pot" && species.pot_water_interval_days
+          ? species.pot_water_interval_days
+          : species.water_interval_days;
+      if (!i.reminders_enabled || !intervalDays) return false;
+      if (i.water_skip_until && today < i.water_skip_until) return false;
+      if (isSameLocalDay(i.last_water_reminder_sent_at)) return false;
+      if (!i.last_watered_at) return true;
+      const dueAt = new Date(i.last_watered_at).getTime() + intervalDays * 24 * 60 * 60 * 1000;
       return dueAt <= now;
     });
 
-    const dueFeeding = (plants ?? []).filter((p) => {
-      if (!p.feeding_reminders_enabled || !p.feeding_interval_days) return false;
-      if (p.feeding_months?.length > 0 && !p.feeding_months.includes(currentMonth)) return false;
-      if (isSameLocalDay(p.last_feeding_reminder_sent_at)) return false;
-      if (!p.last_fed_at) return true;
-      const dueAt = new Date(p.last_fed_at).getTime() + p.feeding_interval_days * 24 * 60 * 60 * 1000;
+    const dueFeeding = eligible.filter((i) => {
+      const species = i.species;
+      if (!i.feeding_reminders_enabled || !species.feeding_interval_days) return false;
+      if (species.feeding_months?.length > 0 && !species.feeding_months.includes(currentMonth)) return false;
+      if (isSameLocalDay(i.last_feeding_reminder_sent_at)) return false;
+      if (!i.last_fed_at) return true;
+      const dueAt = new Date(i.last_fed_at).getTime() + species.feeding_interval_days * 24 * 60 * 60 * 1000;
       return dueAt <= now;
     });
 
     if (dueWater.length === 0 && dueFeeding.length === 0) {
-      return new Response(JSON.stringify({ skipped: "no plants due" }), {
+      return new Response(JSON.stringify({ skipped: "no plant instances due" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
+    // Marking last_*_reminder_sent_at prevents duplicate notifications for
+    // the same event — one flag per instance, so two instances of the same
+    // species are tracked (and de-duplicated) fully independently.
     if (dueWater.length > 0) {
       const { error: updateError } = await supabase
-        .from("plants")
+        .from("plant_instances")
         .update({ last_water_reminder_sent_at: new Date().toISOString() })
-        .in("id", dueWater.map((p) => p.id));
+        .in("id", dueWater.map((i) => i.id));
       if (updateError) throw updateError;
     }
 
     if (dueFeeding.length > 0) {
       const { error: updateError } = await supabase
-        .from("plants")
+        .from("plant_instances")
         .update({ last_feeding_reminder_sent_at: new Date().toISOString() })
-        .in("id", dueFeeding.map((p) => p.id));
+        .in("id", dueFeeding.map((i) => i.id));
       if (updateError) throw updateError;
     }
 
@@ -136,10 +173,10 @@ Deno.serve(async (req) => {
 
     const bodyLines = [];
     if (dueWater.length > 0) {
-      bodyLines.push(`💧 Water: ${namesList(dueWater.map((p) => p.name))}`);
+      bodyLines.push(`💧 Water: ${namesList(dueWater.map((i) => instanceDisplayName(i, i.species)))}`);
     }
     if (dueFeeding.length > 0) {
-      bodyLines.push(`🌿 Voeding: ${namesList(dueFeeding.map((p) => p.name))}`);
+      bodyLines.push(`🌿 Voeding: ${namesList(dueFeeding.map((i) => instanceDisplayName(i, i.species)))}`);
     }
     const totalCount = dueWater.length + dueFeeding.length;
     const payload = JSON.stringify({
@@ -171,7 +208,7 @@ Deno.serve(async (req) => {
     );
   } catch (err) {
     console.error(err);
-    return new Response(JSON.stringify({ error: String(err) }), {
+    return new Response(JSON.stringify({ error: String(err), detail: err instanceof Error ? err.message : JSON.stringify(err) }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
