@@ -1381,21 +1381,64 @@ function PlantSeasonRow({ p }: { p: Plant }) {
   );
 }
 
+type CalendarPlantFilter = "all" | "planted";
+
+function calendarFilterButtonClass(active: boolean): string {
+  return `px-3 py-1 rounded-full transition-colors ${active ? "sv-badge-ok" : "sv-muted"}`;
+}
+
 function SeasonalOverview({ plants }: { plants: Plant[] }) {
   const [open, setOpen] = useState(true);
   const [monthIndex, setMonthIndex] = useState(new Date().getMonth());
+  const [plantFilter, setPlantFilter] = useState<CalendarPlantFilter>("all");
   const currentMonth = MONTH_OPTIONS[monthIndex];
   const monthLabel = currentMonth.charAt(0).toUpperCase() + currentMonth.slice(1);
   const isCurrentMonth = monthIndex === new Date().getMonth();
 
-  const sowNow = plants.filter((p) => p.sow_months.includes(currentMonth));
-  const bloomNow = plants.filter((p) => p.bloom_months.includes(currentMonth));
-  const harvestNow = plants.filter((p) => p.harvest_months.includes(currentMonth));
+  // "Mijn geplante planten" only: same planted flag already used everywhere
+  // else (waterStatus/feedingStatus/Mijn Tuin), deduped by name so multiple
+  // planted exemplaren of the same species only show up once here.
+  const visiblePlants = useMemo(() => {
+    if (plantFilter === "all") return plants;
+    const planted = plants.filter((p) => p.planted === true);
+    const seen = new Set<string>();
+    const deduped: Plant[] = [];
+    for (const p of planted) {
+      if (seen.has(p.name)) continue;
+      seen.add(p.name);
+      deduped.push(p);
+    }
+    return deduped;
+  }, [plants, plantFilter]);
+
+  const noPlantedPlants = plantFilter === "planted" && visiblePlants.length === 0;
+
+  const sowNow = visiblePlants.filter((p) => p.sow_months.includes(currentMonth));
+  const bloomNow = visiblePlants.filter((p) => p.bloom_months.includes(currentMonth));
+  const harvestNow = visiblePlants.filter((p) => p.harvest_months.includes(currentMonth));
 
   const isEmpty = sowNow.length === 0 && bloomNow.length === 0 && harvestNow.length === 0;
 
   return (
     <div className="sv-panel p-5 space-y-3">
+      <div className="flex justify-center">
+        <div className="flex sv-inset rounded-full p-1 gap-1 text-xs font-medium">
+          <button
+            type="button"
+            onClick={() => setPlantFilter("all")}
+            className={calendarFilterButtonClass(plantFilter === "all")}
+          >
+            Alle planten
+          </button>
+          <button
+            type="button"
+            onClick={() => setPlantFilter("planted")}
+            className={calendarFilterButtonClass(plantFilter === "planted")}
+          >
+            Mijn geplante planten
+          </button>
+        </div>
+      </div>
       <div className="flex items-center gap-2 w-full">
         <button
           onClick={() => setMonthIndex((i) => (i + 11) % 12)}
@@ -1428,9 +1471,11 @@ function SeasonalOverview({ plants }: { plants: Plant[] }) {
       </div>
       {open && (
         <div className="space-y-3 pt-1">
-          {isEmpty && (
+          {noPlantedPlants ? (
+            <p className="text-sm sv-muted">Je hebt nog geen planten als geplant geregistreerd.</p>
+          ) : isEmpty ? (
             <p className="text-sm sv-muted">Niets gepland voor {monthLabel}.</p>
-          )}
+          ) : null}
           {sowNow.length > 0 && (
             <div>
               <p className="text-xs sv-muted mb-1">Zaaien</p>
