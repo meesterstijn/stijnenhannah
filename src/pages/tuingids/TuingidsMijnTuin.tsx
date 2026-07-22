@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/features/tuingids/components/EmptyState";
 import { MONTH_OPTIONS } from "@/features/tuingids/lib/plantStatus";
 import {
-  effectiveInstanceWaterIntervalDays,
-  isInstanceWaterSkippedToday,
+  instanceWaterStatus,
+  instanceFeedingStatus,
 } from "@/features/tuingids/lib/plantInstanceStatus";
 import { useRecordInstanceCare } from "@/features/tuingids/hooks/usePlantCareActions";
 import {
@@ -24,21 +24,13 @@ import { fetchPlants } from "@/features/tuingids/lib/plantLogs";
 function healthScore(instance: PlantInstance, species: Plant | undefined): number {
   let score = 100;
   if (instance.status === "active" && species) {
-    const interval = effectiveInstanceWaterIntervalDays(instance, species);
-    if (interval) {
-      if (!instance.last_watered_at) { score -= 30; }
-      else if (!isInstanceWaterSkippedToday(instance)) {
-        const daysLeft = Math.ceil((new Date(instance.last_watered_at).getTime() + interval * 86400000 - Date.now()) / 86400000);
-        if (daysLeft < 0) score += daysLeft * 5;
-      }
-    }
-    if (species.feeding_interval_days) {
-      if (!instance.last_fed_at) { score -= 15; }
-      else {
-        const daysLeft = Math.ceil((new Date(instance.last_fed_at).getTime() + species.feeding_interval_days * 86400000 - Date.now()) / 86400000);
-        if (daysLeft < 0) score += daysLeft * 3;
-      }
-    }
+    const waterStatus = instanceWaterStatus(instance, species);
+    if (waterStatus === null && !instance.last_watered_at) { score -= 30; }
+    else if (waterStatus?.overdue) { score -= 5; }
+
+    const feedStatus = instanceFeedingStatus(instance, species);
+    if (feedStatus === null && !instance.last_fed_at) { score -= 15; }
+    else if (feedStatus?.overdue) { score -= 3; }
   }
   return Math.max(0, Math.min(100, score));
 }

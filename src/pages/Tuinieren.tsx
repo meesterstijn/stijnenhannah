@@ -2014,17 +2014,18 @@ function WaterSection({
       ? Math.floor((today.getTime() - lastWaterDate.getTime()) / 86_400_000)
       : null;
 
-  const nextWaterDate =
-    lastWaterDate && interval
-      ? new Date(lastWaterDate.getTime() + interval * 86_400_000)
-      : null;
+  let nextWaterDate: Date | null = null;
+  if (lastWaterDate && interval) {
+    nextWaterDate = new Date(lastWaterDate);
+    nextWaterDate.setDate(nextWaterDate.getDate() + interval);
+  }
 
   const daysLeft =
     nextWaterDate !== null
       ? Math.ceil((nextWaterDate.getTime() - today.getTime()) / 86_400_000)
       : null;
 
-  const todayIso = today.toISOString().slice(0, 10);
+  const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
   const waterSkipUntil = instanceState ? instanceState.water_skip_until : plant.water_skip_until;
   const isSkippedToday = !!waterSkipUntil && todayIso < waterSkipUntil;
 
@@ -2431,10 +2432,11 @@ function FeedingSection({
       ? Math.floor((today.getTime() - lastFedDate.getTime()) / 86_400_000)
       : null;
 
-  const nextFeedDate =
-    lastFedDate && interval
-      ? new Date(lastFedDate.getTime() + interval * 86_400_000)
-      : null;
+  let nextFeedDate: Date | null = null;
+  if (lastFedDate && interval) {
+    nextFeedDate = new Date(lastFedDate);
+    nextFeedDate.setDate(nextFeedDate.getDate() + interval);
+  }
 
   const daysLeft =
     nextFeedDate !== null
@@ -4947,7 +4949,8 @@ function PlantInstanceDetailDialog({
                 onSkipToday={() => {
                   const tomorrow = new Date();
                   tomorrow.setDate(tomorrow.getDate() + 1);
-                  patchInstance({ id: instance.id, patch: { water_skip_until: tomorrow.toISOString().slice(0, 10) } });
+                  const tomorrowLocal = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`;
+                  patchInstance({ id: instance.id, patch: { water_skip_until: tomorrowLocal } });
                 }}
                 isUpdating={false}
                 isRecording={recordingWaterId === instance.id}

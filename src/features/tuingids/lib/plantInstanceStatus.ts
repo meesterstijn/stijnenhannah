@@ -14,9 +14,27 @@ export function effectiveInstanceWaterIntervalDays(instance: PlantInstance, spec
   return species.water_interval_days;
 }
 
+// Returns the local calendar date as "YYYY-MM-DD" without UTC conversion.
+// Using toISOString().slice(0,10) would give the UTC date which can be the
+// previous calendar day for timezones east of UTC (e.g. CET/CEST +1/+2).
+function localDateIso(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+// Normalises a Date to local midnight so all comparisons are day-granular.
+function startOfDay(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+// Whole-day difference between two dates. Math.round absorbs the ±1 h drift
+// that DST transitions can introduce when adding exact milliseconds.
+function daysBetween(from: Date, to: Date): number {
+  return Math.round((to.getTime() - from.getTime()) / (24 * 60 * 60 * 1000));
+}
+
 export function isInstanceWaterSkippedToday(instance: PlantInstance): boolean {
-  const todayIso = new Date().toISOString().slice(0, 10);
-  return !!instance.water_skip_until && todayIso < instance.water_skip_until;
+  const todayLocal = localDateIso(new Date());
+  return !!instance.water_skip_until && todayLocal < instance.water_skip_until;
 }
 
 /** A dormant/archived/dead/removed instance never shows urgent care status —
@@ -29,8 +47,11 @@ export function instanceWaterStatus(instance: PlantInstance, species: Plant): { 
     return { label: "Uitgesteld tot morgen", overdue: false };
   }
   if (!instance.last_watered_at) return { label: "Nog geen water gegeven", overdue: true };
-  const dueAt = new Date(instance.last_watered_at).getTime() + intervalDays * 24 * 60 * 60 * 1000;
-  const daysLeft = Math.ceil((dueAt - Date.now()) / (24 * 60 * 60 * 1000));
+  const lastWateredDay = startOfDay(new Date(instance.last_watered_at));
+  const dueDay = new Date(lastWateredDay);
+  dueDay.setDate(dueDay.getDate() + intervalDays);
+  const today = startOfDay(new Date());
+  const daysLeft = daysBetween(today, dueDay);
   if (daysLeft <= 0) return { label: "Water geven!", overdue: true };
   if (daysLeft === 1) return { label: "Morgen water geven", overdue: false };
   return { label: `Over ${daysLeft} dagen`, overdue: false };
@@ -44,8 +65,11 @@ export function instanceFeedingStatus(instance: PlantInstance, species: Plant): 
     if (!species.feeding_months.includes(currentMonth)) return null;
   }
   if (!instance.last_fed_at) return { label: "Nog geen voeding gegeven", overdue: true };
-  const dueAt = new Date(instance.last_fed_at).getTime() + species.feeding_interval_days * 24 * 60 * 60 * 1000;
-  const daysLeft = Math.ceil((dueAt - Date.now()) / (24 * 60 * 60 * 1000));
+  const lastFedDay = startOfDay(new Date(instance.last_fed_at));
+  const dueDay = new Date(lastFedDay);
+  dueDay.setDate(dueDay.getDate() + species.feeding_interval_days);
+  const today = startOfDay(new Date());
+  const daysLeft = daysBetween(today, dueDay);
   if (daysLeft <= 0) return { label: "Voeding geven!", overdue: true };
   if (daysLeft === 1) return { label: "Morgen voeding geven", overdue: false };
   return { label: `Over ${daysLeft} dagen`, overdue: false };
