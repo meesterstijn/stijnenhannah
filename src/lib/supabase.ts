@@ -232,7 +232,8 @@ export type PotMaterial =
 // cultivation round for one instance. Deleting/completing an instance or
 // season never touches the species row (species_id uses on delete restrict).
 
-export type CultivationType = "pot" | "open_ground" | "raised_bed" | "greenhouse";
+export type CultivationType = "pot" | "open_ground" | "raised_bed";
+export type IndoorOutdoorType = "outdoor" | "indoor";
 
 export type PlantInstanceStatus = "active" | "dormant" | "archived" | "dead" | "removed";
 
@@ -244,6 +245,7 @@ export type PlantInstance = {
   custom_name: string | null;
   location: string | null;
   cultivation_type: CultivationType | null;
+  indoor_outdoor: IndoorOutdoorType | null;
   pot_size_liters: number | null;
   pot_material: string | null;
   pot_color: string | null;

@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase, type CultivationType, type PlantInstanceStatus, type GrowingSeasonStatus } from "@/lib/supabase";
+import { supabase, type CultivationType, type IndoorOutdoorType, type PlantInstanceStatus, type GrowingSeasonStatus } from "@/lib/supabase";
 
 // Mutations for the species/instance/season split. Reads live in
 // plantInstances.ts (fetch-only, consumed via useQuery); this hook centralizes
@@ -16,6 +16,7 @@ export type CreatePlantInstanceInput = {
   customName: string | null;
   location: string | null;
   cultivationType: CultivationType | null;
+  indoorOutdoor: IndoorOutdoorType | null;
   potSizeLiters: number | null;
   potMaterial: string | null;
   potColor: string | null;
@@ -46,6 +47,7 @@ export function usePlantInstances() {
           custom_name: input.customName,
           location: input.location,
           cultivation_type: input.cultivationType,
+          indoor_outdoor: input.indoorOutdoor,
           pot_size_liters: input.potSizeLiters,
           pot_material: input.potMaterial,
           pot_color: input.potColor,

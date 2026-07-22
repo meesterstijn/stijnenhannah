@@ -13,6 +13,7 @@ import {
   type PlantInstance,
   type GrowingSeason,
   type CultivationType,
+  type IndoorOutdoorType,
 } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -3977,7 +3978,11 @@ const CULTIVATION_TYPE_OPTIONS: { value: CultivationType; label: string }[] = [
   { value: "pot", label: "Pot" },
   { value: "open_ground", label: "Volle grond" },
   { value: "raised_bed", label: "Verhoogde border" },
-  { value: "greenhouse", label: "Kas" },
+];
+
+const INDOOR_OUTDOOR_OPTIONS: { value: IndoorOutdoorType; label: string }[] = [
+  { value: "outdoor", label: "Buiten" },
+  { value: "indoor", label: "Kas" },
 ];
 
 function NewPlantInstanceForm({
@@ -4005,7 +4010,8 @@ function NewPlantInstanceForm({
   const [nameTouched, setNameTouched] = useState(false);
   const [quantity, setQuantity] = useState("1");
   const [location, setLocation] = useState("");
-  const [cultivationType, setCultivationType] = useState<CultivationType | "">("");
+  const [cultivationType, setCultivationType] = useState<CultivationType | ("")>("");
+  const [indoorOutdoor, setIndoorOutdoor] = useState<IndoorOutdoorType | "">("");
   const [potSizeLiters, setPotSizeLiters] = useState("");
   const [potMaterial, setPotMaterial] = useState("");
   const [potColor, setPotColor] = useState("");
@@ -4077,6 +4083,7 @@ function NewPlantInstanceForm({
     setQuantity("1");
     setLocation("");
     setCultivationType("");
+    setIndoorOutdoor("");
     setPotSizeLiters("");
     setPotMaterial("");
     setPotColor("");
@@ -4109,6 +4116,7 @@ function NewPlantInstanceForm({
       speciesId,
       location: location.trim() || null,
       cultivationType: cultivationType || null,
+      indoorOutdoor: indoorOutdoor || null,
       potSizeLiters: potSizeLiters ? Number(potSizeLiters) : null,
       potMaterial: potMaterial.trim() || null,
       potColor: potColor.trim() || null,
@@ -4273,19 +4281,36 @@ function NewPlantInstanceForm({
                 <div />
               </div>
 
-              <div className="space-y-1.5">
-                <p className="text-xs sv-muted font-medium uppercase tracking-wide">Teeltvorm</p>
-                <div className="flex flex-wrap gap-2">
-                  {CULTIVATION_TYPE_OPTIONS.map((opt) => (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => setCultivationType((v) => (v === opt.value ? "" : opt.value))}
-                      className={chipClass(cultivationType === opt.value)}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
+              <div className="grid sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <p className="text-xs sv-muted font-medium uppercase tracking-wide">Locatie</p>
+                  <div className="flex flex-wrap gap-2">
+                    {INDOOR_OUTDOOR_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setIndoorOutdoor((v) => (v === opt.value ? "" : opt.value))}
+                        className={chipClass(indoorOutdoor === opt.value)}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <p className="text-xs sv-muted font-medium uppercase tracking-wide">Teeltwijze</p>
+                  <div className="flex flex-wrap gap-2">
+                    {CULTIVATION_TYPE_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setCultivationType((v) => (v === opt.value ? "" : opt.value))}
+                        className={chipClass(cultivationType === opt.value)}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -4511,6 +4536,7 @@ function InstanceSettingsSection({
   const [customName, setCustomName] = useState(instance.custom_name ?? "");
   const [location, setLocation] = useState(instance.location ?? "");
   const [cultivationType, setCultivationType] = useState<CultivationType | "">(instance.cultivation_type ?? "");
+  const [indoorOutdoor, setIndoorOutdoor] = useState<IndoorOutdoorType | "">(instance.indoor_outdoor ?? "");
   const [potSizeLiters, setPotSizeLiters] = useState(instance.pot_size_liters?.toString() ?? "");
   const [potMaterial, setPotMaterial] = useState(instance.pot_material ?? "");
   const [potColor, setPotColor] = useState(instance.pot_color ?? "");
@@ -4530,6 +4556,7 @@ function InstanceSettingsSection({
       custom_name: customName.trim() || null,
       location: location.trim() || null,
       cultivation_type: cultivationType || null,
+      indoor_outdoor: indoorOutdoor || null,
       pot_size_liters: potSizeLiters.trim() ? Number(potSizeLiters) : null,
       pot_material: potMaterial.trim() || null,
       pot_color: potColor.trim() || null,
@@ -4559,14 +4586,26 @@ function InstanceSettingsSection({
         </div>
       </div>
 
-      <div className="space-y-1.5">
-        <p className="text-xs sv-muted font-medium uppercase tracking-wide">Teeltvorm</p>
-        <div className="flex flex-wrap gap-2">
-          {CULTIVATION_TYPE_OPTIONS.map((opt) => (
-            <button key={opt.value} type="button" onClick={() => setCultivationType((v) => (v === opt.value ? "" : opt.value))} className={chipClass(cultivationType === opt.value)}>
-              {opt.label}
-            </button>
-          ))}
+      <div className="grid sm:grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <p className="text-xs sv-muted font-medium uppercase tracking-wide">Locatie</p>
+          <div className="flex flex-wrap gap-2">
+            {INDOOR_OUTDOOR_OPTIONS.map((opt) => (
+              <button key={opt.value} type="button" onClick={() => setIndoorOutdoor((v) => (v === opt.value ? "" : opt.value))} className={chipClass(indoorOutdoor === opt.value)}>
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <p className="text-xs sv-muted font-medium uppercase tracking-wide">Teeltwijze</p>
+          <div className="flex flex-wrap gap-2">
+            {CULTIVATION_TYPE_OPTIONS.map((opt) => (
+              <button key={opt.value} type="button" onClick={() => setCultivationType((v) => (v === opt.value ? "" : opt.value))} className={chipClass(cultivationType === opt.value)}>
+                {opt.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
