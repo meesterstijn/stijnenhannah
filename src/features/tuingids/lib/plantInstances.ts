@@ -69,6 +69,39 @@ export function suggestInstanceName(speciesName: string, existingInstanceCountFo
   return `${speciesName} #${existingInstanceCountForSpecies + 1}`;
 }
 
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Generate `count` safe unique names for new instances of a species.
+ *
+ * Scans `existingCustomNames` for names matching the auto-name pattern
+ * `"${speciesName} #N"`, finds the highest N, then returns names starting
+ * from N+1. This handles gaps (e.g. existing #1 #3 #4 → next is #5) and
+ * species names that contain special regex characters (e.g. "Tomaat (F1) + rood").
+ *
+ * Names that don't match the pattern (manually chosen names like
+ * "Courgette kas links") are safely ignored.
+ */
+export function resolveInstanceNames(
+  speciesName: string,
+  existingCustomNames: string[],
+  count: number,
+): string[] {
+  const pattern = new RegExp(`^${escapeRegex(speciesName)} #(\\d+)$`);
+  let highest = 0;
+  for (const name of existingCustomNames) {
+    if (!name) continue;
+    const m = pattern.exec(name);
+    if (m) {
+      const n = parseInt(m[1], 10);
+      if (n > highest) highest = n;
+    }
+  }
+  return Array.from({ length: count }, (_, i) => `${speciesName} #${highest + 1 + i}`);
+}
+
 /** All active instances of one species. Source of truth for "does the user
  * have this species in the garden" — replaces the old `plants.planted`
  * boolean (phase 4). A species itself is never planted or not; only a

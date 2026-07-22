@@ -124,6 +124,87 @@ export type Plant = {
   created_at: string;
 };
 
+/**
+ * Shape of one entry in a plant-catalog import JSON (array or single object).
+ * Differs from `Plant` in three ways:
+ *   1. `sun_needs` may be a string array (new format) or a comma string (legacy export).
+ *   2. `greenhouse_pref` is a separate field that the importer merges into `greenhouse_notes`.
+ *   3. Numeric fields may arrive as strings because JSON from ChatGPT sometimes quotes numbers.
+ * Database-generated fields (id, created_at, water_tags, *_reminder_sent_at) are absent.
+ */
+export type PlantImportData = {
+  name: string;
+  species?: string | null;
+  fun_fact?: string | null;
+  location?: string | null;
+  category?: string | null;
+  lifecycle?: string | null;
+  size_cm?: string | number | null;
+  spacing_cm?: string | number | null;
+  growth_habit?: string[];
+  sun_needs?: string | string[] | null;
+  season_notes?: string | null;
+  water_notes?: string | null;
+  watering_method?: string[];
+  watering_soak_minutes?: string | number | null;
+  growing_method?: string | null;
+  pot_min_liters?: string | number | null;
+  pot_recommended_liters?: string | number | null;
+  pot_water_notes?: string | null;
+  water_interval_days?: string | number | null;
+  pot_water_interval_days?: string | number | null;
+  last_watered_at?: string | null;
+  reminders_enabled?: boolean;
+  greenhouse_pref?: string | null;
+  greenhouse_notes?: string | null;
+  feeding_notes?: string | null;
+  feeding_interval_days?: string | number | null;
+  last_fed_at?: string | null;
+  feeding_reminders_enabled?: boolean;
+  feeding_months?: string[];
+  soil_notes?: string | null;
+  soil_ph_min?: string | number | null;
+  soil_ph_max?: string | number | null;
+  temperature_notes?: string | null;
+  humidity_notes?: string | null;
+  winter_hardiness?: string | null;
+  winter_notes?: string | null;
+  pruning_notes?: string | null;
+  pest_notes?: string | null;
+  toxic_to_humans?: boolean;
+  toxic_to_cats?: boolean;
+  toxicity_notes?: string | null;
+  sow_months?: string[];
+  sow_week?: string | null;
+  sow_notes?: string | null;
+  bloom_months?: string[];
+  bloom_week?: string | null;
+  bloom_notes?: string | null;
+  propagation_methods?: string[];
+  propagation_notes?: string | null;
+  harvest_months?: string[];
+  harvest_week?: string | null;
+  harvest_notes?: string | null;
+  general_notes?: string | null;
+  photo_url?: string | null;
+  planted?: boolean;
+  planted_at?: string | null;
+  health_status?: string | null;
+  last_checked_at?: string | null;
+  water_skip_until?: string | null;
+  first_flower_at?: string | null;
+  first_fruit_at?: string | null;
+  pot_size_liters?: string | number | null;
+  pot_material?: string | null;
+  pot_color?: string | null;
+  soil_type?: string | null;
+  soil_mix_notes?: string | null;
+  last_repotted_at?: string | null;
+  acquired_at?: string | null;
+  source?: string | null;
+  price?: string | number | null;
+};
+
 export type PlantHealthStatus =
   | "Net geplant"
   | "Gezond"

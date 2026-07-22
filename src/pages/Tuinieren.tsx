@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   supabase,
   type Plant,
+  type PlantImportData,
   type PlantPhoto,
   type PlantHarvestLog,
   type PlantPruningLog,
@@ -97,6 +98,7 @@ import {
   fetchGrowingSeasons,
   plantInstanceDisplayName,
   suggestInstanceName,
+  resolveInstanceNames,
   getActiveInstancesForSpecies,
   hasActiveInstancesForSpecies,
 } from "@/features/tuingids/lib/plantInstances";
@@ -220,6 +222,113 @@ function monthChipClass(active: boolean): string {
 
 function warnChipClass(active: boolean): string {
   return `sv-chip px-3 py-1.5 text-sm font-medium${active ? " active warn" : ""}`;
+}
+
+type PlantImportValidationResult =
+  | { ok: true; data: PlantImportData }
+  | { ok: false; errors: string[] };
+
+function validatePlantImportEntry(value: unknown): PlantImportValidationResult {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return { ok: false, errors: ["Geen geldig plantobject (verwacht een JSON-object)."] };
+  }
+
+  const p = value as Record<string, unknown>;
+  const errors: string[] = [];
+
+  // ── Verplicht ────────────────────────────────────────────────────────────
+  if (typeof p.name !== "string" || !p.name.trim()) {
+    errors.push("Plant mist een geldige naam (name is verplicht en mag niet leeg zijn).");
+  }
+
+  // ── Enum: scalaire velden ─────────────────────────────────────────────────
+  const enumChecks: [string, readonly string[]][] = [
+    ["category",         PLANT_CATEGORY_OPTIONS],
+    ["lifecycle",        LIFECYCLE_OPTIONS],
+    ["greenhouse_pref",  GREENHOUSE_PREF_OPTIONS],
+    ["winter_hardiness", WINTER_HARDINESS_OPTIONS],
+  ];
+  for (const [field, allowed] of enumChecks) {
+    const v = p[field];
+    if (v !== undefined && v !== null && !(allowed as readonly string[]).includes(v as string)) {
+      errors.push(`Ongeldige waarde voor ${field}: "${v}". Toegestaan: ${allowed.join(" | ")}.`);
+    }
+  }
+
+  // ── Enum: arraywaarden ────────────────────────────────────────────────────
+  // sun_needs mag ook een enkele string zijn (legacy export)
+  if (p.sun_needs !== undefined && p.sun_needs !== null) {
+    const items = Array.isArray(p.sun_needs) ? p.sun_needs : [p.sun_needs];
+    for (const v of items) {
+      if (!(SUN_OPTIONS as readonly string[]).includes(v as string)) {
+        errors.push(`sun_needs bevat een onbekende waarde: "${v}". Toegestaan: ${SUN_OPTIONS.join(" | ")}.`);
+      }
+    }
+  }
+
+  const arrayEnumChecks: [string, readonly string[]][] = [
+    ["growth_habit",        GROWTH_HABIT_OPTIONS],
+    ["watering_method",     WATERING_METHOD_OPTIONS],
+    ["propagation_methods", PROPAGATION_OPTIONS],
+  ];
+  for (const [field, allowed] of arrayEnumChecks) {
+    const v = p[field];
+    if (v !== undefined && v !== null) {
+      if (!Array.isArray(v)) {
+        errors.push(`${field} moet een array zijn.`);
+      } else {
+        for (const item of v) {
+          if (!(allowed as readonly string[]).includes(item as string)) {
+            errors.push(`${field} bevat een onbekende waarde: "${item}". Toegestaan: ${allowed.join(" | ")}.`);
+          }
+        }
+      }
+    }
+  }
+
+  // ── Maandarrays ───────────────────────────────────────────────────────────
+  const monthArrayFields = ["feeding_months", "sow_months", "bloom_months", "harvest_months"] as const;
+  for (const field of monthArrayFields) {
+    const v = p[field];
+    if (v !== undefined && v !== null) {
+      if (!Array.isArray(v)) {
+        errors.push(`${field} moet een array zijn.`);
+      } else {
+        for (const item of v) {
+          if (!(MONTH_OPTIONS as readonly string[]).includes(item as string)) {
+            errors.push(`${field} bevat een ongeldige maand: "${item}". Gebruik volledige Nederlandse namen.`);
+          }
+        }
+      }
+    }
+  }
+
+  // ── Numerieke velden ──────────────────────────────────────────────────────
+  const numericFields = [
+    "size_cm", "spacing_cm", "pot_min_liters", "pot_recommended_liters",
+    "feeding_interval_days", "water_interval_days", "pot_water_interval_days",
+    "soil_ph_min", "soil_ph_max", "watering_soak_minutes", "pot_size_liters", "price",
+  ] as const;
+  for (const field of numericFields) {
+    const v = p[field];
+    if (v !== undefined && v !== null) {
+      if (typeof v === "string" && v.trim() !== "" && isNaN(Number(v))) {
+        errors.push(`${field} is geen geldig getal: "${v}".`);
+      } else if (typeof v !== "number" && typeof v !== "string") {
+        errors.push(`${field} moet een getal zijn, maar is: ${typeof v}.`);
+      }
+    }
+  }
+
+  // ── Booleanvelden ─────────────────────────────────────────────────────────
+  for (const field of ["toxic_to_humans", "toxic_to_cats"] as const) {
+    if (p[field] !== undefined && typeof p[field] !== "boolean") {
+      errors.push(`${field} moet true of false zijn (gevonden: "${p[field]}").`);
+    }
+  }
+
+  if (errors.length > 0) return { ok: false, errors };
+  return { ok: true, data: p as PlantImportData };
 }
 
 function SectionHeading({ children }: { children: string }) {
@@ -3892,6 +4001,7 @@ function NewPlantInstanceForm({
       : "",
   );
   const [nameTouched, setNameTouched] = useState(false);
+  const [quantity, setQuantity] = useState("1");
   const [location, setLocation] = useState("");
   const [cultivationType, setCultivationType] = useState<CultivationType | "">("");
   const [potSizeLiters, setPotSizeLiters] = useState("");
@@ -3906,6 +4016,7 @@ function NewPlantInstanceForm({
   const [seasonStartedAt, setSeasonStartedAt] = useState(() => new Date().toISOString().slice(0, 10));
   const [seasonLabel, setSeasonLabel] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
+  const [batchSaving, setBatchSaving] = useState(false);
 
   const { createInstanceWithSeason, isCreating } = usePlantInstances();
   // Synchronous guard against double-submit: `isCreating` (mutation.isPending)
@@ -3914,6 +4025,26 @@ function NewPlantInstanceForm({
   // check before either registers — a ref updates immediately, closing that
   // race window.
   const isSavingRef = useRef(false);
+
+  // Derived values — computed once per render so handleSave and JSX share them.
+  const parsedQty = parseInt(quantity, 10);
+  const validQty = Number.isInteger(parsedQty) && parsedQty >= 1 && parsedQty <= 50;
+  const isSaving = batchSaving || isCreating;
+  const existingCountForSpecies = speciesId
+    ? allInstances.filter((i) => i.species_id === speciesId).length
+    : 0;
+  const selectedSpecies =
+    speciesList.find((s) => s.id === speciesId) ?? preselectedSpecies ?? null;
+  // All existing custom_names for this species (active + archived) — used by
+  // resolveInstanceNames to find the highest existing auto-number and avoid gaps.
+  const existingNamesForSpecies: string[] = speciesId
+    ? allInstances.filter((i) => i.species_id === speciesId).map((i) => i.custom_name ?? "")
+    : [];
+  // Pre-computed batch names: calculated once so preview and actual saves are identical.
+  const batchNames: string[] =
+    validQty && parsedQty > 1 && selectedSpecies
+      ? resolveInstanceNames(selectedSpecies.name, existingNamesForSpecies, parsedQty)
+      : [];
 
   function selectSpecies(s: Plant) {
     setSpeciesId(s.id);
@@ -3932,6 +4063,7 @@ function NewPlantInstanceForm({
         : "",
     );
     setNameTouched(false);
+    setQuantity("1");
     setLocation("");
     setCultivationType("");
     setPotSizeLiters("");
@@ -3946,46 +4078,81 @@ function NewPlantInstanceForm({
     setSeasonStartedAt(new Date().toISOString().slice(0, 10));
     setSeasonLabel("");
     setFormError(null);
+    setBatchSaving(false);
     setOpen(!!preselectedSpecies);
   }
 
   async function handleSave() {
     if (isSavingRef.current) return;
     setFormError(null);
-    if (!speciesId) {
-      setFormError("Kies eerst een plantsoort.");
+    if (!speciesId) { setFormError("Kies eerst een plantsoort."); return; }
+    if (!seasonStartedAt) { setFormError("Vul een startdatum in."); return; }
+    if (!validQty) {
+      setFormError("Aantal moet een geheel getal zijn tussen 1 en 50.");
       return;
     }
-    if (!seasonStartedAt) {
-      setFormError("Vul een startdatum in.");
-      return;
-    }
+
     isSavingRef.current = true;
-    try {
-      await createInstanceWithSeason({
-        speciesId,
-        customName: customName.trim() || null,
-        location: location.trim() || null,
-        cultivationType: cultivationType || null,
-        potSizeLiters: potSizeLiters ? Number(potSizeLiters) : null,
-        potMaterial: potMaterial.trim() || null,
-        potColor: potColor.trim() || null,
-        soilType: soilType.trim() || null,
-        soilMixNotes: soilMixNotes.trim() || null,
-        plantedAt: plantedAt ? new Date(plantedAt).toISOString() : null,
-        acquiredAt: acquiredAt || null,
-        source: source.trim() || null,
-        price: price ? Number(price) : null,
-        seasonStartedAt,
-        seasonLabel: seasonLabel.trim() || null,
-      });
-      resetForm();
-      onCreated?.();
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : "Opslaan mislukt.");
-    } finally {
-      isSavingRef.current = false;
+
+    const baseInput = {
+      speciesId,
+      location: location.trim() || null,
+      cultivationType: cultivationType || null,
+      potSizeLiters: potSizeLiters ? Number(potSizeLiters) : null,
+      potMaterial: potMaterial.trim() || null,
+      potColor: potColor.trim() || null,
+      soilType: soilType.trim() || null,
+      soilMixNotes: soilMixNotes.trim() || null,
+      plantedAt: plantedAt ? new Date(plantedAt).toISOString() : null,
+      acquiredAt: acquiredAt || null,
+      source: source.trim() || null,
+      price: price ? Number(price) : null,
+      seasonStartedAt,
+      seasonLabel: seasonLabel.trim() || null,
+    };
+
+    if (parsedQty === 1) {
+      try {
+        await createInstanceWithSeason({ ...baseInput, customName: customName.trim() || null });
+        resetForm();
+        onCreated?.();
+      } catch (err) {
+        setFormError(err instanceof Error ? err.message : "Opslaan mislukt.");
+      } finally {
+        isSavingRef.current = false;
+      }
+      return;
     }
+
+    // Batch: maak N exemplaren aan, ieder met een eigen auto-naam en eigen UUID/groeiseizoen.
+    // batchNames is pre-computed (same array as the preview) so names are
+    // guaranteed identical between what the user saw and what gets saved.
+    setBatchSaving(true);
+    let succeeded = 0;
+    const batchErrors: string[] = [];
+    for (let i = 0; i < parsedQty; i++) {
+      try {
+        await createInstanceWithSeason({
+          ...baseInput,
+          customName: batchNames[i] ?? null,
+        });
+        succeeded++;
+      } catch (err) {
+        batchErrors.push(err instanceof Error ? err.message : "Onbekende fout");
+      }
+    }
+    setBatchSaving(false);
+    isSavingRef.current = false;
+
+    if (batchErrors.length > 0) {
+      setFormError(
+        `${succeeded} van ${parsedQty} exemplaren aangemaakt. ${batchErrors.length} mislukt: ${batchErrors.slice(0, 2).join(" · ")}${batchErrors.length > 2 ? " ..." : ""}`,
+      );
+      return;
+    }
+
+    resetForm();
+    onCreated?.();
   }
 
   return (
@@ -4046,15 +4213,19 @@ function NewPlantInstanceForm({
             <>
               <div className="grid sm:grid-cols-2 gap-2">
                 <div>
-                  <label className="text-xs sv-muted block mb-1">Herkenningsnaam</label>
+                  <label className="text-xs sv-muted block mb-1">Aantal exemplaren</label>
                   <Input
-                    value={customName}
-                    onChange={(e) => {
-                      setCustomName(e.target.value);
-                      setNameTouched(true);
-                    }}
+                    type="number"
+                    min="1"
+                    max="50"
+                    step="1"
+                    value={quantity}
+                    onChange={(e) => setQuantity(e.target.value)}
                     className="text-sm"
                   />
+                  {!validQty && quantity !== "" && (
+                    <p className="text-xs sv-destructive-text mt-1">Geheel getal tussen 1 en 50.</p>
+                  )}
                 </div>
                 <div>
                   <label className="text-xs sv-muted block mb-1">Locatie</label>
@@ -4065,6 +4236,30 @@ function NewPlantInstanceForm({
                     className="text-sm"
                   />
                 </div>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs sv-muted block mb-1">
+                    {parsedQty > 1 ? "Namen (automatisch)" : "Herkenningsnaam"}
+                  </label>
+                  {parsedQty > 1 && validQty ? (
+                    <div className="sv-inset rounded-lg px-3 py-2 text-sm sv-muted leading-snug">
+                      {batchNames.slice(0, 3).join(", ")}
+                      {parsedQty > 3 && ` ... ${batchNames[batchNames.length - 1]}`}
+                    </div>
+                  ) : (
+                    <Input
+                      value={customName}
+                      onChange={(e) => {
+                        setCustomName(e.target.value);
+                        setNameTouched(true);
+                      }}
+                      className="text-sm"
+                    />
+                  )}
+                </div>
+                <div />
               </div>
 
               <div className="space-y-1.5">
@@ -4156,9 +4351,9 @@ function NewPlantInstanceForm({
 
           {formError && <p className="text-xs sv-destructive-text">{formError}</p>}
 
-          <div className="flex gap-2">
-            <Button size="sm" className="sv-button" onClick={handleSave} disabled={isCreating || !speciesId}>
-              {isCreating ? <Loader2 className="h-4 w-4 animate-spin" /> : "Opslaan"}
+          <div className="flex gap-2 items-center flex-wrap">
+            <Button size="sm" className="sv-button" onClick={handleSave} disabled={isSaving || !speciesId || !validQty}>
+              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : parsedQty > 1 ? `${parsedQty} exemplaren opslaan` : "Opslaan"}
             </Button>
             <Button
               size="sm"
@@ -4167,7 +4362,7 @@ function NewPlantInstanceForm({
                 resetForm();
                 if (preselectedSpecies) onCreated?.();
               }}
-              disabled={isCreating}
+              disabled={isSaving}
             >
               Annuleer
             </Button>
@@ -5287,12 +5482,25 @@ export default function Tuinieren() {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      const data = JSON.parse(await file.text());
-      const list = Array.isArray(data) ? data : [data];
+      const data: unknown = JSON.parse(await file.text());
+      const rawList: unknown[] = Array.isArray(data) ? data : [data];
+      if (rawList.length === 0) {
+        setImportMsg("Het bestand bevat geen planten.");
+        e.target.value = "";
+        return;
+      }
       let imported = 0;
       const errors: string[] = [];
-      for (const p of list) {
-        if (!p.name?.trim()) { errors.push("plant zonder naam overgeslagen"); continue; }
+      for (const entry of rawList) {
+        const validation = validatePlantImportEntry(entry);
+        if (!validation.ok) {
+          const label = typeof (entry as Record<string, unknown>)?.name === "string"
+            ? `"${(entry as Record<string, unknown>).name}"`
+            : "onbekende plant";
+          errors.push(`${label}: ${validation.errors.join(" · ")}`);
+          continue;
+        }
+        const p = validation.data;
         const row = {
           name: p.name.trim(),
           category: p.category || null,
@@ -5366,12 +5574,12 @@ export default function Tuinieren() {
           created_by: session?.user.id,
         };
         const { error } = await supabase.from("plants").insert(row);
-        if (error) errors.push(`${row.name}: ${error.message}`);
+        if (error) errors.push(`"${row.name}": ${error.message}`);
         else imported++;
       }
       queryClient.invalidateQueries({ queryKey: ["plants"] });
       setImportMsg(errors.length > 0
-        ? `${imported} toegevoegd, ${errors.length} fout(en): ${errors.join(" · ")}`
+        ? `${imported} toegevoegd, ${errors.length} overgeslagen: ${errors.join(" · ")}`
         : `${imported} plant${imported === 1 ? "" : "en"} toegevoegd!`);
     } catch {
       setImportMsg("Ongeldig JSON-bestand.");
