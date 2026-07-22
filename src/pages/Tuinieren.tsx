@@ -1364,6 +1364,7 @@ function PlantCardShell({
   photoUrl,
   healthEmoji,
   title,
+  titleSuffix,
   subtitle,
   extraLines,
   badges,
@@ -1372,6 +1373,7 @@ function PlantCardShell({
   photoUrl: string | null;
   healthEmoji?: string | null;
   title: string;
+  titleSuffix?: React.ReactNode;
   subtitle?: string | null;
   extraLines?: (string | null | undefined)[];
   badges: PlantCardBadgeDef[];
@@ -1394,6 +1396,7 @@ function PlantCardShell({
         <p className="sv-heading text-2xl leading-snug truncate">
           {healthEmoji && <span aria-label={healthEmoji}>{healthEmoji} </span>}
           {title}
+          {titleSuffix}
         </p>
         {subtitle && <p className="text-xs sv-muted truncate">{subtitle}</p>}
         {visibleExtraLines.map((line, i) => (
@@ -1464,11 +1467,19 @@ function PlantInstanceCard({
   const statusLabel = instance.status !== "active" ? INSTANCE_STATUS_LABELS[instance.status] : null;
   const seasonLabel = activeSeason ? activeSeason.label ?? `Seizoen ${activeSeason.year}` : null;
 
+  const healthSuffix = instance.health_status
+    ? ` ${HEALTH_STATUS_EMOJI[instance.health_status] ?? ""} ${instance.health_status}`
+    : null;
+
   return (
     <PlantCardShell
       photoUrl={species?.photo_url ?? null}
-      healthEmoji={instance.health_status ? HEALTH_STATUS_EMOJI[instance.health_status] : null}
       title={name}
+      titleSuffix={
+        healthSuffix ? (
+          <span className="text-base sv-muted font-normal">{healthSuffix}</span>
+        ) : null
+      }
       subtitle={species && species.name !== name ? species.name : undefined}
       extraLines={[instance.location, seasonLabel, statusLabel]}
       badges={badges}
@@ -5046,6 +5057,86 @@ function PlantInstanceDetailDialog({
 
 const INSTANCE_HEALTH_FILTER_OPTIONS = ["water_needed", "feeding_needed"] as const;
 
+type InstanceSortKey = "slim" | "name_asc" | "name_desc" | "newest" | "oldest" | "health" | "location";
+
+const INSTANCE_SORT_OPTIONS: { key: InstanceSortKey; label: string }[] = [
+  { key: "slim",     label: "🎯 Slim" },
+  { key: "name_asc", label: "🔤 Naam A–Z" },
+  { key: "name_desc",label: "🔤 Naam Z–A" },
+  { key: "newest",   label: "📅 Nieuwste eerst" },
+  { key: "oldest",   label: "📅 Oudste eerst" },
+  { key: "health",   label: "❤️ Gezondheid" },
+  { key: "location", label: "📍 Locatie" },
+];
+
+const HEALTH_SORT_ORDER: Record<string, number> = {
+  Stress: 0, Ziek: 1, Afgestorven: 2, "In bloei": 3, Vruchten: 4, Gezond: 5, "Net geplant": 6,
+};
+
+function sortInstances(
+  instances: PlantInstance[],
+  sortKey: InstanceSortKey,
+  speciesById: Map<string, Plant>,
+): PlantInstance[] {
+  const nameOf = (i: PlantInstance) =>
+    plantInstanceDisplayName(i, speciesById.get(i.species_id)).toLowerCase();
+
+  const byName = (a: PlantInstance, b: PlantInstance) =>
+    nameOf(a).localeCompare(nameOf(b), "nl");
+
+  switch (sortKey) {
+    case "name_asc":
+      return [...instances].sort(byName);
+
+    case "name_desc":
+      return [...instances].sort((a, b) => -byName(a, b));
+
+    case "newest":
+      return [...instances].sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      );
+
+    case "oldest":
+      return [...instances].sort(
+        (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+      );
+
+    case "health": {
+      return [...instances].sort((a, b) => {
+        const ai = a.health_status != null ? (HEALTH_SORT_ORDER[a.health_status] ?? 99) : 99;
+        const bi = b.health_status != null ? (HEALTH_SORT_ORDER[b.health_status] ?? 99) : 99;
+        return ai !== bi ? ai - bi : byName(a, b);
+      });
+    }
+
+    case "location": {
+      return [...instances].sort((a, b) => {
+        const al = a.location ?? "";
+        const bl = b.location ?? "";
+        if (!al && !bl) return byName(a, b);
+        if (!al) return 1;
+        if (!bl) return -1;
+        return al.localeCompare(bl, "nl") || byName(a, b);
+      });
+    }
+
+    case "slim":
+    default: {
+      const priority = (i: PlantInstance): number => {
+        const species = speciesById.get(i.species_id);
+        if (species && instanceWaterStatus(i, species)?.overdue) return 0;
+        if (species && instanceFeedingStatus(i, species)?.overdue) return 1;
+        if (i.health_status && i.health_status !== "Gezond") return 2;
+        return 3;
+      };
+      return [...instances].sort((a, b) => {
+        const pa = priority(a), pb = priority(b);
+        return pa !== pb ? pa - pb : byName(a, b);
+      });
+    }
+  }
+}
+
 function MyPlantInstances({
   speciesList,
   initialSearch,
@@ -5066,6 +5157,7 @@ function MyPlantInstances({
   const [detailInstanceId, setDetailInstanceId] = useState<string | null>(null);
   const [search, setSearch] = useState(initialSearch ?? "");
   const [needFilter, setNeedFilter] = useState<"" | (typeof INSTANCE_HEALTH_FILTER_OPTIONS)[number]>(initialNeedFilter ?? "");
+  const [sortKey, setSortKey] = useState<InstanceSortKey>("slim");
   const { recordWatering, recordFeeding } = useRecordInstanceCare();
 
   const speciesById = useMemo(() => new Map(speciesList.map((s) => [s.id, s])), [speciesList]);
@@ -5077,7 +5169,7 @@ function MyPlantInstances({
 
   const filteredInstances = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return instances.filter((instance) => {
+    const filtered = instances.filter((instance) => {
       const species = speciesById.get(instance.species_id);
       const name = plantInstanceDisplayName(instance, species);
       if (q && !name.toLowerCase().includes(q) && !(species?.name.toLowerCase().includes(q))) return false;
@@ -5085,7 +5177,8 @@ function MyPlantInstances({
       if (needFilter === "feeding_needed" && !(species && instanceFeedingStatus(instance, species)?.overdue)) return false;
       return true;
     });
-  }, [instances, speciesById, search, needFilter]);
+    return sortInstances(filtered, sortKey, speciesById);
+  }, [instances, speciesById, search, needFilter, sortKey]);
 
   const detailInstance = instances.find((i) => i.id === detailInstanceId) ?? null;
 
@@ -5111,6 +5204,18 @@ function MyPlantInstances({
 
   return (
     <>
+      <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto pb-0.5 -mx-0.5 px-0.5">
+        {INSTANCE_SORT_OPTIONS.map((opt) => (
+          <button
+            key={opt.key}
+            type="button"
+            onClick={() => setSortKey(opt.key)}
+            className={chipClass(sortKey === opt.key)}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
       <div className="flex flex-wrap items-center gap-2">
         <Input
           placeholder="Zoek op naam of soort..."
@@ -5118,12 +5223,6 @@ function MyPlantInstances({
           onChange={(e) => setSearch(e.target.value)}
           className="text-sm max-w-xs"
         />
-        <button type="button" onClick={() => setNeedFilter((v) => (v === "water_needed" ? "" : "water_needed"))} className={chipClass(needFilter === "water_needed")}>
-          💧 Water nodig
-        </button>
-        <button type="button" onClick={() => setNeedFilter((v) => (v === "feeding_needed" ? "" : "feeding_needed"))} className={chipClass(needFilter === "feeding_needed")}>
-          🌿 Voeding nodig
-        </button>
       </div>
 
       {filteredInstances.length === 0 ? (

@@ -1,8 +1,23 @@
 import { useParams, Link } from "react-router-dom";
 import { ChevronLeft } from "lucide-react";
-import { getDiagnose } from "@/features/tuingids/data/diagnoses";
+import { getDiagnose, diagnoseCategories } from "@/features/tuingids/data/diagnoses";
 import { ProbabilityBar } from "@/features/tuingids/components/ProbabilityBar";
 import { EmptyState } from "@/features/tuingids/components/EmptyState";
+import type { Diagnose } from "@/features/tuingids/types";
+
+const SEVERITY_LABEL: Record<Diagnose["severity"], string> = {
+  laag: "Laag risico",
+  gemiddeld: "Gemiddeld risico",
+  hoog: "Hoog risico",
+  kritiek: "Kritiek",
+};
+
+const SEVERITY_CLASS: Record<Diagnose["severity"], string> = {
+  laag: "sv-badge-ok",
+  gemiddeld: "sv-badge-water",
+  hoog: "sv-badge-warn",
+  kritiek: "sv-badge-error",
+};
 
 export default function TuingidsDokterDetail() {
   const { id } = useParams<{ id: string }>();
@@ -24,7 +39,16 @@ export default function TuingidsDokterDetail() {
       <div>
         <span className="text-4xl">{diagnose.emoji}</span>
         <h1 className="sv-heading text-3xl mt-2">{diagnose.title}</h1>
-        <p className="sv-muted mt-1">{diagnose.description}</p>
+        <div className="flex flex-wrap items-center gap-2 mt-2">
+          <span className={`${SEVERITY_CLASS[diagnose.severity]} text-xs rounded-full px-2.5 py-0.5`}>
+            {SEVERITY_LABEL[diagnose.severity]}
+          </span>
+          <span className="sv-badge-ok text-xs rounded-full px-2.5 py-0.5">
+            {diagnoseCategories.find((c) => c.id === diagnose.category)?.emoji}{" "}
+            {diagnoseCategories.find((c) => c.id === diagnose.category)?.label ?? diagnose.category}
+          </span>
+        </div>
+        <p className="sv-muted mt-2">{diagnose.description}</p>
       </div>
 
       <div className="space-y-3">
@@ -61,6 +85,12 @@ export default function TuingidsDokterDetail() {
                   ))}
                 </ul>
               </div>
+            )}
+
+            {oorzaak.recoveryTime && (
+              <p className="text-xs sv-muted">
+                <span className="font-medium">Hersteltijd:</span> {oorzaak.recoveryTime}
+              </p>
             )}
           </div>
         ))}

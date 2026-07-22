@@ -12,17 +12,19 @@ export interface EncyclopediaCategory {
 
 export interface DiagnoseOorzaak {
   title: string;
-  probability: number; // 1-5 sterren
+  probability: number; // 1-5 sterren: meest voorkomende oorzaak in de praktijk
   symptoms: string[];
   solution: string[];
+  recoveryTime?: string; // geschatte hersteltijd
 }
 
 export interface Diagnose {
   id: string;
-  category: "bladeren" | "bloemen" | "vruchten" | "groei" | "wortels";
+  category: "bladeren" | "bloemen" | "vruchten" | "groei" | "wortels" | "plagen";
   title: string;
   emoji: string;
   description: string;
+  severity: "laag" | "gemiddeld" | "hoog" | "kritiek";
   oorzaken: DiagnoseOorzaak[];
   prevention: string[];
   related: string[];

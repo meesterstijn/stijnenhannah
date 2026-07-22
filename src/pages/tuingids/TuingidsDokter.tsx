@@ -1,6 +1,14 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { diagnoses, diagnoseCategories } from "@/features/tuingids/data/diagnoses";
+import type { Diagnose } from "@/features/tuingids/types";
+
+const SEVERITY_CLASS: Record<Diagnose["severity"], string> = {
+  laag: "sv-badge-ok",
+  gemiddeld: "sv-badge-water",
+  hoog: "sv-badge-warn",
+  kritiek: "sv-badge-error",
+};
 
 export default function TuingidsDokter() {
   const [query, setQuery] = useState("");
@@ -58,10 +66,13 @@ export default function TuingidsDokter() {
               to={`/tuingids/dokter/${d.id}`}
               className="sv-panel p-4 hover:opacity-90 transition-opacity flex flex-col gap-2"
             >
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xl">{d.emoji}</span>
                 <span className="sv-badge-ok text-xs rounded-full px-2 py-0.5 capitalize">
                   {diagnoseCategories.find((c) => c.id === d.category)?.label ?? d.category}
+                </span>
+                <span className={`${SEVERITY_CLASS[d.severity]} text-xs rounded-full px-2 py-0.5`}>
+                  {d.severity}
                 </span>
               </div>
               <p className="sv-heading text-xl">{d.title}</p>
