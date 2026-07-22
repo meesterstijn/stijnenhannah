@@ -4046,6 +4046,15 @@ function NewPlantInstanceForm({
       ? resolveInstanceNames(selectedSpecies.name, existingNamesForSpecies, parsedQty)
       : [];
 
+  console.log("[NewPlantInstanceForm]", {
+    formType: preselectedSpecies ? "dialog (preselected)" : "standalone",
+    speciesId,
+    selectedSpecies: selectedSpecies?.name ?? null,
+    allInstancesTotal: allInstances.length,
+    existingNamesForSpecies,
+    batchNames,
+  });
+
   function selectSpecies(s: Plant) {
     setSpeciesId(s.id);
     if (!nameTouched) {
