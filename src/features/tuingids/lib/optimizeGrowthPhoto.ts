@@ -1,27 +1,66 @@
-// Compresses and resizes a user-selected image file in the browser before
-// uploading to Supabase Storage. Goals: ≤ 1600 px on the longest side,
-// WebP output at quality 0.82 (JPEG fallback), target ≈ 300–500 kB.
+// Compresses, resizes, and EXIF-corrects a user-selected image in the browser
+// before uploading to Supabase Storage.
 //
-// Returns an OptimizedPhoto with the compressed Blob. Throws a Dutch-language
-// Error on invalid input or when the browser cannot decode/encode the image.
+// Pipeline:
+//   1. Validate type + size.
+//   2. Decode via blueimp-load-image with orientation:true.
+//      The library detects whether the browser already auto-applies EXIF
+//      orientation and compensates accordingly — so the output canvas always
+//      contains physically correct pixels, never double-rotated.
+//   3. Scale down to ≤ 1600 px on the longest side (no upscaling).
+//   4. Export to WebP @ 0.82; JPEG @ 0.85 as fallback.
+//   5. For JPEG fallback, flatten transparency onto white.
+//
+// No manual EXIF-rotation is performed after loadImage — that would double-rotate.
+
+import loadImage from "blueimp-load-image";
 
 const MAX_SIDE_PX = 1600;
-const QUALITY = 0.82;
+const QUALITY_WEBP = 0.82;
+const QUALITY_JPEG = 0.85;
 const MAX_FILE_BYTES = 20 * 1024 * 1024; // 20 MB
+
 const ACCEPTED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const HEIC_TYPES = new Set(["image/heic", "image/heif"]);
 
 export type OptimizedPhoto = {
   blob: Blob;
-  mimeType: string;
-  extension: string;
+  mimeType: "image/webp" | "image/jpeg";
+  extension: "webp" | "jpg";
   originalFilename: string;
   fileSizeBytes: number;
+  width: number;
+  height: number;
 };
 
+function canvasToBlob(
+  canvas: HTMLCanvasElement,
+  mimeType: string,
+  quality: number,
+): Promise<Blob> {
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error("Afbeelding kan niet worden geëxporteerd (toBlob retourneerde null)."));
+      },
+      mimeType,
+      quality,
+    );
+  });
+}
+
 export async function optimizeGrowthPhoto(file: File): Promise<OptimizedPhoto> {
-  if (!ACCEPTED_TYPES.has(file.type)) {
+  // Type validation
+  const fileType = file.type.toLowerCase();
+  if (HEIC_TYPES.has(fileType)) {
     throw new Error(
-      `Ongeldig bestandstype: ${file.type || "onbekend"}. Gebruik JPEG, PNG of WebP.`,
+      "HEIC-foto's worden nog niet ondersteund. Kies op je telefoon voor JPEG of converteer de foto eerst.",
+    );
+  }
+  if (!ACCEPTED_TYPES.has(fileType) && !ACCEPTED_TYPES.has(file.type)) {
+    throw new Error(
+      `Bestandstype wordt niet ondersteund: ${file.type || "onbekend"}. Gebruik JPEG, PNG of WebP.`,
     );
   }
   if (file.size > MAX_FILE_BYTES) {
@@ -30,60 +69,91 @@ export async function optimizeGrowthPhoto(file: File): Promise<OptimizedPhoto> {
     );
   }
 
-  let bitmap: ImageBitmap;
+  // Decode + resize + EXIF-oriëntatie via blueimp-load-image.
+  // orientation:true instructs the library to read EXIF Orientation (1-8)
+  // and apply the required rotate/flip to the canvas, regardless of whether
+  // the current browser already applies EXIF natively. The library probes the
+  // browser at startup and compensates, so the output is never double-rotated.
+  let result: Awaited<ReturnType<typeof loadImage>>;
   try {
-    bitmap = await createImageBitmap(file);
-  } catch {
-    throw new Error("Afbeelding kan niet worden gelezen. Controleer of het bestand niet beschadigd is.");
-  }
-
-  const { width, height } = bitmap;
-
-  // Scale down only — never upscale small images
-  let targetWidth = width;
-  let targetHeight = height;
-  if (width > MAX_SIDE_PX || height > MAX_SIDE_PX) {
-    if (width >= height) {
-      targetWidth = MAX_SIDE_PX;
-      targetHeight = Math.round((height / width) * MAX_SIDE_PX);
-    } else {
-      targetHeight = MAX_SIDE_PX;
-      targetWidth = Math.round((width / height) * MAX_SIDE_PX);
-    }
-  }
-
-  const canvas = document.createElement("canvas");
-  canvas.width = targetWidth;
-  canvas.height = targetHeight;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) {
-    bitmap.close();
-    throw new Error("Kan geen canvas aanmaken voor compressie.");
-  }
-  ctx.drawImage(bitmap, 0, 0, targetWidth, targetHeight);
-  bitmap.close();
-
-  // Try WebP first; fall back to JPEG when the browser doesn't support it
-  const supportsWebP = canvas.toDataURL("image/webp").startsWith("data:image/webp");
-  const outputMime = supportsWebP ? "image/webp" : "image/jpeg";
-  const outputExt = supportsWebP ? "webp" : "jpg";
-
-  const blob = await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob(
-      (b) => {
-        if (b) resolve(b);
-        else reject(new Error("Compressie mislukt. Probeer een andere foto."));
-      },
-      outputMime,
-      QUALITY,
+    result = await loadImage(file, {
+      canvas: true,
+      meta: true,
+      orientation: true,
+      maxWidth: MAX_SIDE_PX,
+      maxHeight: MAX_SIDE_PX,
+      imageSmoothingEnabled: true,
+      imageSmoothingQuality: "high",
+    });
+  } catch (err) {
+    throw new Error(
+      `Afbeelding kan niet worden gelezen of verwerkt: ${err instanceof Error ? err.message : "onbekende fout"}.`,
     );
-  });
+  }
+
+  // loadImage resolves with data.image — a canvas when canvas:true is set.
+  const canvas = result.image;
+  if (!(canvas instanceof HTMLCanvasElement)) {
+    throw new Error(
+      "Kan geen canvas aanmaken: de browser retourneerde een onverwacht type na het laden van de afbeelding.",
+    );
+  }
+
+  const { width, height } = canvas;
+  if (width === 0 || height === 0) {
+    throw new Error("Afbeeldingsmetadata kan niet worden verwerkt: canvas heeft geen afmetingen.");
+  }
+
+  // Export to WebP; fall back to JPEG when the browser does not support it.
+  // canvas.toBlob with "image/webp" may silently return a PNG in some browsers
+  // (e.g. Safari before 16) — we verify the returned MIME type.
+  let blob: Blob;
+  let mimeType: "image/webp" | "image/jpeg";
+  let extension: "webp" | "jpg";
+
+  let webpBlob: Blob | null = null;
+  try {
+    webpBlob = await canvasToBlob(canvas, "image/webp", QUALITY_WEBP);
+  } catch {
+    // toBlob failed entirely — fall through to JPEG
+  }
+
+  if (webpBlob?.type === "image/webp") {
+    blob = webpBlob;
+    mimeType = "image/webp";
+    extension = "webp";
+  } else {
+    // JPEG fallback: flatten any transparency onto a white background so that
+    // transparent regions in PNG/WebP sources do not become black in JPEG.
+    const flat = document.createElement("canvas");
+    flat.width = width;
+    flat.height = height;
+    const ctx = flat.getContext("2d");
+    if (!ctx) {
+      throw new Error("Canvascontext ontbreekt bij JPEG-fallback.");
+    }
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, width, height);
+    ctx.drawImage(canvas, 0, 0);
+
+    try {
+      blob = await canvasToBlob(flat, "image/jpeg", QUALITY_JPEG);
+    } catch {
+      throw new Error(
+        "Afbeelding kan niet worden geëxporteerd. Probeer een andere foto.",
+      );
+    }
+    mimeType = "image/jpeg";
+    extension = "jpg";
+  }
 
   return {
     blob,
-    mimeType: outputMime,
-    extension: outputExt,
+    mimeType,
+    extension,
     originalFilename: file.name,
     fileSizeBytes: blob.size,
+    width,
+    height,
   };
 }

@@ -2806,7 +2806,7 @@ function PlantLogboek({
   const [fruitWidthCm, setFruitWidthCm] = useState("");
   const [watered, setWatered] = useState(false);
   const [fertilized, setFertilized] = useState(false);
-  const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
+  const [selectedPhotos, setSelectedPhotos] = useState<File[]>([]);
   const [isSavingAsync, setIsSavingAsync] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const isSavingRef = useRef(false);
@@ -2818,7 +2818,7 @@ function PlantLogboek({
     setFruitWidthCm("");
     setWatered(false);
     setFertilized(false);
-    setSelectedPhoto(null);
+    setSelectedPhotos([]);
     setDate(new Date().toISOString().slice(0, 10));
     setFormError(null);
     setFormOpen(false);
@@ -2835,12 +2835,12 @@ function PlantLogboek({
     const fruitWidth = fruitWidthCm.trim() ? Number(fruitWidthCm) : null;
     const noteText = notes.trim();
 
-    if (height === null && fruitLength === null && fruitWidth === null && !noteText && !watered && !fertilized && !selectedPhoto) {
+    if (height === null && fruitLength === null && fruitWidth === null && !noteText && !watered && !fertilized && selectedPhotos.length === 0) {
       setFormError("Vul minimaal een planthoogte, vruchtgrootte, notitie of foto in.");
       return;
     }
-    if (height !== null && (!Number.isFinite(height) || height <= 0)) {
-      setFormError("Planthoogte moet een getal groter dan nul zijn.");
+    if (height !== null && (!Number.isFinite(height) || height < 0)) {
+      setFormError("Planthoogte moet nul of een positief getal zijn.");
       return;
     }
     if (fruitLength !== null && (!Number.isFinite(fruitLength) || fruitLength <= 0)) {
@@ -2880,30 +2880,31 @@ function PlantLogboek({
       return;
     }
 
-    // Photo upload — only if a file was selected and we have an entry ID + instance ID
-    if (selectedPhoto && newEntry && plantInstanceId) {
-      try {
-        const optimized = await optimizeGrowthPhoto(selectedPhoto);
-        const { storagePath, publicUrl } = await uploadGrowthPhoto(plantInstanceId, newEntry.id, optimized);
-        await addPhoto({
-          growth_log_entry_id: newEntry.id,
-          plant_instance_id: plantInstanceId,
-          storage_path: storagePath,
-          photo_url: publicUrl,
-          original_filename: optimized.originalFilename,
-          mime_type: optimized.mimeType,
-          file_size_bytes: optimized.fileSizeBytes,
-        });
-      } catch (photoErr) {
-        // The growth entry was saved successfully — keep it.
-        // Show a non-blocking warning and stop without resetting the form so
-        // the user can see which entry the photo failed for.
-        setFormError(
-          `Meting opgeslagen, maar de foto kon niet worden geüpload: ${photoErr instanceof Error ? photoErr.message : "Onbekende fout"}. Je kunt de foto later toevoegen via de groeifoto-tijdlijn.`,
-        );
-        isSavingRef.current = false;
-        setIsSavingAsync(false);
-        return;
+    // Photo uploads — iterate over all selected photos sequentially.
+    // Stop on first failure: the entry is already saved so we warn without
+    // resetting the form, letting the user see which entry needs a retry.
+    if (selectedPhotos.length > 0 && newEntry && plantInstanceId) {
+      for (const photo of selectedPhotos) {
+        try {
+          const optimized = await optimizeGrowthPhoto(photo);
+          const { storagePath, publicUrl } = await uploadGrowthPhoto(plantInstanceId, newEntry.id, optimized);
+          await addPhoto({
+            growth_log_entry_id: newEntry.id,
+            plant_instance_id: plantInstanceId,
+            storage_path: storagePath,
+            photo_url: publicUrl,
+            original_filename: optimized.originalFilename,
+            mime_type: optimized.mimeType,
+            file_size_bytes: optimized.fileSizeBytes,
+          });
+        } catch (photoErr) {
+          setFormError(
+            `Meting opgeslagen, maar een foto kon niet worden geüpload: ${photoErr instanceof Error ? photoErr.message : "Onbekende fout"}. Je kunt de foto later toevoegen via de groeifoto-tijdlijn.`,
+          );
+          isSavingRef.current = false;
+          setIsSavingAsync(false);
+          return;
+        }
       }
     }
 
@@ -2920,7 +2921,7 @@ function PlantLogboek({
   return (
     <div className="sv-inset p-4 space-y-4 rounded-xl">
       <div className="flex items-center justify-between">
-        <p className="text-xs sv-muted">{entries.length === 0 ? "Nog geen notities" : `${entries.length} notitie${entries.length !== 1 ? "s" : ""}`}</p>
+        <p className="text-sm font-medium">🌱 Groei bijhouden</p>
         {!formOpen && (
           <button
             type="button"
@@ -3034,8 +3035,8 @@ function PlantLogboek({
           <div className="space-y-1.5">
             <p className="text-xs sv-muted font-medium uppercase tracking-wide">Foto</p>
             <GrowthPhotoInput
-              file={selectedPhoto}
-              onFileSelected={setSelectedPhoto}
+              files={selectedPhotos}
+              onFilesChange={setSelectedPhotos}
               disabled={isSavingAsync}
             />
           </div>
@@ -3944,7 +3945,7 @@ function InstanceTimelineSection({
     });
   }
   for (const entry of growthEntries) {
-    if (entry.notes && !entry.watered && !entry.fertilized && !entry.height_cm) {
+    if (entry.notes && !entry.watered && !entry.fertilized && entry.height_cm === null) {
       items.push({ date: entry.date, icon: BookOpen, label: entry.notes });
     }
   }
