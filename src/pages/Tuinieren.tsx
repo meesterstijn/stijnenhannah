@@ -60,6 +60,7 @@ import {
   Clock,
   Check,
   TrendingUp,
+  Layers,
 } from "lucide-react";
 import { useGrowthLog } from "@/features/tuingids/hooks/useGrowthLog";
 import { useGrowthPhotos } from "@/features/tuingids/hooks/useGrowthPhotos";
@@ -1604,6 +1605,122 @@ function PlantInstanceCard({
       badges={badges}
       onOpen={() => onOpen(instance)}
     />
+  );
+}
+
+// Determines once at render time whether the user prefers reduced motion.
+// Inline because this component is file-local and the check is synchronous.
+function prefersReducedMotion(): boolean {
+  return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function SpeciesGroupCard({
+  species,
+  instances,
+  isExpanded,
+  onToggle,
+  onOpen,
+  onWater,
+  onFeed,
+  activeSeasonByInstance,
+}: {
+  species: Plant | undefined;
+  instances: PlantInstance[];
+  isExpanded: boolean;
+  onToggle: () => void;
+  onOpen: (i: PlantInstance) => void;
+  onWater: (i: PlantInstance) => void;
+  onFeed: (i: PlantInstance) => void;
+  activeSeasonByInstance: Map<string, GrowingSeason>;
+}) {
+  const speciesName = species?.name ?? "Onbekende soort";
+  const reduced = prefersReducedMotion();
+
+  // Count how many instances in this group are overdue for water / feeding.
+  // Uses the same helpers as PlantInstanceCard — no second implementation.
+  const waterNeededCount = species
+    ? instances.filter((i) => instanceWaterStatus(i, species)?.overdue === true).length
+    : 0;
+  const feedNeededCount = species
+    ? instances.filter((i) => instanceFeedingStatus(i, species)?.overdue === true).length
+    : 0;
+
+  // grid-template-rows 0fr→1fr is the standard CSS-only height animation.
+  // The inner overflow:hidden clips content during the transition.
+  const containerStyle: React.CSSProperties = reduced
+    ? isExpanded ? {} : { display: "none" }
+    : {
+        display: "grid",
+        gridTemplateRows: isExpanded ? "1fr" : "0fr",
+        opacity: isExpanded ? 1 : 0,
+        transition: "grid-template-rows 0.2s ease, opacity 0.15s ease",
+      };
+
+  return (
+    <div className={isExpanded ? "space-y-3" : "h-full"}>
+      {/* Group header — same visual style as PlantCardShell */}
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={isExpanded}
+        aria-label={`${speciesName}, ${instances.length} exemplaren ${isExpanded ? "inklappen" : "uitklappen"}`}
+        className={`sv-panel text-left p-5 hover:-translate-y-0.5 transition-transform flex items-center gap-3 w-full focus-visible:ring-2 focus-visible:ring-offset-2${isExpanded ? "" : " h-full"}`}
+      >
+        {species?.photo_url ? (
+          <img src={species.photo_url} alt="" className="h-12 w-12 rounded-lg object-cover shrink-0 sv-icon-slot" />
+        ) : (
+          <div className="h-12 w-12 sv-icon-slot flex items-center justify-center shrink-0">
+            <Sprout className="h-5 w-5" strokeWidth={1.6} />
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="sv-heading text-2xl leading-snug truncate">{speciesName}</p>
+            <Layers className="h-4 w-4 sv-muted shrink-0" aria-hidden />
+          </div>
+          <p className="text-xs sv-muted">{instances.length} exemplaren</p>
+          {(waterNeededCount > 0 || feedNeededCount > 0) && (
+            <div className="flex items-center gap-1.5 flex-wrap mt-1">
+              {waterNeededCount > 0 && (
+                <span className="sv-heading inline-flex items-center gap-1 text-sm px-2 py-1 rounded-full w-fit sv-badge-overdue">
+                  <Droplet className="h-3 w-3" aria-hidden />
+                  {waterNeededCount} water nodig
+                </span>
+              )}
+              {feedNeededCount > 0 && (
+                <span className="sv-heading inline-flex items-center gap-1 text-sm px-2 py-1 rounded-full w-fit sv-badge-overdue">
+                  <Leaf className="h-3 w-3" aria-hidden />
+                  {feedNeededCount} voeding nodig
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+        <ChevronDown
+          className={`h-4 w-4 sv-muted shrink-0 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
+          aria-hidden
+        />
+      </button>
+
+      {/* Animated subgrid of individual instance cards */}
+      <div style={containerStyle}>
+        <div style={{ overflow: "hidden" }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {instances.map((instance) => (
+              <PlantInstanceCard
+                key={instance.id}
+                instance={instance}
+                species={species}
+                activeSeason={activeSeasonByInstance.get(instance.id) ?? null}
+                onOpen={onOpen}
+                onWater={onWater}
+                onFeed={onFeed}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -4067,6 +4184,8 @@ function NewPlantInstanceForm({
   allInstances,
   preselectedSpecies,
   onCreated,
+  controlledOpen,
+  onClose,
 }: {
   speciesList: Plant[];
   allInstances: PlantInstance[];
@@ -4075,6 +4194,10 @@ function NewPlantInstanceForm({
   // the shared workflow used from every entry point.
   preselectedSpecies?: Plant;
   onCreated?: () => void;
+  /** When provided, the component is in controlled mode: the trigger button is
+   *  suppressed and open/close is driven by the parent. */
+  controlledOpen?: boolean;
+  onClose?: () => void;
 }) {
   const [open, setOpen] = useState(!!preselectedSpecies);
   const [locked, setLocked] = useState(!!preselectedSpecies);
@@ -4176,7 +4299,11 @@ function NewPlantInstanceForm({
     setStartHeightInput("");
     setFormError(null);
     setBatchSaving(false);
-    setOpen(!!preselectedSpecies);
+    if (onClose) {
+      onClose();
+    } else {
+      setOpen(!!preselectedSpecies);
+    }
   }
 
   async function handleSave() {
@@ -4262,9 +4389,14 @@ function NewPlantInstanceForm({
     onCreated?.();
   }
 
+  const isControlled = controlledOpen !== undefined;
+  const effectiveOpen = isControlled ? controlledOpen! : open;
+
+  if (isControlled && !effectiveOpen) return null;
+
   return (
     <div className={preselectedSpecies ? "space-y-3" : "sv-panel p-4 space-y-3"}>
-      {!preselectedSpecies && !open ? (
+      {!isControlled && !preselectedSpecies && !effectiveOpen ? (
         <button
           type="button"
           onClick={() => setOpen(true)}
@@ -5420,8 +5552,6 @@ const INSTANCE_SORT_OPTIONS: { key: InstanceSortKey; label: string }[] = [
   { key: "slim",     label: "🎯 Slim" },
   { key: "name_asc", label: "🔤 Naam A–Z" },
   { key: "name_desc",label: "🔤 Naam Z–A" },
-  { key: "newest",   label: "📅 Nieuwste eerst" },
-  { key: "oldest",   label: "📅 Oudste eerst" },
   { key: "health",   label: "❤️ Gezondheid" },
   { key: "location", label: "📍 Locatie" },
 ];
@@ -5515,6 +5645,7 @@ function MyPlantInstances({
   const [search, setSearch] = useState(initialSearch ?? "");
   const [needFilter, setNeedFilter] = useState<"" | (typeof INSTANCE_HEALTH_FILTER_OPTIONS)[number]>(initialNeedFilter ?? "");
   const [sortKey, setSortKey] = useState<InstanceSortKey>("slim");
+  const [expandedSpeciesIds, setExpandedSpeciesIds] = useState<Set<string>>(new Set());
   const { recordWatering, recordFeeding } = useRecordInstanceCare();
 
   const speciesById = useMemo(() => new Map(speciesList.map((s) => [s.id, s])), [speciesList]);
@@ -5536,6 +5667,39 @@ function MyPlantInstances({
     });
     return sortInstances(filtered, sortKey, speciesById);
   }, [instances, speciesById, search, needFilter, sortKey]);
+
+  // Group by species_id, preserving the sort order of filteredInstances.
+  // The group for a species appears at the position of its first instance.
+  const groupedInstances = useMemo(() => {
+    const seen = new Map<string, PlantInstance[]>();
+    const order: string[] = [];
+    for (const inst of filteredInstances) {
+      if (!seen.has(inst.species_id)) {
+        seen.set(inst.species_id, []);
+        order.push(inst.species_id);
+      }
+      seen.get(inst.species_id)!.push(inst);
+    }
+    return order.map((id) => ({ speciesId: id, instances: seen.get(id)! }));
+  }, [filteredInstances]);
+
+  function toggleGroup(speciesId: string) {
+    setExpandedSpeciesIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(speciesId)) next.delete(speciesId);
+      else next.add(speciesId);
+      return next;
+    });
+  }
+
+  // Stable per-instance callbacks for water/feed so SpeciesGroupCard and
+  // the flat PlantInstanceCard use the same call signature.
+  function handleWater(i: PlantInstance) {
+    recordWatering(i, plantInstanceDisplayName(i, speciesById.get(i.species_id)), activeSeasonByInstance.get(i.id)?.id ?? null);
+  }
+  function handleFeed(i: PlantInstance) {
+    recordFeeding(i, plantInstanceDisplayName(i, speciesById.get(i.species_id)), activeSeasonByInstance.get(i.id)?.id ?? null);
+  }
 
   const detailInstance = instances.find((i) => i.id === detailInstanceId) ?? null;
 
@@ -5561,7 +5725,7 @@ function MyPlantInstances({
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto pb-0.5 -mx-0.5 px-0.5">
+      <div className="flex flex-wrap items-center gap-1.5 pb-0.5">
         {INSTANCE_SORT_OPTIONS.map((opt) => (
           <button
             key={opt.key}
@@ -5572,8 +5736,6 @@ function MyPlantInstances({
             {opt.label}
           </button>
         ))}
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
         <Input
           placeholder="Zoek op naam of soort..."
           value={search}
@@ -5586,19 +5748,35 @@ function MyPlantInstances({
         <p className="text-sm sv-muted px-1">Geen exemplaren gevonden voor deze zoekopdracht/filter.</p>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {filteredInstances.map((instance) => {
-            const species = speciesById.get(instance.species_id);
-            const activeSeason = activeSeasonByInstance.get(instance.id) ?? null;
+          {groupedInstances.map(({ speciesId, instances: groupInstances }) => {
+            const species = speciesById.get(speciesId);
+            if (groupInstances.length === 1) {
+              const instance = groupInstances[0];
+              return (
+                <PlantInstanceCard
+                  key={instance.id}
+                  instance={instance}
+                  species={species}
+                  activeSeason={activeSeasonByInstance.get(instance.id) ?? null}
+                  onOpen={(i) => setDetailInstanceId(i.id)}
+                  onWater={handleWater}
+                  onFeed={handleFeed}
+                />
+              );
+            }
             return (
-              <PlantInstanceCard
-                key={instance.id}
-                instance={instance}
-                species={species}
-                activeSeason={activeSeason}
-                onOpen={(i) => setDetailInstanceId(i.id)}
-                onWater={(i) => recordWatering(i, plantInstanceDisplayName(i, speciesById.get(i.species_id)), activeSeasonByInstance.get(i.id)?.id ?? null)}
-                onFeed={(i) => recordFeeding(i, plantInstanceDisplayName(i, speciesById.get(i.species_id)), activeSeasonByInstance.get(i.id)?.id ?? null)}
-              />
+              <div key={speciesId} className={expandedSpeciesIds.has(speciesId) ? "col-span-full" : undefined}>
+                <SpeciesGroupCard
+                  species={species}
+                  instances={groupInstances}
+                  isExpanded={expandedSpeciesIds.has(speciesId)}
+                  onToggle={() => toggleGroup(speciesId)}
+                  onOpen={(i) => setDetailInstanceId(i.id)}
+                  onWater={handleWater}
+                  onFeed={handleFeed}
+                  activeSeasonByInstance={activeSeasonByInstance}
+                />
+              </div>
             );
           })}
         </div>
@@ -5755,6 +5933,7 @@ export default function Tuinieren() {
   });
 
   const [pageViewMode, setPageViewMode] = useState<"species" | "instances">("species");
+  const [instanceFormOpen, setInstanceFormOpen] = useState(false);
   const [instancesInitialSearch, setInstancesInitialSearch] = useState("");
   const [instancesInitialNeedFilter, setInstancesInitialNeedFilter] = useState<"" | "water_needed" | "feeding_needed">("");
   const [createInstanceForSpecies, setCreateInstanceForSpecies] = useState<Plant | null>(null);
@@ -6465,7 +6644,7 @@ export default function Tuinieren() {
         <p className="text-sm sv-muted text-right -mt-4">{importMsg}</p>
       )}
 
-      <div className="flex justify-center">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex sv-inset rounded-full p-1 gap-1 text-xs font-medium">
           <button
             type="button"
@@ -6482,9 +6661,25 @@ export default function Tuinieren() {
             Mijn geplante exemplaren
           </button>
         </div>
+        {pageViewMode === "instances" && (
+          <button
+            type="button"
+            onClick={() => setInstanceFormOpen(true)}
+            className="sv-button flex items-center gap-2 px-4 py-2.5 text-sm"
+          >
+            <Plus className="h-4 w-4" /> Nieuw exemplaar planten
+          </button>
+        )}
       </div>
 
-      <NewPlantInstanceForm speciesList={plants} allInstances={allPlantInstances} />
+      {pageViewMode === "instances" && (
+        <NewPlantInstanceForm
+          speciesList={plants}
+          allInstances={allPlantInstances}
+          controlledOpen={instanceFormOpen}
+          onClose={() => setInstanceFormOpen(false)}
+        />
+      )}
 
       {pageViewMode === "species" ? (
         isLoading ? (
