@@ -4500,10 +4500,12 @@ const SEASON_CLOSING_REASONS = [
 function CompleteSeasonPanel({
   season,
   instance,
+  species,
   onClose,
 }: {
   season: GrowingSeason;
   instance: PlantInstance;
+  species?: Plant;
   onClose: () => void;
 }) {
   const [status, setStatus] = useState<"completed" | "failed">("completed");
@@ -4570,6 +4572,16 @@ function CompleteSeasonPanel({
 
       <div className="space-y-1.5">
         <p className="text-xs sv-muted block mb-1">Wat gebeurt er met dit exemplaar?</p>
+        {species?.lifecycle === "Meerjarig" && (
+          <p className="text-xs sv-muted sv-inset rounded-lg px-3 py-2">
+            💡 <strong>Advies:</strong> Dit is een meerjarige plant. In de meeste gevallen blijft hetzelfde exemplaar leven en kun je na een rustperiode een nieuw teeltseizoen starten.
+          </p>
+        )}
+        {species?.lifecycle === "Eenjarig" && (
+          <p className="text-xs sv-muted sv-inset rounded-lg px-3 py-2">
+            💡 <strong>Advies:</strong> Dit is een eenjarige plant. Na afloop van het seizoen wordt het exemplaar meestal gearchiveerd. Start alleen een nieuw seizoen wanneer dit daadwerkelijk dezelfde levende plant betreft.
+          </p>
+        )}
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={() => setNextStep("new_season")} className={chipClass(nextStep === "new_season")}>Nieuw seizoen starten</button>
           <button type="button" onClick={() => setNextStep("archive")} className={chipClass(nextStep === "archive")}>Exemplaar archiveren</button>
@@ -5357,7 +5369,7 @@ function PlantInstanceDetailDialog({
             </Button>
           )}
           {activeSeason && closingSeason && (
-            <CompleteSeasonPanel season={activeSeason} instance={instance} onClose={() => setClosingSeason(false)} />
+            <CompleteSeasonPanel season={activeSeason} instance={instance} species={species} onClose={() => setClosingSeason(false)} />
           )}
         </div>
 
