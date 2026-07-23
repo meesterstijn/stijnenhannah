@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Plus, Search, Sprout } from "lucide-react";
-import { type Plant, type PlantInstance, type GrowingSeason } from "@/lib/supabase";
+import { ChevronDown, Layers, Plus, Search, Sprout } from "lucide-react";
+import { type GrowthLogPhoto, type Plant, type PlantInstance, type GrowingSeason } from "@/lib/supabase";
 import { useGrowthLog } from "@/features/tuingids/hooks/useGrowthLog";
 import { useGrowthPhotos } from "@/features/tuingids/hooks/useGrowthPhotos";
 import {
@@ -22,6 +22,13 @@ import { INSTANCE_STATUS_LABELS } from "@/features/tuingids/lib/plantInstanceSta
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { LogboekDashboard } from "@/features/tuingids/components/LogboekDashboard";
 import { LogboekTimeline, type LogboekEventMeta } from "@/features/tuingids/components/LogboekTimeline";
 import { GrowthComparisonChart } from "@/features/tuingids/components/GrowthComparisonChart";
@@ -41,7 +48,15 @@ type GroeiSortKey =
   | "last_updated";
 type GroeiStatusFilter = "all" | "active" | "inactive" | "Meerjarig" | "Eenjarig";
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// Per-instance statistics computed in a single pass for tile/group rendering.
+type InstanceStats = {
+  photoCount: Map<string, number>;
+  entryCount: Map<string, number>;
+  lastUpdated: Map<string, string>;
+  displaySeason: Map<string, GrowingSeason>;
+};
+
+// ─── Pure helpers ─────────────────────────────────────────────────────────────
 
 function emptyForm(): FormState {
   return {
@@ -63,7 +78,9 @@ function emptyForm(): FormState {
 }
 
 function segBtn(active: boolean) {
-  return `px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${active ? "sv-badge-ok" : "sv-muted"}`;
+  return `px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+    active ? "sv-badge-ok" : "sv-muted"
+  }`;
 }
 
 function chipBtn(active: boolean) {
@@ -79,7 +96,17 @@ function formatDateNl(dateStr: string | undefined): string {
   });
 }
 
+// Identical to the helper in Tuinieren.tsx — inline because it is synchronous
+// and this component is file-local.
+function prefersReducedMotion(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
+
 // ─── GrowthInstanceTile ──────────────────────────────────────────────────────
+// Individual tile for one plant instance. Clicking it opens the growth modal.
 
 function GrowthInstanceTile({
   instance,
@@ -110,8 +137,6 @@ function GrowthInstanceTile({
 
   const statusLabel =
     instance.status !== "active" ? INSTANCE_STATUS_LABELS[instance.status] : null;
-
-  const lifecycleLabel = species?.lifecycle ?? null;
 
   const stats = [
     photoCount > 0 ? `${photoCount} foto${photoCount === 1 ? "" : "'s"}` : null,
@@ -147,30 +172,29 @@ function GrowthInstanceTile({
         {showSpeciesSubtitle && (
           <p className="text-xs sv-muted truncate">{species!.name}</p>
         )}
-
         {instance.location && (
           <p className="text-xs sv-muted truncate">{instance.location}</p>
         )}
-
         {seasonLabel && (
           <p className="text-xs sv-muted truncate">{seasonLabel}</p>
         )}
 
-        <div className="flex items-center gap-1.5 flex-wrap mt-1">
-          {statusLabel && (
-            <span className="inline-block text-xs sv-badge-overdue rounded-full px-2 py-0.5">
-              {statusLabel}
-            </span>
-          )}
-          {lifecycleLabel && (
-            <span className="inline-block text-xs sv-badge-ok rounded-full px-2 py-0.5">
-              {lifecycleLabel}
-            </span>
-          )}
-        </div>
+        {(statusLabel || species?.lifecycle) && (
+          <div className="flex items-center gap-1.5 flex-wrap mt-1">
+            {statusLabel && (
+              <span className="text-xs sv-badge-overdue rounded-full px-2 py-0.5">
+                {statusLabel}
+              </span>
+            )}
+            {species?.lifecycle && (
+              <span className="text-xs sv-badge-ok rounded-full px-2 py-0.5">
+                {species.lifecycle}
+              </span>
+            )}
+          </div>
+        )}
 
         {stats && <p className="text-xs sv-muted truncate mt-0.5">{stats}</p>}
-
         {lastUpdated && (
           <p className="text-xs sv-muted truncate">
             Bijgewerkt {formatDateNl(lastUpdated)}
@@ -181,7 +205,282 @@ function GrowthInstanceTile({
   );
 }
 
+// ─── GrowthSpeciesGroupCard ───────────────────────────────────────────────────
+// Same expand/collapse structure and animation as SpeciesGroupCard in
+// Tuinieren.tsx, adapted for the growth context: shows aggregate photo/update
+// stats instead of water/feeding badges, and uses GrowthInstanceTile children.
+
+function GrowthSpeciesGroupCard({
+  species,
+  instances,
+  isExpanded,
+  onToggle,
+  onSelect,
+  modalInstanceId,
+  instanceStats,
+}: {
+  species: Plant | undefined;
+  instances: PlantInstance[];
+  isExpanded: boolean;
+  onToggle: () => void;
+  onSelect: (i: PlantInstance) => void;
+  modalInstanceId: string | null;
+  instanceStats: InstanceStats;
+}) {
+  const speciesName = species?.name ?? "Onbekende soort";
+  const reduced = prefersReducedMotion();
+
+  // Aggregate stats shown on the closed group header
+  const totalPhotos = instances.reduce(
+    (sum, i) => sum + (instanceStats.photoCount.get(i.id) ?? 0),
+    0,
+  );
+  const latestUpdate = instances.reduce<string | undefined>((best, i) => {
+    const d = instanceStats.lastUpdated.get(i.id);
+    return d && (!best || d > best) ? d : best;
+  }, undefined);
+
+  // Identical animation pattern as SpeciesGroupCard in Tuinieren.tsx
+  const containerStyle: React.CSSProperties = reduced
+    ? isExpanded
+      ? {}
+      : { display: "none" }
+    : {
+        display: "grid",
+        gridTemplateRows: isExpanded ? "1fr" : "0fr",
+        opacity: isExpanded ? 1 : 0,
+        transition: "grid-template-rows 0.2s ease, opacity 0.15s ease",
+      };
+
+  return (
+    <div className={isExpanded ? "space-y-3" : "h-full"}>
+      {/* Group header — same visual style as SpeciesGroupCard in Tuinieren.tsx */}
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={isExpanded}
+        aria-label={`${speciesName}, ${instances.length} exemplaren ${isExpanded ? "inklappen" : "uitklappen"}`}
+        className={`sv-panel text-left p-5 hover:-translate-y-0.5 transition-transform flex items-center gap-3 w-full focus-visible:ring-2 focus-visible:ring-offset-2${isExpanded ? "" : " h-full"}`}
+      >
+        {species?.photo_url ? (
+          <img
+            src={species.photo_url}
+            alt=""
+            className="h-12 w-12 rounded-lg object-cover shrink-0 sv-icon-slot"
+          />
+        ) : (
+          <div className="h-12 w-12 sv-icon-slot flex items-center justify-center shrink-0">
+            <Sprout className="h-5 w-5" strokeWidth={1.6} />
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="sv-heading text-2xl leading-snug truncate">{speciesName}</p>
+            <Layers className="h-4 w-4 sv-muted shrink-0" aria-hidden />
+          </div>
+          <p className="text-xs sv-muted">{instances.length} exemplaren</p>
+          {(totalPhotos > 0 || latestUpdate) && (
+            <div className="flex items-center gap-2 flex-wrap mt-0.5">
+              {totalPhotos > 0 && (
+                <span className="text-xs sv-muted">
+                  {totalPhotos} foto{totalPhotos === 1 ? "" : "'s"}
+                </span>
+              )}
+              {latestUpdate && (
+                <span className="text-xs sv-muted">
+                  · bijgewerkt {formatDateNl(latestUpdate)}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+        <ChevronDown
+          className={`h-4 w-4 sv-muted shrink-0 transition-transform duration-200 ${
+            isExpanded ? "rotate-180" : ""
+          }`}
+          aria-hidden
+        />
+      </button>
+
+      {/* Animated grid of individual instance tiles — identical mechanism as
+          SpeciesGroupCard */}
+      <div style={containerStyle}>
+        <div style={{ overflow: "hidden" }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {instances.map((instance) => (
+              <GrowthInstanceTile
+                key={instance.id}
+                instance={instance}
+                species={species}
+                displaySeason={instanceStats.displaySeason.get(instance.id)}
+                photoCount={instanceStats.photoCount.get(instance.id) ?? 0}
+                entryCount={instanceStats.entryCount.get(instance.id) ?? 0}
+                lastUpdated={instanceStats.lastUpdated.get(instance.id)}
+                isSelected={modalInstanceId === instance.id}
+                onSelect={() => onSelect(instance)}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── GrowthInstanceModal ──────────────────────────────────────────────────────
+// Dialog showing the full GrowthPhotoTimeline for one instance.
+// The `key` prop on the callsite resets internal season/sort state when the
+// instance changes.
+
+function GrowthInstanceModal({
+  instance,
+  species,
+  seasons,
+  allEntries,
+  allPhotos,
+  onClose,
+}: {
+  instance: PlantInstance;
+  species: Plant | undefined;
+  seasons: GrowingSeason[];
+  allEntries: LogEntry[];
+  allPhotos: GrowthLogPhoto[];
+  onClose: () => void;
+}) {
+  const [seasonId, setSeasonId] = useState<string>("all");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  const name = plantInstanceDisplayName(instance, species);
+
+  // Seasons newest-first for chips
+  const sortedSeasons = useMemo(
+    () => [...seasons].sort((a, b) => b.started_at.localeCompare(a.started_at)),
+    [seasons],
+  );
+
+  // Filter entries by selected season
+  const filteredEntries = useMemo(() => {
+    if (seasonId === "all") return allEntries;
+    return allEntries.filter((e) => e.growing_season_id === seasonId);
+  }, [allEntries, seasonId]);
+
+  const emptyMsg =
+    seasonId !== "all"
+      ? "Voor dit groeiseizoen zijn nog geen groeifoto's of metingen opgeslagen."
+      : "Voor dit plantexemplaar zijn nog geen groeifoto's vastgelegd. Voeg een foto toe via 🌱 Groei bijhouden bij het exemplaar.";
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="tuinieren-theme sv-dialog w-full max-w-2xl max-h-[90vh]">
+        <DialogHeader>
+          <div className="flex items-center gap-3 pr-8">
+            {species?.photo_url ? (
+              <img
+                src={species.photo_url}
+                alt=""
+                className="h-12 w-12 rounded-lg object-cover shrink-0 sv-icon-slot"
+              />
+            ) : (
+              <div className="h-12 w-12 sv-icon-slot flex items-center justify-center shrink-0">
+                <Sprout className="h-5 w-5" strokeWidth={1.6} />
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <DialogTitle className="sv-heading text-2xl truncate">{name}</DialogTitle>
+              {species && species.name !== name && (
+                <p className="text-sm sv-muted truncate">{species.name}</p>
+              )}
+              {instance.location && (
+                <p className="text-sm sv-muted">📍 {instance.location}</p>
+              )}
+            </div>
+          </div>
+        </DialogHeader>
+
+        {/* Season chips — only rendered when the instance has multiple seasons */}
+        {sortedSeasons.length > 1 && (
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              onClick={() => setSeasonId("all")}
+              className={segBtn(seasonId === "all")}
+            >
+              Alle seizoenen
+            </button>
+            {sortedSeasons.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => setSeasonId(s.id)}
+                className={segBtn(seasonId === s.id)}
+              >
+                {s.label ?? `Seizoen ${s.year}`}
+                {s.status === "active" ? " · Actief" : " · Afgerond"}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Sort direction */}
+        <div className="flex sv-inset rounded-full p-1 gap-1 w-fit shrink-0">
+          <button
+            type="button"
+            onClick={() => setSortDir("asc")}
+            className={segBtn(sortDir === "asc")}
+          >
+            Oudste eerst
+          </button>
+          <button
+            type="button"
+            onClick={() => setSortDir("desc")}
+            className={segBtn(sortDir === "desc")}
+          >
+            Nieuwste eerst
+          </button>
+        </div>
+
+        <GrowthPhotoTimeline
+          entries={filteredEntries}
+          photos={allPhotos}
+          showLightbox
+          sortDir={sortDir}
+          emptyMessage={emptyMsg}
+        />
+
+        <DialogFooter>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="sv-button sv-button-ghost"
+            onClick={onClose}
+          >
+            Sluiten
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
+
+const GROEI_FILTER_OPTIONS: { value: GroeiStatusFilter; label: string }[] = [
+  { value: "all", label: "Alles" },
+  { value: "active", label: "Actief" },
+  { value: "inactive", label: "Afgerond" },
+  { value: "Meerjarig", label: "Meerjarig" },
+  { value: "Eenjarig", label: "Eenjarig" },
+];
+
+const GROEI_SORT_OPTIONS: { value: GroeiSortKey; label: string }[] = [
+  { value: "name_asc", label: "Naam A–Z" },
+  { value: "name_desc", label: "Naam Z–A" },
+  { value: "newest", label: "Nieuwste seizoen" },
+  { value: "oldest", label: "Oudste seizoen" },
+  { value: "most_photos", label: "Meeste foto's" },
+  { value: "most_entries", label: "Meeste notities" },
+  { value: "last_updated", label: "Bijgewerkt" },
+];
 
 export default function TuingidsLogboek() {
   const { entries, addEntry, isAdding } = useGrowthLog();
@@ -196,8 +495,11 @@ export default function TuingidsLogboek() {
   const [formError, setFormError] = useState<string | null>(null);
 
   // ─── Groei per exemplaar state ───────────────────────────────────────────
-  const [selectedInstanceId, setSelectedInstanceId] = useState<string>("");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  // Which species groups are manually expanded/collapsed
+  const [expandedGroeiSpeciesIds, setExpandedGroeiSpeciesIds] = useState<Set<string>>(new Set());
+  // ID of the instance whose growth modal is open (null = closed)
+  const [modalInstanceId, setModalInstanceId] = useState<string | null>(null);
+  // Tile-grid controls
   const [groeiSearch, setGroeiSearch] = useState("");
   const [groeiStatusFilter, setGroeiStatusFilter] = useState<GroeiStatusFilter>("all");
   const [groeiSortKey, setGroeiSortKey] = useState<GroeiSortKey>("name_asc");
@@ -239,7 +541,10 @@ export default function TuingidsLogboek() {
   // ─── Derived maps (shared) ───────────────────────────────────────────────
   const speciesById = useMemo(() => new Map(plants.map((p) => [p.id, p])), [plants]);
   const instancesById = useMemo(() => new Map(instances.map((i) => [i.id, i])), [instances]);
-  const activeInstances = useMemo(() => instances.filter((i) => i.status === "active"), [instances]);
+  const activeInstances = useMemo(
+    () => instances.filter((i) => i.status === "active"),
+    [instances],
+  );
   const activeSeasonIds = useMemo(
     () => new Set(seasons.filter((s) => s.status === "active").map((s) => s.id)),
     [seasons],
@@ -252,8 +557,8 @@ export default function TuingidsLogboek() {
 
   const locations = useMemo(
     () =>
-      [...new Set(instances.map((i) => i.location).filter((l): l is string => !!l))].sort((a, b) =>
-        a.localeCompare(b, "nl"),
+      [...new Set(instances.map((i) => i.location).filter((l): l is string => !!l))].sort(
+        (a, b) => a.localeCompare(b, "nl"),
       ),
     [instances],
   );
@@ -354,8 +659,8 @@ export default function TuingidsLogboek() {
 
   // ─── Groei per exemplaar derived ─────────────────────────────────────────
 
-  // Single-pass computation of all per-instance stats needed by the tile grid.
-  const instanceStats = useMemo(() => {
+  // Single-pass computation of all per-instance stats for tile/group rendering.
+  const instanceStats = useMemo((): InstanceStats => {
     const photoCount = new Map<string, number>();
     for (const p of growthLogPhotos) {
       photoCount.set(p.plant_instance_id, (photoCount.get(p.plant_instance_id) ?? 0) + 1);
@@ -370,7 +675,7 @@ export default function TuingidsLogboek() {
       if (!cur || e.date > cur) lastUpdated.set(e.plant_instance_id, e.date);
     }
 
-    // Display season: prefer active season; fall back to most-recently-started.
+    // Prefer active season; fall back to most-recently-started.
     const displaySeason = new Map<string, GrowingSeason>();
     for (const s of seasons) {
       const cur = displaySeason.get(s.plant_instance_id);
@@ -382,6 +687,9 @@ export default function TuingidsLogboek() {
 
     return { photoCount, entryCount, lastUpdated, displaySeason };
   }, [growthLogPhotos, entries, seasons]);
+
+  // Search is active when the user has typed something.
+  const searchIsActive = groeiSearch.trim() !== "";
 
   // Filtered and sorted instance list for the tile grid.
   const groeiFilteredInstances = useMemo(() => {
@@ -445,16 +753,44 @@ export default function TuingidsLogboek() {
     return filtered;
   }, [instances, speciesById, groeiSearch, groeiStatusFilter, groeiSortKey, instanceStats]);
 
-  // All growth log entries for the selected instance (season is implicit per tile).
-  const groeiEntries = useMemo(() => {
-    if (!selectedInstanceId) return [];
-    return entries.filter((e) => e.plant_instance_id === selectedInstanceId);
-  }, [entries, selectedInstanceId]);
+  // Group filtered instances by species_id, preserving the sort order of
+  // groeiFilteredInstances (same pattern as MyPlantInstances in Tuinieren.tsx).
+  const groeiGroupedInstances = useMemo(() => {
+    const seen = new Map<string, PlantInstance[]>();
+    const order: string[] = [];
+    for (const inst of groeiFilteredInstances) {
+      if (!seen.has(inst.species_id)) {
+        seen.set(inst.species_id, []);
+        order.push(inst.species_id);
+      }
+      seen.get(inst.species_id)!.push(inst);
+    }
+    return order.map((id) => ({ speciesId: id, instances: seen.get(id)! }));
+  }, [groeiFilteredInstances]);
 
-  // Growth photos for the selected instance.
-  const groeiPhotos = useMemo(
-    () => getPhotosForInstance(selectedInstanceId),
-    [getPhotosForInstance, selectedInstanceId],
+  function toggleGroeiGroup(speciesId: string) {
+    setExpandedGroeiSpeciesIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(speciesId)) next.delete(speciesId);
+      else next.add(speciesId);
+      return next;
+    });
+  }
+
+  // ─── Modal data ───────────────────────────────────────────────────────────
+  const modalInstance = modalInstanceId ? instancesById.get(modalInstanceId) ?? null : null;
+  const modalSpecies = modalInstance ? speciesById.get(modalInstance.species_id) : undefined;
+  const modalSeasons = useMemo(
+    () => seasons.filter((s) => s.plant_instance_id === modalInstanceId),
+    [seasons, modalInstanceId],
+  );
+  const modalEntries = useMemo(
+    () => entries.filter((e) => e.plant_instance_id === modalInstanceId),
+    [entries, modalInstanceId],
+  );
+  const modalPhotos = useMemo(
+    () => getPhotosForInstance(modalInstanceId ?? ""),
+    [getPhotosForInstance, modalInstanceId],
   );
 
   // ─── Form helpers ─────────────────────────────────────────────────────────
@@ -486,30 +822,6 @@ export default function TuingidsLogboek() {
   }
 
   // ─── Render ───────────────────────────────────────────────────────────────
-  const selectedInstance = selectedInstanceId ? instancesById.get(selectedInstanceId) : null;
-  const selectedSpecies = selectedInstance ? speciesById.get(selectedInstance.species_id) : null;
-  const selectedInstanceName = selectedInstance
-    ? plantInstanceDisplayName(selectedInstance, selectedSpecies ?? undefined)
-    : null;
-
-  const GROEI_FILTER_OPTIONS: { value: GroeiStatusFilter; label: string }[] = [
-    { value: "all", label: "Alles" },
-    { value: "active", label: "Actief" },
-    { value: "inactive", label: "Afgerond" },
-    { value: "Meerjarig", label: "Meerjarig" },
-    { value: "Eenjarig", label: "Eenjarig" },
-  ];
-
-  const GROEI_SORT_OPTIONS: { value: GroeiSortKey; label: string }[] = [
-    { value: "name_asc", label: "Naam A–Z" },
-    { value: "name_desc", label: "Naam Z–A" },
-    { value: "newest", label: "Nieuwste seizoen" },
-    { value: "oldest", label: "Oudste seizoen" },
-    { value: "most_photos", label: "Meeste foto's" },
-    { value: "most_entries", label: "Meeste notities" },
-    { value: "last_updated", label: "Bijgewerkt" },
-  ];
-
   return (
     <div className="space-y-6">
       {/* Tab switcher */}
@@ -768,12 +1080,12 @@ export default function TuingidsLogboek() {
                   {seasons.map((s) => {
                     const instance = instancesById.get(s.plant_instance_id);
                     const species = instance ? speciesById.get(instance.species_id) : undefined;
-                    const name = instance
+                    const label = instance
                       ? plantInstanceDisplayName(instance, species)
                       : "Onbekend exemplaar";
                     return (
                       <option key={s.id} value={s.id}>
-                        {name} — {s.label ?? `Seizoen ${s.year}`}
+                        {label} — {s.label ?? `Seizoen ${s.year}`}
                       </option>
                     );
                   })}
@@ -848,7 +1160,7 @@ export default function TuingidsLogboek() {
             ))}
           </div>
 
-          {/* Tile grid */}
+          {/* Tile grid — grouped by species, same logic as MyPlantInstances */}
           {instances.length === 0 ? (
             <div className="sv-panel p-10 text-center">
               <Sprout className="h-10 w-10 mx-auto sv-muted" strokeWidth={1.4} />
@@ -857,68 +1169,77 @@ export default function TuingidsLogboek() {
                 Voeg een exemplaar toe via Mijn tuin om de groei bij te houden.
               </p>
             </div>
-          ) : groeiFilteredInstances.length === 0 ? (
+          ) : groeiGroupedInstances.length === 0 ? (
             <p className="text-sm sv-muted px-1">
               Geen exemplaren gevonden. Probeer een andere zoekopdracht of filter.
             </p>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {groeiFilteredInstances.map((instance) => (
-                <GrowthInstanceTile
-                  key={instance.id}
-                  instance={instance}
-                  species={speciesById.get(instance.species_id)}
-                  displaySeason={instanceStats.displaySeason.get(instance.id)}
-                  photoCount={instanceStats.photoCount.get(instance.id) ?? 0}
-                  entryCount={instanceStats.entryCount.get(instance.id) ?? 0}
-                  lastUpdated={instanceStats.lastUpdated.get(instance.id)}
-                  isSelected={selectedInstanceId === instance.id}
-                  onSelect={() => setSelectedInstanceId(instance.id)}
-                />
-              ))}
-            </div>
-          )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {groeiGroupedInstances.map(({ speciesId, instances: groupInstances }) => {
+                const species = speciesById.get(speciesId);
 
-          {/* Groeilogboek for the selected instance */}
-          {selectedInstance && (
-            <div className="space-y-3 pt-2">
-              <div className="flex items-center justify-between gap-4 flex-wrap">
-                <div className="min-w-0">
-                  <p className="sv-heading text-2xl truncate">{selectedInstanceName}</p>
-                  {selectedSpecies && selectedSpecies.name !== selectedInstanceName && (
-                    <p className="text-sm sv-muted">{selectedSpecies.name}</p>
-                  )}
-                </div>
-                <div className="flex sv-inset rounded-full p-1 gap-1 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setSortDir("asc")}
-                    className={segBtn(sortDir === "asc")}
-                  >
-                    Oudste eerst
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSortDir("desc")}
-                    className={segBtn(sortDir === "desc")}
-                  >
-                    Nieuwste eerst
-                  </button>
-                </div>
-              </div>
+                // Single instance → render tile directly (same as MyPlantInstances)
+                if (groupInstances.length === 1) {
+                  const instance = groupInstances[0];
+                  return (
+                    <GrowthInstanceTile
+                      key={instance.id}
+                      instance={instance}
+                      species={species}
+                      displaySeason={instanceStats.displaySeason.get(instance.id)}
+                      photoCount={instanceStats.photoCount.get(instance.id) ?? 0}
+                      entryCount={instanceStats.entryCount.get(instance.id) ?? 0}
+                      lastUpdated={instanceStats.lastUpdated.get(instance.id)}
+                      isSelected={modalInstanceId === instance.id}
+                      onSelect={() => setModalInstanceId(instance.id)}
+                    />
+                  );
+                }
 
-              <div className="sv-panel p-5">
-                <GrowthPhotoTimeline
-                  entries={groeiEntries}
-                  photos={groeiPhotos}
-                  showLightbox
-                  sortDir={sortDir}
-                  emptyMessage="Voor dit plantexemplaar zijn nog geen groeifoto's vastgelegd. Voeg een foto toe via 🌱 Groei bijhouden bij het exemplaar."
-                />
-              </div>
+                // Multiple instances → group card with expand/collapse.
+                // When search is active all groups auto-expand so results are
+                // immediately visible; manual toggles are stored separately.
+                const isExpanded =
+                  expandedGroeiSpeciesIds.has(speciesId) || searchIsActive;
+
+                return (
+                  <div
+                    key={speciesId}
+                    className={isExpanded ? "col-span-full" : undefined}
+                  >
+                    <GrowthSpeciesGroupCard
+                      species={species}
+                      instances={groupInstances}
+                      isExpanded={isExpanded}
+                      onToggle={() => {
+                        // When search is active the user explicitly wants to
+                        // collapse a group; store as a negative override by
+                        // toggling the manual set.
+                        toggleGroeiGroup(speciesId);
+                      }}
+                      onSelect={(i) => setModalInstanceId(i.id)}
+                      modalInstanceId={modalInstanceId}
+                      instanceStats={instanceStats}
+                    />
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
+      )}
+
+      {/* Growth modal — key resets internal season/sort when instance changes */}
+      {modalInstance && (
+        <GrowthInstanceModal
+          key={modalInstanceId}
+          instance={modalInstance}
+          species={modalSpecies}
+          seasons={modalSeasons}
+          allEntries={modalEntries}
+          allPhotos={modalPhotos}
+          onClose={() => setModalInstanceId(null)}
+        />
       )}
     </div>
   );
