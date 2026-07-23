@@ -4795,8 +4795,6 @@ function PlantInstanceDetailDialog({
   const [repotOpen, setRepotOpen] = useState(false);
   const [inspectionOpen, setInspectionOpen] = useState(false);
   const [photosOpen, setPhotosOpen] = useState(false);
-  const [photoUrlDraft, setPhotoUrlDraft] = useState("");
-  const addingPhotoRef = useRef(false);
   const [groeifotosOpen, setGroeifotosOpen] = useState(false);
   const [groeivergelijkingOpen, setGroeivergelijkingOpen] = useState(false);
   const [timelineOpen, setTimelineOpen] = useState(false);
@@ -4828,10 +4826,6 @@ function PlantInstanceDetailDialog({
   const { data: inspectionLogs = [] } = useQuery({
     queryKey: ["plant_inspection_logs", "instance", instance.id],
     queryFn: () => fetchInspectionLogsForInstance(instance.id),
-  });
-  const { data: instancePhotos = [] } = useQuery({
-    queryKey: ["plant_photos", "instance", instance.id],
-    queryFn: () => fetchPhotosForInstance(instance.id),
   });
 
   const addHarvestLog = useMutation({
@@ -4902,32 +4896,6 @@ function PlantInstanceDetailDialog({
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["plant_inspection_logs", "instance", instance.id] }),
-  });
-
-  const addInstancePhoto = useMutation({
-    mutationFn: async (url: string) => {
-      const { error } = await supabase.from("plant_photos").insert({
-        plant_id: instance.species_id,
-        plant_instance_id: instance.id,
-        growing_season_id: activeSeason?.id ?? null,
-        photo_url: url,
-      });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["plant_photos", "instance", instance.id] });
-      setPhotoUrlDraft("");
-    },
-    onSettled: () => {
-      addingPhotoRef.current = false;
-    },
-  });
-  const deleteInstancePhoto = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("plant_photos").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["plant_photos", "instance", instance.id] }),
   });
 
   const pastSeasons = seasons.filter((s) => s.id !== activeSeason?.id);
@@ -5203,44 +5171,29 @@ function PlantInstanceDetailDialog({
             </button>
             {photosOpen && (
               <div className="sv-inset p-4 space-y-3 rounded-xl">
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Plak een foto-URL..."
-                    value={photoUrlDraft}
-                    onChange={(e) => setPhotoUrlDraft(e.target.value)}
-                    className="text-sm"
-                  />
-                  <Button
-                    type="button"
-                    size="icon"
-                    className="sv-button shrink-0"
-                    disabled={!photoUrlDraft.trim() || addInstancePhoto.isPending}
-                    onClick={() => {
-                      if (addingPhotoRef.current) return;
-                      addingPhotoRef.current = true;
-                      addInstancePhoto.mutate(photoUrlDraft.trim());
-                    }}
-                  >
-                    {addInstancePhoto.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                  </Button>
-                </div>
-                {instancePhotos.length > 0 && (
+                {getPhotosForInstance(instance.id).length === 0 ? (
+                  <p className="text-sm sv-muted">
+                    Voeg groeifoto's toe via 🌱 Groei bijhouden.
+                  </p>
+                ) : (
                   <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                    {instancePhotos.map((photo) => (
-                      <div key={photo.id} className="relative group">
-                        <img src={photo.photo_url} alt="" className="w-full aspect-square object-cover rounded-lg sv-icon-slot" />
-                        <p className="text-[10px] sv-muted mt-1">
-                          {new Date(photo.taken_at).toLocaleDateString("nl-NL", { day: "numeric", month: "short" })}
-                        </p>
-                        <button
-                          onClick={() => deleteInstancePhoto.mutate(photo.id)}
-                          className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full sv-icon-slot flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                          aria-label="Verwijder foto"
-                        >
-                          <X className="h-2.5 w-2.5" />
-                        </button>
-                      </div>
-                    ))}
+                    {[...getPhotosForInstance(instance.id)]
+                      .sort((a, b) => b.created_at.localeCompare(a.created_at))
+                      .map((photo) => (
+                        <div key={photo.id}>
+                          <img
+                            src={photo.photo_url}
+                            alt=""
+                            className="w-full aspect-square object-cover rounded-lg sv-icon-slot"
+                          />
+                          <p className="text-[10px] sv-muted mt-1">
+                            {new Date(photo.created_at).toLocaleDateString("nl-NL", {
+                              day: "numeric",
+                              month: "short",
+                            })}
+                          </p>
+                        </div>
+                      ))}
                   </div>
                 )}
               </div>
@@ -5304,7 +5257,7 @@ function PlantInstanceDetailDialog({
                   pruningLogs={pruningLogs}
                   repotLogs={repotLogs}
                   inspectionLogs={inspectionLogs}
-                  photos={instancePhotos}
+                  photos={[]}
                 />
               </div>
             )}
