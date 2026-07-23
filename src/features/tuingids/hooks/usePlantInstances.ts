@@ -1,6 +1,13 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase, type CultivationType, type IndoorOutdoorType, type PlantInstanceStatus, type GrowingSeasonStatus } from "@/lib/supabase";
 
+/** Shape returned by the create_plant_instance_with_season RPC. */
+type CreateInstanceRpcResult = {
+  instance_id: string;
+  season_id: string;
+  entry_id: string;
+};
+
 // Mutations for the species/instance/season split. Reads live in
 // plantInstances.ts (fetch-only, consumed via useQuery); this hook centralizes
 // the write operations so components never issue ad-hoc Supabase calls for
@@ -10,10 +17,13 @@ import { supabase, type CultivationType, type IndoorOutdoorType, type PlantInsta
 
 const INSTANCES_KEY = ["plant_instances"];
 const SEASONS_KEY = ["growing_seasons"];
+const GROWTH_LOG_KEY = ["growth_log_entries"];
 
 export type CreatePlantInstanceInput = {
   speciesId: string;
   customName: string | null;
+  /** Display name written to growth_log_entries.plant_name (species name). */
+  plantName: string;
   location: string | null;
   cultivationType: CultivationType | null;
   indoorOutdoor: IndoorOutdoorType | null;
@@ -28,6 +38,8 @@ export type CreatePlantInstanceInput = {
   price: number | null;
   seasonStartedAt: string;
   seasonLabel: string | null;
+  /** Starting height in cm; 0 when the field was left empty. Never null. */
+  startHeightCm: number;
 };
 
 export function usePlantInstances() {
@@ -36,48 +48,41 @@ export function usePlantInstances() {
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: INSTANCES_KEY });
     queryClient.invalidateQueries({ queryKey: SEASONS_KEY });
+    queryClient.invalidateQueries({ queryKey: GROWTH_LOG_KEY });
   }
 
   const createInstanceWithSeason = useMutation({
     mutationFn: async (input: CreatePlantInstanceInput) => {
-      const { data: instance, error: instanceError } = await supabase
-        .from("plant_instances")
-        .insert({
-          species_id: input.speciesId,
-          custom_name: input.customName,
-          location: input.location,
-          cultivation_type: input.cultivationType,
-          indoor_outdoor: input.indoorOutdoor,
-          pot_size_liters: input.potSizeLiters,
-          pot_material: input.potMaterial,
-          pot_color: input.potColor,
-          soil_type: input.soilType,
-          soil_mix_notes: input.soilMixNotes,
-          planted_at: input.plantedAt,
-          acquired_at: input.acquiredAt,
-          source: input.source,
-          price: input.price,
-          status: "active",
-        })
-        .select()
-        .single();
-      if (instanceError) throw instanceError;
-
-      const year = new Date(input.seasonStartedAt).getFullYear();
-      const { data: season, error: seasonError } = await supabase
-        .from("growing_seasons")
-        .insert({
-          plant_instance_id: instance.id,
-          year,
-          label: input.seasonLabel?.trim() || `Seizoen ${year}`,
-          started_at: input.seasonStartedAt,
-          status: "active",
-        })
-        .select()
-        .single();
-      if (seasonError) throw seasonError;
-
-      return { instance, season };
+      // Single RPC call — all three inserts (plant_instance, growing_season,
+      // growth_log_entry) run inside one PostgreSQL transaction and roll back
+      // together on any failure. No partial state is ever left behind.
+      const { data, error } = await supabase.rpc(
+        "create_plant_instance_with_season",
+        {
+          p_species_id:        input.speciesId,
+          p_plant_name:        input.plantName,
+          p_season_started_at: input.seasonStartedAt,
+          p_custom_name:       input.customName,
+          p_location:          input.location,
+          p_cultivation_type:  input.cultivationType,
+          p_indoor_outdoor:    input.indoorOutdoor,
+          p_pot_size_liters:   input.potSizeLiters,
+          p_pot_material:      input.potMaterial,
+          p_pot_color:         input.potColor,
+          p_soil_type:         input.soilType,
+          p_soil_mix_notes:    input.soilMixNotes,
+          p_planted_at:        input.plantedAt,
+          p_acquired_at:       input.acquiredAt,
+          p_source:            input.source,
+          p_price:             input.price,
+          p_season_label:      input.seasonLabel,
+          p_start_height_cm:   input.startHeightCm,
+        },
+      );
+      if (error) throw new Error(error.message);
+      const result = data as CreateInstanceRpcResult | null;
+      if (!result) throw new Error("RPC returned geen data");
+      return result;
     },
     onSuccess: invalidate,
   });

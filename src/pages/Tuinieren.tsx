@@ -4100,6 +4100,7 @@ function NewPlantInstanceForm({
   const [price, setPrice] = useState("");
   const [seasonStartedAt, setSeasonStartedAt] = useState(() => new Date().toISOString().slice(0, 10));
   const [seasonLabel, setSeasonLabel] = useState("");
+  const [startHeightInput, setStartHeightInput] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [batchSaving, setBatchSaving] = useState(false);
 
@@ -4172,6 +4173,7 @@ function NewPlantInstanceForm({
     setPrice("");
     setSeasonStartedAt(new Date().toISOString().slice(0, 10));
     setSeasonLabel("");
+    setStartHeightInput("");
     setFormError(null);
     setBatchSaving(false);
     setOpen(!!preselectedSpecies);
@@ -4187,10 +4189,18 @@ function NewPlantInstanceForm({
       return;
     }
 
+    const trimmedHeight = startHeightInput.trim();
+    const parsedStartHeight = trimmedHeight === "" ? 0 : Number(trimmedHeight);
+    if (!Number.isFinite(parsedStartHeight) || parsedStartHeight < 0) {
+      setFormError("Starthoogte moet 0 of een positief getal zijn.");
+      return;
+    }
+
     isSavingRef.current = true;
 
     const baseInput = {
       speciesId,
+      plantName: selectedSpecies!.name,
       location: location.trim() || null,
       cultivationType: cultivationType || null,
       indoorOutdoor: indoorOutdoor || null,
@@ -4205,6 +4215,7 @@ function NewPlantInstanceForm({
       price: price ? Number(price) : null,
       seasonStartedAt,
       seasonLabel: seasonLabel.trim() || null,
+      startHeightCm: parsedStartHeight,
     };
 
     if (parsedQty === 1) {
@@ -4456,6 +4467,22 @@ function NewPlantInstanceForm({
                       placeholder={`Seizoen ${new Date(seasonStartedAt).getFullYear()}`}
                       className="text-sm"
                     />
+                  </div>
+                </div>
+                <div className="grid sm:grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-xs sv-muted block mb-1">Starthoogte (cm)</label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      inputMode="decimal"
+                      value={startHeightInput}
+                      onChange={(e) => setStartHeightInput(e.target.value)}
+                      placeholder="bijv. 25"
+                      className="text-sm"
+                    />
+                    <p className="text-xs sv-muted mt-0.5">Laat leeg om automatisch met 0 cm te starten.</p>
                   </div>
                 </div>
               </div>
