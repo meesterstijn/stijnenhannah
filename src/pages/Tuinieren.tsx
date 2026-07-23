@@ -14,6 +14,7 @@ import {
   type GrowingSeason,
   type CultivationType,
   type IndoorOutdoorType,
+  type GrowthLogPhoto,
 } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,7 @@ import {
   Pencil,
   X,
   Image as ImageIcon,
+  Camera,
   SlidersHorizontal,
   Upload,
   Download,
@@ -57,9 +59,16 @@ import {
   Apple,
   Clock,
   Check,
+  TrendingUp,
 } from "lucide-react";
 import { useGrowthLog } from "@/features/tuingids/hooks/useGrowthLog";
+import { useGrowthPhotos } from "@/features/tuingids/hooks/useGrowthPhotos";
 import type { LogEntry } from "@/features/tuingids/types";
+import { optimizeGrowthPhoto } from "@/features/tuingids/lib/optimizeGrowthPhoto";
+import { uploadGrowthPhoto } from "@/features/tuingids/lib/growthPhotoStorage";
+import { GrowthPhotoInput } from "@/features/tuingids/components/GrowthPhotoInput";
+import { GrowthPhotoTimeline } from "@/features/tuingids/components/GrowthPhotoTimeline";
+import { GrowthCompareTimeline } from "@/features/tuingids/components/GrowthCompareTimeline";
 import {
   fetchPlants,
   fetchHarvestLogs,
@@ -2770,7 +2779,8 @@ function PlantLogboek({
   // name-only mode (plantInstanceId not set).
   seasons?: GrowingSeason[];
 }) {
-  const { addEntry, deleteEntry, getEntriesForPlant, getEntriesForPlantInstance, isAdding, addError } = useGrowthLog();
+  const { addEntry, addEntryAsync, deleteEntry, getEntriesForPlant, getEntriesForPlantInstance, isAdding, addError } = useGrowthLog();
+  const { addPhoto, deleteStorageFilesForEntry, getPhotosForEntry } = useGrowthPhotos();
   const [seasonFilter, setSeasonFilter] = useState<"current" | "all" | string>("current");
   // Alleen groei-notities tonen; automatische water-/voedingsregistraties horen
   // al thuis in de Water-/Voedingsgeschiedenis en worden hier niet herhaald.
@@ -2796,6 +2806,8 @@ function PlantLogboek({
   const [fruitWidthCm, setFruitWidthCm] = useState("");
   const [watered, setWatered] = useState(false);
   const [fertilized, setFertilized] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
+  const [isSavingAsync, setIsSavingAsync] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const isSavingRef = useRef(false);
 
@@ -2806,13 +2818,15 @@ function PlantLogboek({
     setFruitWidthCm("");
     setWatered(false);
     setFertilized(false);
+    setSelectedPhoto(null);
     setDate(new Date().toISOString().slice(0, 10));
     setFormError(null);
     setFormOpen(false);
     isSavingRef.current = false;
+    setIsSavingAsync(false);
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (isSavingRef.current) return;
     setFormError(null);
 
@@ -2821,8 +2835,8 @@ function PlantLogboek({
     const fruitWidth = fruitWidthCm.trim() ? Number(fruitWidthCm) : null;
     const noteText = notes.trim();
 
-    if (height === null && fruitLength === null && fruitWidth === null && !noteText && !watered && !fertilized) {
-      setFormError("Vul minimaal een planthoogte, vruchtgrootte of notitie in.");
+    if (height === null && fruitLength === null && fruitWidth === null && !noteText && !watered && !fertilized && !selectedPhoto) {
+      setFormError("Vul minimaal een planthoogte, vruchtgrootte, notitie of foto in.");
       return;
     }
     if (height !== null && (!Number.isFinite(height) || height <= 0)) {
@@ -2839,23 +2853,68 @@ function PlantLogboek({
     }
 
     isSavingRef.current = true;
-    addEntry({
-      plant_id: null,
-      plant_name: plantName,
-      plant_instance_id: plantInstanceId,
-      growing_season_id: growingSeasonId,
-      date,
-      notes: noteText,
-      height_cm: height,
-      flower_count: null,
-      fruit_count: null,
-      fruit_length_cm: fruitLength,
-      fruit_width_cm: fruitWidth,
-      watered,
-      fertilized,
-      photo_url: "",
-    });
+    setIsSavingAsync(true);
+
+    let newEntry: { id: string } | undefined;
+    try {
+      newEntry = await addEntryAsync({
+        plant_id: null,
+        plant_name: plantName,
+        plant_instance_id: plantInstanceId,
+        growing_season_id: growingSeasonId,
+        date,
+        notes: noteText,
+        height_cm: height,
+        flower_count: null,
+        fruit_count: null,
+        fruit_length_cm: fruitLength,
+        fruit_width_cm: fruitWidth,
+        watered,
+        fertilized,
+        photo_url: "",
+      });
+    } catch (err) {
+      setFormError(`Opslaan mislukt: ${err instanceof Error ? err.message : "Onbekende fout"}`);
+      isSavingRef.current = false;
+      setIsSavingAsync(false);
+      return;
+    }
+
+    // Photo upload — only if a file was selected and we have an entry ID + instance ID
+    if (selectedPhoto && newEntry && plantInstanceId) {
+      try {
+        const optimized = await optimizeGrowthPhoto(selectedPhoto);
+        const { storagePath, publicUrl } = await uploadGrowthPhoto(plantInstanceId, newEntry.id, optimized);
+        await addPhoto({
+          growth_log_entry_id: newEntry.id,
+          plant_instance_id: plantInstanceId,
+          storage_path: storagePath,
+          photo_url: publicUrl,
+          original_filename: optimized.originalFilename,
+          mime_type: optimized.mimeType,
+          file_size_bytes: optimized.fileSizeBytes,
+        });
+      } catch (photoErr) {
+        // The growth entry was saved successfully — keep it.
+        // Show a non-blocking warning and stop without resetting the form so
+        // the user can see which entry the photo failed for.
+        setFormError(
+          `Meting opgeslagen, maar de foto kon niet worden geüpload: ${photoErr instanceof Error ? photoErr.message : "Onbekende fout"}. Je kunt de foto later toevoegen via de groeifoto-tijdlijn.`,
+        );
+        isSavingRef.current = false;
+        setIsSavingAsync(false);
+        return;
+      }
+    }
+
     resetForm();
+  }
+
+  async function handleDeleteEntry(id: string) {
+    // Remove Storage files before deleting the DB row.
+    // DB cascade handles the growth_log_photos rows automatically.
+    await deleteStorageFilesForEntry(id);
+    deleteEntry(id);
   }
 
   return (
@@ -2972,16 +3031,25 @@ function PlantLogboek({
             </label>
           </div>
 
+          <div className="space-y-1.5">
+            <p className="text-xs sv-muted font-medium uppercase tracking-wide">Foto</p>
+            <GrowthPhotoInput
+              file={selectedPhoto}
+              onFileSelected={setSelectedPhoto}
+              disabled={isSavingAsync}
+            />
+          </div>
+
           {formError && <p className="text-xs sv-destructive-text">{formError}</p>}
           {!formError && addError && (
             <p className="text-xs sv-destructive-text">Opslaan mislukt: {addError.message}</p>
           )}
 
           <div className="flex gap-2">
-            <Button size="sm" className="sv-button" onClick={handleSave} disabled={isAdding}>
-              {isAdding ? <Loader2 className="h-4 w-4 animate-spin" /> : "Opslaan"}
+            <Button size="sm" className="sv-button" onClick={handleSave} disabled={isAdding || isSavingAsync}>
+              {isSavingAsync ? <Loader2 className="h-4 w-4 animate-spin" /> : "Opslaan"}
             </Button>
-            <Button size="sm" className="sv-button sv-button-ghost" onClick={resetForm} disabled={isAdding}>
+            <Button size="sm" className="sv-button sv-button-ghost" onClick={resetForm} disabled={isAdding || isSavingAsync}>
               Annuleer
             </Button>
           </div>
@@ -2990,40 +3058,48 @@ function PlantLogboek({
 
       {entries.length > 0 && (
         <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-          {entries.map((entry) => (
-            <div key={entry.id} className="sv-panel p-3 space-y-1.5">
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-xs sv-muted font-medium">
-                  {new Date(entry.date).toLocaleDateString("nl-NL", {
-                    day: "numeric",
-                    month: "long",
-                    year: "numeric",
-                  })}
-                </p>
-                <button
-                  onClick={() => deleteEntry(entry.id)}
-                  className="sv-icon-slot h-5 w-5 flex items-center justify-center shrink-0 opacity-60 hover:opacity-100"
-                >
-                  <X className="h-2.5 w-2.5" />
-                </button>
-              </div>
-              {(entry.height_cm !== null || entry.fruit_length_cm !== null || entry.fruit_width_cm !== null) && (
-                <div className="flex flex-wrap gap-1.5">
-                  {entry.height_cm !== null && (
-                    <span className="sv-badge-ok text-xs px-2 py-0.5 rounded-full">
-                      📏 {formatMeasurement(entry.height_cm)} cm
-                    </span>
-                  )}
-                  {(entry.fruit_length_cm !== null || entry.fruit_width_cm !== null) && (
-                    <span className="sv-badge-ok text-xs px-2 py-0.5 rounded-full">
-                      🍅 {formatFruitSize(entry.fruit_length_cm, entry.fruit_width_cm)}
-                    </span>
-                  )}
+          {entries.map((entry) => {
+            const entryPhotos = getPhotosForEntry(entry.id);
+            return (
+              <div key={entry.id} className="sv-panel p-3 space-y-1.5">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-xs sv-muted font-medium">
+                    {new Date(entry.date).toLocaleDateString("nl-NL", {
+                      day: "numeric",
+                      month: "long",
+                      year: "numeric",
+                    })}
+                  </p>
+                  <button
+                    onClick={() => handleDeleteEntry(entry.id)}
+                    className="sv-icon-slot h-5 w-5 flex items-center justify-center shrink-0 opacity-60 hover:opacity-100"
+                  >
+                    <X className="h-2.5 w-2.5" />
+                  </button>
                 </div>
-              )}
-              {entry.notes && <p className="text-sm">{entry.notes}</p>}
-            </div>
-          ))}
+                {(entry.height_cm !== null || entry.fruit_length_cm !== null || entry.fruit_width_cm !== null) && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {entry.height_cm !== null && (
+                      <span className="sv-badge-ok text-xs px-2 py-0.5 rounded-full">
+                        📏 {formatMeasurement(entry.height_cm)} cm
+                      </span>
+                    )}
+                    {(entry.fruit_length_cm !== null || entry.fruit_width_cm !== null) && (
+                      <span className="sv-badge-ok text-xs px-2 py-0.5 rounded-full">
+                        🍅 {formatFruitSize(entry.fruit_length_cm, entry.fruit_width_cm)}
+                      </span>
+                    )}
+                    {entryPhotos.length > 0 && (
+                      <span className="sv-badge-ok text-xs px-2 py-0.5 rounded-full">
+                        📷 {entryPhotos.length} foto{entryPhotos.length !== 1 ? "'s" : ""}
+                      </span>
+                    )}
+                  </div>
+                )}
+                {entry.notes && <p className="text-sm">{entry.notes}</p>}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -4720,6 +4796,8 @@ function PlantInstanceDetailDialog({
   const [photosOpen, setPhotosOpen] = useState(false);
   const [photoUrlDraft, setPhotoUrlDraft] = useState("");
   const addingPhotoRef = useRef(false);
+  const [groeifotosOpen, setGroeifotosOpen] = useState(false);
+  const [groeivergelijkingOpen, setGroeivergelijkingOpen] = useState(false);
   const [timelineOpen, setTimelineOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const name = plantInstanceDisplayName(instance, species);
@@ -4731,7 +4809,8 @@ function PlantInstanceDetailDialog({
     queryKey: ["growing_seasons", instance.id],
     queryFn: () => fetchGrowingSeasons(instance.id),
   });
-  const { getEntriesForGrowingSeason } = useGrowthLog();
+  const { getEntriesForGrowingSeason, getEntriesForPlantInstance } = useGrowthLog();
+  const { getPhotosForInstance, deletePhoto: deleteGrowthPhoto } = useGrowthPhotos();
 
   const { data: harvestLogs = [] } = useQuery({
     queryKey: ["plant_harvest_logs", "instance", instance.id],
@@ -5163,6 +5242,45 @@ function PlantInstanceDetailDialog({
                     ))}
                   </div>
                 )}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            <button
+              type="button"
+              onClick={() => setGroeifotosOpen((o) => !o)}
+              className="sv-button sv-button-thin-border w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm"
+            >
+              <span className="flex items-center gap-2"><Camera className="h-4 w-4" /> Groeifoto's</span>
+              {groeifotosOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+            {groeifotosOpen && (
+              <div className="sv-inset p-4 rounded-xl">
+                <GrowthPhotoTimeline
+                  entries={getEntriesForPlantInstance(instance.id)}
+                  photos={getPhotosForInstance(instance.id)}
+                  onDeletePhoto={(photo) => deleteGrowthPhoto(photo)}
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            <button
+              type="button"
+              onClick={() => setGroeivergelijkingOpen((o) => !o)}
+              className="sv-button sv-button-thin-border w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm"
+            >
+              <span className="flex items-center gap-2"><TrendingUp className="h-4 w-4" /> Groei vergelijken</span>
+              {groeivergelijkingOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+            {groeivergelijkingOpen && (
+              <div className="sv-inset p-4 rounded-xl">
+                <GrowthCompareTimeline
+                  entries={getEntriesForPlantInstance(instance.id)}
+                  photos={getPhotosForInstance(instance.id)}
+                />
               </div>
             )}
           </div>
@@ -6063,7 +6181,7 @@ export default function Tuinieren() {
   // registration linked to them. Deliberately a different JSON shape
   // (garden_backup) so it's never confused with the species-only export.
   async function handleExportGardenBackup() {
-    const [instancesRes, seasonsRes, logsRes, harvestRes, pruningRes, repotRes, inspectionsRes, photosRes] = await Promise.all([
+    const [instancesRes, seasonsRes, logsRes, harvestRes, pruningRes, repotRes, inspectionsRes, photosRes, growthPhotosRes] = await Promise.all([
       supabase.from("plant_instances").select("*"),
       supabase.from("growing_seasons").select("*"),
       supabase.from("growth_log_entries").select("*"),
@@ -6072,6 +6190,7 @@ export default function Tuinieren() {
       supabase.from("plant_repot_logs").select("*"),
       supabase.from("plant_inspection_logs").select("*"),
       supabase.from("plant_photos").select("*"),
+      supabase.from("growth_log_photos").select("*"),
     ]);
     const speciesById = new Map(plants.map((p) => [p.id, p.name]));
     const backup = {
@@ -6089,6 +6208,9 @@ export default function Tuinieren() {
       repot_logs: repotRes.data ?? [],
       inspection_logs: inspectionsRes.data ?? [],
       plant_photos: photosRes.data ?? [],
+      // NOTE: growth_log_photos bevat verwijzingen en metadata, maar niet de
+      // daadwerkelijke afbeeldingsbestanden uit Supabase Storage.
+      growth_log_photos: growthPhotosRes.data ?? [],
     };
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -6179,6 +6301,56 @@ export default function Tuinieren() {
       const inspectionResult = await importLinkedRows("plant_inspection_logs", backup.inspection_logs ?? [], false, true);
       const photosResult = await importLinkedRows("plant_photos", backup.plant_photos ?? [], true);
 
+      // Import growth_log_photos: plant_instance_id is NOT NULL.
+      // Strategy: derive plant_instance_id from the actual DB entry that was
+      // already imported (with its own FK resolution). Never use the value
+      // from the backup row directly — it may point to a different database.
+      // Skip a photo row when:
+      //   - it already exists (duplicate);
+      //   - its growth_log_entry_id is not in the DB;
+      //   - the DB entry's plant_instance_id is null (entry was imported without
+      //     an instance because the instance itself wasn't importable);
+      //   - the DB entry's plant_instance_id is not among the imported instances.
+      // This ensures we never attempt an insert with plant_instance_id = null.
+      let growthPhotosImported = 0, growthPhotosSkipped = 0;
+      if ((backup.growth_log_photos ?? []).length > 0) {
+        // Fetch entry_id → plant_instance_id from the DB *after* entries have
+        // been imported so we see the resolved (possibly nulled) FK values.
+        const { data: entryRows } = await supabase
+          .from("growth_log_entries")
+          .select("id, plant_instance_id");
+        const entryInstanceMap = new Map<string, string | null>(
+          (entryRows ?? []).map((r: { id: string; plant_instance_id: string | null }) => [r.id, r.plant_instance_id]),
+        );
+
+        for (const row of backup.growth_log_photos as Array<Record<string, unknown>>) {
+          const { data: existing } = await supabase.from("growth_log_photos").select("id").eq("id", row.id as string).maybeSingle();
+          if (existing) { growthPhotosSkipped++; continue; }
+
+          const entryId = row.growth_log_entry_id as string;
+
+          // Entry must exist in the DB
+          if (!entryInstanceMap.has(entryId)) { growthPhotosSkipped++; continue; }
+
+          // Derive plant_instance_id from the DB entry — never from the backup row
+          const derivedInstanceId = entryInstanceMap.get(entryId) ?? null;
+
+          // NOT NULL constraint: skip if the entry has no linked instance
+          if (!derivedInstanceId) { growthPhotosSkipped++; continue; }
+
+          // Cross-check: the instance must be one we know about
+          if (!importedInstanceIds.has(derivedInstanceId)) { growthPhotosSkipped++; continue; }
+
+          const { error } = await supabase.from("growth_log_photos").insert({
+            ...row,
+            growth_log_entry_id: entryId,          // explicit for clarity
+            plant_instance_id: derivedInstanceId,   // always from DB entry, never null
+          });
+          if (!error) growthPhotosImported++;
+          else growthPhotosSkipped++;
+        }
+      }
+
       queryClient.invalidateQueries({ queryKey: ["plant_instances"] });
       queryClient.invalidateQueries({ queryKey: ["growing_seasons"] });
       queryClient.invalidateQueries({ queryKey: ["growth_log_entries"] });
@@ -6187,11 +6359,12 @@ export default function Tuinieren() {
       queryClient.invalidateQueries({ queryKey: ["plant_repot_logs"] });
       queryClient.invalidateQueries({ queryKey: ["plant_inspection_logs"] });
       queryClient.invalidateQueries({ queryKey: ["plant_photos"] });
+      queryClient.invalidateQueries({ queryKey: ["growth_log_photos"] });
 
       setImportMsg(
         `Tuin-backup geïmporteerd: ${instancesImported} exemplaren, ${seasonsImported} seizoenen, ${logsResult.imported} logboekregels, ` +
-        `${harvestResult.imported} oogsten, ${pruningResult.imported} snoeimomenten, ${repotResult.imported} verpotmomenten, ${inspectionResult.imported} inspecties, ${photosResult.imported} foto's toegevoegd. ` +
-        `Overgeslagen (al aanwezig of niet te koppelen): ${instancesSkipped + seasonsSkipped + logsResult.skipped + harvestResult.skipped + pruningResult.skipped + repotResult.skipped + inspectionResult.skipped + photosResult.skipped}.`
+        `${harvestResult.imported} oogsten, ${pruningResult.imported} snoeimomenten, ${repotResult.imported} verpotmomenten, ${inspectionResult.imported} inspecties, ${photosResult.imported} foto's, ${growthPhotosImported} groeifoto's toegevoegd. ` +
+        `Overgeslagen (al aanwezig of niet te koppelen): ${instancesSkipped + seasonsSkipped + logsResult.skipped + harvestResult.skipped + pruningResult.skipped + repotResult.skipped + inspectionResult.skipped + photosResult.skipped + growthPhotosSkipped}.`
       );
     } catch {
       setImportMsg("Ongeldig JSON-bestand.");

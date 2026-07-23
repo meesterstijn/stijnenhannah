@@ -64,23 +64,28 @@ export function useGrowthLog() {
 
   const addMutation = useMutation({
     mutationFn: async (entry: Omit<LogEntry, "id" | "created_at">) => {
-      const { error } = await supabase.from("growth_log_entries").insert({
-        plant_id: entry.plant_id,
-        plant_name: entry.plant_name,
-        plant_instance_id: entry.plant_instance_id,
-        growing_season_id: entry.growing_season_id,
-        entry_date: entry.date,
-        height_cm: entry.height_cm,
-        flower_count: entry.flower_count,
-        fruit_count: entry.fruit_count,
-        fruit_length_cm: entry.fruit_length_cm,
-        fruit_width_cm: entry.fruit_width_cm,
-        notes: entry.notes || null,
-        watered: entry.watered,
-        fertilized: entry.fertilized,
-        photo_url: entry.photo_url || null,
-      });
+      const { data, error } = await supabase
+        .from("growth_log_entries")
+        .insert({
+          plant_id: entry.plant_id,
+          plant_name: entry.plant_name,
+          plant_instance_id: entry.plant_instance_id,
+          growing_season_id: entry.growing_season_id,
+          entry_date: entry.date,
+          height_cm: entry.height_cm,
+          flower_count: entry.flower_count,
+          fruit_count: entry.fruit_count,
+          fruit_length_cm: entry.fruit_length_cm,
+          fruit_width_cm: entry.fruit_width_cm,
+          notes: entry.notes || null,
+          watered: entry.watered,
+          fertilized: entry.fertilized,
+          photo_url: entry.photo_url || null,
+        })
+        .select("id")
+        .single();
       if (error) throw error;
+      return data as { id: string };
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
   });

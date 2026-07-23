@@ -361,3 +361,18 @@ export type PlantInspectionLog = {
   updated_at: string;
 };
 
+// Storage-backed photo linked to a growth_log_entry. One entry can have
+// zero, one, or multiple photos. plant_instance_id is denormalized from
+// the parent entry for fast per-instance queries.
+export type GrowthLogPhoto = {
+  id: string;
+  growth_log_entry_id: string;
+  plant_instance_id: string; // NOT NULL: always mirrors the parent entry's plant_instance_id
+  storage_path: string;
+  photo_url: string;
+  original_filename: string | null;
+  mime_type: string | null;
+  file_size_bytes: number | null;
+  created_at: string;
+};
+
