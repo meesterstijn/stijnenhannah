@@ -6353,7 +6353,7 @@ export default function Tuinieren() {
   // registration linked to them. Deliberately a different JSON shape
   // (garden_backup) so it's never confused with the species-only export.
   async function handleExportGardenBackup() {
-    const [instancesRes, seasonsRes, logsRes, harvestRes, pruningRes, repotRes, inspectionsRes, photosRes, growthPhotosRes] = await Promise.all([
+    const [instancesRes, seasonsRes, logsRes, harvestRes, pruningRes, repotRes, inspectionsRes, photosRes, growthPhotosRes, plansRes, planItemsRes] = await Promise.all([
       supabase.from("plant_instances").select("*"),
       supabase.from("growing_seasons").select("*"),
       supabase.from("growth_log_entries").select("*"),
@@ -6363,10 +6363,12 @@ export default function Tuinieren() {
       supabase.from("plant_inspection_logs").select("*"),
       supabase.from("plant_photos").select("*"),
       supabase.from("growth_log_photos").select("*"),
+      supabase.from("cultivation_plans").select("*"),
+      supabase.from("cultivation_plan_items").select("*"),
     ]);
     const speciesById = new Map(plants.map((p) => [p.id, p.name]));
     const backup = {
-      version: 1,
+      version: 2,
       type: "garden_backup",
       exported_at: new Date().toISOString().slice(0, 10),
       // species_name is denormalized purely so an import into a different
@@ -6383,6 +6385,8 @@ export default function Tuinieren() {
       // NOTE: growth_log_photos bevat verwijzingen en metadata, maar niet de
       // daadwerkelijke afbeeldingsbestanden uit Supabase Storage.
       growth_log_photos: growthPhotosRes.data ?? [],
+      cultivation_plans: plansRes.data ?? [],
+      cultivation_plan_items: planItemsRes.data ?? [],
     };
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -6523,6 +6527,34 @@ export default function Tuinieren() {
         }
       }
 
+      // Import cultivation_plans — plans first, then items (FK dependency).
+      let plansImported = 0, plansSkipped = 0;
+      const importedPlanIds = new Set<string>();
+      for (const plan of backup.cultivation_plans ?? []) {
+        const { data: existing } = await supabase.from("cultivation_plans").select("id").eq("id", plan.id).maybeSingle();
+        if (existing) { importedPlanIds.add(plan.id); plansSkipped++; continue; }
+        const { error } = await supabase.from("cultivation_plans").insert(plan);
+        if (!error) { importedPlanIds.add(plan.id); plansImported++; }
+        else plansSkipped++;
+      }
+
+      let planItemsImported = 0, planItemsSkipped = 0;
+      for (const item of backup.cultivation_plan_items ?? []) {
+        // Skip items whose plan wasn't imported (not in our DB)
+        if (!importedPlanIds.has(item.cultivation_plan_id)) { planItemsSkipped++; continue; }
+        // Require species to exist in this database
+        if (!validSpeciesIds.has(item.species_id)) { planItemsSkipped++; continue; }
+        const { data: existing } = await supabase.from("cultivation_plan_items").select("id").eq("id", item.id).maybeSingle();
+        if (existing) { planItemsSkipped++; continue; }
+        const { error } = await supabase.from("cultivation_plan_items").insert({
+          ...item,
+          // Old exports (version 2 without backup_quantity) default to 0.
+          backup_quantity: item.backup_quantity ?? 0,
+        });
+        if (!error) planItemsImported++;
+        else planItemsSkipped++;
+      }
+
       queryClient.invalidateQueries({ queryKey: ["plant_instances"] });
       queryClient.invalidateQueries({ queryKey: ["growing_seasons"] });
       queryClient.invalidateQueries({ queryKey: ["growth_log_entries"] });
@@ -6532,11 +6564,12 @@ export default function Tuinieren() {
       queryClient.invalidateQueries({ queryKey: ["plant_inspection_logs"] });
       queryClient.invalidateQueries({ queryKey: ["plant_photos"] });
       queryClient.invalidateQueries({ queryKey: ["growth_log_photos"] });
+      queryClient.invalidateQueries({ queryKey: ["cultivation_plans"] });
 
       setImportMsg(
         `Tuin-backup geïmporteerd: ${instancesImported} exemplaren, ${seasonsImported} seizoenen, ${logsResult.imported} logboekregels, ` +
-        `${harvestResult.imported} oogsten, ${pruningResult.imported} snoeimomenten, ${repotResult.imported} verpotmomenten, ${inspectionResult.imported} inspecties, ${photosResult.imported} foto's, ${growthPhotosImported} groeifoto's toegevoegd. ` +
-        `Overgeslagen (al aanwezig of niet te koppelen): ${instancesSkipped + seasonsSkipped + logsResult.skipped + harvestResult.skipped + pruningResult.skipped + repotResult.skipped + inspectionResult.skipped + photosResult.skipped + growthPhotosSkipped}.`
+        `${harvestResult.imported} oogsten, ${pruningResult.imported} snoeimomenten, ${repotResult.imported} verpotmomenten, ${inspectionResult.imported} inspecties, ${photosResult.imported} foto's, ${growthPhotosImported} groeifoto's, ${plansImported} teeltplannen, ${planItemsImported} planregels toegevoegd. ` +
+        `Overgeslagen (al aanwezig of niet te koppelen): ${instancesSkipped + seasonsSkipped + logsResult.skipped + harvestResult.skipped + pruningResult.skipped + repotResult.skipped + inspectionResult.skipped + photosResult.skipped + growthPhotosSkipped + plansSkipped + planItemsSkipped}.`
       );
     } catch {
       setImportMsg("Ongeldig JSON-bestand.");
@@ -6603,6 +6636,12 @@ export default function Tuinieren() {
           className="hidden"
           onChange={handleImportGardenBackup}
         />
+
+        <Link to="/tuingids/teeltplanner">
+          <Button className="sv-button text-2xl h-11 px-3 sm:px-6">
+            <Sprout className="h-4 w-4" /><span className="hidden sm:inline">Teeltplanner</span>
+          </Button>
+        </Link>
 
         <Dialog open={open} onOpenChange={handleOpenChange}>
           <DialogTrigger asChild>

@@ -9,6 +9,7 @@ const subnav = [
   { to: "/tuingids/logboek", label: "Logboek", emoji: "📷" },
   { to: "/tuingids/statistieken", label: "Statistieken", emoji: "📊" },
   { to: "/tuingids/zoek", label: "Zoeken", emoji: "🔍" },
+  { to: "/tuingids/teeltplanner", label: "Teeltplanner", emoji: "🌱" },
 ];
 
 export default function TuingidsLayout() {

@@ -269,6 +269,9 @@ export type PlantInstance = {
   water_skip_until: string | null;
   status: PlantInstanceStatus;
   legacy_plant_id: string | null;
+  // Set when this instance was created via "Plant nu" from a cultivation plan
+  // item. ON DELETE SET NULL so deleting a plan never removes instances.
+  cultivation_plan_item_id: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -359,6 +362,38 @@ export type PlantInspectionLog = {
   photo_url: string | null;
   created_at: string;
   updated_at: string;
+};
+
+// ─── Teeltplanner ────────────────────────────────────────────────────────────
+
+export type CultivationPlanStatus = "draft" | "active" | "completed" | "archived";
+
+export type CultivationPlan = {
+  id: string;
+  name: string;
+  plan_year: number;
+  status: CultivationPlanStatus;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CultivationPlanItem = {
+  id: string;
+  cultivation_plan_id: string;
+  species_id: string;
+  planned_quantity: number;
+  backup_quantity: number;
+  planted_quantity: number;
+  planned_location: string | null;
+  notes: string | null;
+  pot_liters_override: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CultivationPlanWithItems = CultivationPlan & {
+  items: CultivationPlanItem[];
 };
 
 // Storage-backed photo linked to a growth_log_entry. One entry can have

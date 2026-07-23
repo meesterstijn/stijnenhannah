@@ -39,6 +39,7 @@ const TuingidsMijnTuin = lazy(() => import("@/pages/tuingids/TuingidsMijnTuin"))
 const TuingidsKalender = lazy(() => import("@/pages/tuingids/TuingidsKalender"));
 const TuingidsStatistieken = lazy(() => import("@/pages/tuingids/TuingidsStatistieken"));
 const TuingidsZoek = lazy(() => import("@/pages/tuingids/TuingidsZoek"));
+const TuingidsTeeltplanner = lazy(() => import("@/pages/tuingids/TuingidsTeeltplanner"));
 
 const queryClient = new QueryClient();
 
@@ -132,6 +133,8 @@ function AppRoutes() {
             <Route path="kalender" element={<TuingidsKalender />} />
             <Route path="statistieken" element={<TuingidsStatistieken />} />
             <Route path="zoek" element={<TuingidsZoek />} />
+            <Route path="teeltplanner" element={<TuingidsTeeltplanner />} />
+            <Route path="teeltplanner/:planId" element={<TuingidsTeeltplanner />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Route>
