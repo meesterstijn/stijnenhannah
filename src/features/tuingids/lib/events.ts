@@ -54,7 +54,6 @@ export const EVENT_TYPE_ORDER: EventType[] = [
   "pruning",
   "repot",
   "inspection",
-  "photo",
   "season_started",
   "season_ended",
   "first_flower",
