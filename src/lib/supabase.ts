@@ -206,6 +206,7 @@ export type PlantImportData = {
 };
 
 export type PlantHealthStatus =
+  | "Zaailing"
   | "Net geplant"
   | "Gezond"
   | "In bloei"

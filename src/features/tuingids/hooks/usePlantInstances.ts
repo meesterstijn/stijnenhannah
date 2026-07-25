@@ -140,6 +140,31 @@ export function usePlantInstances() {
     onSuccess: invalidate,
   });
 
+  const convertSeedling = useMutation({
+    mutationFn: async (args: {
+      seedlingId: string;
+      customNames: string[];
+      plantName: string;
+      seasonStartedAt: string;
+      startHeightCm: number;
+    }) => {
+      const { data, error } = await supabase.rpc("plant_seedling_to_instances", {
+        p_seedling_id:       args.seedlingId,
+        p_custom_names:      args.customNames,
+        p_plant_name:        args.plantName,
+        p_season_started_at: args.seasonStartedAt,
+        p_start_height_cm:   args.startHeightCm,
+      });
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    onSuccess: () => {
+      invalidate();
+      queryClient.invalidateQueries({ queryKey: ["plant_inspection_logs"] });
+      queryClient.invalidateQueries({ queryKey: ["cultivation_plan_items"] });
+    },
+  });
+
   return {
     createInstanceWithSeason: (input: CreatePlantInstanceInput) => createInstanceWithSeason.mutateAsync(input),
     isCreating: createInstanceWithSeason.isPending,
@@ -164,5 +189,14 @@ export function usePlantInstances() {
     isUpdatingStatus: setInstanceStatus.isPending,
 
     patchInstance: (args: { id: string; patch: Record<string, unknown> }) => patchInstance.mutateAsync(args),
+
+    convertSeedling: (args: {
+      seedlingId: string;
+      customNames: string[];
+      plantName: string;
+      seasonStartedAt: string;
+      startHeightCm: number;
+    }) => convertSeedling.mutateAsync(args),
+    isConverting: convertSeedling.isPending,
   };
 }

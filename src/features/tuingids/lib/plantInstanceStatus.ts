@@ -41,7 +41,10 @@ export function isInstanceWaterSkippedToday(instance: PlantInstance): boolean {
  * only an active instance can be "overdue" for water or feeding. */
 export function instanceWaterStatus(instance: PlantInstance, species: Plant): { label: string; overdue: boolean } | null {
   if (instance.status !== "active") return null;
-  const intervalDays = effectiveInstanceWaterIntervalDays(instance, species);
+  // Zaailingen altijd dagelijks water, ongeacht de soortinstellingen.
+  const intervalDays = instance.health_status === "Zaailing"
+    ? 1
+    : effectiveInstanceWaterIntervalDays(instance, species);
   if (!intervalDays) return null;
   if (isInstanceWaterSkippedToday(instance)) {
     return { label: "Uitgesteld tot morgen", overdue: false };

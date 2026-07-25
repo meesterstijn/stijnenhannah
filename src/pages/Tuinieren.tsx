@@ -154,6 +154,7 @@ const WATERING_METHOD_OPTIONS = [
 ] as const;
 
 const HEALTH_STATUS_OPTIONS = [
+  "Zaailing",
   "Net geplant",
   "Gezond",
   "In bloei",
@@ -164,6 +165,7 @@ const HEALTH_STATUS_OPTIONS = [
 ] as const;
 
 const HEALTH_STATUS_EMOJI: Record<string, string> = {
+  Zaailing: "🌿",
   "Net geplant": "🌱",
   Gezond: "💚",
   "In bloei": "🌼",
@@ -2884,36 +2886,13 @@ function PlantLogboek({
   plantName,
   plantInstanceId = null,
   growingSeasonId = null,
-  seasons = [],
 }: {
   plantName: string;
-  // Set when logging from a concrete plant instance's detail view, so the
-  // entry is properly linked instead of being a legacy name-only row.
   plantInstanceId?: string | null;
   growingSeasonId?: string | null;
-  // All seasons for this instance, used to build the "Huidig seizoen /
-  // Specifiek seizoen / Alle seizoenen" filter. Ignored in the legacy
-  // name-only mode (plantInstanceId not set).
-  seasons?: GrowingSeason[];
 }) {
-  const { addEntry, addEntryAsync, deleteEntry, getEntriesForPlant, getEntriesForPlantInstance, isAdding, addError } = useGrowthLog();
-  const { addPhoto, deleteStorageFilesForEntry, getPhotosForEntry } = useGrowthPhotos();
-  const [seasonFilter, setSeasonFilter] = useState<"current" | "all" | string>("current");
-  // Alleen groei-notities tonen; automatische water-/voedingsregistraties horen
-  // al thuis in de Water-/Voedingsgeschiedenis en worden hier niet herhaald.
-  const allEntries = plantInstanceId ? getEntriesForPlantInstance(plantInstanceId) : getEntriesForPlant(plantName);
-  const scopedEntries = allEntries.filter((entry) => {
-    const isDefaultActionNote =
-      !entry.notes || entry.notes === "Water gegeven" || entry.notes === "Voeding gegeven";
-    const isPureAction = entry.height_cm === null && isDefaultActionNote && (entry.watered || entry.fertilized);
-    return !isPureAction;
-  });
-  const entries =
-    !plantInstanceId || seasonFilter === "all"
-      ? scopedEntries
-      : seasonFilter === "current"
-        ? scopedEntries.filter((e) => e.growing_season_id === growingSeasonId)
-        : scopedEntries.filter((e) => e.growing_season_id === seasonFilter);
+  const { addEntryAsync, isAdding, addError } = useGrowthLog();
+  const { addPhoto } = useGrowthPhotos();
 
   const [formOpen, setFormOpen] = useState(false);
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -2921,8 +2900,6 @@ function PlantLogboek({
   const [heightCm, setHeightCm] = useState("");
   const [fruitLengthCm, setFruitLengthCm] = useState("");
   const [fruitWidthCm, setFruitWidthCm] = useState("");
-  const [watered, setWatered] = useState(false);
-  const [fertilized, setFertilized] = useState(false);
   const [selectedPhotos, setSelectedPhotos] = useState<File[]>([]);
   const [isSavingAsync, setIsSavingAsync] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -2933,8 +2910,6 @@ function PlantLogboek({
     setHeightCm("");
     setFruitLengthCm("");
     setFruitWidthCm("");
-    setWatered(false);
-    setFertilized(false);
     setSelectedPhotos([]);
     setDate(new Date().toISOString().slice(0, 10));
     setFormError(null);
@@ -2952,7 +2927,7 @@ function PlantLogboek({
     const fruitWidth = fruitWidthCm.trim() ? Number(fruitWidthCm) : null;
     const noteText = notes.trim();
 
-    if (height === null && fruitLength === null && fruitWidth === null && !noteText && !watered && !fertilized && selectedPhotos.length === 0) {
+    if (height === null && fruitLength === null && fruitWidth === null && !noteText && selectedPhotos.length === 0) {
       setFormError("Vul minimaal een planthoogte, vruchtgrootte, notitie of foto in.");
       return;
     }
@@ -2986,8 +2961,8 @@ function PlantLogboek({
         fruit_count: null,
         fruit_length_cm: fruitLength,
         fruit_width_cm: fruitWidth,
-        watered,
-        fertilized,
+        watered: false,
+        fertilized: false,
         photo_url: "",
       });
     } catch (err) {
@@ -3028,13 +3003,6 @@ function PlantLogboek({
     resetForm();
   }
 
-  async function handleDeleteEntry(id: string) {
-    // Remove Storage files before deleting the DB row.
-    // DB cascade handles the growth_log_photos rows automatically.
-    await deleteStorageFilesForEntry(id);
-    deleteEntry(id);
-  }
-
   return (
     <div className="sv-inset p-4 space-y-4 rounded-xl">
       <div className="flex items-center justify-between">
@@ -3049,32 +3017,6 @@ function PlantLogboek({
           </button>
         )}
       </div>
-
-      {plantInstanceId && seasons.length > 0 && (
-        <div className="flex gap-1.5 flex-wrap">
-          <button type="button" onClick={() => setSeasonFilter("current")} className={chipClass(seasonFilter === "current")}>
-            Huidig seizoen
-          </button>
-          {seasons.length > 1 && (
-            <button type="button" onClick={() => setSeasonFilter("all")} className={chipClass(seasonFilter === "all")}>
-              Alle seizoenen
-            </button>
-          )}
-          {[...seasons]
-            .sort((a, b) => b.started_at.localeCompare(a.started_at))
-            .filter((s) => s.id !== growingSeasonId)
-            .map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => setSeasonFilter(s.id)}
-                className={chipClass(seasonFilter === s.id)}
-              >
-                {s.label ?? `Seizoen ${s.year}`}
-              </button>
-            ))}
-        </div>
-      )}
 
       {formOpen && (
         <div className="space-y-4">
@@ -3138,17 +3080,6 @@ function PlantLogboek({
             />
           </div>
 
-          <div className="flex gap-5 text-sm">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={watered} onChange={(e) => setWatered(e.target.checked)} />
-              <span>💧 Water</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={fertilized} onChange={(e) => setFertilized(e.target.checked)} />
-              <span>🌿 Bemest</span>
-            </label>
-          </div>
-
           <div className="space-y-1.5">
             <p className="text-xs sv-muted font-medium uppercase tracking-wide">Foto</p>
             <GrowthPhotoInput
@@ -3174,52 +3105,6 @@ function PlantLogboek({
         </div>
       )}
 
-      {entries.length > 0 && (
-        <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-          {entries.map((entry) => {
-            const entryPhotos = getPhotosForEntry(entry.id);
-            return (
-              <div key={entry.id} className="sv-panel p-3 space-y-1.5">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-xs sv-muted font-medium">
-                    {new Date(entry.date).toLocaleDateString("nl-NL", {
-                      day: "numeric",
-                      month: "long",
-                      year: "numeric",
-                    })}
-                  </p>
-                  <button
-                    onClick={() => handleDeleteEntry(entry.id)}
-                    className="sv-icon-slot h-5 w-5 flex items-center justify-center shrink-0 opacity-60 hover:opacity-100"
-                  >
-                    <X className="h-2.5 w-2.5" />
-                  </button>
-                </div>
-                {(entry.height_cm !== null || entry.fruit_length_cm !== null || entry.fruit_width_cm !== null) && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {entry.height_cm !== null && (
-                      <span className="sv-badge-ok text-xs px-2 py-0.5 rounded-full">
-                        📏 {formatMeasurement(entry.height_cm)} cm
-                      </span>
-                    )}
-                    {(entry.fruit_length_cm !== null || entry.fruit_width_cm !== null) && (
-                      <span className="sv-badge-ok text-xs px-2 py-0.5 rounded-full">
-                        🍅 {formatFruitSize(entry.fruit_length_cm, entry.fruit_width_cm)}
-                      </span>
-                    )}
-                    {entryPhotos.length > 0 && (
-                      <span className="sv-badge-ok text-xs px-2 py-0.5 rounded-full">
-                        📷 {entryPhotos.length} foto{entryPhotos.length !== 1 ? "'s" : ""}
-                      </span>
-                    )}
-                  </div>
-                )}
-                {entry.notes && <p className="text-sm">{entry.notes}</p>}
-              </div>
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 }
@@ -3971,12 +3856,19 @@ function InspectionLogSection({
 // tables into one read-only chronological view. No new storage — every
 // item is derived from data that already lives somewhere else.
 
-type TimelineItem = { date: string; icon: typeof Droplet; label: string };
+type TimelineItem = { date: string; icon: typeof Droplet; label: string; entryId?: string };
 
-// Shared read-only renderer for both the species timeline (legacy,
-// name-based) and the instance timeline (new, plant_instance_id-based) — the
-// two differ only in how `items` gets built, never in how it's displayed.
-function TimelineList({ items }: { items: TimelineItem[] }) {
+// Shared renderer for both the species timeline (legacy, name-based) and the
+// instance timeline (new, plant_instance_id-based). When `onDeleteEntry` is
+// provided, items that carry `entryId` (i.e. growth log entries) show a
+// compact trash button — the caller owns the delete logic and confirmation.
+function TimelineList({
+  items,
+  onDeleteEntry,
+}: {
+  items: TimelineItem[];
+  onDeleteEntry?: (entryId: string) => void;
+}) {
   const sorted = [...items].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   if (sorted.length === 0) {
@@ -3990,12 +3882,22 @@ function TimelineList({ items }: { items: TimelineItem[] }) {
         return (
           <div key={i} className="flex items-start gap-2 text-sm">
             <Icon className="h-4 w-4 shrink-0 mt-0.5 sv-muted" />
-            <div>
+            <div className="flex-1 min-w-0">
               <p className="sv-muted text-xs">
                 {new Date(item.date).toLocaleDateString("nl-NL", { day: "numeric", month: "long", year: "numeric" })}
               </p>
               <p>{item.label}</p>
             </div>
+            {onDeleteEntry && item.entryId && (
+              <button
+                type="button"
+                onClick={() => onDeleteEntry(item.entryId!)}
+                className="sv-icon-slot h-5 w-5 flex items-center justify-center shrink-0 opacity-40 hover:opacity-100 mt-0.5"
+                aria-label="Groeimoment verwijderen"
+              >
+                <Trash2 className="h-3 w-3" />
+              </button>
+            )}
           </div>
         );
       })}
@@ -4025,8 +3927,21 @@ function InstanceTimelineSection({
   inspectionLogs: PlantInspectionLog[];
   photos: PlantPhoto[];
 }) {
-  const { getEntriesForPlantInstance } = useGrowthLog();
+  const { getEntriesForPlantInstance, deleteEntry } = useGrowthLog();
+  const { deleteStorageFilesForEntry } = useGrowthPhotos();
+  const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const growthEntries: LogEntry[] = getEntriesForPlantInstance(instance.id);
+
+  async function handleDeleteEntry(id: string) {
+    setIsDeleting(true);
+    // Storage files first so we never leave orphaned blobs.
+    // DB cascade removes growth_log_photos rows when the entry is deleted.
+    await deleteStorageFilesForEntry(id);
+    deleteEntry(id);
+    setEntryToDelete(null);
+    setIsDeleting(false);
+  }
   const name = plantInstanceDisplayName(instance, species);
   const plantNameById = new Map([[instance.species_id, name], [instance.id, name]]);
 
@@ -4055,19 +3970,58 @@ function InstanceTimelineSection({
     events.push({ id: `first_fruit-${instance.id}`, type: "first_fruit", date: instance.first_fruit_at, plantId: null, instanceId: instance.id, growingSeasonId: null, plantName: name, label: "Kreeg de eerste vrucht" });
   }
   for (const event of events) {
+    // Preserve the original growth_log_entry id so the timeline can offer a
+    // delete action. Growth event ids are encoded as "growth-<uuid>".
+    const entryId = event.type === "growth" ? event.id.slice(7) : undefined;
     items.push({
       date: event.date,
       icon: EVENT_META[event.type].icon,
       label: event.detail ? `${event.label} (${event.detail})` : event.label,
+      entryId,
     });
   }
   for (const entry of growthEntries) {
     if (entry.notes && !entry.watered && !entry.fertilized && entry.height_cm === null) {
-      items.push({ date: entry.date, icon: BookOpen, label: entry.notes });
+      items.push({ date: entry.date, icon: BookOpen, label: entry.notes, entryId: entry.id });
     }
   }
 
-  return <TimelineList items={items} />;
+  return (
+    <>
+      <TimelineList items={items} onDeleteEntry={(id) => setEntryToDelete(id)} />
+
+      {entryToDelete && (
+        <Dialog open onOpenChange={(open) => { if (!open) setEntryToDelete(null); }}>
+          <DialogContent className="sv-dialog max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Groeimoment verwijderen</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm sv-muted">
+              Dit verwijdert het groeimoment inclusief alle bijbehorende foto's permanent. Dit kan niet ongedaan worden gemaakt.
+            </p>
+            <DialogFooter className="flex gap-2 justify-end pt-2">
+              <Button
+                size="sm"
+                className="sv-button sv-button-ghost"
+                onClick={() => setEntryToDelete(null)}
+                disabled={isDeleting}
+              >
+                Annuleer
+              </Button>
+              <Button
+                size="sm"
+                className="sv-button bg-red-600 hover:bg-red-700 text-white border-0"
+                onClick={() => handleDeleteEntry(entryToDelete)}
+                disabled={isDeleting}
+              >
+                {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Verwijderen"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+    </>
+  );
 }
 
 // ─── SpeciesCombobox ────────────────────────────────────────────────────────
@@ -4615,6 +4569,9 @@ function NewPlantInstanceForm({
                       className="text-sm"
                     />
                     <p className="text-xs sv-muted mt-0.5">Laat leeg om automatisch met 0 cm te starten.</p>
+                    {(startHeightInput.trim() === "" || startHeightInput.trim() === "0") && (
+                      <p className="text-xs sv-muted mt-1">🌿 Wordt aangemaakt als zaailing — later om te zetten naar definitieve exemplaren.</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -4946,6 +4903,163 @@ function InstanceSettingsSection({
   );
 }
 
+// ─── Seedling conversion dialog ─────────────────────────────────────────────
+
+function SeedlingConversionDialog({
+  instance,
+  species,
+  onClose,
+  onConverted,
+}: {
+  instance: PlantInstance;
+  species: Plant | undefined;
+  onClose: () => void;
+  onConverted: () => void;
+}) {
+  const [count, setCount] = useState("1");
+  const [seasonStartedAt, setSeasonStartedAt] = useState(() => new Date().toISOString().slice(0, 10));
+  const [startHeightInput, setStartHeightInput] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const { data: allInstances = [] } = useQuery({
+    queryKey: ["plant_instances", "all"],
+    queryFn: fetchPlantInstances,
+  });
+  const { convertSeedling, isConverting } = usePlantInstances();
+
+  const parsedCount = parseInt(count, 10);
+  const validCount = Number.isInteger(parsedCount) && parsedCount >= 1;
+  const parsedHeight = startHeightInput.trim() === "" ? 0 : Number(startHeightInput.trim());
+  const validHeight = Number.isFinite(parsedHeight) && parsedHeight >= 0;
+
+  const existingNamesForSpecies = useMemo(
+    () =>
+      allInstances
+        .filter((i) => i.species_id === instance.species_id && i.id !== instance.id)
+        .map((i) => i.custom_name ?? ""),
+    [allInstances, instance.species_id, instance.id],
+  );
+
+  const batchNames = useMemo(() => {
+    if (!validCount || !species) return [];
+    return resolveInstanceNames(species.name, existingNamesForSpecies, parsedCount);
+  }, [validCount, species, existingNamesForSpecies, parsedCount]);
+
+  async function handleConvert() {
+    if (!validCount || !validHeight || !species) return;
+    setError(null);
+    try {
+      await convertSeedling({
+        seedlingId: instance.id,
+        customNames: batchNames,
+        plantName: species.name,
+        seasonStartedAt,
+        startHeightCm: parsedHeight,
+      });
+      onConverted();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Omzetten mislukt.");
+    }
+  }
+
+  const displayName = plantInstanceDisplayName(instance, species);
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className={PLANT_DIALOG_CONTENT_CLASS}>
+        <DialogHeader>
+          <div className="flex items-center gap-3">
+            {species?.photo_url ? (
+              <img src={species.photo_url} alt="" className="h-12 w-12 rounded-lg object-cover shrink-0 sv-icon-slot" />
+            ) : (
+              <div className="h-12 w-12 sv-icon-slot flex items-center justify-center shrink-0">
+                <Sprout className="h-5 w-5" strokeWidth={1.6} />
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <DialogTitle className={`${PLANT_DIALOG_TITLE_CLASS} truncate`}>{displayName}</DialogTitle>
+              <p className="text-sm sv-muted">Zaailing uitplanten</p>
+            </div>
+          </div>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <p className="text-sm sv-muted">
+            Dit exemplaar wordt omgezet naar definitieve plantexemplaren. De zaailing zelf wordt verwijderd.
+          </p>
+
+          <div className="grid sm:grid-cols-2 gap-2">
+            <div>
+              <label className="text-xs sv-muted block mb-1">Aantal nieuwe exemplaren</label>
+              <Input
+                type="number"
+                min="1"
+                step="1"
+                inputMode="numeric"
+                value={count}
+                onChange={(e) => setCount(e.target.value)}
+                className="text-sm"
+              />
+            </div>
+            <div>
+              <label className="text-xs sv-muted block mb-1">Seizoen startdatum</label>
+              <Input
+                type="date"
+                value={seasonStartedAt}
+                onChange={(e) => setSeasonStartedAt(e.target.value)}
+                className="text-sm"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs sv-muted block mb-1">Starthoogte nieuwe exemplaren (cm)</label>
+            <Input
+              type="number"
+              min="0"
+              step="0.1"
+              inputMode="decimal"
+              value={startHeightInput}
+              onChange={(e) => setStartHeightInput(e.target.value)}
+              placeholder="0"
+              className="text-sm"
+            />
+          </div>
+
+          {validCount && batchNames.length > 0 && (
+            <div className="sv-inset rounded-xl p-3 space-y-1">
+              <p className="text-xs sv-muted font-medium">Nieuwe namen:</p>
+              {batchNames.map((n) => (
+                <p key={n} className="text-sm">{n}</p>
+              ))}
+            </div>
+          )}
+
+          {error && <p className="text-xs sv-destructive-text">{error}</p>}
+        </div>
+
+        <DialogFooter>
+          <Button size="sm" variant="ghost" className="sv-button sv-button-ghost" onClick={onClose} disabled={isConverting}>
+            Annuleren
+          </Button>
+          <Button
+            size="sm"
+            className="sv-button"
+            onClick={handleConvert}
+            disabled={isConverting || !validCount || !validHeight}
+          >
+            {isConverting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              `${validCount ? parsedCount : 1} exemplaar${parsedCount !== 1 ? "en" : ""} uitplanten`
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Instance detail dialog ─────────────────────────────────────────────────
 
 function PlantInstanceDetailDialog({
@@ -4960,12 +5074,12 @@ function PlantInstanceDetailDialog({
   onClose: () => void;
 }) {
   const [closingSeason, setClosingSeason] = useState(false);
+  const [convertOpen, setConvertOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [harvestOpen, setHarvestOpen] = useState(false);
   const [pruningOpen, setPruningOpen] = useState(false);
   const [repotOpen, setRepotOpen] = useState(false);
   const [inspectionOpen, setInspectionOpen] = useState(false);
-  const [photosOpen, setPhotosOpen] = useState(false);
   const [groeifotosOpen, setGroeifotosOpen] = useState(false);
   const [groeivergelijkingOpen, setGroeivergelijkingOpen] = useState(false);
   const [timelineOpen, setTimelineOpen] = useState(false);
@@ -5109,7 +5223,6 @@ function PlantInstanceDetailDialog({
           {(() => {
             const waterStat = species ? instanceWaterStatus(instance, species) : null;
             const feedStat = species ? instanceFeedingStatus(instance, species) : null;
-            const lastInspection = inspectionLogs[0] ?? null;
             const seasonEntries = activeSeason ? getEntriesForGrowingSeason(activeSeason.id) : [];
             const heightEntries = seasonEntries.filter((e) => e.height_cm !== null).sort((a, b) => b.date.localeCompare(a.date));
             const fruitEntries = seasonEntries
@@ -5124,8 +5237,8 @@ function PlantInstanceDetailDialog({
             if (feedStat) chips.push({ key: "feed", label: `🌿 ${feedStat.label}`, overdue: feedStat.overdue });
             chips.push({
               key: "inspection",
-              label: lastInspection
-                ? `🔍 Laatst geïnspecteerd: ${new Date(lastInspection.checked_at).toLocaleDateString("nl-NL", { day: "numeric", month: "short" })}`
+              label: instance.last_checked_at
+                ? `🔍 Laatst geïnspecteerd: ${new Date(instance.last_checked_at).toLocaleDateString("nl-NL", { day: "numeric", month: "short" })}`
                 : "🔍 Nog niet geïnspecteerd",
             });
             chips.push({
@@ -5157,6 +5270,27 @@ function PlantInstanceDetailDialog({
               </div>
             );
           })()}
+
+          {instance.health_status === "Zaailing" && (
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                className="sv-button sv-button-thin-border w-full"
+                onClick={() => setConvertOpen(true)}
+              >
+                <Sprout className="h-3.5 w-3.5" /> Zaailing uitplanten
+              </Button>
+              {convertOpen && (
+                <SeedlingConversionDialog
+                  instance={instance}
+                  species={species}
+                  onClose={() => setConvertOpen(false)}
+                  onConverted={() => { setConvertOpen(false); onClose(); }}
+                />
+              )}
+            </>
+          )}
 
           <div className="flex items-center gap-3 flex-wrap">
             <Button
@@ -5239,7 +5373,6 @@ function PlantInstanceDetailDialog({
               plantName={name}
               plantInstanceId={instance.id}
               growingSeasonId={activeSeason.id}
-              seasons={seasons}
             />
           )}
 
@@ -5334,46 +5467,6 @@ function PlantInstanceDetailDialog({
           <div className="space-y-3">
             <button
               type="button"
-              onClick={() => setPhotosOpen((o) => !o)}
-              className="sv-button sv-button-thin-border w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm"
-            >
-              <span className="flex items-center gap-2"><ImageIcon className="h-4 w-4" /> Foto's</span>
-              {photosOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </button>
-            {photosOpen && (
-              <div className="sv-inset p-4 space-y-3 rounded-xl">
-                {getPhotosForInstance(instance.id).length === 0 ? (
-                  <p className="text-sm sv-muted">
-                    Voeg groeifoto's toe via 🌱 Groei bijhouden.
-                  </p>
-                ) : (
-                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                    {[...getPhotosForInstance(instance.id)]
-                      .sort((a, b) => b.created_at.localeCompare(a.created_at))
-                      .map((photo) => (
-                        <div key={photo.id}>
-                          <img
-                            src={photo.photo_url}
-                            alt=""
-                            className="w-full aspect-square object-cover rounded-lg sv-icon-slot"
-                          />
-                          <p className="text-[10px] sv-muted mt-1">
-                            {new Date(photo.created_at).toLocaleDateString("nl-NL", {
-                              day: "numeric",
-                              month: "short",
-                            })}
-                          </p>
-                        </div>
-                      ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-3">
-            <button
-              type="button"
               onClick={() => setGroeifotosOpen((o) => !o)}
               className="sv-button sv-button-thin-border w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm"
             >
@@ -5386,6 +5479,8 @@ function PlantInstanceDetailDialog({
                   entries={getEntriesForPlantInstance(instance.id)}
                   photos={getPhotosForInstance(instance.id)}
                   onDeletePhoto={(photo) => deleteGrowthPhoto(photo)}
+                  showLightbox
+                  sortDir="desc"
                 />
               </div>
             )}
@@ -5557,7 +5652,7 @@ const INSTANCE_SORT_OPTIONS: { key: InstanceSortKey; label: string }[] = [
 ];
 
 const HEALTH_SORT_ORDER: Record<string, number> = {
-  Stress: 0, Ziek: 1, Afgestorven: 2, "In bloei": 3, Vruchten: 4, Gezond: 5, "Net geplant": 6,
+  Stress: 0, Ziek: 1, Afgestorven: 2, "In bloei": 3, Vruchten: 4, Gezond: 5, "Net geplant": 6, Zaailing: 7,
 };
 
 function sortInstances(
