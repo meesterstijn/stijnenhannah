@@ -5,7 +5,7 @@ import tsconfigPaths from "vite-tsconfig-paths";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
-  base: "/stijnenhannah/",
+  base: "/",
   plugins: [
     react(),
     tailwindcss(),
@@ -26,10 +26,15 @@ export default defineConfig({
         theme_color: "#18181b",
         background_color: "#18181b",
         display: "standalone",
-        start_url: "/stijnenhannah/",
-        scope: "/stijnenhannah/",
+        start_url: "/",
+        scope: "/",
         icons: [
-          { src: "icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any maskable" },
+          {
+            src: "icon.svg",
+            sizes: "any",
+            type: "image/svg+xml",
+            purpose: "any maskable",
+          },
         ],
       },
     }),
@@ -41,7 +46,11 @@ export default defineConfig({
           react: ["react", "react-dom", "react-router-dom"],
           query: ["@tanstack/react-query"],
           supabase: ["@supabase/supabase-js"],
-          ui: ["@radix-ui/react-dialog", "@radix-ui/react-slot", "lucide-react"],
+          ui: [
+            "@radix-ui/react-dialog",
+            "@radix-ui/react-slot",
+            "lucide-react",
+          ],
         },
       },
     },
