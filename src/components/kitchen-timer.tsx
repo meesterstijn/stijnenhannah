@@ -65,7 +65,7 @@ export function KitchenTimer({
           ) {
             new Notification("Timer klaar", {
               body: `${label} is klaar!`,
-              icon: "/stijnenhannah/icon.svg",
+              icon: "/icon.svg",
             });
           }
           return 0;

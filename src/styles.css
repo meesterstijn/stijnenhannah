@@ -209,7 +209,7 @@
   position: fixed;
   inset: 0;
   z-index: -1;
-  background: url("/stijnenhannah/ownbg.png") center / cover no-repeat;
+  background: url("/ownbg.png") center / cover no-repeat;
 
 }
 
@@ -243,7 +243,7 @@ body:has(.tuinieren-theme) header span {
 
 @font-face {
   font-family: "TuinTitel";
-  src: url("/stijnenhannah/fonts/tuin-titel.ttf?v=2") format("truetype");
+  src: url("/fonts/tuin-titel.ttf?v=2") format("truetype");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -264,7 +264,7 @@ body:has(.tuinieren-theme) header span {
   );
   border: 7px solid;
   border-radius: 0;
-  border-image-source: url("/stijnenhannah/gradient-frame.svg?v=2");
+  border-image-source: url("/gradient-frame.svg?v=2");
   border-image-slice: 20;
   border-image-width: 7px;
   border-image-repeat: stretch;
@@ -293,7 +293,7 @@ body:has(.tuinieren-theme) header span {
   );
   border: 6px solid;
   border-radius: 0;
-  border-image-source: url("/stijnenhannah/gradient-frame.svg?v=2");
+  border-image-source: url("/gradient-frame.svg?v=2");
   border-image-slice: 20;
   border-image-width: 6px;
   border-image-repeat: stretch;

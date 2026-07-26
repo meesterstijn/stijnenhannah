@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
     const payload = JSON.stringify({
       title: `To-do: ${openTodos.length} ${openTodos.length === 1 ? "taak" : "taken"} open`,
       body,
-      url: "/stijnenhannah/#/todo",
+      url: "/#/todo",
     });
 
     let sent = 0;

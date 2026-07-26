@@ -79,7 +79,7 @@ Deno.serve(async (req) => {
         note.created_by,
         note.title?.trim() || "Herinnering",
         "Je hebt een herinnering voor deze notitie.",
-        "/stijnenhannah/#/notities",
+        "/#/notities",
       );
       await supabase
         .from("notes")
@@ -101,7 +101,7 @@ Deno.serve(async (req) => {
         todo.created_by,
         "Herinnering",
         todo.text?.trim() || "Je hebt een herinnering voor deze taak.",
-        "/stijnenhannah/#/todo",
+        "/#/todo",
       );
       await supabase
         .from("todos")

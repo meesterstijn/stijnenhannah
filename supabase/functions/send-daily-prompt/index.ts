@@ -115,7 +115,7 @@ Deno.serve(async (req) => {
     const payload = JSON.stringify({
       title: "Dagvraag",
       body: preview,
-      url: "/stijnenhannah/#/dagvraag",
+      url: "/#/dagvraag",
     });
 
     let sent = 0;

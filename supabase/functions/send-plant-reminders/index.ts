@@ -182,7 +182,7 @@ Deno.serve(async (req) => {
     const payload = JSON.stringify({
       title: `Tuinieren: ${totalCount} ${totalCount === 1 ? "plant" : "planten"} verzorgen`,
       body: bodyLines.join("\n"),
-      url: "/stijnenhannah/#/tuinieren",
+      url: "/#/tuinieren",
     });
 
     let sent = 0;

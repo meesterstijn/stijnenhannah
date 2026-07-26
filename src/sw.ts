@@ -16,11 +16,11 @@ self.addEventListener("push", (event) => {
 
   const title = data.title || "Ons Huisje";
   const url =
-    data.url || (data.noteId ? "/stijnenhannah/#/notities" : "/stijnenhannah/");
+    data.url || (data.noteId ? "/#/notities" : "/");
   const options: NotificationOptions = {
     body: data.body || "Je hebt een nieuwe herinnering.",
-    icon: "/stijnenhannah/icon.svg",
-    badge: "/stijnenhannah/icon.svg",
+    icon: "/icon.svg",
+    badge: "/icon.svg",
     data: { url },
   };
 
@@ -29,7 +29,7 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = (event.notification.data?.url as string) || "/stijnenhannah/";
+  const url = (event.notification.data?.url as string) || "/";
   event.waitUntil(
     self.clients
       .matchAll({ type: "window", includeUncontrolled: true })
