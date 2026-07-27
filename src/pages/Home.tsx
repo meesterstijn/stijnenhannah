@@ -18,6 +18,7 @@ import {
   CalendarDays,
   Sparkles,
   Sprout,
+  Crosshair,
 } from "lucide-react";
 
 type GroceryItem = { id: string; text: string; done: boolean };
@@ -104,6 +105,12 @@ export default function Home() {
           icon={Sparkles}
           title="Dagvraag"
           desc="Elke dag een antwoord van Gemini"
+        />
+        <QuickCard
+          to="/rainbow-six-siege"
+          icon={Crosshair}
+          title="Rainbow Six Siege"
+          desc="Plan en speel jullie eigen R6 LAN Night"
         />
         <SpotifyWidget />
         <VerjaarDagWidget />

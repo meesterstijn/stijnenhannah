@@ -28,6 +28,9 @@ const Verjaardagen = lazy(() => import("@/pages/Verjaardagen"));
 const Schoonmaak = lazy(() => import("@/pages/Schoonmaak"));
 const Vakantie = lazy(() => import("@/pages/Vakantie"));
 const Tips = lazy(() => import("@/pages/Tips"));
+const RainbowSixSiege = lazy(() => import("@/pages/RainbowSixSiege"));
+const RainbowSixSiegeLan = lazy(() => import("@/pages/RainbowSixSiegeLan"));
+const RainbowSixSiegeSession = lazy(() => import("@/pages/RainbowSixSiegeSession"));
 const TuingidsLayout = lazy(() => import("@/pages/tuingids/TuingidsLayout"));
 const TuingidsDashboard = lazy(() => import("@/pages/tuingids/TuingidsDashboard"));
 const TuingidsEncyclopedia = lazy(() => import("@/pages/tuingids/TuingidsEncyclopedia"));
@@ -122,6 +125,9 @@ function AppRoutes() {
           <Route path="/schoonmaak" element={<Schoonmaak />} />
           <Route path="/vakantie" element={<Vakantie />} />
           <Route path="/tips" element={<Tips />} />
+          <Route path="/rainbow-six-siege" element={<RainbowSixSiege />} />
+          <Route path="/rainbow-six-siege/lan" element={<RainbowSixSiegeLan />} />
+          <Route path="/rainbow-six-siege/lan/:sessionId" element={<RainbowSixSiegeSession />} />
           <Route path="/tuingids" element={<TuingidsLayout />}>
             <Route index element={<TuingidsDashboard />} />
             <Route path="encyclopedie" element={<TuingidsEncyclopedia />} />
