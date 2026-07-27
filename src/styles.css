@@ -235,16 +235,25 @@ body:has(.tuinieren-theme) header {
 /*
  * Rainbow Six Siege pages — Teko (Google Fonts) instead of the site-wide
  * Inter/Fraunces combo. Scoped to .r6-theme (applied in site-layout.tsx
- * only on /rainbow-six-siege* routes) so it never leaks elsewhere. Both
- * tokens are overridden, not just --font-serif: body copy inherits
- * --font-sans (see the `body` rule above), headings/.font-serif inherit
- * --font-serif — redefining both here means every element within the R6
- * pages picks up Teko automatically through normal CSS inheritance, with
- * no !important or utility-specificity fighting needed.
+ * only on /rainbow-six-siege* routes) so it never leaks elsewhere.
+ *
+ * Overriding --font-serif/--font-sans here does NOT work: Tailwind v4's
+ * `@theme inline` block (top of this file) bakes the literal font value
+ * directly into generated utilities like `.font-serif` at build time
+ * instead of emitting `font-family: var(--font-serif)` — confirmed by
+ * inspecting the compiled CSS, which contains two separate `.font-serif`
+ * rules, one using var() (from the @layer base rule below) and one with
+ * the literal "Fraunces,ui-serif,Georgia,serif" hardcoded (Tailwind's
+ * auto-generated utility, in the higher-priority utilities layer). Since
+ * virtually every heading/title across the R6 feature uses the
+ * `font-serif` utility class directly, a variable override is silently
+ * ignored for all of them. This unlayered, !important rule instead forces
+ * the font directly on every element inside the scope, regardless of
+ * which font utility class (if any) it individually carries.
  */
-.r6-theme {
-  --font-serif: "Teko", ui-serif, Georgia, serif;
-  --font-sans: "Teko", ui-sans-serif, system-ui, sans-serif;
+.r6-theme,
+.r6-theme * {
+  font-family: "Teko", ui-sans-serif, system-ui, sans-serif !important;
 }
 
 body:has(.tuinieren-theme) header .text-muted-foreground {
