@@ -71,6 +71,12 @@ export type R6MatchGeneralFormState = {
   /** Hoogstens één officiële MVP per match — lege string = geen MVP. */
   mvpPlayerId: string;
   mvpReason: string;
+  /** Override van de MVP-puntenwaarde (zie R6EndGameSheet) — dit formulier
+   * heeft er geen eigen invoerveld voor, maar geeft een bestaande waarde
+   * ongewijzigd door bij het opslaan, zodat een via "Gimma afronden" gezette
+   * override niet stilzwijgend wordt teruggezet naar de globale mvp-regel
+   * zodra iemand deze match later via dit formulier bewerkt. */
+  mvpPoints: number | null;
 };
 
 export function buildR6NewMatchInput(
@@ -89,6 +95,7 @@ export function buildR6NewMatchInput(
     notes: general.notes.trim() || null,
     mvp_player_id: general.mvpPlayerId || null,
     mvp_reason: general.mvpPlayerId ? general.mvpReason.trim() || null : null,
+    mvp_points: general.mvpPlayerId ? general.mvpPoints : null,
     players: players.map(buildR6MatchPlayerInput),
   };
 }

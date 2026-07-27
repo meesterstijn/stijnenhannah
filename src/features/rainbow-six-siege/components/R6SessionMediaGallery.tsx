@@ -54,13 +54,13 @@ export function R6SessionMediaGallery({
               <SelectTrigger className="border-zinc-700 bg-zinc-900 text-zinc-100">
                 <SelectValue placeholder="Koppel aan hele LAN" />
               </SelectTrigger>
-              <SelectContent className="border-zinc-700 bg-zinc-900 text-zinc-100">
+              <SelectContent className="r6-theme border-zinc-700 bg-zinc-900 text-zinc-100">
                 <SelectItem value={NONE} className="text-zinc-100 focus:bg-amber-500/20 focus:text-amber-400">
                   Koppel aan hele LAN
                 </SelectItem>
                 {matches.map((m) => (
                   <SelectItem key={m.id} value={m.id} className="text-zinc-100 focus:bg-amber-500/20 focus:text-amber-400">
-                    Match {m.match_number}
+                    Gimma {m.match_number}
                   </SelectItem>
                 ))}
               </SelectContent>

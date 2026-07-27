@@ -3,7 +3,6 @@ import { useNavigate, useParams } from "react-router-dom";
 import { History, Loader2, Plus, Radio, RotateCcw, Square, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { R6Header } from "@/features/rainbow-six-siege/components/R6Header";
 import { R6MatchCard } from "@/features/rainbow-six-siege/components/R6MatchCard";
 import { R6MatchForm } from "@/features/rainbow-six-siege/components/R6MatchForm";
 import { R6SessionSettings } from "@/features/rainbow-six-siege/components/R6SessionSettings";
@@ -103,15 +102,15 @@ export default function RainbowSixSiegeSession() {
     [scoreRules],
   );
 
-  // Zodra een LAN live is maar nog geen enkele game heeft, wordt "Game 1"
+  // Zodra een LAN live is maar nog geen enkele Gimma heeft, wordt "Gimma 1"
   // automatisch aangemaakt — de gebruiker begint direct bij het scorebord,
-  // niet bij een "nieuwe game starten"-formulier. Elke volgende game start
-  // op dezelfde manier automatisch, als onderdeel van "Game afronden" (zie
+  // niet bij een "nieuwe Gimma starten"-formulier. Elke volgende Gimma start
+  // op dezelfde manier automatisch, als onderdeel van "Gimma afronden" (zie
   // R6EndGameSheet.onEnded hieronder) — er is verder nergens een losse
-  // "nieuwe game"-knop nodig.
+  // "nieuwe Gimma"-knop nodig.
   //
-  // De ref hieronder voorkomt dat dit tweemaal een game aanmaakt (bug: een
-  // verse LAN begon bij "Game 2" i.p.v. "Game 1"). Oorzaak: React
+  // De ref hieronder voorkomt dat dit tweemaal een Gimma aanmaakt (bug: een
+  // verse LAN begon bij "Gimma 2" i.p.v. "Gimma 1"). Oorzaak: React
   // StrictMode voert effects in ontwikkeling twee keer na elkaar uit, zonder
   // dat daar een render tussen zit — `startRound.isPending` staat in beide
   // aanroepen dus nog op de oude `false`-waarde, waardoor `mutate()` alsnog
@@ -163,13 +162,6 @@ export default function RainbowSixSiegeSession() {
 
   return (
     <div className="space-y-4">
-      <R6Header
-        title={session.name}
-        subtitle={isLive ? "Live bezig" : `Afgerond op ${new Date(session.started_at).toLocaleDateString("nl-NL", { day: "numeric", month: "long", year: "numeric" })}`}
-        backTo="/rainbow-six-siege/lan"
-        backLabel="Terug naar LAN-overzicht"
-      />
-
       {usingFallbackRules && (
         <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-400">
           De puntregels konden niet uit de database geladen worden — dit scorebord gebruikt tijdelijk de standaardwaarden.
@@ -194,7 +186,7 @@ export default function RainbowSixSiegeSession() {
           <p className="font-serif text-lg font-semibold text-zinc-100">{formatDuration(session.started_at, session.ended_at)}</p>
         </div>
         <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4">
-          <p className="text-xs text-zinc-500">Games</p>
+          <p className="text-xs text-zinc-500">Gimma's</p>
           <p className="font-serif text-lg font-semibold text-zinc-100">{matches.length}</p>
         </div>
       </div>
@@ -205,7 +197,7 @@ export default function RainbowSixSiegeSession() {
 
       {justEndedGameNumber !== null && (
         <p className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-400">
-          Game {justEndedGameNumber} afgerond — Game {justEndedGameNumber + 1} gestart!
+          Gimma {justEndedGameNumber} afgerond — Gimma {justEndedGameNumber + 1} gestart!
         </p>
       )}
 
@@ -306,17 +298,17 @@ export default function RainbowSixSiegeSession() {
 
           <section className="space-y-3">
             <div className="flex items-center justify-between">
-              <p className="font-serif text-lg font-semibold text-zinc-100">Gespeelde matches</p>
+              <p className="font-serif text-lg font-semibold text-zinc-100">Gespeelde Gimma's</p>
               <Button type="button" className="bg-amber-500 text-zinc-950 hover:bg-amber-400" onClick={openCreateMatch}>
-                <Plus className="h-4 w-4" /> Match toevoegen
+                <Plus className="h-4 w-4" /> Gimma toevoegen
               </Button>
             </div>
-            {/* De actief lopende game is nog een kale container zonder afgeronde
+            {/* De actief lopende Gimma is nog een kale container zonder afgeronde
                 gegevens (zie R6EndGameSheet) — die hoort hier pas thuis zodra
-                "Game afronden" 'm heeft afgesloten, anders staat er verwarrend
-                een match met "Onbekend" resultaat en 0 stats tussen. */}
+                "Gimma afronden" 'm heeft afgesloten, anders staat er verwarrend
+                een Gimma met "Onbekend" resultaat en 0 stats tussen. */}
             {matches.filter((m) => m.id !== currentMatch?.id).length === 0 ? (
-              <p className="text-sm text-zinc-400">Nog geen matches geregistreerd.</p>
+              <p className="text-sm text-zinc-400">Nog geen Gimma's geregistreerd.</p>
             ) : (
               <div className="space-y-3">
                 {matches.filter((m) => m.id !== currentMatch?.id).map((match) => (
@@ -369,7 +361,7 @@ export default function RainbowSixSiegeSession() {
       )}
 
       <Dialog open={confirmEndOpen} onOpenChange={setConfirmEndOpen}>
-        <DialogContent className="border-zinc-800 bg-zinc-950 text-zinc-100">
+        <DialogContent className="r6-theme border-zinc-800 bg-zinc-950 text-zinc-100">
           <DialogHeader>
             <DialogTitle className="font-serif text-lg text-zinc-100">Weet je zeker dat je deze LAN wilt beëindigen?</DialogTitle>
             <DialogDescription className="text-zinc-400">
@@ -400,11 +392,11 @@ export default function RainbowSixSiegeSession() {
       </Dialog>
 
       <Dialog open={confirmReopenOpen} onOpenChange={setConfirmReopenOpen}>
-        <DialogContent className="border-zinc-800 bg-zinc-950 text-zinc-100">
+        <DialogContent className="r6-theme border-zinc-800 bg-zinc-950 text-zinc-100">
           <DialogHeader>
             <DialogTitle className="font-serif text-lg text-zinc-100">LAN heropenen?</DialogTitle>
             <DialogDescription className="text-zinc-400">
-              De sessie wordt weer live: matches toevoegen, bewerken en verwijderen wordt weer mogelijk, foto's zijn weer bewerkbaar en de
+              De sessie wordt weer live: Gimma's toevoegen, bewerken en verwijderen wordt weer mogelijk, foto's zijn weer bewerkbaar en de
               eindbonussen worden weer als voorlopig getoond, totdat je opnieuw beëindigt.
             </DialogDescription>
           </DialogHeader>
@@ -432,11 +424,11 @@ export default function RainbowSixSiegeSession() {
       </Dialog>
 
       <Dialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
-        <DialogContent className="border-zinc-800 bg-zinc-950 text-zinc-100">
+        <DialogContent className="r6-theme border-zinc-800 bg-zinc-950 text-zinc-100">
           <DialogHeader>
             <DialogTitle className="font-serif text-lg text-zinc-100">Deze LAN volledig verwijderen?</DialogTitle>
             <DialogDescription className="text-zinc-400">
-              Alle matches, statistieken en foto's van "{session.name}" worden definitief verwijderd. Dit kan niet ongedaan gemaakt worden.
+              Alle Gimma's, statistieken en foto's van "{session.name}" worden definitief verwijderd. Dit kan niet ongedaan gemaakt worden.
               {isLive && (
                 <span className="mt-2 block font-medium text-rose-400">
                   Let op: deze LAN is nog LIVE. Weet je zeker dat je een actieve sessie wilt verwijderen in plaats van eerst te beëindigen?

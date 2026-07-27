@@ -149,12 +149,15 @@ export function computeScoreboard(
   // dus apart per match toegekend i.p.v. per match_player-rij. (Blijft
   // relevant voor rondes die via het klassieke matchformulier zijn
   // ingevuld; het live dashboard kent MVP toe via een 'mvp'-event.)
+  // `match.mvp_points` is een optionele, per-match override (zie
+  // R6EndGameSheet) — null betekent "gebruik de actuele, globale mvp-regel",
+  // net als voorheen.
   for (const match of matches) {
     if (!match.mvp_player_id) continue;
     const totals = totalsByPlayer.get(match.mvp_player_id);
     if (!totals) continue;
     totals.mvps += 1;
-    addDirect(match.mvp_player_id, rulePoints(scoreRules, "mvp"));
+    addDirect(match.mvp_player_id, match.mvp_points ?? rulePoints(scoreRules, "mvp"));
   }
 
   // Live-tik-gebeurtenissen: directe punten komen 1-op-1 uit de bevroren

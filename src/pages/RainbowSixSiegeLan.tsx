@@ -16,7 +16,7 @@ export default function RainbowSixSiegeLan() {
 
   return (
     <div className="space-y-4">
-      <R6Header title="LAN-avond" subtitle="Start een nieuwe avond of hervat de actieve LAN" backTo="/rainbow-six-siege" />
+      <R6Header title="LAN-avond" subtitle="Start een nieuwe avond of hervat de actieve LAN" />
 
       {activeLoading || historyLoading ? (
         <div className="flex justify-center py-16 text-zinc-400">

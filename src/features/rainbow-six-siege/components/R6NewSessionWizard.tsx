@@ -75,7 +75,7 @@ export function R6NewSessionWizard({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="border-zinc-800 bg-zinc-950 text-zinc-100 sm:max-w-lg">
+      <DialogContent className="r6-theme border-zinc-800 bg-zinc-950 text-zinc-100 sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="font-serif text-xl text-zinc-100">Nieuwe LAN starten</DialogTitle>
           <DialogDescription className="text-zinc-400">

@@ -45,14 +45,14 @@ export const R6_FEATURES: R6Feature[] = [
     id: "scorebord",
     icon: Trophy,
     title: "Scorebord",
-    description: "Houd punten, gewonnen matches, clutches en andere prestaties bij.",
+    description: "Houd punten, gewonnen Gimma's, clutches en andere prestaties bij.",
     status: "Binnenkort beschikbaar",
   },
   {
     id: "challenges",
     icon: ListChecks,
     title: "Challenges",
-    description: "Voeg vaste en willekeurige opdrachten toe voor extra chaos tijdens de matches.",
+    description: "Voeg vaste en willekeurige opdrachten toe voor extra chaos tijdens de Gimma's.",
     status: "Binnenkort beschikbaar",
   },
   {

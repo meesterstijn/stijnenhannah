@@ -124,7 +124,7 @@ export function R6AfterActionReport({
 
       <SectionCard title="Maps">
         {playedMapCount === 0 ? (
-          <p className="text-sm text-zinc-400">Geen matches met een bekende map.</p>
+          <p className="text-sm text-zinc-400">Geen Gimma's met een bekende map.</p>
         ) : (
           <div className="space-y-2">
             <p className="text-xs text-zinc-500">
@@ -132,16 +132,16 @@ export function R6AfterActionReport({
             </p>
             {bestMap ? (
               <p className="text-xs text-zinc-500">
-                Beste map: {bestMap.mapName} ({Math.round(bestMap.winRate * 100)}% winrate over {bestMap.played} matches)
+                Beste map: {bestMap.mapName} ({Math.round(bestMap.winRate * 100)}% winrate over {bestMap.played} Gimma's)
               </p>
             ) : (
               <p className="text-xs text-zinc-500">
-                Nog geen map met minstens {MIN_MATCHES_FOR_MAP_RANKING} gespeelde matches — nog geen "beste map" aan te wijzen.
+                Nog geen map met minstens {MIN_MATCHES_FOR_MAP_RANKING} gespeelde Gimma's — nog geen "beste map" aan te wijzen.
               </p>
             )}
             {worstMap && worstMap.mapId !== bestMap?.mapId && (
               <p className="text-xs text-zinc-500">
-                Slechtste map: {worstMap.mapName} ({Math.round(worstMap.winRate * 100)}% winrate over {worstMap.played} matches)
+                Slechtste map: {worstMap.mapName} ({Math.round(worstMap.winRate * 100)}% winrate over {worstMap.played} Gimma's)
               </p>
             )}
             <div className="flex flex-wrap gap-2 pt-1">
@@ -200,7 +200,7 @@ export function R6AfterActionReport({
               <p key={m.matchNumber} className="flex items-start gap-2 text-sm italic text-zinc-300">
                 <Quote className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400" />
                 <span>
-                  Match {m.matchNumber}: {m.text}
+                  Gimma {m.matchNumber}: {m.text}
                 </span>
               </p>
             ))}

@@ -24,7 +24,7 @@ function OperatorSelect({
         <SelectTrigger className="border-zinc-700 bg-zinc-900 text-zinc-100">
           <SelectValue placeholder="Geen" />
         </SelectTrigger>
-        <SelectContent className="border-zinc-700 bg-zinc-900 text-zinc-100">
+        <SelectContent className="r6-theme border-zinc-700 bg-zinc-900 text-zinc-100">
           <SelectItem value={NONE} className="text-zinc-100 focus:bg-amber-500/20 focus:text-amber-400">
             Geen
           </SelectItem>

@@ -39,6 +39,7 @@ function emptyGeneralState(): R6MatchGeneralFormState {
     notes: "",
     mvpPlayerId: "",
     mvpReason: "",
+    mvpPoints: null,
   };
 }
 
@@ -53,6 +54,7 @@ function generalStateFromMatch(match: R6Match): R6MatchGeneralFormState {
     notes: match.notes ?? "",
     mvpPlayerId: match.mvp_player_id ?? "",
     mvpReason: match.mvp_reason ?? "",
+    mvpPoints: match.mvp_points,
   };
 }
 
@@ -145,10 +147,10 @@ export function R6MatchForm({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full overflow-y-auto border-zinc-800 bg-zinc-950 text-zinc-100 sm:max-w-2xl">
+      <SheetContent className="r6-theme w-full overflow-y-auto border-zinc-800 bg-zinc-950 text-zinc-100 sm:max-w-2xl">
         <SheetHeader>
           <SheetTitle className="font-serif text-xl text-zinc-100">
-            {isEditMode ? `Match ${existingMatch?.match_number} bewerken` : "Nieuwe match registreren"}
+            {isEditMode ? `Gimma ${existingMatch?.match_number} bewerken` : "Nieuwe Gimma registreren"}
           </SheetTitle>
         </SheetHeader>
 
@@ -159,7 +161,7 @@ export function R6MatchForm({
               <SelectTrigger className="border-zinc-700 bg-zinc-900 text-zinc-100">
                 <SelectValue placeholder="Onbekend" />
               </SelectTrigger>
-              <SelectContent className="border-zinc-700 bg-zinc-900 text-zinc-100">
+              <SelectContent className="r6-theme border-zinc-700 bg-zinc-900 text-zinc-100">
                 <SelectItem value={NONE} className="text-zinc-100 focus:bg-amber-500/20 focus:text-amber-400">
                   Onbekend
                 </SelectItem>
@@ -203,7 +205,7 @@ export function R6MatchForm({
               <SelectTrigger className="border-zinc-700 bg-zinc-900 text-zinc-100">
                 <SelectValue placeholder="Geen" />
               </SelectTrigger>
-              <SelectContent className="border-zinc-700 bg-zinc-900 text-zinc-100">
+              <SelectContent className="r6-theme border-zinc-700 bg-zinc-900 text-zinc-100">
                 <SelectItem value={NONE} className="text-zinc-100 focus:bg-amber-500/20 focus:text-amber-400">
                   Geen
                 </SelectItem>
@@ -252,12 +254,12 @@ export function R6MatchForm({
           </div>
 
           <div className="space-y-1">
-            <label className="text-sm text-zinc-300">MVP (optioneel, hoogstens één per match)</label>
+            <label className="text-sm text-zinc-300">MVP (optioneel, hoogstens één per Gimma)</label>
             <Select value={general.mvpPlayerId || NONE} onValueChange={(v) => setGeneral((g) => ({ ...g, mvpPlayerId: v === NONE ? "" : v }))}>
               <SelectTrigger className="border-zinc-700 bg-zinc-900 text-zinc-100">
                 <SelectValue placeholder="Geen" />
               </SelectTrigger>
-              <SelectContent className="border-zinc-700 bg-zinc-900 text-zinc-100">
+              <SelectContent className="r6-theme border-zinc-700 bg-zinc-900 text-zinc-100">
                 <SelectItem value={NONE} className="text-zinc-100 focus:bg-amber-500/20 focus:text-amber-400">
                   Geen
                 </SelectItem>
@@ -304,7 +306,7 @@ export function R6MatchForm({
         <SheetFooter className="mt-6">
           <Button type="button" className="bg-amber-500 text-zinc-950 hover:bg-amber-400" onClick={handleSubmit} disabled={pending}>
             {pending && <Loader2 className="h-4 w-4 animate-spin" />}
-            {isEditMode ? "Wijzigingen opslaan" : "Match opslaan"}
+            {isEditMode ? "Wijzigingen opslaan" : "Gimma opslaan"}
           </Button>
         </SheetFooter>
       </SheetContent>

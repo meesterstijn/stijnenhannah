@@ -1,10 +1,14 @@
 import { useState } from "react";
-import { Loader2, Plus, Settings, Trash2 } from "lucide-react";
+import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { GripVertical, Loader2, Plus, Settings, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { R6EmojiPicker } from "@/features/rainbow-six-siege/components/R6EmojiPicker";
 import {
   useCreateR6ScoreRule,
   useDeleteR6ScoreRule,
@@ -49,12 +53,7 @@ function NewQuickActionForm({ nextSortOrder }: { nextSortOrder: number }) {
     <div className="space-y-2 rounded-2xl border border-dashed border-zinc-700 bg-zinc-900/40 p-3">
       <p className="text-sm font-medium text-zinc-300">Nieuwe actietegel</p>
       <div className="grid grid-cols-[3rem_1fr_5rem] gap-2">
-        <Input
-          value={icon}
-          onChange={(e) => setIcon(e.target.value)}
-          placeholder="🎯"
-          className="border-zinc-700 bg-zinc-900 px-1 text-center text-lg text-zinc-100 placeholder:text-zinc-600"
-        />
+        <R6EmojiPicker value={icon} onChange={setIcon} />
         <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -73,7 +72,7 @@ function NewQuickActionForm({ nextSortOrder }: { nextSortOrder: number }) {
           <SelectTrigger className={`h-8 w-28 border ${tileColorClasses(color)}`}>
             <SelectValue />
           </SelectTrigger>
-          <SelectContent className="border-zinc-700 bg-zinc-900 text-zinc-100">
+          <SelectContent className="r6-theme border-zinc-700 bg-zinc-900 text-zinc-100">
             {TILE_COLOR_TOKENS.map((token) => (
               <SelectItem key={token} value={token} className="text-zinc-100 focus:bg-amber-500/20 focus:text-amber-400">
                 {token}
@@ -102,8 +101,12 @@ function QuickActionRow({ rule }: { rule: R6ScoreRule }) {
   const [name, setName] = useState(rule.name);
   const [icon, setIcon] = useState(rule.icon ?? "");
   const [points, setPoints] = useState(String(rule.points));
-  const [sortOrder, setSortOrder] = useState(String(rule.sort_order));
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Slepen (zie R6QuickActionSettings.handleDragEnd) i.p.v. een handmatig
+  // volgordegetal — sneller en werkt ook gewoon met een vinger op een tablet.
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: rule.id });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
 
   function handleDelete() {
     setDeleteError(null);
@@ -115,27 +118,32 @@ function QuickActionRow({ rule }: { rule: R6ScoreRule }) {
   function saveName() {
     if (name.trim() && name !== rule.name) updateRule.mutate({ id: rule.id, patch: { name: name.trim() } });
   }
-  function saveIcon() {
-    if (icon !== (rule.icon ?? "")) updateRule.mutate({ id: rule.id, patch: { icon: icon.trim() || null } });
+  function selectIcon(emoji: string) {
+    setIcon(emoji);
+    updateRule.mutate({ id: rule.id, patch: { icon: emoji || null } });
   }
   function savePoints() {
     const parsed = parseInt(points, 10);
     if (Number.isFinite(parsed) && parsed !== rule.points) updateRule.mutate({ id: rule.id, patch: { points: parsed } });
   }
-  function saveSortOrder() {
-    const parsed = parseInt(sortOrder, 10);
-    if (Number.isFinite(parsed) && parsed !== rule.sort_order) updateRule.mutate({ id: rule.id, patch: { sort_order: parsed } });
-  }
 
   return (
-    <div className={`space-y-2 rounded-2xl border p-3 ${rule.is_active ? "border-zinc-800 bg-zinc-900/60" : "border-zinc-800 bg-zinc-950/40 opacity-60"}`}>
-      <div className="grid grid-cols-[3rem_1fr_5rem] gap-2">
-        <Input
-          value={icon}
-          onChange={(e) => setIcon(e.target.value)}
-          onBlur={saveIcon}
-          className="border-zinc-700 bg-zinc-900 px-1 text-center text-lg text-zinc-100"
-        />
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`space-y-2 rounded-2xl border p-3 ${rule.is_active ? "border-zinc-800 bg-zinc-900/60" : "border-zinc-800 bg-zinc-950/40 opacity-60"}`}
+    >
+      <div className="grid grid-cols-[1.5rem_3rem_1fr_5rem] gap-2">
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          className="flex touch-none items-center justify-center text-zinc-500 hover:text-zinc-300"
+          aria-label={`${rule.name} verslepen om te herordenen`}
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
+        <R6EmojiPicker value={icon} onChange={selectIcon} />
         <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -155,7 +163,7 @@ function QuickActionRow({ rule }: { rule: R6ScoreRule }) {
           <SelectTrigger className={`h-8 w-28 border ${tileColorClasses(rule.color)}`}>
             <SelectValue />
           </SelectTrigger>
-          <SelectContent className="border-zinc-700 bg-zinc-900 text-zinc-100">
+          <SelectContent className="r6-theme border-zinc-700 bg-zinc-900 text-zinc-100">
             {TILE_COLOR_TOKENS.map((token) => (
               <SelectItem key={token} value={token} className="text-zinc-100 focus:bg-amber-500/20 focus:text-amber-400">
                 {token}
@@ -163,17 +171,6 @@ function QuickActionRow({ rule }: { rule: R6ScoreRule }) {
             ))}
           </SelectContent>
         </Select>
-
-        <label className="flex items-center gap-1.5 text-xs text-zinc-400">
-          Volgorde
-          <Input
-            type="number"
-            value={sortOrder}
-            onChange={(e) => setSortOrder(e.target.value)}
-            onBlur={saveSortOrder}
-            className="h-8 w-16 border-zinc-700 bg-zinc-900 text-zinc-100"
-          />
-        </label>
 
         <label className="ml-auto flex items-center gap-2 text-xs text-zinc-300">
           <Checkbox
@@ -203,8 +200,29 @@ function QuickActionRow({ rule }: { rule: R6ScoreRule }) {
 export function R6QuickActionSettings() {
   const [open, setOpen] = useState(false);
   const { rules } = useR6ScoreRules();
+  const updateRule = useUpdateR6ScoreRule();
   const quickActions = rules.filter((r) => r.is_quick_action).sort((a, b) => a.sort_order - b.sort_order);
   const nextSortOrder = rules.reduce((max, r) => Math.max(max, r.sort_order), 0) + 1;
+
+  // 5px drempel voorkomt dat een gewone tik op de rij (bv. tikken buiten een
+  // invoerveld) al als sleep-actie wordt opgevat — belangrijk op een tablet,
+  // waar een tik nooit helemaal stilstaat.
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = quickActions.findIndex((r) => r.id === active.id);
+    const newIndex = quickActions.findIndex((r) => r.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const reordered = arrayMove(quickActions, oldIndex, newIndex);
+    reordered.forEach((rule, index) => {
+      const newSortOrder = index + 1;
+      if (rule.sort_order !== newSortOrder) {
+        updateRule.mutate({ id: rule.id, patch: { sort_order: newSortOrder } });
+      }
+    });
+  }
 
   return (
     <>
@@ -218,22 +236,27 @@ export function R6QuickActionSettings() {
       </Button>
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent className="w-full overflow-y-auto border-zinc-800 bg-zinc-950 text-zinc-100 sm:max-w-lg">
+        <SheetContent className="r6-theme w-full overflow-y-auto border-zinc-800 bg-zinc-950 text-zinc-100 sm:max-w-lg">
           <SheetHeader>
             <SheetTitle className="font-serif text-xl text-zinc-100">Actietegels beheren</SheetTitle>
           </SheetHeader>
           <p className="mt-2 text-xs text-zinc-400">
-            Naam, puntenwaarde, icoon, kleur en volgorde zijn direct aanpasbaar. Zet een tegel op "inactief" om 'm van het live
-            dashboard te verbergen zonder de geschiedenis van al getikte gebeurtenissen te verliezen.
+            Naam, puntenwaarde, icoon en kleur zijn direct aanpasbaar. Versleep een tegel aan de greep links om de volgorde op het
+            live dashboard te wijzigen. Zet een tegel op "inactief" om 'm te verbergen zonder de geschiedenis van al getikte
+            gebeurtenissen te verliezen.
           </p>
           <div className="mt-4">
             <NewQuickActionForm nextSortOrder={nextSortOrder} />
           </div>
-          <div className="mt-4 space-y-3">
-            {quickActions.map((rule) => (
-              <QuickActionRow key={rule.id} rule={rule} />
-            ))}
-          </div>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={quickActions.map((r) => r.id)} strategy={verticalListSortingStrategy}>
+              <div className="mt-4 space-y-3">
+                {quickActions.map((rule) => (
+                  <QuickActionRow key={rule.id} rule={rule} />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
         </SheetContent>
       </Sheet>
     </>

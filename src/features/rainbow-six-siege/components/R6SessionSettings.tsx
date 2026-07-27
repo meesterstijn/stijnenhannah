@@ -157,7 +157,7 @@ export function R6SessionSettings({
             {addingPlayer ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
           </Button>
         </div>
-        <p className="text-xs text-zinc-500">Een speler die al matchgegevens heeft in deze LAN kan niet verwijderd worden.</p>
+        <p className="text-xs text-zinc-500">Een speler die al Gimma-gegevens heeft in deze LAN kan niet verwijderd worden.</p>
       </div>
 
       {error && <p className="text-sm text-rose-400">{error}</p>}

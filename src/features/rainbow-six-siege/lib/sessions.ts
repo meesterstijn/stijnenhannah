@@ -14,7 +14,7 @@ import type {
 
 const SESSION_COLUMNS = "id, name, started_at, ended_at, status, notes, created_by, created_at";
 const MATCH_COLUMNS =
-  "id, session_id, match_number, played_at, map_id, result, challenge_id, challenge_completed, chaos_rule, funniest_moment, notes, mvp_player_id, mvp_reason, created_at";
+  "id, session_id, match_number, played_at, map_id, result, challenge_id, challenge_completed, chaos_rule, funniest_moment, notes, mvp_player_id, mvp_reason, mvp_points, created_at";
 const MATCH_PLAYER_COLUMNS =
   "id, match_id, player_id, operator_attacker_id, operator_defender_id, operator_single_id, kills, deaths, assists, revives, headshots, clutch, ace, created_at";
 
@@ -166,6 +166,7 @@ export async function createR6Match(input: R6NewMatchInput): Promise<string> {
     p_result: input.result,
     p_mvp_player_id: input.mvp_player_id,
     p_mvp_reason: input.mvp_reason,
+    p_mvp_points: input.mvp_points,
   });
   if (error) throw error;
   return data as string;
@@ -184,6 +185,7 @@ export async function updateR6Match(input: R6UpdateMatchInput): Promise<void> {
     p_result: input.result,
     p_mvp_player_id: input.mvp_player_id,
     p_mvp_reason: input.mvp_reason,
+    p_mvp_points: input.mvp_points,
   });
   if (error) throw error;
 }

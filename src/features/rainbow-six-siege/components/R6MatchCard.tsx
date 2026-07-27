@@ -68,7 +68,7 @@ export function R6MatchCard({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <p className="font-serif text-lg font-semibold text-zinc-100">
-            Match {match.match_number} · {mapName}
+            Gimma {match.match_number} · {mapName}
           </p>
           <span className={`rounded-full px-2.5 py-0.5 text-xs ${RESULT_CLASSES[match.result]}`}>{RESULT_LABELS[match.result]}</span>
         </div>
@@ -145,9 +145,9 @@ export function R6MatchCard({
       {match.notes && <p className="text-xs text-zinc-500">{match.notes}</p>}
 
       <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
-        <DialogContent className="border-zinc-800 bg-zinc-950 text-zinc-100">
+        <DialogContent className="r6-theme border-zinc-800 bg-zinc-950 text-zinc-100">
           <DialogHeader>
-            <DialogTitle className="font-serif text-lg text-zinc-100">Match {match.match_number} verwijderen?</DialogTitle>
+            <DialogTitle className="font-serif text-lg text-zinc-100">Gimma {match.match_number} verwijderen?</DialogTitle>
             <DialogDescription className="text-zinc-400">
               Dit verwijdert de match en alle bijbehorende spelerstatistieken definitief. Het scorebord wordt automatisch herberekend.
             </DialogDescription>

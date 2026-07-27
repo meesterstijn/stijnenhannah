@@ -19,7 +19,7 @@ export function R6SessionCard({ summary }: { summary: R6SessionSummary }) {
       <div className="min-w-0">
         <p className="font-serif text-lg font-semibold text-zinc-100">{session.name}</p>
         <p className="text-sm text-zinc-400">
-          {formatSessionDate(session.started_at)} · {matchCount} {matchCount === 1 ? "match" : "matches"}
+          {formatSessionDate(session.started_at)} · {matchCount} {matchCount === 1 ? "Gimma" : "Gimma's"}
         </p>
       </div>
       {winner && (

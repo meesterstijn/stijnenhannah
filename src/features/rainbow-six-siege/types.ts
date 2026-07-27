@@ -105,6 +105,11 @@ export type R6Match = {
   notes: string | null;
   mvp_player_id: string | null;
   mvp_reason: string | null;
+  // Override van de MVP-puntenwaarde voor precies déze match — null
+  // betekent "gebruik de actuele, globale mvp-regel uit r6_score_rules"
+  // (het oorspronkelijke, nog steeds standaard gedrag). Alleen relevant
+  // wanneer mvp_player_id gezet is (zie R6EndGameSheet).
+  mvp_points: number | null;
   created_at: string;
 };
 
@@ -153,6 +158,7 @@ export type R6NewMatchInput = {
   notes: string | null;
   mvp_player_id: string | null;
   mvp_reason: string | null;
+  mvp_points: number | null;
 };
 
 export type R6UpdateMatchInput = R6NewMatchInput & { match_id: string };
