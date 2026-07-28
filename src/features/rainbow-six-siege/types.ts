@@ -194,6 +194,12 @@ export type R6ScoreboardEntry = {
     draws: number;
     mvps: number;
     clutches: number;
+    // 1v2/1v3 apart bijgehouden náást het bestaande gecombineerde
+    // `clutches`-totaal — alleen afgeleid uit live-tik-events
+    // (clutch_1v2/clutch_1v3), want het klassieke matchformulier kent enkel
+    // een generieke clutch-boolean zonder dat onderscheid.
+    clutch1v2: number;
+    clutch1v3: number;
     aces: number;
     challengesCompleted: number;
   };
@@ -271,6 +277,9 @@ export type R6ChaosEffect = {
   description: string | null;
   duration_type: R6SessionChallengeScope;
   default_duration: number | null;
+  // Voor het beheerscherm van het Chaos Wheel ("categorie kiezen") —
+  // vrije, optionele groeperingstekst (bv. "Wapens", "Movement").
+  category: string | null;
   is_active: boolean;
   sort_order: number;
 };
@@ -285,4 +294,19 @@ export type R6SessionChaosEffect = {
   end_match_number: number | null;
   status: "active" | "completed";
   created_at: string;
+};
+
+// Operator Wheel — welke attacker/defender een speler heeft voor precies
+// één game. `unique (match_id, player_id)` in de database maakt dit
+// upsert-baar: "opnieuw verdelen" is puur lokale state totdat er
+// geaccepteerd wordt, dan pas één upsert.
+export type R6GameOperatorAssignment = {
+  id: string;
+  session_id: string;
+  match_id: string;
+  player_id: string;
+  attacker_operator_id: string | null;
+  defender_operator_id: string | null;
+  created_at: string;
+  updated_at: string;
 };

@@ -2,17 +2,19 @@ import {
   Users,
   Trophy,
   ListChecks,
-  Shuffle,
   BarChart3,
   Award,
   type LucideIcon,
 } from "lucide-react";
 
+// "Operator Wheel" is bewust geen losse tegel meer hier — het wordt alleen
+// nog gebruikt tíjdens een actieve LAN (zie de knop in het Live Dashboard),
+// niet als een op zichzelf staand hoofdonderdeel tussen Scorebord en
+// Statistieken.
 export type R6FeatureId =
   | "lan-avond"
   | "scorebord"
   | "challenges"
-  | "operator-wheel"
   | "statistieken"
   | "eindevaluatie";
 
@@ -45,8 +47,9 @@ export const R6_FEATURES: R6Feature[] = [
     id: "scorebord",
     icon: Trophy,
     title: "Scorebord",
-    description: "Houd punten, gewonnen Gimma's, clutches en andere prestaties bij.",
-    status: "Binnenkort beschikbaar",
+    description: "Ranglijst en prestaties over alle LAN-avonden heen, per speler.",
+    status: "Actief",
+    to: "/rainbow-six-siege/scorebord",
   },
   {
     id: "challenges",
@@ -56,18 +59,12 @@ export const R6_FEATURES: R6Feature[] = [
     status: "Binnenkort beschikbaar",
   },
   {
-    id: "operator-wheel",
-    icon: Shuffle,
-    title: "Operator Wheel",
-    description: "Laat willekeurig bepalen welke operator, wapens of speelregels jullie gebruiken.",
-    status: "Binnenkort beschikbaar",
-  },
-  {
     id: "statistieken",
     icon: BarChart3,
     title: "Statistieken",
-    description: "Bekijk kills, assists, revives, MVP's, K/D en andere resultaten van de avond.",
-    status: "Binnenkort beschikbaar",
+    description: "Diepgaande analyse: spelervergelijking, grafieken en records.",
+    status: "Actief",
+    to: "/rainbow-six-siege/statistieken",
   },
   {
     id: "eindevaluatie",

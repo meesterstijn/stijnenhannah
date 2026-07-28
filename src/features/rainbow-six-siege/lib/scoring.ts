@@ -35,7 +35,10 @@ export const FALLBACK_SCORE_RULES: R6ScoreRule[] = [
  * instelbaar) — geen tweede bron van waarheid in r6_score_rules. */
 export const CHALLENGE_COMPLETED_FALLBACK_POINTS = 2;
 
-function rulePoints(rules: R6ScoreRule[], code: string): number {
+/** Geëxporteerd voor hergebruik buiten computeScoreboard — bv. de
+ * Statistiekenpagina die per-game (niet per-sessie) punten moet aflezen
+ * voor het "meeste punten in één game"-record. */
+export function rulePoints(rules: R6ScoreRule[], code: string): number {
   const rule = rules.find((r) => r.code === code && r.is_active);
   return rule?.points ?? 0;
 }
@@ -52,6 +55,8 @@ function emptyTotals() {
     draws: 0,
     mvps: 0,
     clutches: 0,
+    clutch1v2: 0,
+    clutch1v3: 0,
     aces: 0,
     challengesCompleted: 0,
   };
@@ -170,6 +175,11 @@ export function computeScoreboard(
     addDirect(event.player_id, event.points_awarded);
     const key = EVENT_TOTALS_KEY[event.score_rule_code];
     if (key) totals[key] += 1;
+    // Los van de gecombineerde `clutches` hierboven ook de 1v2/1v3-splitsing
+    // bijhouden — alleen af te leiden uit deze twee specifieke event-codes,
+    // het klassieke matchformulier kent enkel een generieke clutch-boolean.
+    if (event.score_rule_code === "clutch_1v2") totals.clutch1v2 += 1;
+    else if (event.score_rule_code === "clutch_1v3") totals.clutch1v3 += 1;
   }
 
   // "Meeste X van de sessie"-eindbonussen: alleen toegekend aan een

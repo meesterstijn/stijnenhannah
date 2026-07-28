@@ -31,6 +31,9 @@ const Tips = lazy(() => import("@/pages/Tips"));
 const RainbowSixSiege = lazy(() => import("@/pages/RainbowSixSiege"));
 const RainbowSixSiegeLan = lazy(() => import("@/pages/RainbowSixSiegeLan"));
 const RainbowSixSiegeSession = lazy(() => import("@/pages/RainbowSixSiegeSession"));
+const RainbowSixSiegeScoreboard = lazy(() => import("@/pages/RainbowSixSiegeScoreboard"));
+const RainbowSixSiegeStatistics = lazy(() => import("@/pages/RainbowSixSiegeStatistics"));
+const RainbowSixSiegeBigScreen = lazy(() => import("@/pages/RainbowSixSiegeBigScreen"));
 const TuingidsLayout = lazy(() => import("@/pages/tuingids/TuingidsLayout"));
 const TuingidsDashboard = lazy(() => import("@/pages/tuingids/TuingidsDashboard"));
 const TuingidsEncyclopedia = lazy(() => import("@/pages/tuingids/TuingidsEncyclopedia"));
@@ -128,6 +131,8 @@ function AppRoutes() {
           <Route path="/rainbow-six-siege" element={<RainbowSixSiege />} />
           <Route path="/rainbow-six-siege/lan" element={<RainbowSixSiegeLan />} />
           <Route path="/rainbow-six-siege/lan/:sessionId" element={<RainbowSixSiegeSession />} />
+          <Route path="/rainbow-six-siege/scorebord" element={<RainbowSixSiegeScoreboard />} />
+          <Route path="/rainbow-six-siege/statistieken" element={<RainbowSixSiegeStatistics />} />
           <Route path="/tuingids" element={<TuingidsLayout />}>
             <Route index element={<TuingidsDashboard />} />
             <Route path="encyclopedie" element={<TuingidsEncyclopedia />} />
@@ -144,6 +149,10 @@ function AppRoutes() {
           </Route>
           <Route path="*" element={<NotFound />} />
         </Route>
+        {/* Big Screen Mode heeft bewust GEEN SiteLayout: geen navbar, geen
+            "Ons Huisje", geen paginabreedte-beperking — een tv/tweede monitor
+            mag alleen het live scorebord zelf tonen. */}
+        <Route path="/rainbow-six-siege/lan/:sessionId/big-screen" element={<RainbowSixSiegeBigScreen />} />
       </Routes>
     </Suspense>
   );

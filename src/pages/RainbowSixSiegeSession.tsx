@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { History, Home, Loader2, Plus, Radio, RotateCcw, Square, Trash2 } from "lucide-react";
+import { History, Home, Loader2, Plus, Radio, RotateCcw, Square, Trash2, Tv } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { R6MatchCard } from "@/features/rainbow-six-siege/components/R6MatchCard";
@@ -210,6 +210,16 @@ export default function RainbowSixSiegeSession() {
             <RotateCcw className="h-4 w-4" /> LAN heropenen
           </Button>
         )}
+        {isLive && (
+          <Button
+            type="button"
+            variant="outline"
+            className="border-zinc-700 bg-transparent text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100"
+            onClick={() => window.open(`/#/rainbow-six-siege/lan/${sessionId}/big-screen`, "_blank")}
+          >
+            <Tv className="h-4 w-4" /> Big Screen
+          </Button>
+        )}
         <Button
           type="button"
           variant="outline"
@@ -278,6 +288,7 @@ export default function RainbowSixSiegeSession() {
 
       {isLive && view === "live" && (
         <R6LiveDashboard
+          sessionId={session.id}
           scoreboard={scoreboard}
           roster={roster}
           quickActions={quickActions}
