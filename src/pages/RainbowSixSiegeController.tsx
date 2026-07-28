@@ -121,6 +121,7 @@ export default function RainbowSixSiegeController() {
         roster={roster}
         scoreboard={scoreboard}
         quickActions={quickActions}
+        scoreRules={scoreRules}
         currentMatch={currentMatch}
         events={events}
         maps={maps}

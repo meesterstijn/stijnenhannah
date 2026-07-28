@@ -39,6 +39,7 @@ export function R6TabletController({
   roster,
   scoreboard,
   quickActions,
+  scoreRules,
   currentMatch,
   events,
   maps,
@@ -56,6 +57,7 @@ export function R6TabletController({
   roster: R6Player[];
   scoreboard: R6ScoreboardEntry[];
   quickActions: R6ScoreRule[];
+  scoreRules: R6ScoreRule[];
   currentMatch: R6Match | null;
   events: R6Event[];
   maps: R6Map[];
@@ -134,6 +136,9 @@ export function R6TabletController({
   const currentMapName = currentMatch?.map_id ? mapsById.get(currentMatch.map_id)?.name : null;
   const activeChaosName = activeChaosEffectId ? chaosEffects.find((c) => c.id === activeChaosEffectId)?.name : null;
   const scoreByPlayerId = new Map(scoreboard.map((entry, index) => [entry.player.id, { entry, rank: index + 1 }]));
+
+  const undoRule = undo.lastEvent ? scoreRules.find((r) => r.code === undo.lastEvent!.score_rule_code) : null;
+  const undoPlayerName = undo.lastEvent ? roster.find((p) => p.id === undo.lastEvent!.player_id)?.name : null;
 
   const actionsDisabled = !isLive || !currentMatch;
 
@@ -235,7 +240,9 @@ export function R6TabletController({
           disabled={actionsDisabled || !undo.lastEvent || undo.isUndoing}
         >
           <Undo2 className="h-4 w-4" />
-          Laatste actie ongedaan maken
+          {undo.lastEvent
+            ? `${undoRule?.name ?? undo.lastEvent.score_rule_code} – ${undoPlayerName ?? "?"} ongedaan maken`
+            : "Laatste actie ongedaan maken"}
         </Button>
 
         {currentMatch && !actionsDisabled && (
