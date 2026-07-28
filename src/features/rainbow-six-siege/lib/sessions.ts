@@ -50,7 +50,8 @@ export async function fetchR6SessionDetail(sessionId: string): Promise<R6Session
       supabase
         .from("r6_session_players")
         .select("id, session_id, player_id, created_at, player:r6_players(id, name, created_at)")
-        .eq("session_id", sessionId),
+        .eq("session_id", sessionId)
+        .order("join_order", { ascending: true }),
       supabase.from("r6_matches").select(MATCH_COLUMNS).eq("session_id", sessionId).order("match_number", { ascending: true }),
     ]);
 
@@ -93,7 +94,8 @@ export async function fetchR6DataForSessions(sessionIds: string[]): Promise<{
     supabase
       .from("r6_session_players")
       .select("id, session_id, player_id, created_at, player:r6_players(id, name, created_at)")
-      .in("session_id", sessionIds),
+      .in("session_id", sessionIds)
+      .order("join_order", { ascending: true }),
   ]);
   if (matchesError) throw matchesError;
   if (playersError) throw playersError;

@@ -256,6 +256,109 @@ body:has(.tuinieren-theme) header {
   font-family: "Teko", ui-sans-serif, system-ui, sans-serif !important;
 }
 
+/*
+ * Elke tekstgrootte binnen de Teko-scope één stap groter op de Tailwind-
+ * schaal (text-xs -> text-sm, text-sm -> text-base, enz.) — Teko is een
+ * smal/condensed lettertype dat op de originele maten kleiner oogt dan
+ * Inter/Fraunces. Waarden zijn 1-op-1 overgenomen van Tailwinds eigen
+ * text-sm/text-base/... utilities (zie het @theme inline-blok hierboven)
+ * zodat de volgende stap precies overeenkomt, geen losse aannames.
+ * Zelfde reden als de font-family-regel hierboven om direct de utility-
+ * klasse te overschrijven i.p.v. de --text-*-variabele: bij font-family
+ * bleek die route stilzwijgend genegeerd te worden voor build-time
+ * geïnlinede Tailwind-utilities, dus hier wordt uit voorzorg dezelfde
+ * betrouwbare, directe aanpak gebruikt.
+ */
+.r6-theme .text-xs {
+  font-size: 0.875rem !important;
+  line-height: calc(1.25 / 0.875) !important;
+}
+.r6-theme .text-sm {
+  font-size: 1rem !important;
+  line-height: 1.5 !important;
+}
+.r6-theme .text-base {
+  font-size: 1.125rem !important;
+  line-height: calc(1.75 / 1.125) !important;
+}
+.r6-theme .text-lg {
+  font-size: 1.25rem !important;
+  line-height: calc(1.75 / 1.25) !important;
+}
+.r6-theme .text-xl {
+  font-size: 1.5rem !important;
+  line-height: calc(2 / 1.5) !important;
+}
+.r6-theme .text-2xl {
+  font-size: 1.875rem !important;
+  line-height: 1.2 !important;
+}
+.r6-theme .text-3xl {
+  font-size: 2.25rem !important;
+  line-height: calc(2.5 / 2.25) !important;
+}
+
+/*
+ * Rainbow Six Siege — tactisch/militair ontwerptaal (uitsluitend binnen
+ * .r6-theme). Vertaalt de ontwerpfilosofie van de officiële R6S-interface
+ * (functioneel, industrieel, veel witruimte, nauwelijks schaduw/afronding)
+ * — geen letterlijke kopie van assets. Amber blijft de enige accentkleur;
+ * die werd al uitsluitend gebruikt voor actieve/geselecteerde elementen en
+ * scores, dus dat vereiste was al vervuld.
+ */
+
+/* Bijna-zwarte, licht getextureerde pagina-achtergrond i.p.v. de warme,
+   lichte gradient die de rest van de site gebruikt — zelfde `:has()`-truc
+   als hierboven voor het Tuinieren-thema, dus alleen actief op R6-routes. */
+body:has(.r6-theme) {
+  background-color: oklch(0.16 0.005 264);
+  background-image: repeating-linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.02) 0px,
+    rgba(255, 255, 255, 0.02) 1px,
+    transparent 1px,
+    transparent 7px
+  );
+  background-attachment: fixed;
+}
+
+/* Grote koppen (de heading-utility) in kapitalen — "kleinere labels" zijn
+   bewust niet meegenomen: die gebruiken .font-serif niet en blijven dus
+   gewoon semibold zoals gevraagd. */
+.r6-theme .font-serif {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Vlakke, industriële hoeken i.p.v. "moderne cards" — exact dezelfde
+   waarde voor elke radius-utility (2–4px-range uit de opdracht), inclusief
+   rounded-full: R6 gebruikt geen pil-knoppen. Direct de utility-klasse
+   overschrijven i.p.v. de --radius-variabele, want radius-utilities buiten
+   .rounded-full worden via calc(var(--radius) ± Npx) opgebouwd — één
+   gedeelde variabele aanpassen zou dus per klasse een ANDERE waarde geven
+   i.p.v. de gevraagde uniforme 3px overal. */
+.r6-theme .rounded-2xl,
+.r6-theme .rounded-3xl,
+.r6-theme .rounded-xl,
+.r6-theme .rounded-lg,
+.r6-theme .rounded-md,
+.r6-theme .rounded-sm,
+.r6-theme .rounded-full {
+  border-radius: 3px !important;
+}
+
+/* Geen zware schaduwen — alleen de ambient-shadow-laag (--tw-shadow)
+   neutraliseren, niet de hele `box-shadow`-property: die combineert ook de
+   focus-ring-laag (--tw-ring-shadow) in dezelfde property, en "nette
+   outline bij focus" moet expliciet behouden blijven. */
+.r6-theme .shadow,
+.r6-theme .shadow-xs,
+.r6-theme .shadow-sm,
+.r6-theme .shadow-md,
+.r6-theme .shadow-lg {
+  --tw-shadow: 0 0 #0000 !important;
+}
+
 body:has(.tuinieren-theme) header .text-muted-foreground {
   color: #e8dcc0 !important;
 }

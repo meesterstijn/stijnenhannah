@@ -64,9 +64,14 @@ export function R6NewSessionWizard({
   }
 
   async function handleStart() {
+    // Bewust een vers `new Date()` hier, niet de `today` uit de render-scope
+    // hierboven (die dient alleen om de datum in stap 2/4 te tonen) — anders
+    // is started_at het moment waarop de wizard geopend werd, niet het
+    // moment van daadwerkelijk starten, en telt Looptijd meteen de tijd mee
+    // die je in de wizard doorbracht in plaats van bij 0 te beginnen.
     const sessionId = await createSession.mutateAsync({
       name: name.trim() || "Operation LANstorm",
-      startedAt: today.toISOString(),
+      startedAt: new Date().toISOString(),
       playerNames: validNames,
     });
     onCreated(sessionId);
@@ -114,7 +119,7 @@ export function R6NewSessionWizard({
                   <Input
                     value={p}
                     onChange={(e) => updatePlayer(i, e.target.value)}
-                    placeholder={`Speler ${i + 1}`}
+                    placeholder={i === 0 ? "Speler 1 (links)" : i === 1 ? "Speler 2 (rechts)" : `Speler ${i + 1}`}
                     className="border-zinc-700 bg-zinc-900 text-zinc-100 placeholder:text-zinc-500"
                   />
                   <Button

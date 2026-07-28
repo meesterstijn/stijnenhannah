@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { History, Loader2, Plus, Radio, RotateCcw, Square, Trash2 } from "lucide-react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { History, Home, Loader2, Plus, Radio, RotateCcw, Square, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { R6MatchCard } from "@/features/rainbow-six-siege/components/R6MatchCard";
@@ -52,7 +52,6 @@ export default function RainbowSixSiegeSession() {
   const [confirmEndOpen, setConfirmEndOpen] = useState(false);
   const [confirmReopenOpen, setConfirmReopenOpen] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
-  const [pendingPlayerId, setPendingPlayerId] = useState<string | null>(null);
   const [endGameOpen, setEndGameOpen] = useState(false);
   const [justEndedGameNumber, setJustEndedGameNumber] = useState<number | null>(null);
 
@@ -153,12 +152,75 @@ export default function RainbowSixSiegeSession() {
 
   function handleTap(playerId: string, rule: R6ScoreRule) {
     if (!currentMatch) return;
-    setPendingPlayerId(playerId);
-    recordEvent.mutate(
-      { matchId: currentMatch.id, playerId, scoreRuleCode: rule.code, optimisticPoints: rule.points },
-      { onSettled: () => setPendingPlayerId(null) },
-    );
+    // Bewust geen "pending"-disable tijdens het opslaan: de tik is al
+    // optimistisch verwerkt (zie useRecordR6Event), dus wachten op de
+    // server heeft geen functie hier — het doofde alle andere tegels van
+    // die speler tijdelijk mee (verwarrend) en blokkeerde zelfs een snelle
+    // dubbele tik op dezelfde tegel (bv. 2 kills vlak na elkaar), wat juist
+    // wél twee losse, geldige gebeurtenissen hoort te zijn.
+    recordEvent.mutate({ matchId: currentMatch.id, playerId, scoreRuleCode: rule.code, optimisticPoints: rule.points });
   }
+
+  // Zelfde knoppenrij (Live/Geschiedenis-toggle + LAN beëindigen/heropenen +
+  // LAN verwijderen), maar op twee verschillende plekken gerenderd: bovenaan
+  // (ongewijzigd) buiten de live-weergave, en verderop — tussen de
+  // actietegels/scorebord en "Laatste acties" — zodra je de live-weergave
+  // bekijkt (zie R6LiveDashboard). Hier maar één keer gedefinieerd om
+  // duplicatie van deze JSX te voorkomen.
+  const sessionControlsRow = (
+    <>
+      {isLive ? (
+        <div className="flex gap-1 rounded-full border border-zinc-800 bg-zinc-900/60 p-1">
+          <button
+            type="button"
+            onClick={() => setView("live")}
+            className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${view === "live" ? "bg-amber-500 text-zinc-950" : "text-zinc-400 hover:text-zinc-200"}`}
+          >
+            <Radio className="h-3.5 w-3.5" /> Live
+          </button>
+          <button
+            type="button"
+            onClick={() => setView("geschiedenis")}
+            className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${view === "geschiedenis" ? "bg-amber-500 text-zinc-950" : "text-zinc-400 hover:text-zinc-200"}`}
+          >
+            <History className="h-3.5 w-3.5" /> Geschiedenis
+          </button>
+        </div>
+      ) : (
+        <div />
+      )}
+
+      <div className="flex flex-wrap gap-2">
+        {isLive ? (
+          <Button
+            type="button"
+            variant="outline"
+            className="border-zinc-700 bg-transparent text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100"
+            onClick={() => setConfirmEndOpen(true)}
+          >
+            <Square className="h-4 w-4" /> LAN beëindigen
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            className="border-zinc-700 bg-transparent text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100"
+            onClick={() => setConfirmReopenOpen(true)}
+          >
+            <RotateCcw className="h-4 w-4" /> LAN heropenen
+          </Button>
+        )}
+        <Button
+          type="button"
+          variant="outline"
+          className="border-rose-500/40 bg-transparent text-rose-400 hover:bg-rose-500/10"
+          onClick={() => setConfirmDeleteOpen(true)}
+        >
+          <Trash2 className="h-4 w-4" /> LAN verwijderen
+        </Button>
+      </div>
+    </>
+  );
 
   return (
     <div className="space-y-4">
@@ -168,7 +230,14 @@ export default function RainbowSixSiegeSession() {
         </p>
       )}
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+        <Link
+          to="/"
+          className="flex items-center justify-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4 font-serif text-lg font-semibold text-zinc-100 transition-colors hover:bg-zinc-800/60"
+        >
+          <Home className="h-5 w-5 shrink-0" />
+          Ons Huisje
+        </Link>
         <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4">
           <p className="text-xs text-zinc-500">Status</p>
           <p className={`font-serif text-lg font-semibold ${isLive ? "text-amber-400" : "text-zinc-100"}`}>
@@ -201,58 +270,11 @@ export default function RainbowSixSiegeSession() {
         </p>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        {isLive ? (
-          <div className="flex gap-1 rounded-full border border-zinc-800 bg-zinc-900/60 p-1">
-            <button
-              type="button"
-              onClick={() => setView("live")}
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${view === "live" ? "bg-amber-500 text-zinc-950" : "text-zinc-400 hover:text-zinc-200"}`}
-            >
-              <Radio className="h-3.5 w-3.5" /> Live
-            </button>
-            <button
-              type="button"
-              onClick={() => setView("geschiedenis")}
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${view === "geschiedenis" ? "bg-amber-500 text-zinc-950" : "text-zinc-400 hover:text-zinc-200"}`}
-            >
-              <History className="h-3.5 w-3.5" /> Geschiedenis
-            </button>
-          </div>
-        ) : (
-          <div />
-        )}
-
-        <div className="flex flex-wrap gap-2">
-          {isLive ? (
-            <Button
-              type="button"
-              variant="outline"
-              className="border-zinc-700 bg-transparent text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100"
-              onClick={() => setConfirmEndOpen(true)}
-            >
-              <Square className="h-4 w-4" /> LAN beëindigen
-            </Button>
-          ) : (
-            <Button
-              type="button"
-              variant="outline"
-              className="border-zinc-700 bg-transparent text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100"
-              onClick={() => setConfirmReopenOpen(true)}
-            >
-              <RotateCcw className="h-4 w-4" /> LAN heropenen
-            </Button>
-          )}
-          <Button
-            type="button"
-            variant="outline"
-            className="border-rose-500/40 bg-transparent text-rose-400 hover:bg-rose-500/10"
-            onClick={() => setConfirmDeleteOpen(true)}
-          >
-            <Trash2 className="h-4 w-4" /> LAN verwijderen
-          </Button>
-        </div>
-      </div>
+      {/* Op de live-pagina (actietegels + scorebord) staat deze rij lager,
+          tussen de tegels en "Laatste acties" (zie R6LiveDashboard) — in
+          Geschiedenis/na afronden is er geen tegels-en-scorebord-blok om
+          tussen te schuiven, dus daar blijft 'm bovenaan staan, zoals altijd. */}
+      {!(isLive && view === "live") && <div className="flex flex-wrap items-center justify-between gap-2">{sessionControlsRow}</div>}
 
       {isLive && view === "live" && (
         <R6LiveDashboard
@@ -265,7 +287,7 @@ export default function RainbowSixSiegeSession() {
           onTap={handleTap}
           onUndo={(eventId) => undoEvent.mutate(eventId)}
           onEndGame={() => setEndGameOpen(true)}
-          pendingPlayerId={pendingPlayerId}
+          controlsRow={sessionControlsRow}
         />
       )}
 

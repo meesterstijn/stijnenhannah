@@ -16,3 +16,23 @@ export const TILE_COLOR_TOKENS = Object.keys(TILE_COLOR_CLASSES);
 export function tileColorClasses(color: string | null): string {
   return TILE_COLOR_CLASSES[color ?? ""] ?? TILE_COLOR_CLASSES.zinc;
 }
+
+// Alleen voor de daadwerkelijke live tik-tegels (R6PlayerActionTiles) —
+// het tactische R6-ontwerp wil geen "vrolijke", volledig gekleurde tegels
+// meer; de gekozen kleur wordt daar nog uitsluitend als dunne linker
+// accentrand gebruikt (zelfde herkenbaarheid, zonder de tegel zelf drukker
+// te maken). De volledige kleurbadge (tileColorClasses hierboven) blijft
+// wél gebruikt in de instellingen-UI, waar je juist wílt zien welke kleur
+// je kiest.
+const TILE_ACCENT_BORDER_CLASSES: Record<string, string> = {
+  emerald: "border-l-emerald-500",
+  amber: "border-l-amber-500",
+  sky: "border-l-sky-500",
+  violet: "border-l-violet-500",
+  rose: "border-l-rose-500",
+  zinc: "border-l-zinc-700",
+};
+
+export function tileAccentBorderClass(color: string | null): string {
+  return TILE_ACCENT_BORDER_CLASSES[color ?? ""] ?? TILE_ACCENT_BORDER_CLASSES.zinc;
+}

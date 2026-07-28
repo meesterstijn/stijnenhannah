@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Flag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { R6PlayerActionTiles } from "@/features/rainbow-six-siege/components/R6PlayerActionTiles";
@@ -23,7 +24,7 @@ export function R6LiveDashboard({
   onTap,
   onUndo,
   onEndGame,
-  pendingPlayerId,
+  controlsRow,
 }: {
   scoreboard: R6ScoreboardEntry[];
   roster: R6Player[];
@@ -34,7 +35,10 @@ export function R6LiveDashboard({
   onTap: (playerId: string, rule: R6ScoreRule) => void;
   onUndo: (eventId: string) => void;
   onEndGame: () => void;
-  pendingPlayerId: string | null;
+  /** Live/Geschiedenis-toggle + LAN beëindigen/verwijderen — hier tussen de
+   * actietegels en "Laatste acties" gerenderd op verzoek van de gebruiker
+   * (elders in de app staat dezelfde rij bovenaan, zie RainbowSixSiegeSession.tsx). */
+  controlsRow: ReactNode;
 }) {
   const quickActionsByCode = new Map(quickActions.map((r) => [r.code, r]));
   const currentGameEvents = currentMatch ? events.filter((e) => e.match_id === currentMatch.id) : [];
@@ -74,13 +78,15 @@ export function R6LiveDashboard({
               </div>
               <R6PlayerActionTiles
                 quickActions={quickActions}
-                disabled={!currentMatch || pendingPlayerId === player.id}
+                disabled={!currentMatch}
                 onTap={(rule) => onTap(player.id, rule)}
               />
             </div>
           );
         })}
       </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-2">{controlsRow}</div>
 
       <section className="space-y-2">
         <p className="text-sm font-medium text-zinc-300">Laatste acties (deze Gimma eerst)</p>

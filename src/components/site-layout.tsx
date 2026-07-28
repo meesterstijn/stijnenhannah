@@ -17,10 +17,14 @@ export function SiteLayout() {
   // (dezelfde "Ons Huisje"-link als op elke andere pagina) zweeft daarom als
   // los, klein element over de pagina i.p.v. in een volle balk te zitten.
   const isR6 = pathname.startsWith("/rainbow-six-siege");
+  // De sessiedetailpagina (LAN-avond -> :sessionId) rendert "Ons Huisje" zelf
+  // inline, samen met de Status/Datum/Looptijd/Gimma's-blokken in één rij —
+  // de zwevende variant zou daar dus dubbel op staan.
+  const isR6SessionDetail = /^\/rainbow-six-siege\/lan\/[^/]+$/.test(pathname);
 
   return (
     <div className="min-h-screen flex flex-col">
-      {isR6 ? (
+      {isR6 && !isR6SessionDetail && (
         <Link
           to="/"
           className="fixed left-3 top-3 z-50 flex items-center gap-2 rounded-full bg-background/80 px-3 py-1.5 shadow-sm backdrop-blur-sm group"
@@ -28,7 +32,8 @@ export function SiteLayout() {
           <Home className="h-5 w-5" />
           <span className="tuin-font text-lg font-semibold">Ons Huisje</span>
         </Link>
-      ) : (
+      )}
+      {!isR6 && (
         <header className="border-b border-border/60 backdrop-blur-sm bg-background/70 sticky top-0 z-40">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-4 md:grid md:grid-cols-[auto_1fr_auto]">
             <Link to="/" className="flex items-center gap-2 group">
@@ -82,7 +87,9 @@ export function SiteLayout() {
         </header>
       )}
       <main
-        className={`flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 ${isR6 ? "r6-theme pt-16 pb-8 sm:pb-12" : "py-8 sm:py-12"}`}
+        className={`flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 ${
+          isR6SessionDetail ? "r6-theme py-8 sm:py-12" : isR6 ? "r6-theme pt-16 pb-8 sm:pb-12" : "py-8 sm:py-12"
+        }`}
       >
         <ErrorBoundary>
           <Outlet />
