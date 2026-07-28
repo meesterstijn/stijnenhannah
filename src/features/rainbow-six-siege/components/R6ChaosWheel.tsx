@@ -12,6 +12,7 @@ import {
   useR6ChaosEffects,
   useUpdateR6ChaosEffect,
 } from "@/features/rainbow-six-siege/hooks/useR6ChaosEffects";
+import { usePrefersReducedMotion } from "@/features/rainbow-six-siege/hooks/usePrefersReducedMotion";
 import type { R6ChaosEffect } from "@/features/rainbow-six-siege/types";
 
 const SPIN_DURATION_MS = 1200;
@@ -144,6 +145,7 @@ export function R6ChaosWheel({
   const [landedEffect, setLandedEffect] = useState<R6ChaosEffect | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { data: chaosEffects = [] } = useR6ChaosEffects();
+  const prefersReducedMotion = usePrefersReducedMotion();
   const activeEffects = chaosEffects.filter((e) => e.is_active);
   const nextSortOrder = chaosEffects.reduce((max, e) => Math.max(max, e.sort_order), 0) + 1;
 
@@ -169,6 +171,12 @@ export function R6ChaosWheel({
   function spin() {
     if (activeEffects.length === 0) return;
     setLandedEffect(null);
+    // prefers-reduced-motion: geen cyclerende naam-animatie, direct het
+    // resultaat tonen — de functie (willekeurige keuze) blijft hetzelfde.
+    if (prefersReducedMotion) {
+      setLandedEffect(activeEffects[Math.floor(Math.random() * activeEffects.length)]);
+      return;
+    }
     setSpinning(true);
     let elapsed = 0;
     intervalRef.current = setInterval(() => {

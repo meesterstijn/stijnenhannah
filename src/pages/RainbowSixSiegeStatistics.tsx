@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 import {
   Bar,
@@ -61,13 +61,19 @@ export default function RainbowSixSiegeStatistics() {
   const [playerA, setPlayerA] = useState<string>("");
   const [playerB, setPlayerB] = useState<string>("");
 
-  const stats = data?.stats ?? [];
+  // Eigen useMemo i.p.v. inline `data?.stats ?? []`: die laatste vorm geeft
+  // bij elke render (zolang data nog laadt) een NIEUWE lege array terug,
+  // waardoor de useMemo's verderop die van `stats` afhangen nooit echt
+  // stabiliseren.
+  const stats = useMemo(() => data?.stats ?? [], [data]);
 
-  useMemo(() => {
+  // useEffect (niet useMemo — dat hoort geen state-side-effects te hebben)
+  // voor het eenmalig vooraf invullen van de vergelijkingsspelers zodra de
+  // data binnen is.
+  useEffect(() => {
     if (!playerA && stats[0]) setPlayerA(stats[0].player.id);
     if (!playerB && stats[1]) setPlayerB(stats[1].player.id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stats]);
+  }, [stats, playerA, playerB]);
 
   const totalActions = data?.events.length ?? 0;
   const totalPoints = stats.reduce((sum, s) => sum + s.totalPoints, 0);

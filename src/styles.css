@@ -359,6 +359,21 @@ body:has(.r6-theme) {
   --tw-shadow: 0 0 #0000 !important;
 }
 
+/*
+ * Tablet LAN Controller Mode — niet-blokkerende oriëntatiemelding.
+ * Zuivere CSS media query op viewport-oriëntatie (niet op apparaatmodel):
+ * verborgen in landscape, zichtbaar in portrait. De interface zelf blijft
+ * in beide gevallen gewoon bruikbaar — dit is puur een hint.
+ */
+.r6-controller-portrait-notice {
+  display: none;
+}
+@media (orientation: portrait) {
+  .r6-controller-portrait-notice {
+    display: block;
+  }
+}
+
 body:has(.tuinieren-theme) header .text-muted-foreground {
   color: #e8dcc0 !important;
 }

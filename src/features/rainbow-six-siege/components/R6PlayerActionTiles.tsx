@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { tileAccentBorderClass } from "@/features/rainbow-six-siege/lib/actionColors";
+import { usePrefersReducedMotion } from "@/features/rainbow-six-siege/hooks/usePrefersReducedMotion";
 import type { R6ScoreRule } from "@/features/rainbow-six-siege/types";
 
 // Grote, duimvriendelijke tegels — één tik registreert direct, zonder
@@ -14,6 +15,11 @@ import type { R6ScoreRule } from "@/features/rainbow-six-siege/types";
 // ("HEADSHOT +1") direct op de tegel zelf — geen popup, geen modale
 // onderbreking van de tik-flow.
 const FLASH_DURATION_MS = 1000;
+// Zeer korte klikbeveiliging tegen dubbele, onbedoelde invoer (bv. een
+// touchscreen dat één vingertik als twee losse events registreert) — geldt
+// bewust alleen voor de EXACTE tegel die net is aangetikt, niet voor de
+// hele grid (dat gaf eerder verwarrend "alle andere tegels doven"-gedrag).
+const TAP_GUARD_MS = 300;
 
 export function R6PlayerActionTiles({
   quickActions,
@@ -25,11 +31,15 @@ export function R6PlayerActionTiles({
   disabled?: boolean;
 }) {
   const [flashRuleId, setFlashRuleId] = useState<string | null>(null);
+  const [guardedRuleId, setGuardedRuleId] = useState<string | null>(null);
   const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const guardTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prefersReducedMotion = usePrefersReducedMotion();
 
   useEffect(() => {
     return () => {
       if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
+      if (guardTimeoutRef.current) clearTimeout(guardTimeoutRef.current);
     };
   }, []);
 
@@ -38,10 +48,19 @@ export function R6PlayerActionTiles({
   }
 
   function handleTap(rule: R6ScoreRule) {
+    if (guardedRuleId === rule.id) return;
     onTap(rule);
+    // Optionele, korte haptische feedback — alleen als de browser/het
+    // apparaat dit ondersteunt (bv. tablets); geen geluid, geen effect als
+    // de API ontbreekt.
+    navigator.vibrate?.(15);
     setFlashRuleId(rule.id);
     if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
     flashTimeoutRef.current = setTimeout(() => setFlashRuleId(null), FLASH_DURATION_MS);
+
+    setGuardedRuleId(rule.id);
+    if (guardTimeoutRef.current) clearTimeout(guardTimeoutRef.current);
+    guardTimeoutRef.current = setTimeout(() => setGuardedRuleId(null), TAP_GUARD_MS);
   }
 
   return (
@@ -50,9 +69,9 @@ export function R6PlayerActionTiles({
         <button
           key={rule.id}
           type="button"
-          disabled={disabled}
+          disabled={disabled || guardedRuleId === rule.id}
           onClick={() => handleTap(rule)}
-          className={`relative flex min-h-24 flex-col items-center justify-center gap-1 overflow-hidden rounded-2xl border-y border-r border-zinc-700 bg-zinc-900 p-2 text-center text-zinc-200 transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 border-l-[3px] ${tileAccentBorderClass(rule.color)}`}
+          className={`relative flex min-h-24 flex-col items-center justify-center gap-1 overflow-hidden rounded-2xl border-y border-r border-zinc-700 bg-zinc-900 p-2 text-center text-zinc-200 disabled:cursor-not-allowed disabled:opacity-40 border-l-[3px] ${prefersReducedMotion ? "" : "transition-transform active:scale-[0.98]"} ${tileAccentBorderClass(rule.color)}`}
         >
           <span className="text-sm font-semibold uppercase leading-tight tracking-wide">{rule.name}</span>
           <span className="flex items-center gap-1 text-[10px] leading-none text-zinc-500">
@@ -61,7 +80,9 @@ export function R6PlayerActionTiles({
           </span>
 
           {flashRuleId === rule.id && (
-            <span className="absolute inset-0 flex items-center justify-center bg-amber-500 px-1 text-xs font-bold uppercase tracking-wide text-zinc-950 transition-opacity duration-150">
+            <span
+              className={`absolute inset-0 flex items-center justify-center bg-amber-500 px-1 text-xs font-bold uppercase tracking-wide text-zinc-950 ${prefersReducedMotion ? "" : "transition-opacity duration-150"}`}
+            >
               {rule.name} {rule.points >= 0 ? `+${rule.points}` : rule.points}
             </span>
           )}

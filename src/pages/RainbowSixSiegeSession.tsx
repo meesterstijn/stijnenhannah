@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { History, Home, Loader2, Plus, Radio, RotateCcw, Square, Trash2, Tv } from "lucide-react";
+import { History, Home, Loader2, Plus, Radio, RotateCcw, Square, Tablet, Trash2, Tv } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { R6MatchCard } from "@/features/rainbow-six-siege/components/R6MatchCard";
@@ -88,8 +88,10 @@ export default function RainbowSixSiegeSession() {
   // Zolang de sessie live is, komen de gebeurtenissen uit de live-query
   // (met optimistische updates voor directe tik-feedback). Na afronden
   // wordt er niet meer getikt, dus dan volstaat de al-opgehaalde, statische
-  // events-lijst uit het sessiedetail.
-  const events = isLive ? liveEvents : (detail?.events ?? []);
+  // events-lijst uit het sessiedetail. Eigen useMemo (i.p.v. een kale
+  // ternary) zodat de `?? []`-fallback niet bij elke render een nieuwe
+  // array-referentie geeft aan de useMemo's hieronder die van `events` afhangen.
+  const events = useMemo(() => (isLive ? liveEvents : (detail?.events ?? [])), [isLive, liveEvents, detail]);
 
   const scoreboard = useMemo(() => {
     if (!detail) return [];
@@ -218,6 +220,16 @@ export default function RainbowSixSiegeSession() {
             onClick={() => window.open(`/#/rainbow-six-siege/lan/${sessionId}/big-screen`, "_blank")}
           >
             <Tv className="h-4 w-4" /> Big Screen
+          </Button>
+        )}
+        {isLive && (
+          <Button
+            type="button"
+            variant="outline"
+            className="border-zinc-700 bg-transparent text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100"
+            onClick={() => navigate(`/rainbow-six-siege/lan/${sessionId}/controller`)}
+          >
+            <Tablet className="h-4 w-4" /> Tabletmodus
           </Button>
         )}
         <Button

@@ -34,6 +34,7 @@ const RainbowSixSiegeSession = lazy(() => import("@/pages/RainbowSixSiegeSession
 const RainbowSixSiegeScoreboard = lazy(() => import("@/pages/RainbowSixSiegeScoreboard"));
 const RainbowSixSiegeStatistics = lazy(() => import("@/pages/RainbowSixSiegeStatistics"));
 const RainbowSixSiegeBigScreen = lazy(() => import("@/pages/RainbowSixSiegeBigScreen"));
+const RainbowSixSiegeController = lazy(() => import("@/pages/RainbowSixSiegeController"));
 const TuingidsLayout = lazy(() => import("@/pages/tuingids/TuingidsLayout"));
 const TuingidsDashboard = lazy(() => import("@/pages/tuingids/TuingidsDashboard"));
 const TuingidsEncyclopedia = lazy(() => import("@/pages/tuingids/TuingidsEncyclopedia"));
@@ -153,6 +154,10 @@ function AppRoutes() {
             "Ons Huisje", geen paginabreedte-beperking — een tv/tweede monitor
             mag alleen het live scorebord zelf tonen. */}
         <Route path="/rainbow-six-siege/lan/:sessionId/big-screen" element={<RainbowSixSiegeBigScreen />} />
+        {/* Tablet LAN Controller Mode — zelfde reden om buiten SiteLayout te
+            staan als Big Screen: geen navbar/"Ons Huisje", alleen de
+            controller zelf, fullscreen-geschikt. */}
+        <Route path="/rainbow-six-siege/lan/:sessionId/controller" element={<RainbowSixSiegeController />} />
       </Routes>
     </Suspense>
   );
