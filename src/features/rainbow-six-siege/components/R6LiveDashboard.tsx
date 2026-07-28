@@ -91,7 +91,7 @@ export function R6LiveDashboard({
             />
           )}
           {currentMatch && (
-            <R6OperatorWheel sessionId={sessionId} matchId={currentMatch.id} matchNumber={currentMatch.match_number} roster={roster} />
+            <R6OperatorWheel sessionId={sessionId} matchId={currentMatch.id} roster={roster} />
           )}
           <R6QuickActionSettings />
           <Button
@@ -113,15 +113,17 @@ export function R6LiveDashboard({
           const defenderName = assignment?.defender_operator_id ? operatorsById.get(assignment.defender_operator_id)?.name : null;
           return (
             <div key={player.id} className="flex-1 basis-0 min-w-[240px] space-y-3 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4">
-              <div className="flex items-baseline justify-between">
-                <p className="font-serif text-xl font-semibold text-zinc-100">{player.name}</p>
-                <p className="font-serif text-2xl font-bold text-amber-400">{entry?.totalPoints ?? 0}</p>
+              <div className="flex items-baseline justify-between gap-2">
+                <div className="flex min-w-0 items-baseline gap-2">
+                  <p className="truncate font-serif text-xl font-semibold text-zinc-100">{player.name}</p>
+                  {(attackerName || defenderName) && (
+                    <span className="shrink-0 text-xs font-semibold text-amber-400">
+                      {attackerName ?? "—"} / {defenderName ?? "—"}
+                    </span>
+                  )}
+                </div>
+                <p className="shrink-0 font-serif text-2xl font-bold text-amber-400">{entry?.totalPoints ?? 0}</p>
               </div>
-              {(attackerName || defenderName) && (
-                <p className="-mt-2 text-xs font-semibold text-amber-400">
-                  {attackerName ?? "—"} / {defenderName ?? "—"}
-                </p>
-              )}
               <R6PlayerActionTiles
                 quickActions={quickActions}
                 disabled={!currentMatch}
