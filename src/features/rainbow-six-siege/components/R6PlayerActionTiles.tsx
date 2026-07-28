@@ -11,10 +11,10 @@ import type { R6ScoreRule } from "@/features/rainbow-six-siege/types";
 // actie — de gekozen kleur (zie R6QuickActionSettings) is nu alleen nog
 // een dunne linker accentrand, geen "vrolijke" achtergrondkleur. Het label
 // is het grootste, dominante element; de puntenwaarde staat klein
-// eronder. Bij een tik verschijnt kort (1s) een tactiele bevestiging
+// eronder. Bij een tik verschijnt kort (300ms) een tactiele bevestiging
 // ("HEADSHOT +1") direct op de tegel zelf — geen popup, geen modale
 // onderbreking van de tik-flow.
-const FLASH_DURATION_MS = 1000;
+const FLASH_DURATION_MS = 300;
 // Zeer korte klikbeveiliging tegen dubbele, onbedoelde invoer (bv. een
 // touchscreen dat één vingertik als twee losse events registreert) — geldt
 // bewust alleen voor de EXACTE tegel die net is aangetikt, niet voor de
