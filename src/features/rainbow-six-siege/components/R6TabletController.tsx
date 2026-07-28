@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Flag, Maximize, Minimize, Undo2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -69,7 +69,6 @@ export function R6TabletController({
   onEndGame: () => void;
 }) {
   const isLive = session.status === "live";
-  const rootRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const wakeLock = useScreenWakeLock();
   const undo = useR6UndoLastEvent(sessionId, events, currentMatch?.id ?? null);
@@ -92,12 +91,32 @@ export function R6TabletController({
     return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
   }, []);
 
+  // Mobiele browsers (vooral iOS Safari) passen anders een "vastzittende"
+  // :hover-stijl toe na een tik — dat blijft normaliter alleen achterwege
+  // als er ECHTE touch-eventlisteners op de pagina actief zijn (browsers
+  // vallen anders terug op hover-emulatie voor compatibiliteit met sites
+  // die geen touch-ondersteuning hebben). Een lege, passieve listener is
+  // genoeg om die emulatie uit te schakelen — vandaar geen verdere logica
+  // hier nodig.
+  useEffect(() => {
+    const noop = () => {};
+    document.addEventListener("touchstart", noop, { passive: true });
+    return () => document.removeEventListener("touchstart", noop);
+  }, []);
+
   async function toggleFullscreen() {
     try {
       if (document.fullscreenElement) {
         await document.exitFullscreen?.();
       } else {
-        await rootRef.current?.requestFullscreen?.();
+        // Bewust op de hele document — niet op de eigen root-div: Sheets/
+        // Dialogs (Chaos Wheel, Actietegels beheren, Game afronden) worden
+        // via een Portal naar document.body gerenderd. Zou alleen de
+        // root-div fullscreen worden, dan valt document.body BUITEN de
+        // fullscreen-boomstructuur en worden die overlays onzichtbaar/
+        // niet-interactief zodra fullscreen actief is — dat verklaarde
+        // waarom tikken op die knoppen niks leek te doen.
+        await document.documentElement.requestFullscreen?.();
       }
     } catch {
       // Feature-detectie via optional chaining voorkomt de meeste fouten al
@@ -119,7 +138,7 @@ export function R6TabletController({
   const actionsDisabled = !isLive || !currentMatch;
 
   return (
-    <div ref={rootRef} className="r6-theme flex h-screen flex-col overflow-hidden bg-zinc-950 p-2 sm:p-3">
+    <div className="r6-theme flex h-screen flex-col overflow-hidden bg-zinc-950 p-2 sm:p-3">
       <p className="r6-controller-portrait-notice rounded-sm border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-center text-xs font-semibold text-amber-400">
         Draai je tablet voor de beste LAN Controller-weergave.
       </p>

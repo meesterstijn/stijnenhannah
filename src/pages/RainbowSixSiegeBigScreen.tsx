@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Maximize } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -54,7 +54,6 @@ export default function RainbowSixSiegeBigScreen() {
   const [challenges, setChallenges] = useState<R6Challenge[]>([]);
   const [scoreRules, setScoreRules] = useState<R6ScoreRule[]>(FALLBACK_SCORE_RULES);
   const [loading, setLoading] = useState(true);
-  const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -164,7 +163,13 @@ export default function RainbowSixSiegeBigScreen() {
     if (document.fullscreenElement) {
       document.exitFullscreen();
     } else {
-      rootRef.current?.requestFullscreen();
+      // Bewust op de hele document i.p.v. de eigen root-div: mocht hier
+      // ooit een Portal-gebaseerd overlay (Dialog/Sheet) bijkomen, dan
+      // rendert die naar document.body — zou alleen de root-div fullscreen
+      // zijn, dan valt zo'n overlay buiten de fullscreen-boomstructuur en
+      // wordt 'm onzichtbaar/niet-interactief (zelfde bug die de Tablet
+      // Controller had).
+      document.documentElement.requestFullscreen?.();
     }
   }
 
@@ -195,7 +200,7 @@ export default function RainbowSixSiegeBigScreen() {
   const winner = !isLive && scoreboard.length > 0 ? scoreboard[0] : null;
 
   return (
-    <div ref={rootRef} className="r6-theme min-h-screen bg-zinc-950 p-6 sm:p-10">
+    <div className="r6-theme min-h-screen bg-zinc-950 p-6 sm:p-10">
       <div className="mx-auto flex max-w-5xl flex-col gap-6">
         <div className="flex items-center justify-between">
           <div>
