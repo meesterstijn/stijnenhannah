@@ -30,9 +30,9 @@ export type R6Challenge = {
 // TypeScript hardcoded R6_SCORE_RULES als bron van waarheid. `code` is de
 // stabiele sleutel waarop gelezen wordt, nooit `id`. `icon`/`color`/
 // `is_quick_action` (live-scorebord-redesign) bepalen of en hoe een regel
-// als tik-tegel op het live dashboard verschijnt — de end_bonus-regels
-// ("meeste kills" e.d.) hebben is_quick_action = false, dat blijven
-// sessie-brede afgeleide bonussen, geen tegel.
+// als tik-tegel op het live dashboard verschijnt. De vroegere
+// "end_bonus"-categorie (sessie-brede "meeste X"-bonussen) is verwijderd —
+// alle punten komen nu uitsluitend uit `category: "direct"`-regels.
 export type R6ScoreRule = {
   id: string;
   code: string;
@@ -173,15 +173,15 @@ export type R6SessionDetail = {
   events: R6Event[];
 };
 
-// Directe punten (MVP/Clutch/Ace/challenges) en eindbonussen ("meeste X van
-// de sessie") worden altijd apart gehouden — of de eindbonussen al
-// "definitief" zijn hangt puur af van session.status en wordt door de UI
-// bepaald, niet door deze berekening zelf (die blijft hetzelfde, ongeacht
-// live of afgerond, en wordt altijd vers uit de ruwe matchdata herberekend).
+// Punten komen uitsluitend uit direct getikte acties (actietegels: kill,
+// headshot, revive, mvp, clutch, ace, ...) en de MVP-toekenning bij het
+// afsluiten van een game — geen sessie-brede "meeste X"-eindbonussen, die
+// telden bij de allereerste tik van een stat al onterecht mee (zie
+// scoring.ts). totalPoints is dus altijd gelijk aan directPoints, en wordt
+// altijd vers uit de ruwe matchdata herberekend.
 export type R6ScoreboardEntry = {
   player: R6Player;
   directPoints: number;
-  bonusPoints: number;
   totalPoints: number;
   totals: {
     kills: number;
@@ -202,12 +202,6 @@ export type R6ScoreboardEntry = {
     clutch1v3: number;
     aces: number;
     challengesCompleted: number;
-  };
-  bonuses: {
-    mostKills: boolean;
-    mostHeadshots: boolean;
-    mostAssists: boolean;
-    mostRevives: boolean;
   };
 };
 

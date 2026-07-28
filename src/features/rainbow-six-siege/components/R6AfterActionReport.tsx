@@ -20,7 +20,6 @@ import type {
   R6MatchPlayer,
   R6Operator,
   R6ScoreboardEntry,
-  R6ScoreRule,
   R6Session,
 } from "@/features/rainbow-six-siege/types";
 
@@ -41,7 +40,6 @@ export function R6AfterActionReport({
   maps,
   operators,
   challenges,
-  scoreRules,
 }: {
   session: R6Session;
   matches: R6Match[];
@@ -50,7 +48,6 @@ export function R6AfterActionReport({
   maps: Map<string, R6Map>;
   operators: Map<string, R6Operator>;
   challenges: Map<string, R6Challenge>;
-  scoreRules: R6ScoreRule[];
 }) {
   const players = useMemo(() => scoreboard.map((e) => e.player), [scoreboard]);
 
@@ -105,7 +102,7 @@ export function R6AfterActionReport({
       </SectionCard>
 
       <SectionCard title="Eindklassement">
-        <R6Scoreboard entries={scoreboard} isFinal scoreRules={scoreRules} />
+        <R6Scoreboard entries={scoreboard} isFinal />
       </SectionCard>
 
       <SectionCard title="Hoogtepunten">

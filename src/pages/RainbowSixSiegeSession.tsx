@@ -390,7 +390,6 @@ export default function RainbowSixSiegeSession() {
           maps={mapsById}
           operators={operatorsById}
           challenges={challengesById}
-          scoreRules={scoreRules}
         />
       )}
 
