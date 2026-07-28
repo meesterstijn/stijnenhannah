@@ -38,8 +38,16 @@ export const CHALLENGE_COMPLETED_FALLBACK_POINTS = 2;
 /** Geëxporteerd voor hergebruik buiten computeScoreboard — bv. de
  * Statistiekenpagina die per-game (niet per-sessie) punten moet aflezen
  * voor het "meeste punten in één game"-record. */
+// Bewust GEEN is_active-filter: dat vlaggetje bepaalt alleen of een tegel
+// nog getoond wordt in de live tik-grid (zie de quickActions-filter in
+// RainbowSixSiegeSession.tsx/RainbowSixSiegeController.tsx, die `is_active`
+// wél expliciet meeneemt). Een tegel op "inactief" zetten in Actietegels
+// beheren is bedoeld als "verbergen zonder geschiedenis te verliezen" — als
+// deze functie ook zou filteren op is_active, zou het uitzetten van bv. de
+// MVP-tegel de mvp/clutch/ace-terugvalwaarde hier stilzwijgend op 0 zetten,
+// óók voor toekomstige match.mvp_points-toekenningen via "Game afronden".
 export function rulePoints(rules: R6ScoreRule[], code: string): number {
-  const rule = rules.find((r) => r.code === code && r.is_active);
+  const rule = rules.find((r) => r.code === code);
   return rule?.points ?? 0;
 }
 
