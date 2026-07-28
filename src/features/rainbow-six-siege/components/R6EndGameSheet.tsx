@@ -90,14 +90,17 @@ export function R6EndGameSheet({
     setError(null);
     setIsSaving(true);
     try {
-      // Alleen als bewuste, per-match uitzondering opslaan (mvp_points ≠
-      // null) wanneer de waarde daadwerkelijk afwijkt van de huidige
-      // GLOBALE mvp-regel (niet van het onthouden standaardgetal in het
-      // veld) — zo blijft een niet-aangepaste MVP-toekenning meebewegen als
-      // die globale regel later wijzigt, i.p.v. bevroren te raken.
+      // Altijd de daadwerkelijk gekozen waarde bevriezen op de match zelf
+      // (niet "null = gebruik later de actuele globale mvp-regel") — die
+      // regel is via Actietegels beheren aan te passen, te deactiveren of
+      // zelfs te verwijderen, en de puntenberekening viel dan stil terug op
+      // 0 zodra de gekozen waarde toevallig gelijk was aan (of de regel
+      // niet meer bestond als) de globale waarde. Consistent met hoe
+      // live-tik-gebeurtenissen al werken: bevroren op het moment van
+      // toekennen, nooit met terugwerkende kracht afhankelijk van de
+      // huidige staat van een regel.
       const parsedMvpPoints = parseInt(mvpPoints, 10);
-      const mvpPointsOverride =
-        mvpPlayerId && Number.isFinite(parsedMvpPoints) && parsedMvpPoints !== globalMvpPoints ? parsedMvpPoints : null;
+      const mvpPointsToSave = mvpPlayerId && Number.isFinite(parsedMvpPoints) ? parsedMvpPoints : null;
       if (mvpPlayerId && Number.isFinite(parsedMvpPoints)) {
         setLastMvpPoints(parsedMvpPoints);
       }
@@ -114,7 +117,7 @@ export function R6EndGameSheet({
         notes: note.trim() || null,
         mvp_player_id: mvpPlayerId || null,
         mvp_reason: null,
-        mvp_points: mvpPointsOverride,
+        mvp_points: mvpPointsToSave,
         players: roster.map((p) => buildR6MatchPlayerInput(emptyR6MatchPlayerFormState(p.id))),
       });
       if (photo) {
