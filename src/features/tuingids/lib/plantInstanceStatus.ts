@@ -85,3 +85,17 @@ export const INSTANCE_STATUS_LABELS: Record<PlantInstance["status"], string> = {
   dead: "Afgestorven",
   removed: "Verwijderd",
 };
+
+// Moved here from Tuinieren.tsx (single source of truth) so it can be
+// reused outside that page-level file too, e.g. by QuickGrowthPhotoDialog,
+// without a circular import back into the page component.
+export const HEALTH_STATUS_EMOJI: Record<string, string> = {
+  Zaailing: "🌿",
+  "Net geplant": "🌱",
+  Gezond: "💚",
+  "In bloei": "🌼",
+  Vruchten: "🍓",
+  Stress: "⚠️",
+  Ziek: "🤒",
+  Afgestorven: "☠️",
+};

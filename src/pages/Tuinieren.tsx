@@ -69,6 +69,7 @@ import { optimizeGrowthPhoto } from "@/features/tuingids/lib/optimizeGrowthPhoto
 import { uploadGrowthPhoto } from "@/features/tuingids/lib/growthPhotoStorage";
 import { GrowthPhotoInput } from "@/features/tuingids/components/GrowthPhotoInput";
 import { GrowthPhotoTimeline } from "@/features/tuingids/components/GrowthPhotoTimeline";
+import { QuickGrowthPhotoDialog } from "@/features/tuingids/components/QuickGrowthPhotoDialog";
 import { GrowthCompareTimeline } from "@/features/tuingids/components/GrowthCompareTimeline";
 import {
   fetchPlants,
@@ -99,6 +100,7 @@ import {
   effectiveInstanceWaterIntervalDays,
   isInstanceWaterSkippedToday,
   INSTANCE_STATUS_LABELS,
+  HEALTH_STATUS_EMOJI,
 } from "@/features/tuingids/lib/plantInstanceStatus";
 import { formatMeasurement, formatFruitSize, computeSeasonStats } from "@/features/tuingids/lib/growthStats";
 import { useRecordInstanceCare } from "@/features/tuingids/hooks/usePlantCareActions";
@@ -163,17 +165,6 @@ const HEALTH_STATUS_OPTIONS = [
   "Ziek",
   "Afgestorven",
 ] as const;
-
-const HEALTH_STATUS_EMOJI: Record<string, string> = {
-  Zaailing: "🌿",
-  "Net geplant": "🌱",
-  Gezond: "💚",
-  "In bloei": "🌼",
-  Vruchten: "🍓",
-  Stress: "⚠️",
-  Ziek: "🤒",
-  Afgestorven: "☠️",
-};
 
 const POT_MATERIAL_OPTIONS = [
   "Terracotta",
@@ -6068,6 +6059,7 @@ export default function Tuinieren() {
 
   const [pageViewMode, setPageViewMode] = useState<"species" | "instances">("species");
   const [instanceFormOpen, setInstanceFormOpen] = useState(false);
+  const [quickPhotoOpen, setQuickPhotoOpen] = useState(false);
   const [instancesInitialSearch, setInstancesInitialSearch] = useState("");
   const [instancesInitialNeedFilter, setInstancesInitialNeedFilter] = useState<"" | "water_needed" | "feeding_needed">("");
   const [createInstanceForSpecies, setCreateInstanceForSpecies] = useState<Plant | null>(null);
@@ -6835,13 +6827,22 @@ export default function Tuinieren() {
           </button>
         </div>
         {pageViewMode === "instances" && (
-          <button
-            type="button"
-            onClick={() => setInstanceFormOpen(true)}
-            className="sv-button flex items-center gap-2 px-4 py-2.5 text-sm"
-          >
-            <Plus className="h-4 w-4" /> Nieuw exemplaar planten
-          </button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setInstanceFormOpen(true)}
+              className="sv-button flex items-center gap-2 px-4 py-2.5 text-sm"
+            >
+              <Plus className="h-4 w-4" /> Nieuw exemplaar planten
+            </button>
+            <button
+              type="button"
+              onClick={() => setQuickPhotoOpen(true)}
+              className="sv-button sv-button-thin-border flex items-center gap-2 px-4 py-2.5 text-sm"
+            >
+              <Camera className="h-4 w-4" /> Groeifoto maken
+            </button>
+          </div>
         )}
       </div>
 
@@ -6851,6 +6852,14 @@ export default function Tuinieren() {
           allInstances={allPlantInstances}
           controlledOpen={instanceFormOpen}
           onClose={() => setInstanceFormOpen(false)}
+        />
+      )}
+
+      {pageViewMode === "instances" && (
+        <QuickGrowthPhotoDialog
+          speciesList={plants}
+          open={quickPhotoOpen}
+          onClose={() => setQuickPhotoOpen(false)}
         />
       )}
 
