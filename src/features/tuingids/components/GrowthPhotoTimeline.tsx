@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { createPortal } from "react-dom";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import type { GrowthLogPhoto } from "@/lib/supabase";
 import type { LogEntry } from "../types";
@@ -135,30 +135,47 @@ export function GrowthPhotoTimeline({
         })}
       </div>
 
-      {/* Lightbox — rendered as portal above all dialogs */}
-      {showLightbox && lightboxUrl &&
-        createPortal(
-          <div
-            className="fixed inset-0 z-[200] bg-black/85 flex items-center justify-center p-4"
-            onClick={() => setLightboxUrl(null)}
-          >
-            <img
-              src={lightboxUrl}
-              alt=""
-              className="max-h-[90vh] max-w-full object-contain rounded-lg"
-              onClick={(e) => e.stopPropagation()}
-            />
-            <button
-              type="button"
-              className="absolute top-4 right-4 bg-black/50 text-white rounded-full h-9 w-9 flex items-center justify-center"
+      {/* Lightbox — een eigen, geneste Radix Dialog i.p.v. een kale
+          createPortal-div. Een losse portal-div zit buiten Radix' eigen
+          dismissable-layer-systeem: zodra de omliggende
+          PlantInstanceDetailDialog (ook een Dialog) open is, zet Radix
+          `pointer-events: none` op <body> en maakt daar alleen zijn eigen
+          overlay/content weer klikbaar voor — een los geportalde div deelt
+          daar niet in, dus kliks vielen letterlijk dóór naar de overlay
+          van de onderliggende dialog, en Escape ving altijd de bovenste
+          (buitenste) dialog omdat de lightbox zichzelf nooit als "hoogste
+          laag" registreerde. Door hier een echte, geneste <Dialog> te gebruiken
+          — met een eigen open-state (lightboxUrl) volledig los van de
+          buitenste dialog — registreert Radix 'm zelf als nieuwe, hoogste
+          laag: kruisje, Escape én klik-buiten-de-foto sluiten daardoor
+          gegarandeerd alléén de lightbox. */}
+      {showLightbox && (
+        <DialogPrimitive.Root open={!!lightboxUrl} onOpenChange={(open) => !open && setLightboxUrl(null)}>
+          <DialogPrimitive.Portal>
+            <DialogPrimitive.Content
+              className="fixed inset-0 z-[200] bg-black/85 flex items-center justify-center p-4 focus:outline-none"
               onClick={() => setLightboxUrl(null)}
-              aria-label="Sluiten"
+              aria-describedby={undefined}
             >
-              <X className="h-5 w-5" />
-            </button>
-          </div>,
-          document.body,
-        )}
+              <DialogPrimitive.Title className="sr-only">Groeifoto</DialogPrimitive.Title>
+              {lightboxUrl && (
+                <img
+                  src={lightboxUrl}
+                  alt=""
+                  className="max-h-[90vh] max-w-full object-contain rounded-lg"
+                  onClick={(e) => e.stopPropagation()}
+                />
+              )}
+              <DialogPrimitive.Close
+                className="absolute top-4 right-4 bg-black/50 text-white rounded-full h-9 w-9 flex items-center justify-center"
+                aria-label="Sluiten"
+              >
+                <X className="h-5 w-5" />
+              </DialogPrimitive.Close>
+            </DialogPrimitive.Content>
+          </DialogPrimitive.Portal>
+        </DialogPrimitive.Root>
+      )}
     </>
   );
 }
