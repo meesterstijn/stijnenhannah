@@ -14,7 +14,7 @@ import type {
 
 const SESSION_COLUMNS = "id, name, started_at, ended_at, status, notes, created_by, created_at";
 const MATCH_COLUMNS =
-  "id, session_id, match_number, played_at, map_id, result, challenge_id, challenge_completed, chaos_rule, funniest_moment, notes, mvp_player_id, mvp_reason, mvp_points, created_at";
+  "id, session_id, match_number, played_at, map_id, result, challenge_id, challenge_completed, chaos_rule, funniest_moment, notes, mvp_player_id, mvp_reason, mvp_points, created_at, updated_at";
 const MATCH_PLAYER_COLUMNS =
   "id, match_id, player_id, operator_attacker_id, operator_defender_id, operator_single_id, kills, deaths, assists, revives, headshots, clutch, ace, created_at";
 
@@ -34,6 +34,29 @@ export async function fetchActiveR6Session(): Promise<R6Session | null> {
     .maybeSingle();
   if (error) throw error;
   return (data as R6Session | null) ?? null;
+}
+
+/**
+ * Alle sessies met status 'live' (dezelfde definitie van "actief" als
+ * fetchActiveR6Session hierboven — géén nieuwe statuswaarde), deterministisch
+ * gesorteerd: meest recent gestart eerst, dan created_at, dan id. Normaliter
+ * precies 0 of 1 rij; bij foutieve data (per ongeluk meerdere live-sessies,
+ * bv. door een handmatige databasewijziging) geeft dit de aanroeper
+ * (useR6ActiveSessionWatch, voor de permanente Big Screen-route) de kans om
+ * dat te signaleren en toch deterministisch de meest recente te kiezen —
+ * fetchActiveR6Session zelf blijft ongewijzigd (die gebruikt `.single()`-
+ * achtig gedrag en is elders al in gebruik).
+ */
+export async function fetchActiveR6Sessions(): Promise<R6Session[]> {
+  const { data, error } = await supabase
+    .from("r6_sessions")
+    .select(SESSION_COLUMNS)
+    .eq("status", "live")
+    .order("started_at", { ascending: false })
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as R6Session[];
 }
 
 async function fetchMatchPlayersForMatchIds(matchIds: string[]): Promise<R6MatchPlayer[]> {

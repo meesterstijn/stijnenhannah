@@ -196,3 +196,33 @@ export function computeScoreboard(
 
   return entries.sort((a, b) => b.totalPoints - a.totalPoints);
 }
+
+/**
+ * Synthetische, alleen-voor-weergave R6Event-rijen voor de "Laatste
+ * acties"-feed (R6RecentEventsFeed) — een MVP-toekenning bij "Gimma
+ * afronden" is géén tik-gebeurtenis, die zit vast op de match zelf
+ * (match.mvp_player_id/mvp_points, zie de matches-loop hierboven), maar
+ * moet wel zichtbaar zijn tussen de live tikken. `id` krijgt een
+ * `mvp-`-prefix zodat de feed 'm herkent en geen "ongedaan maken"-knop
+ * toont (die zou een r6_events-rij proberen te verwijderen die niet
+ * bestaat). `created_at` komt bewust van `match.updated_at`, niet
+ * `played_at`: dat laatste is het moment waarop de match/ronde BEGON, ver
+ * vóór alle tikken en de uiteindelijke MVP-keuze aan het eind.
+ *
+ * Puur weergave — NOOIT meegeven aan computeScoreboard, dat zou de
+ * mvp-punten dubbel tellen (eenmaal via matches, eenmaal via deze
+ * synthetische events).
+ */
+export function buildMvpFeedEvents(matches: R6Match[], scoreRules: R6ScoreRule[]): R6Event[] {
+  return matches
+    .filter((match) => match.mvp_player_id)
+    .map((match) => ({
+      id: `mvp-${match.id}`,
+      session_id: match.session_id,
+      match_id: match.id,
+      player_id: match.mvp_player_id!,
+      score_rule_code: "mvp",
+      points_awarded: match.mvp_points ?? rulePoints(scoreRules, "mvp"),
+      created_at: match.updated_at,
+    }));
+}

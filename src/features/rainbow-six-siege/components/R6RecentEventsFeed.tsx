@@ -28,6 +28,11 @@ export function R6RecentEventsFeed({
       {recent.map((event) => {
         const rule = quickActions.get(event.score_rule_code);
         const isPending = event.id.startsWith("optimistic-");
+        // MVP-toekenningen bij "Gimma afronden" zijn synthetische, alleen-
+        // voor-weergave rijen (zie buildMvpFeedEvents in scoring.ts) — geen
+        // echte r6_events-rij om ongedaan te maken. Corrigeren van een MVP-
+        // keuze hoort bij het bewerken van de match, niet bij deze feed.
+        const isSynthetic = event.id.startsWith("mvp-");
         return (
           <div
             key={event.id}
@@ -40,15 +45,17 @@ export function R6RecentEventsFeed({
                 {event.points_awarded})
               </span>
             </span>
-            <button
-              type="button"
-              onClick={() => onUndo(event.id)}
-              disabled={isPending}
-              className="shrink-0 rounded-full p-1.5 text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-rose-400 disabled:opacity-40"
-              aria-label="Ongedaan maken"
-            >
-              <Undo2 className="h-3.5 w-3.5" />
-            </button>
+            {!isSynthetic && (
+              <button
+                type="button"
+                onClick={() => onUndo(event.id)}
+                disabled={isPending}
+                className="shrink-0 rounded-full p-1.5 text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-rose-400 disabled:opacity-40"
+                aria-label="Ongedaan maken"
+              >
+                <Undo2 className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
         );
       })}

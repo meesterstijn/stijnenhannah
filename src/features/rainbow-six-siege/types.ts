@@ -111,6 +111,12 @@ export type R6Match = {
   // wanneer mvp_player_id gezet is (zie R6EndGameSheet).
   mvp_points: number | null;
   created_at: string;
+  // Zie migratie 20260814000000_r6_matches_updated_at — het moment waarop
+  // deze match voor het laatst is opgeslagen (bv. "Gimma afronden"), puur
+  // informatief. Gebruikt om de MVP-toekenning op het juiste (recente)
+  // moment in de "Laatste acties"-feed te tonen; speelt geen rol in de
+  // puntenberekening.
+  updated_at: string;
 };
 
 export type R6MatchPlayer = {

@@ -30,7 +30,7 @@ import {
   useStartR6Round,
   useUndoR6Event,
 } from "@/features/rainbow-six-siege/hooks/useR6Events";
-import { computeScoreboard } from "@/features/rainbow-six-siege/lib/scoring";
+import { buildMvpFeedEvents, computeScoreboard } from "@/features/rainbow-six-siege/lib/scoring";
 import type { R6Match, R6ScoreRule } from "@/features/rainbow-six-siege/types";
 
 function formatDuration(startedAt: string, endedAt: string | null): string {
@@ -97,6 +97,15 @@ export default function RainbowSixSiegeSession() {
     if (!detail) return [];
     return computeScoreboard(roster, detail.matches, detail.matchPlayers, challenges, scoreRules, events);
   }, [detail, roster, challenges, scoreRules, events]);
+
+  // Alleen voor de "Laatste acties"-feed (R6LiveDashboard): MVP-toekenningen
+  // bij "Gimma afronden" zijn geen tik-gebeurtenis, dus ontbreken anders
+  // helemaal in die feed. Nooit aan computeScoreboard hierboven meegeven —
+  // dat zou de mvp-punten dubbel tellen.
+  const feedEvents = useMemo(() => {
+    if (!detail) return events;
+    return [...events, ...buildMvpFeedEvents(detail.matches, scoreRules)];
+  }, [events, detail, scoreRules]);
 
   const quickActions = useMemo(
     () => scoreRules.filter((r) => r.is_quick_action && r.is_active).sort((a, b) => a.sort_order - b.sort_order),
@@ -306,7 +315,7 @@ export default function RainbowSixSiegeSession() {
           quickActions={quickActions}
           players={playersById}
           currentMatch={currentMatch}
-          events={events}
+          events={feedEvents}
           onTap={handleTap}
           onUndo={(eventId) => undoEvent.mutate(eventId)}
           onEndGame={() => setEndGameOpen(true)}

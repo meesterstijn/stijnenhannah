@@ -63,7 +63,7 @@ export async function fetchLatestR6Match(sessionId: string): Promise<R6Match | n
   const { data, error } = await supabase
     .from("r6_matches")
     .select(
-      "id, session_id, match_number, played_at, map_id, result, challenge_id, challenge_completed, chaos_rule, funniest_moment, notes, mvp_player_id, mvp_reason, mvp_points, created_at",
+      "id, session_id, match_number, played_at, map_id, result, challenge_id, challenge_completed, chaos_rule, funniest_moment, notes, mvp_player_id, mvp_reason, mvp_points, created_at, updated_at",
     )
     .eq("session_id", sessionId)
     .order("match_number", { ascending: false })
@@ -86,7 +86,7 @@ export async function startR6Round(sessionId: string): Promise<R6Match> {
     .from("r6_matches")
     .insert({ session_id: sessionId })
     .select(
-      "id, session_id, match_number, played_at, map_id, result, challenge_id, challenge_completed, chaos_rule, funniest_moment, notes, mvp_player_id, mvp_reason, mvp_points, created_at",
+      "id, session_id, match_number, played_at, map_id, result, challenge_id, challenge_completed, chaos_rule, funniest_moment, notes, mvp_player_id, mvp_reason, mvp_points, created_at, updated_at",
     )
     .single();
   if (error) throw error;
