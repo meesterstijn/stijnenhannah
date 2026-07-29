@@ -55,8 +55,13 @@ export function useRecordInstanceCare(options?: {
   const patchInstance =
     options?.patchInstance ?? ((args: { id: string; patch: Record<string, unknown> }) => defaultPatch.mutateAsync(args));
 
-  async function recordWatering(instance: PlantInstance, plantName: string, growingSeasonId: string | null, note?: string) {
-    if (wateringInFlight.current.has(instance.id)) return;
+  // Returns whether this call actually wrote a new entry, so a batch caller
+  // (e.g. the "water geven" bulk dialog) can report an accurate count without
+  // any second storage path — it just calls this same function once per
+  // instance and tallies the booleans. Existing call sites all ignore the
+  // return value, so this is additive and doesn't change their behavior.
+  async function recordWatering(instance: PlantInstance, plantName: string, growingSeasonId: string | null, note?: string): Promise<boolean> {
+    if (wateringInFlight.current.has(instance.id)) return false;
     wateringInFlight.current.add(instance.id);
     setRecordingWaterId(instance.id);
     setError(null);
@@ -86,9 +91,11 @@ export function useRecordInstanceCare(options?: {
         },
       });
       setTimeout(() => wateringInFlight.current.delete(instance.id), DUPLICATE_GUARD_COOLDOWN_MS);
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Waterregistratie mislukt.");
       wateringInFlight.current.delete(instance.id);
+      return false;
     } finally {
       setRecordingWaterId(null);
     }

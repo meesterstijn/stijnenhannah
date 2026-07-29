@@ -25,11 +25,15 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandInput, CommandList, CommandEmpty, CommandItem } from "@/components/ui/command";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Toaster } from "@/components/ui/sonner";
+import { toast } from "sonner";
 import {
   Plus,
   Sprout,
@@ -5747,6 +5751,186 @@ function sortInstances(
   }
 }
 
+// Slim banner shown above "Mijn geplante exemplaren" when at least one active
+// instance needs water. Purely presentational — the actual "who needs water"
+// selection lives in BulkWateringDialog (and reuses the exact same
+// instanceWaterStatus() call), so the count shown here can never disagree
+// with what the dialog itself lists.
+function BulkWateringBanner({ count, onOpen }: { count: number; onOpen: () => void }) {
+  if (count === 0) return null;
+  return (
+    <div className="sv-panel p-4 flex items-center justify-between gap-3 flex-wrap">
+      <p className="sv-heading text-xl flex items-center gap-2">
+        <Droplet className="h-5 w-5" aria-hidden />
+        {count} exemplaar{count === 1 ? "" : "en"} {count === 1 ? "heeft" : "hebben"} water nodig
+      </p>
+      <Button className="sv-button text-xl" onClick={onOpen}>
+        <Droplet className="h-4 w-4" /> Water geven
+      </Button>
+    </div>
+  );
+}
+
+// Gezamenlijke waterronde: één dialoog die alle actieve exemplaren toont die
+// water nodig hebben (dezelfde selectie/labels als de individuele "water
+// nodig"-badge — instanceWaterStatus wordt hier niet opnieuw berekend, enkel
+// hergebruikt), en bij opslaan simpelweg dezelfde recordWatering(...) aanroept
+// die ook de individuele "Water gegeven"-knop gebruikt. Geen nieuwe
+// opslagroute, geen nieuwe tabellen.
+function BulkWateringDialog({
+  open,
+  onOpenChange,
+  instances,
+  speciesById,
+  activeSeasonByInstance,
+  recordWatering,
+  careError,
+  getEntriesForPlantInstance,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  instances: PlantInstance[];
+  speciesById: Map<string, Plant>;
+  activeSeasonByInstance: Map<string, GrowingSeason>;
+  recordWatering: (instance: PlantInstance, plantName: string, growingSeasonId: string | null) => Promise<boolean>;
+  careError: string | null;
+  getEntriesForPlantInstance: (id: string) => LogEntry[];
+}) {
+  const eligible = useMemo(() => {
+    const list = instances.filter((i) => {
+      const species = speciesById.get(i.species_id);
+      return species ? instanceWaterStatus(i, species)?.overdue === true : false;
+    });
+    return sortInstances(list, "name_asc", speciesById);
+  }, [instances, speciesById]);
+
+  const [checked, setChecked] = useState<Set<string>>(new Set());
+  const [saving, setSaving] = useState(false);
+  const isSavingRef = useRef(false);
+
+  // Every time the dialog is (re)opened, default back to "everything checked".
+  useEffect(() => {
+    if (open) setChecked(new Set(eligible.map((i) => i.id)));
+    // Only re-run on open — re-checking everything while the user is
+    // unticking items (e.g. because eligible's identity changes after a
+    // background refetch) would undo their in-progress selection.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  function toggle(id: string) {
+    setChecked((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function handleSave() {
+    if (isSavingRef.current) return;
+    isSavingRef.current = true;
+    setSaving(true);
+    const targets = eligible.filter((i) => checked.has(i.id));
+    let success = 0;
+    for (const instance of targets) {
+      const species = speciesById.get(instance.species_id);
+      const name = plantInstanceDisplayName(instance, species);
+      const seasonId = activeSeasonByInstance.get(instance.id)?.id ?? null;
+      // Exact same call the individual "Water gegeven" button makes — no
+      // separate bulk-save function, so growth_log/last_watered_at/kalender/
+      // statistieken/tijdlijn/meldingen all stay correct automatically.
+      const ok = await recordWatering(instance, name, seasonId);
+      if (ok) success++;
+    }
+    setSaving(false);
+    isSavingRef.current = false;
+    if (success > 0) {
+      toast.success(`✅ Water geregistreerd voor ${success} exemplaar${success === 1 ? "" : "en"}`);
+    }
+    if (success < targets.length) {
+      toast.error(`${targets.length - success} exemplaar${targets.length - success === 1 ? "" : "en"} kon niet worden geregistreerd.`);
+    }
+    onOpenChange(false);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className={PLANT_DIALOG_CONTENT_CLASS}>
+        <DialogHeader>
+          <DialogTitle className={PLANT_DIALOG_TITLE_CLASS}>Water geven</DialogTitle>
+          <DialogDescription className="sv-muted">
+            Selecteer welke exemplaren je zojuist water hebt gegeven.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-2 overflow-y-auto max-h-[60vh] pr-1">
+          {eligible.length === 0 ? (
+            <p className="text-sm sv-muted px-1">Niemand heeft op dit moment water nodig.</p>
+          ) : (
+            eligible.map((instance) => {
+              const species = speciesById.get(instance.species_id);
+              const name = plantInstanceDisplayName(instance, species);
+              const status = species ? instanceWaterStatus(instance, species) : null;
+              const heightEntry = getEntriesForPlantInstance(instance.id).find((e) => e.height_cm !== null);
+              const infoLine = [
+                instance.location,
+                heightEntry ? `📏 ${formatMeasurement(heightEntry.height_cm as number)} cm` : null,
+              ].filter(Boolean).join(" · ");
+
+              return (
+                <label
+                  key={instance.id}
+                  className="sv-panel flex items-center gap-3 p-3 cursor-pointer"
+                >
+                  <Checkbox
+                    checked={checked.has(instance.id)}
+                    onCheckedChange={() => toggle(instance.id)}
+                    aria-label={`${name} water gegeven`}
+                  />
+                  {species?.photo_url ? (
+                    <img src={species.photo_url} alt="" className="h-10 w-10 rounded-lg object-cover shrink-0 sv-icon-slot" />
+                  ) : (
+                    <div className="h-10 w-10 sv-icon-slot flex items-center justify-center shrink-0">
+                      <Sprout className="h-4 w-4" strokeWidth={1.6} />
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="sv-heading text-lg leading-snug truncate">
+                      {instance.health_status && `${HEALTH_STATUS_EMOJI[instance.health_status] ?? ""} `}
+                      {name}
+                    </p>
+                    {infoLine && <p className="text-xs sv-muted truncate">{infoLine}</p>}
+                  </div>
+                  {status && (
+                    <span
+                      className={`sv-heading inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full w-fit shrink-0 ${status.overdue ? "sv-badge-overdue" : "sv-badge-ok"}`}
+                    >
+                      <Droplet className="h-3 w-3" aria-hidden /> {status.label}
+                    </span>
+                  )}
+                </label>
+              );
+            })
+          )}
+        </div>
+
+        {careError && <p className="text-xs sv-destructive-text px-1">{careError}</p>}
+
+        <DialogFooter>
+          <Button
+            className="sv-button text-xl"
+            onClick={handleSave}
+            disabled={saving || checked.size === 0}
+          >
+            {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+            Water geregistreerd voor {checked.size} exemplaar{checked.size === 1 ? "" : "en"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function MyPlantInstances({
   speciesList,
   initialSearch,
@@ -5769,7 +5953,9 @@ function MyPlantInstances({
   const [needFilter, setNeedFilter] = useState<"" | (typeof INSTANCE_HEALTH_FILTER_OPTIONS)[number]>(initialNeedFilter ?? "");
   const [sortKey, setSortKey] = useState<InstanceSortKey>("slim");
   const [expandedSpeciesIds, setExpandedSpeciesIds] = useState<Set<string>>(new Set());
-  const { recordWatering, recordFeeding } = useRecordInstanceCare();
+  const { recordWatering, recordFeeding, error: careError } = useRecordInstanceCare();
+  const { getEntriesForPlantInstance } = useGrowthLog();
+  const [bulkWaterOpen, setBulkWaterOpen] = useState(false);
 
   const speciesById = useMemo(() => new Map(speciesList.map((s) => [s.id, s])), [speciesList]);
   const activeSeasonByInstance = useMemo(() => {
@@ -5777,6 +5963,18 @@ function MyPlantInstances({
     for (const s of seasons) if (s.status === "active") map.set(s.plant_instance_id, s);
     return map;
   }, [seasons]);
+
+  // Same instanceWaterStatus() call as everywhere else — deliberately over
+  // ALL active instances (not filteredInstances), since the banner/dialog is
+  // meant to cover a full watering round regardless of the current
+  // search/filter the user happens to have set on the list below.
+  const waterNeededCount = useMemo(
+    () => instances.filter((i) => {
+      const species = speciesById.get(i.species_id);
+      return species ? instanceWaterStatus(i, species)?.overdue === true : false;
+    }).length,
+    [instances, speciesById],
+  );
 
   const filteredInstances = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -5848,6 +6046,8 @@ function MyPlantInstances({
 
   return (
     <>
+      <BulkWateringBanner count={waterNeededCount} onOpen={() => setBulkWaterOpen(true)} />
+
       <div className="flex flex-wrap items-center gap-1.5 pb-0.5">
         {INSTANCE_SORT_OPTIONS.map((opt) => (
           <button
@@ -5913,6 +6113,17 @@ function MyPlantInstances({
           onClose={() => setDetailInstanceId(null)}
         />
       )}
+
+      <BulkWateringDialog
+        open={bulkWaterOpen}
+        onOpenChange={setBulkWaterOpen}
+        instances={instances}
+        speciesById={speciesById}
+        activeSeasonByInstance={activeSeasonByInstance}
+        recordWatering={recordWatering}
+        careError={careError}
+        getEntriesForPlantInstance={getEntriesForPlantInstance}
+      />
     </>
   );
 }
@@ -6705,6 +6916,7 @@ export default function Tuinieren() {
 
   return (
     <div className="tuinieren-theme space-y-8">
+      <Toaster />
       <header className="flex flex-wrap items-center justify-center gap-2">
         <Button
           className="sv-button text-2xl h-11 px-3 sm:px-6"
