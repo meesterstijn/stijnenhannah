@@ -226,3 +226,27 @@ export function buildMvpFeedEvents(matches: R6Match[], scoreRules: R6ScoreRule[]
       created_at: match.updated_at,
     }));
 }
+
+/**
+ * De ENE centrale plek waar een "Laatste acties"-feed vandaan hoort te
+ * komen — combineert echte r6_events met de synthetische MVP-feeditems
+ * (buildMvpFeedEvents hierboven) tot één chronologisch gesorteerde lijst
+ * (nieuwste eerst). Big Screen (RainbowSixSiegeBigScreenContent) en het
+ * Live Dashboard (RainbowSixSiegeSession -> R6LiveDashboard ->
+ * R6RecentEventsFeed) roepen beide uitsluitend deze functie aan, zodat de
+ * combineer-/sorteerlogica niet dubbel geïmplementeerd wordt en niet kan
+ * gaan afwijken tussen de twee schermen.
+ *
+ * Tweede sortering op `id` bij een (zeldzame) exact gelijke timestamp
+ * tussen twee items, voor een deterministische volgorde — belangrijker dan
+ * de exacte tiebreak-regel zelf is dat 'm maar op één plek staat.
+ *
+ * Puur weergave, zie buildMvpFeedEvents: nooit aan computeScoreboard
+ * geven, dat zou de mvp-punten dubbel tellen.
+ */
+export function buildR6Feed(events: R6Event[], matches: R6Match[], scoreRules: R6ScoreRule[]): R6Event[] {
+  return [...events, ...buildMvpFeedEvents(matches, scoreRules)].sort((a, b) => {
+    const byTime = b.created_at.localeCompare(a.created_at);
+    return byTime !== 0 ? byTime : b.id.localeCompare(a.id);
+  });
+}

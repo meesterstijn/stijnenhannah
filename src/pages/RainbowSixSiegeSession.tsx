@@ -30,7 +30,7 @@ import {
   useStartR6Round,
   useUndoR6Event,
 } from "@/features/rainbow-six-siege/hooks/useR6Events";
-import { buildMvpFeedEvents, computeScoreboard } from "@/features/rainbow-six-siege/lib/scoring";
+import { buildR6Feed, computeScoreboard } from "@/features/rainbow-six-siege/lib/scoring";
 import type { R6Match, R6ScoreRule } from "@/features/rainbow-six-siege/types";
 
 function formatDuration(startedAt: string, endedAt: string | null): string {
@@ -100,11 +100,13 @@ export default function RainbowSixSiegeSession() {
 
   // Alleen voor de "Laatste acties"-feed (R6LiveDashboard): MVP-toekenningen
   // bij "Gimma afronden" zijn geen tik-gebeurtenis, dus ontbreken anders
-  // helemaal in die feed. Nooit aan computeScoreboard hierboven meegeven —
-  // dat zou de mvp-punten dubbel tellen.
+  // helemaal in die feed. buildR6Feed combineert + sorteert (zelfde functie
+  // als RainbowSixSiegeBigScreenContent gebruikt). Nooit aan
+  // computeScoreboard hierboven meegeven — dat zou de mvp-punten dubbel
+  // tellen.
   const feedEvents = useMemo(() => {
     if (!detail) return events;
-    return [...events, ...buildMvpFeedEvents(detail.matches, scoreRules)];
+    return buildR6Feed(events, detail.matches, scoreRules);
   }, [events, detail, scoreRules]);
 
   const quickActions = useMemo(

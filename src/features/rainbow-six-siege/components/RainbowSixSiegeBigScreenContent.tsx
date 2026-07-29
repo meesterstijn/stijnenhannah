@@ -5,7 +5,7 @@ import { fetchR6SessionDetail } from "@/features/rainbow-six-siege/lib/sessions"
 import { fetchR6GameOperatorAssignmentsForMatches } from "@/features/rainbow-six-siege/lib/operatorWheel";
 import { fetchR6ChaosEffects, fetchR6SessionChaosEffects } from "@/features/rainbow-six-siege/lib/chaosWheel";
 import { fetchR6Challenges, fetchR6Maps, fetchR6Operators, fetchR6ScoreRules } from "@/features/rainbow-six-siege/lib/reference";
-import { computeScoreboard, FALLBACK_SCORE_RULES } from "@/features/rainbow-six-siege/lib/scoring";
+import { buildR6Feed, computeScoreboard, FALLBACK_SCORE_RULES } from "@/features/rainbow-six-siege/lib/scoring";
 import type {
   R6ChaosEffect,
   R6Challenge,
@@ -221,7 +221,13 @@ export function RainbowSixSiegeBigScreenContent({
   const assignmentByPlayerId = new Map(
     currentMatch ? operatorAssignments.filter((a) => a.match_id === currentMatch.id).map((a) => [a.player_id, a]) : [],
   );
-  const recentEvents = [...events].sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, RECENT_FEED_COUNT);
+  // buildR6Feed voegt de synthetische MVP-toekenningen (uit matches met een
+  // mvp_player_id) tussen de echte tik-events — zelfde functie als het Live
+  // Dashboard gebruikt (RainbowSixSiegeSession.tsx), zodat "Laatste acties"
+  // er op Big Screen en op het Live Dashboard identiek uitziet. Puur
+  // weergave: computeScoreboard hierboven blijft op matches + events zelf
+  // rekenen, niet op deze samengevoegde lijst.
+  const recentEvents = buildR6Feed(events, matches, scoreRules).slice(0, RECENT_FEED_COUNT);
   const playerNameById = new Map(roster.map((p) => [p.id, p.name]));
   const scoreRuleByCode = new Map(scoreRules.map((r) => [r.code, r]));
   const isLive = session.status === "live";

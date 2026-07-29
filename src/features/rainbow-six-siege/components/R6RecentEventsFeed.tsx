@@ -17,7 +17,10 @@ export function R6RecentEventsFeed({
   quickActions: Map<string, R6ScoreRule>;
   onUndo: (eventId: string) => void;
 }) {
-  const recent = [...events].sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, RECENT_COUNT);
+  // `events` is al gecombineerd + chronologisch gesorteerd (nieuwste eerst)
+  // door buildR6Feed (scoring.ts) — de ene centrale plek voor die logica,
+  // ook gebruikt door Big Screen. Hier dus alleen nog afkappen op aantal.
+  const recent = events.slice(0, RECENT_COUNT);
 
   if (recent.length === 0) {
     return <p className="text-xs text-zinc-500">Nog geen acties geregistreerd.</p>;
