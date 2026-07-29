@@ -319,6 +319,7 @@ function validatePlantImportEntry(value: unknown): PlantImportValidationResult {
   // ── Numerieke velden ──────────────────────────────────────────────────────
   const numericFields = [
     "size_cm", "spacing_cm", "pot_min_liters", "pot_recommended_liters",
+    "pot_min_depth_cm", "pot_recommended_depth_cm",
     "feeding_interval_days", "water_interval_days", "pot_water_interval_days",
     "soil_ph_min", "soil_ph_max", "watering_soak_minutes", "pot_size_liters", "price",
   ] as const;
@@ -369,6 +370,8 @@ type PlantDraft = {
   growing_method: string;
   pot_min_liters: string;
   pot_recommended_liters: string;
+  pot_min_depth_cm: string;
+  pot_recommended_depth_cm: string;
   pot_water_notes: string;
   water_interval_days: string;
   pot_water_interval_days: string;
@@ -437,6 +440,8 @@ const emptyDraft: PlantDraft = {
   growing_method: "",
   pot_min_liters: "",
   pot_recommended_liters: "",
+  pot_min_depth_cm: "",
+  pot_recommended_depth_cm: "",
   pot_water_notes: "",
   water_interval_days: "",
   pot_water_interval_days: "",
@@ -509,6 +514,10 @@ function plantToDraft(p: Plant): PlantDraft {
     pot_min_liters: p.pot_min_liters ? String(p.pot_min_liters) : "",
     pot_recommended_liters: p.pot_recommended_liters
       ? String(p.pot_recommended_liters)
+      : "",
+    pot_min_depth_cm: p.pot_min_depth_cm ? String(p.pot_min_depth_cm) : "",
+    pot_recommended_depth_cm: p.pot_recommended_depth_cm
+      ? String(p.pot_recommended_depth_cm)
       : "",
     pot_water_notes: p.pot_water_notes ?? "",
     water_interval_days: p.water_interval_days
@@ -589,6 +598,10 @@ function draftToRow(d: PlantDraft) {
     pot_min_liters: d.pot_min_liters ? Number(d.pot_min_liters) : null,
     pot_recommended_liters: d.pot_recommended_liters
       ? Number(d.pot_recommended_liters)
+      : null,
+    pot_min_depth_cm: d.pot_min_depth_cm ? Number(d.pot_min_depth_cm) : null,
+    pot_recommended_depth_cm: d.pot_recommended_depth_cm
+      ? Number(d.pot_recommended_depth_cm)
       : null,
     pot_water_notes: d.pot_water_notes.trim() || null,
     water_interval_days: d.water_interval_days
@@ -942,6 +955,30 @@ function PlantForm({
               value={draft.pot_recommended_liters}
               onChange={(e) =>
                 onChange({ pot_recommended_liters: e.target.value })
+              }
+            />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <p className="text-xs sv-muted">Minimale potdiepte (cm)</p>
+            <Input
+              type="number"
+              min={1}
+              placeholder="bv. 15"
+              value={draft.pot_min_depth_cm}
+              onChange={(e) => onChange({ pot_min_depth_cm: e.target.value })}
+            />
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs sv-muted">Aanbevolen potdiepte (cm)</p>
+            <Input
+              type="number"
+              min={1}
+              placeholder="bv. 25"
+              value={draft.pot_recommended_depth_cm}
+              onChange={(e) =>
+                onChange({ pot_recommended_depth_cm: e.target.value })
               }
             />
           </div>
@@ -5954,6 +5991,8 @@ export default function Tuinieren() {
           growing_method: p.growing_method || null,
           pot_min_liters: p.pot_min_liters ? Number(p.pot_min_liters) : null,
           pot_recommended_liters: p.pot_recommended_liters ? Number(p.pot_recommended_liters) : null,
+          pot_min_depth_cm: p.pot_min_depth_cm ? Number(p.pot_min_depth_cm) : null,
+          pot_recommended_depth_cm: p.pot_recommended_depth_cm ? Number(p.pot_recommended_depth_cm) : null,
           pot_water_notes: p.pot_water_notes || null,
           planted: p.planted ?? false,
           planted_at: p.planted_at ? new Date(p.planted_at).toISOString() : null,
@@ -7046,6 +7085,15 @@ export default function Tuinieren() {
                   ].filter(Boolean).join(" · ") || null}
                 />
                 <InfoRow label="Volle grond of pot" value={view.growing_method} />
+                <InfoRow
+                  label="Potgrootte (advies)"
+                  value={[
+                    view.pot_min_liters ? `min. ${view.pot_min_liters} L` : null,
+                    view.pot_recommended_liters ? `aanbevolen ${view.pot_recommended_liters} L` : null,
+                    view.pot_min_depth_cm ? `min. ${view.pot_min_depth_cm} cm diep` : null,
+                    view.pot_recommended_depth_cm ? `aanbevolen ${view.pot_recommended_depth_cm} cm diep` : null,
+                  ].filter(Boolean).join(" · ") || null}
+                />
                 {view.growing_method === "Pot" && (
                   <>
                     <InfoRow
@@ -7058,13 +7106,6 @@ export default function Tuinieren() {
                         ],
                         [],
                       )}
-                    />
-                    <InfoRow
-                      label="Potgrootte (advies)"
-                      value={[
-                        view.pot_min_liters ? `min. ${view.pot_min_liters} L` : null,
-                        view.pot_recommended_liters ? `aanbevolen ${view.pot_recommended_liters} L` : null,
-                      ].filter(Boolean).join(" · ") || null}
                     />
                     <InfoRow
                       label="Laatst verpot"

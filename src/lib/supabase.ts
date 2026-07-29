@@ -64,6 +64,8 @@ export type Plant = {
   growing_method: string | null;
   pot_min_liters: number | null;
   pot_recommended_liters: number | null;
+  pot_min_depth_cm: number | null;
+  pot_recommended_depth_cm: number | null;
   pot_water_notes: string | null;
   water_interval_days: number | null;
   pot_water_interval_days: number | null;
@@ -150,6 +152,8 @@ export type PlantImportData = {
   growing_method?: string | null;
   pot_min_liters?: string | number | null;
   pot_recommended_liters?: string | number | null;
+  pot_min_depth_cm?: string | number | null;
+  pot_recommended_depth_cm?: string | number | null;
   pot_water_notes?: string | null;
   water_interval_days?: string | number | null;
   pot_water_interval_days?: string | number | null;
