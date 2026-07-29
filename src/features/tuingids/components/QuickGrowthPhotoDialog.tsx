@@ -53,7 +53,16 @@ function InstanceCombobox({
   const selectedSpecies = selected ? speciesById.get(selected.species_id) : undefined;
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    // `modal` is nodig omdat deze combobox binnen een echte modale <Dialog>
+    // (QuickGrowthPhotoDialog) staat, i.t.t. SpeciesCombobox in Tuinieren.tsx
+    // die los in de pagina staat. Radix Dialog blokkeert scroll/touch overal
+    // buiten zijn eigen content via react-remove-scroll — een niet-modale
+    // Popover doet daar niet aan mee, dus het CommandList hieronder kon niet
+    // gescrold worden (ook niet op mobiel). Een modale Popover krijgt zelf
+    // ook een react-remove-scroll-laag, die (als laatst gemount, dus hoogst
+    // op de gedeelde lock-stack) de buitenste Dialog-lock tijdelijk
+    // overneemt en scrollen binnen de popover weer toestaat.
+    <Popover open={open} onOpenChange={setOpen} modal>
       <PopoverTrigger asChild>
         <button
           type="button"
