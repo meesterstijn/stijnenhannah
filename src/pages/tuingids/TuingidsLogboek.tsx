@@ -1166,7 +1166,7 @@ export default function TuingidsLogboek() {
               <Sprout className="h-10 w-10 mx-auto sv-muted" strokeWidth={1.4} />
               <p className="sv-heading text-2xl mt-4">Nog geen exemplaren</p>
               <p className="text-sm sv-muted mt-1">
-                Voeg een exemplaar toe via Mijn tuin om de groei bij te houden.
+                Voeg een exemplaar toe via Tuinieren → Mijn geplante exemplaren om de groei bij te houden.
               </p>
             </div>
           ) : groeiGroupedInstances.length === 0 ? (

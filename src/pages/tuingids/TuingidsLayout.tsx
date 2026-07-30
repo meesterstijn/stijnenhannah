@@ -2,12 +2,10 @@ import { Link, Outlet, useLocation } from "react-router-dom";
 
 const subnav = [
   { to: "/tuingids", label: "Dashboard", emoji: "🌿" },
-  { to: "/tuingids/mijn-tuin", label: "Mijn tuin", emoji: "❤️" },
   { to: "/tuingids/dokter", label: "Plantendokter", emoji: "🩺" },
   { to: "/tuingids/encyclopedie", label: "Encyclopedie", emoji: "📖" },
   { to: "/tuingids/kalender", label: "Kalender", emoji: "📅" },
   { to: "/tuingids/logboek", label: "Logboek", emoji: "📷" },
-  { to: "/tuingids/statistieken", label: "Statistieken", emoji: "📊" },
   { to: "/tuingids/zoek", label: "Zoeken", emoji: "🔍" },
   { to: "/tuingids/teeltplanner", label: "Teeltplanner", emoji: "🌱" },
 ];

@@ -43,9 +43,7 @@ const TuingidsEncyclopediaDetail = lazy(() => import("@/pages/tuingids/TuingidsE
 const TuingidsDokter = lazy(() => import("@/pages/tuingids/TuingidsDokter"));
 const TuingidsDokterDetail = lazy(() => import("@/pages/tuingids/TuingidsDokterDetail"));
 const TuingidsLogboek = lazy(() => import("@/pages/tuingids/TuingidsLogboek"));
-const TuingidsMijnTuin = lazy(() => import("@/pages/tuingids/TuingidsMijnTuin"));
 const TuingidsKalender = lazy(() => import("@/pages/tuingids/TuingidsKalender"));
-const TuingidsStatistieken = lazy(() => import("@/pages/tuingids/TuingidsStatistieken"));
 const TuingidsZoek = lazy(() => import("@/pages/tuingids/TuingidsZoek"));
 const TuingidsTeeltplanner = lazy(() => import("@/pages/tuingids/TuingidsTeeltplanner"));
 
@@ -142,9 +140,7 @@ function AppRoutes() {
             <Route path="dokter" element={<TuingidsDokter />} />
             <Route path="dokter/:id" element={<TuingidsDokterDetail />} />
             <Route path="logboek" element={<TuingidsLogboek />} />
-            <Route path="mijn-tuin" element={<TuingidsMijnTuin />} />
             <Route path="kalender" element={<TuingidsKalender />} />
-            <Route path="statistieken" element={<TuingidsStatistieken />} />
             <Route path="zoek" element={<TuingidsZoek />} />
             <Route path="teeltplanner" element={<TuingidsTeeltplanner />} />
             <Route path="teeltplanner/:planId" element={<TuingidsTeeltplanner />} />
