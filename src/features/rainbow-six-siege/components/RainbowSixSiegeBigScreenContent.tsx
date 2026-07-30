@@ -125,9 +125,24 @@ export function RainbowSixSiegeBigScreenContent({
         { event: "INSERT", schema: "public", table: "r6_events", filter: `session_id=eq.${sessionId}` },
         (payload) => setEvents((prev) => [...prev, payload.new as R6Event]),
       )
+      // Bewust GEEN `filter` op deze DELETE-listener (i.t.t. de INSERT
+      // hieronder, die 'm wel heeft). Postgres' logical replication levert
+      // bij een DELETE standaard alleen de primary key (`id`) in `old` —
+      // niet de overige kolommen — tenzij de tabel op REPLICA IDENTITY FULL
+      // staat, wat r6_events nooit gezet is. Supabase Realtime kan een
+      // filter als `session_id=eq.${sessionId}` dus nooit tegen een
+      // DELETE-rij evalueren en levert 'm dan stilzwijgend HELEMAAL NIET af
+      // — dit was de daadwerkelijke oorzaak van de "ongedaan maken
+      // synchroniseert niet naar Big Screen"-bug (undo op de tablet werkt
+      // daar zelf altijd meteen, via zijn eigen optimistische React Query-
+      // cache, dus dat verhulde dat de Realtime-DELETE er onderweg nooit
+      // aankwam bij een ANDER apparaat). Client-side op `id` matchen (dat
+      // IS altijd aanwezig in `old`) is voldoende en volledig veilig: als
+      // het id niet in onze eigen events-array voorkomt is `.filter()`
+      // toch al een no-op.
       .on(
         "postgres_changes",
-        { event: "DELETE", schema: "public", table: "r6_events", filter: `session_id=eq.${sessionId}` },
+        { event: "DELETE", schema: "public", table: "r6_events" },
         (payload) => setEvents((prev) => prev.filter((e) => e.id !== (payload.old as { id: string }).id)),
       )
       .on(
