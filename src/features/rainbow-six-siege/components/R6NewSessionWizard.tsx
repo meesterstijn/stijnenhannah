@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Plus, X, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -34,10 +34,24 @@ export function R6NewSessionWizard({
   const [name, setName] = useState("Operation LANstorm");
   const [players, setPlayers] = useState<string[]>(["", ""]);
   const createSession = useCreateR6Session();
+  const primaryButtonRef = useRef<HTMLButtonElement>(null);
 
   const today = new Date();
   const validNames = uniqueValidNames(players);
   const canProceedFromPlayers = validNames.length >= 2;
+
+  // Stap 2 (datum) en stap 4 (bevestiging) hebben geen invoerveld — zonder
+  // dit zou Enter daar niets doen, want een tekstinvoer die net van de
+  // vorige stap verdween laat de focus niet vanzelf op iets bruikbaars
+  // achter (meestal valt 'm terug op de hele pagina). Door de primaire knop
+  // van elke stap zelf te focussen, activeert Enter altijd óf het
+  // tekstveld waar de gebruiker in typt (stap 1/3, normaal formuliergedrag)
+  // óf — als er niets te typen valt — direct de knop zelf. Een
+  // uitgeschakelde knop (stap 3 zonder geldige spelers) is niet
+  // focusbaar, dus Enter doet dan vanzelf niets.
+  useEffect(() => {
+    primaryButtonRef.current?.focus();
+  }, [step]);
 
   function reset() {
     setStep(1);
@@ -78,6 +92,23 @@ export function R6NewSessionWizard({
     handleOpenChange(false);
   }
 
+  // De ENE plek die bepaalt wat "verdergaan" op de huidige stap betekent —
+  // gebruikt door zowel een echte <form onSubmit> (dus Enter in een
+  // invoerveld) als de primaire knop zelf (via type="submit", geen eigen
+  // onClick meer). Dezelfde voorwaarden als de knoppen altijd al hadden
+  // (canProceedFromPlayers / isPending) gelden hier ook — Enter kan dus
+  // nooit verder komen dan een muisklik op een (visueel) uitgeschakelde knop.
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (step < TOTAL_STEPS) {
+      if (step === 3 && !canProceedFromPlayers) return;
+      setStep((s) => s + 1);
+      return;
+    }
+    if (createSession.isPending) return;
+    await handleStart();
+  }
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="r6-theme border-zinc-800 bg-zinc-950 text-zinc-100 sm:max-w-lg">
@@ -88,6 +119,12 @@ export function R6NewSessionWizard({
           </DialogDescription>
         </DialogHeader>
 
+        {/* Een echte <form> zodat Enter in een invoerveld (bv. LAN-naam)
+            hetzelfde doet als klikken op de primaire knop van de huidige
+            stap — browserstandaard gedrag, geen losse onKeyDown nodig. De
+            primaire knop is nu type="submit" i.p.v. een eigen onClick, dus
+            klik én Enter lopen allebei door exact dezelfde handleSubmit. */}
+        <form onSubmit={handleSubmit} className="contents">
         {step === 1 && (
           <div className="space-y-2">
             <label className="text-sm text-zinc-300">LAN-naam</label>
@@ -187,9 +224,9 @@ export function R6NewSessionWizard({
           )}
           {step < TOTAL_STEPS && (
             <Button
-              type="button"
+              ref={primaryButtonRef}
+              type="submit"
               className="bg-amber-500 text-zinc-950 hover:bg-amber-400"
-              onClick={() => setStep((s) => s + 1)}
               disabled={step === 3 && !canProceedFromPlayers}
             >
               Volgende
@@ -197,9 +234,9 @@ export function R6NewSessionWizard({
           )}
           {step === TOTAL_STEPS && (
             <Button
-              type="button"
+              ref={primaryButtonRef}
+              type="submit"
               className="bg-amber-500 text-zinc-950 hover:bg-amber-400"
-              onClick={handleStart}
               disabled={createSession.isPending}
             >
               {createSession.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -207,6 +244,7 @@ export function R6NewSessionWizard({
             </Button>
           )}
         </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );
