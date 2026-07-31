@@ -7,7 +7,7 @@ import { R6ChaosWheel } from "@/features/rainbow-six-siege/components/R6ChaosWhe
 import { R6OperatorWheel } from "@/features/rainbow-six-siege/components/R6OperatorWheel";
 import { R6QuickActionSettings } from "@/features/rainbow-six-siege/components/R6QuickActionSettings";
 import { useScreenWakeLock } from "@/features/rainbow-six-siege/hooks/useScreenWakeLock";
-import { useR6UndoLastEvent } from "@/features/rainbow-six-siege/hooks/useR6UndoLastEvent";
+import { useR6UndoLastAction } from "@/features/rainbow-six-siege/hooks/useR6UndoLastAction";
 import type {
   R6ChaosEffect,
   R6Event,
@@ -41,6 +41,7 @@ export function R6TabletController({
   quickActions,
   scoreRules,
   currentMatch,
+  matches,
   events,
   maps,
   operators,
@@ -59,6 +60,7 @@ export function R6TabletController({
   quickActions: R6ScoreRule[];
   scoreRules: R6ScoreRule[];
   currentMatch: R6Match | null;
+  matches: R6Match[];
   events: R6Event[];
   maps: R6Map[];
   operators: R6Operator[];
@@ -73,7 +75,7 @@ export function R6TabletController({
   const isLive = session.status === "live";
   const [isFullscreen, setIsFullscreen] = useState(false);
   const wakeLock = useScreenWakeLock();
-  const undo = useR6UndoLastEvent(sessionId, events, currentMatch?.id ?? null);
+  const undo = useR6UndoLastAction(sessionId, events, matches, scoreRules);
 
   useEffect(() => {
     if (isLive) wakeLock.request();
@@ -137,8 +139,12 @@ export function R6TabletController({
   const activeChaosName = activeChaosEffectId ? chaosEffects.find((c) => c.id === activeChaosEffectId)?.name : null;
   const scoreByPlayerId = new Map(scoreboard.map((entry, index) => [entry.player.id, { entry, rank: index + 1 }]));
 
-  const undoRule = undo.lastEvent ? scoreRules.find((r) => r.code === undo.lastEvent!.score_rule_code) : null;
-  const undoPlayerName = undo.lastEvent ? roster.find((p) => p.id === undo.lastEvent!.player_id)?.name : null;
+  const undoPlayerName = undo.lastAction ? roster.find((p) => p.id === undo.lastAction!.playerId)?.name : null;
+  const undoLabel = !undo.lastAction
+    ? "Laatste actie ongedaan maken"
+    : undo.lastAction.kind === "mvp"
+      ? `MVP – ${undoPlayerName ?? "?"} · +${undo.lastAction.points} ongedaan maken`
+      : `${undo.lastAction.label} – ${undoPlayerName ?? "?"} ongedaan maken`;
 
   const actionsDisabled = !isLive || !currentMatch;
 
@@ -236,13 +242,11 @@ export function R6TabletController({
           type="button"
           variant="outline"
           className="border-zinc-700 bg-transparent text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100"
-          onClick={undo.undoLastEvent}
-          disabled={actionsDisabled || !undo.lastEvent || undo.isUndoing}
+          onClick={undo.undo}
+          disabled={actionsDisabled || !undo.lastAction || undo.isUndoing}
         >
           <Undo2 className="h-4 w-4" />
-          {undo.lastEvent
-            ? `${undoRule?.name ?? undo.lastEvent.score_rule_code} – ${undoPlayerName ?? "?"} ongedaan maken`
-            : "Laatste actie ongedaan maken"}
+          {undoLabel}
         </Button>
 
         {currentMatch && !actionsDisabled && (

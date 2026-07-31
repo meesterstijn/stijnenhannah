@@ -40,6 +40,7 @@ export default function RainbowSixSiegeAutoBigScreen() {
 
   return (
     <div className="r6-theme flex min-h-screen flex-col items-center justify-center gap-4 bg-zinc-950 px-6 text-center">
+      <p className="font-serif text-3xl font-bold uppercase tracking-widest text-amber-400 sm:text-5xl">Welkom Team Rainbow</p>
       <p className="font-serif text-3xl font-bold uppercase tracking-widest text-amber-400 sm:text-5xl">Wachten op live LAN</p>
       <p className="max-w-md text-sm text-zinc-400 sm:text-base">
         Big Screen schakelt automatisch in zodra een LAN wordt gestart.

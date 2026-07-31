@@ -215,6 +215,27 @@ export async function updateR6Match(input: R6UpdateMatchInput): Promise<void> {
   if (error) throw error;
 }
 
+/**
+ * Undo van een MVP-toekenning ("Laatste actie ongedaan maken", zie
+ * useR6UndoLastAction) — zet alleen de drie mvp_*-kolommen terug naar hun
+ * lege waarde. Bewust GEEN gebruik van update_r6_match: die RPC vervangt bij
+ * elke aanroep ALLE r6_match_players-rijen van de match (delete + insert,
+ * zie de migraties), wat voor een pure MVP-undo een onnodig risico zou
+ * introduceren op het stilzwijgend wissen van kills/deaths/headshots/etc.
+ * van die match als de meegestuurde spelerslijst ook maar licht afwijkt van
+ * de opgeslagen rijen. Een rechtstreekse, minimale kolomupdate raakt
+ * match_players helemaal niet aan. Zelfde live-only-bescherming als de rest
+ * van dit schema geldt hier al via de bestaande "update matches in live
+ * sessions"-RLS-policy (20260806020000) — geen aparte RPC/policy nodig.
+ */
+export async function undoR6MatchMvp(matchId: string): Promise<void> {
+  const { error } = await supabase
+    .from("r6_matches")
+    .update({ mvp_player_id: null, mvp_reason: null, mvp_points: null })
+    .eq("id", matchId);
+  if (error) throw error;
+}
+
 /** Cascade (ON DELETE CASCADE op r6_match_players) ruimt de bijbehorende
  * spelerrijen op; de RLS-policy op r6_matches weigert dit al zodra de
  * sessie niet meer live is. */

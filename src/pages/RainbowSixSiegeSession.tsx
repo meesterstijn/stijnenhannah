@@ -30,6 +30,8 @@ import {
   useStartR6Round,
   useUndoR6Event,
 } from "@/features/rainbow-six-siege/hooks/useR6Events";
+import { useR6UndoLastAction } from "@/features/rainbow-six-siege/hooks/useR6UndoLastAction";
+import { useR6SessionRealtimeSync } from "@/features/rainbow-six-siege/hooks/useR6SessionRealtimeSync";
 import { buildR6Feed, computeScoreboard } from "@/features/rainbow-six-siege/lib/scoring";
 import type { R6Match, R6ScoreRule } from "@/features/rainbow-six-siege/types";
 
@@ -83,7 +85,16 @@ export default function RainbowSixSiegeSession() {
     [detail],
   );
   const roster = useMemo(() => (detail?.sessionPlayers ?? []).map((sp) => sp.player), [detail]);
+  const matches = useMemo(() => detail?.matches ?? [], [detail]);
   const isLive = detail?.session.status === "live";
+
+  // Zonder dit zou de normale Live LAN-pagina alleen bijwerken bij een eigen
+  // mutatie of een window-focus-refetch — een wijziging vanaf een ANDER
+  // apparaat/tabblad (bv. een tik of MVP-undo op de Tablet Controller) kwam
+  // hier voorheen niet direct binnen. Zelfde kanaal/query-invalidatie als de
+  // Tablet Controller (useR6SessionRealtimeSync), hier hergebruikt i.p.v.
+  // een tweede implementatie.
+  useR6SessionRealtimeSync(sessionId, !!isLive);
 
   // Zolang de sessie live is, komen de gebeurtenissen uit de live-query
   // (met optimistische updates voor directe tik-feedback). Na afronden
@@ -108,6 +119,14 @@ export default function RainbowSixSiegeSession() {
     if (!detail) return events;
     return buildR6Feed(events, detail.matches, scoreRules);
   }, [events, detail, scoreRules]);
+
+  // Zelfde centrale bepaling van "de laatste undo-bare actie" als de Tablet
+  // Controller (useR6UndoLastAction) — hier gebruikt om het bijbehorende
+  // MVP-feeditem in R6RecentEventsFeed van een undo-knop te voorzien zodra
+  // dát de laatste actie is (zie R6RecentEventsFeed/R6LiveDashboard).
+  // Gewone events blijven via de bestaande, losse useUndoR6Event/onUndo
+  // hieronder individueel ongedaan te maken, ongewijzigd.
+  const undoLastAction = useR6UndoLastAction(sessionId ?? "", events, matches, scoreRules);
 
   const quickActions = useMemo(
     () => scoreRules.filter((r) => r.is_quick_action && r.is_active).sort((a, b) => a.sort_order - b.sort_order),
@@ -146,7 +165,7 @@ export default function RainbowSixSiegeSession() {
     );
   }
 
-  const { session, matches, matchPlayers } = detail;
+  const { session, matchPlayers } = detail;
 
   function openCreateMatch() {
     setEditingMatch(null);
@@ -320,6 +339,15 @@ export default function RainbowSixSiegeSession() {
           events={feedEvents}
           onTap={handleTap}
           onUndo={(eventId) => undoEvent.mutate(eventId)}
+          lastUndoableActionId={
+            undoLastAction.lastAction
+              ? undoLastAction.lastAction.kind === "mvp"
+                ? `mvp-${undoLastAction.lastAction.matchId}`
+                : undoLastAction.lastAction.id
+              : null
+          }
+          onUndoLastAction={undoLastAction.undo}
+          isUndoingLastAction={undoLastAction.isUndoing}
           onEndGame={() => setEndGameOpen(true)}
           controlsRow={sessionControlsRow}
         />

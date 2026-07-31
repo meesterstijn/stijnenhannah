@@ -29,6 +29,9 @@ export function R6LiveDashboard({
   events,
   onTap,
   onUndo,
+  lastUndoableActionId,
+  onUndoLastAction,
+  isUndoingLastAction,
   onEndGame,
   controlsRow,
 }: {
@@ -41,6 +44,16 @@ export function R6LiveDashboard({
   events: R6Event[];
   onTap: (playerId: string, rule: R6ScoreRule) => void;
   onUndo: (eventId: string) => void;
+  /** Id van de centraal bepaalde "laatste undo-bare actie" (zie
+   * useR6UndoLastAction) — voor een echt event is dat het event-id zelf,
+   * voor een MVP-toekenning `mvp-${matchId}` (zelfde vorm als
+   * buildMvpFeedEvents gebruikt). Alleen het feeditem met exact dit id mag
+   * een MVP-undo-knop tonen; alle overige (oudere) MVP-items in de feed
+   * blijven niet-undo-baar, gewone events blijven zoals altijd individueel
+   * undo-baar via `onUndo`. */
+  lastUndoableActionId: string | null;
+  onUndoLastAction: () => void;
+  isUndoingLastAction: boolean;
   onEndGame: () => void;
   /** Live/Geschiedenis-toggle + LAN beëindigen/verwijderen — hier tussen de
    * actietegels en "Laatste acties" gerenderd op verzoek van de gebruiker
@@ -143,6 +156,9 @@ export function R6LiveDashboard({
           players={players}
           quickActions={quickActionsByCode}
           onUndo={onUndo}
+          lastUndoableActionId={lastUndoableActionId}
+          onUndoMvp={onUndoLastAction}
+          isUndoingMvp={isUndoingLastAction}
         />
       </section>
     </div>

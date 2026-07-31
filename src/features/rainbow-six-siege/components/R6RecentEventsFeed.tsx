@@ -11,11 +11,22 @@ export function R6RecentEventsFeed({
   players,
   quickActions,
   onUndo,
+  lastUndoableActionId,
+  onUndoMvp,
+  isUndoingMvp,
 }: {
   events: R6Event[];
   players: Map<string, R6Player>;
   quickActions: Map<string, R6ScoreRule>;
   onUndo: (eventId: string) => void;
+  /** Id van de centraal bepaalde "laatste undo-bare actie" (zie
+   * useR6UndoLastAction) — voor een MVP-feeditem is dat `mvp-${matchId}`.
+   * Alleen het MVP-item met exact dit id krijgt hieronder een undo-knop;
+   * oudere MVP-toekenningen blijven bewust niet-undo-baar (corrigeren van
+   * die MVP hoort dan bij het bewerken van de match, niet bij deze feed). */
+  lastUndoableActionId: string | null;
+  onUndoMvp: () => void;
+  isUndoingMvp: boolean;
 }) {
   // `events` is al gecombineerd + chronologisch gesorteerd (nieuwste eerst)
   // door buildR6Feed (scoring.ts) — de ene centrale plek voor die logica,
@@ -33,9 +44,12 @@ export function R6RecentEventsFeed({
         const isPending = event.id.startsWith("optimistic-");
         // MVP-toekenningen bij "Gimma afronden" zijn synthetische, alleen-
         // voor-weergave rijen (zie buildMvpFeedEvents in scoring.ts) — geen
-        // echte r6_events-rij om ongedaan te maken. Corrigeren van een MVP-
-        // keuze hoort bij het bewerken van de match, niet bij deze feed.
+        // echte r6_events-rij om ongedaan te maken via de gewone onUndo.
+        // Alléén wanneer dít precies de centraal bepaalde laatste undo-bare
+        // actie is (lastUndoableActionId), krijgt zo'n item alsnog een
+        // undo-knop — via onUndoMvp, niet onUndo.
         const isSynthetic = event.id.startsWith("mvp-");
+        const isLastUndoableMvp = isSynthetic && event.id === lastUndoableActionId;
         return (
           <div
             key={event.id}
@@ -55,6 +69,17 @@ export function R6RecentEventsFeed({
                 disabled={isPending}
                 className="shrink-0 rounded-full p-1.5 text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-rose-400 disabled:opacity-40"
                 aria-label="Ongedaan maken"
+              >
+                <Undo2 className="h-3.5 w-3.5" />
+              </button>
+            )}
+            {isLastUndoableMvp && (
+              <button
+                type="button"
+                onClick={onUndoMvp}
+                disabled={isUndoingMvp}
+                className="shrink-0 rounded-full p-1.5 text-zinc-500 transition-colors hover:bg-zinc-800 hover:text-rose-400 disabled:opacity-40"
+                aria-label="MVP ongedaan maken"
               >
                 <Undo2 className="h-3.5 w-3.5" />
               </button>

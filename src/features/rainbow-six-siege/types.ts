@@ -211,6 +211,32 @@ export type R6ScoreboardEntry = {
   };
 };
 
+// De "laatste ongedaan te maken actie" kan uit twee bronnen komen: een echte
+// r6_events-rij, of een MVP-toekenning die als match-veld leeft
+// (r6_matches.mvp_player_id) — zie determineR6LastUndoableAction in
+// scoring.ts. Eén discriminated union zodat de aanroeper (de enkele
+// "Laatste actie ongedaan maken"-knop op de Tablet Controller, en het
+// MVP-feeditem in R6RecentEventsFeed) met precies één type hoeft om te gaan,
+// ongeacht de bron.
+export type R6UndoableAction =
+  | {
+      kind: "event";
+      id: string;
+      matchId: string;
+      createdAt: string;
+      playerId: string;
+      label: string;
+      points: number;
+    }
+  | {
+      kind: "mvp";
+      matchId: string;
+      createdAt: string;
+      playerId: string;
+      label: string;
+      points: number;
+    };
+
 // LAN-foto's/media (fase 2.2). Alleen storage_path wordt bewaard — de
 // publieke URL wordt altijd afgeleid via getR6MediaPublicUrl(), nooit apart
 // opgeslagen (voorkomt dubbele opslag van dezelfde informatie).

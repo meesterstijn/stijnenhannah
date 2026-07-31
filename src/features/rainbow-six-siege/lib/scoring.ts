@@ -1,4 +1,13 @@
-import type { R6Challenge, R6Event, R6Match, R6MatchPlayer, R6Player, R6ScoreboardEntry, R6ScoreRule } from "@/features/rainbow-six-siege/types";
+import type {
+  R6Challenge,
+  R6Event,
+  R6Match,
+  R6MatchPlayer,
+  R6Player,
+  R6ScoreboardEntry,
+  R6ScoreRule,
+  R6UndoableAction,
+} from "@/features/rainbow-six-siege/types";
 
 // ── Bron van waarheid voor puntenwaarden ─────────────────────────────────
 // Sinds fase 2.2 is dat de `r6_score_rules`-tabel in Supabase (via
@@ -249,4 +258,94 @@ export function buildR6Feed(events: R6Event[], matches: R6Match[], scoreRules: R
     const byTime = b.created_at.localeCompare(a.created_at);
     return byTime !== 0 ? byTime : b.id.localeCompare(a.id);
   });
+}
+
+// Stabiele id voor de tiebreak hieronder — voor "mvp" is er geen los `id`-
+// veld (alleen matchId), maar `mvp-${matchId}` is toch al de gevestigde vorm
+// (zie buildMvpFeedEvents) en dus net zo stabiel/uniek als een event-id.
+function undoableActionSortId(action: R6UndoableAction): string {
+  return action.kind === "mvp" ? `mvp-${action.matchId}` : action.id;
+}
+
+function byRecency(a: R6UndoableAction, b: R6UndoableAction): number {
+  const byTime = b.createdAt.localeCompare(a.createdAt);
+  return byTime !== 0 ? byTime : undoableActionSortId(b).localeCompare(undoableActionSortId(a));
+}
+
+/**
+ * De ENE centrale plek die bepaalt welke puntenactie de "Laatste actie
+ * ongedaan maken"-knop (Tablet Controller) en het undo-bare MVP-feeditem
+ * (R6RecentEventsFeed) daadwerkelijk terugdraaien — ongeacht of die actie
+ * een echte r6_event-rij is of een MVP-toekenning op r6_matches. Hergebruikt
+ * buildMvpFeedEvents voor de MVP-kandidaat (zelfde `mvp-`-id, zelfde
+ * created_at-bron als de "Laatste acties"-feed) i.p.v. die normalisatie
+ * dubbel te implementeren.
+ *
+ * Gamegrens-regel (bewust NIET zomaar "het nieuwste item van de hele
+ * sessie" — dat zou een oude MVP-toekenning onbeperkt undo-baar houden,
+ * ook nadat er allang een nieuwe game bezig is):
+ *  1. Is er in de actieve game (hoogste match_number) al een eigen
+ *     puntenactie (tik of MVP)? Dan mag ALLEEN daaruit gekozen worden.
+ *  2. Heeft de actieve game nog niets van zichzelf (het typische moment
+ *     vlak na "Gimma afronden": de nieuwe game is al automatisch gestart,
+ *     maar er is nog niet getikt)? Dan mag de undo nog één keer terugvallen
+ *     op de meest recente puntenactie van de daaraan voorafgaande game —
+ *     zodat een zojuist toegekende MVP nog terug te draaien is, ook al is
+ *     die game zelf niet meer "actief".
+ *  3. Zodra de actieve game zijn eigen eerste actie krijgt, vervalt die
+ *     terugval-mogelijkheid vanzelf (regel 1 wint dan weer) — een oudere
+ *     MVP wordt dus nooit stilzwijgend bereikbaar zodra een nieuwe game
+ *     daadwerkelijk begonnen is.
+ *
+ * Optimistische (nog niet server-bevestigde) events worden hier bewust
+ * genegeerd, zelfde reden als in de oude useR6UndoLastEvent: hun id is een
+ * lokale placeholder, geen geldige database-uuid.
+ */
+export function determineR6LastUndoableAction(
+  events: R6Event[],
+  matches: R6Match[],
+  scoreRules: R6ScoreRule[],
+): R6UndoableAction | null {
+  if (matches.length === 0) return null;
+
+  const sortedMatches = [...matches].sort((a, b) => b.match_number - a.match_number);
+  const activeMatch = sortedMatches[0];
+  const previousMatch = sortedMatches[1] ?? null;
+  const mvpFeedByMatchId = new Map(buildMvpFeedEvents(matches, scoreRules).map((e) => [e.match_id, e]));
+
+  function actionsForMatch(match: R6Match): R6UndoableAction[] {
+    const matchEvents: R6UndoableAction[] = events
+      .filter((e) => e.match_id === match.id && !e.id.startsWith("optimistic-"))
+      .map((e) => ({
+        kind: "event",
+        id: e.id,
+        matchId: match.id,
+        createdAt: e.created_at,
+        playerId: e.player_id,
+        label: scoreRules.find((r) => r.code === e.score_rule_code)?.name ?? e.score_rule_code,
+        points: e.points_awarded,
+      }));
+
+    const mvpFeedEvent = mvpFeedByMatchId.get(match.id);
+    const mvpAction: R6UndoableAction[] = mvpFeedEvent
+      ? [
+          {
+            kind: "mvp",
+            matchId: match.id,
+            createdAt: mvpFeedEvent.created_at,
+            playerId: mvpFeedEvent.player_id,
+            label: "MVP",
+            points: mvpFeedEvent.points_awarded,
+          },
+        ]
+      : [];
+
+    return [...matchEvents, ...mvpAction];
+  }
+
+  const activeMatchActions = actionsForMatch(activeMatch);
+  const candidates = activeMatchActions.length > 0 ? activeMatchActions : previousMatch ? actionsForMatch(previousMatch) : [];
+
+  if (candidates.length === 0) return null;
+  return [...candidates].sort(byRecency)[0];
 }

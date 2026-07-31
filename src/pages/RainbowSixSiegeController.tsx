@@ -8,7 +8,7 @@ import { useR6Challenges, useR6Maps, useR6Operators, useR6ScoreRules } from "@/f
 import { useLatestR6Match, useR6Events, useRecordR6Event, useStartR6Round } from "@/features/rainbow-six-siege/hooks/useR6Events";
 import { useR6GameOperatorAssignmentsForMatches } from "@/features/rainbow-six-siege/hooks/useR6OperatorWheel";
 import { useAcceptR6ChaosEffect, useR6ChaosEffects, useR6SessionChaosEffects } from "@/features/rainbow-six-siege/hooks/useR6ChaosEffects";
-import { useR6ControllerRealtimeSync } from "@/features/rainbow-six-siege/hooks/useR6ControllerRealtimeSync";
+import { useR6SessionRealtimeSync } from "@/features/rainbow-six-siege/hooks/useR6SessionRealtimeSync";
 import { computeScoreboard } from "@/features/rainbow-six-siege/lib/scoring";
 import type { R6ScoreRule } from "@/features/rainbow-six-siege/types";
 
@@ -43,7 +43,7 @@ export default function RainbowSixSiegeController() {
   const { data: operatorAssignments = [] } = useR6GameOperatorAssignmentsForMatches(matchIds);
 
   const isLive = detail?.session.status === "live";
-  useR6ControllerRealtimeSync(sessionId, !!isLive);
+  useR6SessionRealtimeSync(sessionId, !!isLive);
 
   const roster = useMemo(() => (detail?.sessionPlayers ?? []).map((sp) => sp.player), [detail]);
   const events = useMemo(() => (isLive ? liveEvents : (detail?.events ?? [])), [isLive, liveEvents, detail]);
@@ -123,6 +123,7 @@ export default function RainbowSixSiegeController() {
         quickActions={quickActions}
         scoreRules={scoreRules}
         currentMatch={currentMatch}
+        matches={detail.matches}
         events={events}
         maps={maps}
         operators={operators}
