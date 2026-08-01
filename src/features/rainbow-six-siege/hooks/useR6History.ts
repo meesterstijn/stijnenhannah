@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchR6DataForSessions, fetchR6Sessions } from "@/features/rainbow-six-siege/lib/sessions";
 import { fetchR6Challenges, fetchR6ScoreRules } from "@/features/rainbow-six-siege/lib/reference";
 import { computeScoreboard, FALLBACK_SCORE_RULES } from "@/features/rainbow-six-siege/lib/scoring";
+import { countCompletedR6Games } from "@/features/rainbow-six-siege/lib/matches";
 import type { R6Session, R6ScoreboardEntry } from "@/features/rainbow-six-siege/types";
 
 export type R6SessionSummary = {
@@ -38,7 +39,7 @@ export function useR6History() {
 
         return {
           session,
-          matchCount: sessionMatches.length,
+          matchCount: countCompletedR6Games(sessionMatches),
           scoreboard: computeScoreboard(players, sessionMatches, sessionMatchPlayers, challenges, activeRules, sessionEvents),
         };
       });

@@ -22,6 +22,7 @@ import { useR6Maps } from "@/features/rainbow-six-siege/hooks/useR6Reference";
 import { computeMapStats } from "@/features/rainbow-six-siege/lib/afterActionReport";
 import { computeR6Records } from "@/features/rainbow-six-siege/lib/records";
 import { computeScoreboard } from "@/features/rainbow-six-siege/lib/scoring";
+import { countCompletedR6Games, getCompletedR6Games } from "@/features/rainbow-six-siege/lib/matches";
 
 const PLAYER_LINE_COLORS = ["#f59e0b", "#a1a1aa", "#38bdf8", "#34d399"];
 const NEUTRAL_GRID = "#3f3f46";
@@ -80,7 +81,13 @@ export default function RainbowSixSiegeStatistics() {
   const totalAces = stats.reduce((sum, s) => sum + s.totals.aces, 0);
   const totalClutches = stats.reduce((sum, s) => sum + s.totals.clutches, 0);
 
-  const mapStats = useMemo(() => (data ? computeMapStats(data.matches, mapsById) : []), [data, mapsById]);
+  // Een game die nooit is afgerond (bv. de automatisch aangemaakte
+  // "volgende game" bij het beëindigen van een LAN) telt nergens op deze
+  // pagina mee als gespeeld — zie isR6GameCompleted.
+  const completedMatches = useMemo(() => (data ? getCompletedR6Games(data.matches) : []), [data]);
+  const completedMatchIds = useMemo(() => new Set(completedMatches.map((m) => m.id)), [completedMatches]);
+
+  const mapStats = useMemo(() => computeMapStats(completedMatches, mapsById), [completedMatches, mapsById]);
   const mostPlayedMap = mapStats.length > 0 ? [...mapStats].sort((a, b) => b.played - a.played)[0] : null;
 
   const records = useMemo(() => (data ? computeR6Records(data, mapsById, operatorsById) : null), [data, mapsById, operatorsById]);
@@ -139,6 +146,7 @@ export default function RainbowSixSiegeStatistics() {
     if (!data) return [];
     const counts = new Map<string, number>();
     for (const a of data.operatorAssignments) {
+      if (!completedMatchIds.has(a.match_id)) continue;
       if (a.attacker_operator_id) counts.set(a.attacker_operator_id, (counts.get(a.attacker_operator_id) ?? 0) + 1);
       if (a.defender_operator_id) counts.set(a.defender_operator_id, (counts.get(a.defender_operator_id) ?? 0) + 1);
     }
@@ -146,7 +154,7 @@ export default function RainbowSixSiegeStatistics() {
       .map(([id, count]) => ({ name: operatorsById.get(id)?.name ?? "Onbekend", value: count }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 8);
-  }, [data, operatorsById]);
+  }, [data, operatorsById, completedMatchIds]);
 
   const winLossData = useMemo(() => {
     let wins = 0;
@@ -192,7 +200,7 @@ export default function RainbowSixSiegeStatistics() {
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatTile label="LAN-avonden" value={data.sessions.length} />
-        <StatTile label="Games" value={data.matches.length} />
+        <StatTile label="Games" value={countCompletedR6Games(data.matches)} />
         <StatTile label="Geregistreerde acties" value={totalActions} />
         <StatTile label="Totaal punten" value={totalPoints} />
         <StatTile label="Aces" value={totalAces} />

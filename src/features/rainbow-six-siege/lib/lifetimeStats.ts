@@ -1,4 +1,5 @@
 import { computeScoreboard } from "@/features/rainbow-six-siege/lib/scoring";
+import { getCompletedR6Games } from "@/features/rainbow-six-siege/lib/matches";
 import type {
   R6Challenge,
   R6Event,
@@ -105,6 +106,10 @@ export function computeR6LifetimeStats(
 ): R6PlayerLifetimeStats[] {
   const operatorsById = new Map(operators.map((o) => [o.id, o]));
   const accByPlayer = new Map<string, Acc>();
+  // Voor de operatorstatistieken-loop verderop: een operator-toewijzing op
+  // een game die nooit is afgerond mag niet meetellen als "gebruikt" —
+  // zie isR6GameCompleted.
+  const completedMatchIds = new Set(getCompletedR6Games(matches).map((m) => m.id));
 
   function getAcc(player: R6Player): Acc {
     let acc = accByPlayer.get(player.id);
@@ -156,7 +161,7 @@ export function computeR6LifetimeStats(
       const acc = getAcc(entry.player);
       acc.totalPoints += entry.totalPoints;
       acc.lanCount += 1;
-      acc.gameCount += sessionMatches.length;
+      acc.gameCount += getCompletedR6Games(sessionMatches).length;
       if (leaderId === entry.player.id && !tied) acc.winCount += 1;
       const lastDate = session.ended_at ?? session.started_at;
       if (!acc.lastPlayedAt || lastDate > acc.lastPlayedAt) acc.lastPlayedAt = lastDate;
@@ -179,6 +184,7 @@ export function computeR6LifetimeStats(
   }
 
   for (const assignment of operatorAssignments) {
+    if (!completedMatchIds.has(assignment.match_id)) continue;
     const acc = accByPlayer.get(assignment.player_id);
     if (!acc) continue;
     if (assignment.attacker_operator_id) {

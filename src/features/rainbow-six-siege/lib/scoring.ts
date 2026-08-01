@@ -1,3 +1,4 @@
+import { assertR6GameCountConsistency, isR6GameCompleted } from "@/features/rainbow-six-siege/lib/matches";
 import type {
   R6Challenge,
   R6Event,
@@ -158,6 +159,24 @@ export function computeScoreboard(
       totals.challengesCompleted += 1;
       const challenge = challengeById.get(match.challenge_id);
       addDirect(row.player_id, challenge?.bonus_points ?? CHALLENGE_COMPLETED_FALLBACK_POINTS);
+    }
+  }
+
+  // Dev-only sanity check (geen invloed op het teruggegeven scorebord):
+  // voor elke speler moet het aantal afgeronde games waar die speler een
+  // match_player-rij voor heeft exact gelijk zijn aan zijn eigen
+  // wins+losses+draws hierboven — twee onafhankelijk afgeleide tellingen
+  // die nooit uit elkaar mogen lopen. Zie assertR6GameCountConsistency.
+  if (import.meta.env.DEV) {
+    for (const player of players) {
+      const totals = totalsByPlayer.get(player.id);
+      if (!totals) continue;
+      const playerCompletedGamesCount = matchPlayers.filter((row) => {
+        if (row.player_id !== player.id) return false;
+        const match = matchById.get(row.match_id);
+        return !!match && isR6GameCompleted(match);
+      }).length;
+      assertR6GameCountConsistency(playerCompletedGamesCount, totals.wins, totals.losses, totals.draws, `speler ${player.name}`);
     }
   }
 

@@ -32,7 +32,10 @@ import {
 } from "@/features/rainbow-six-siege/hooks/useR6Events";
 import { useR6UndoLastAction } from "@/features/rainbow-six-siege/hooks/useR6UndoLastAction";
 import { useR6SessionRealtimeSync } from "@/features/rainbow-six-siege/hooks/useR6SessionRealtimeSync";
+import { useR6GameOperatorAssignments } from "@/features/rainbow-six-siege/hooks/useR6OperatorWheel";
+import { useR6SessionChaosEffects } from "@/features/rainbow-six-siege/hooks/useR6ChaosEffects";
 import { buildR6Feed, computeScoreboard } from "@/features/rainbow-six-siege/lib/scoring";
+import { getCompletedR6Games, countCompletedR6Games, isR6MatchEmpty, isR6MatchIncompleteWithData } from "@/features/rainbow-six-siege/lib/matches";
 import type { R6Match, R6ScoreRule } from "@/features/rainbow-six-siege/types";
 
 function formatDuration(startedAt: string, endedAt: string | null): string {
@@ -77,6 +80,14 @@ export default function RainbowSixSiegeSession() {
   const undoEvent = useUndoR6Event(sessionId ?? "");
   const currentMatch = latestMatchQuery.data ?? null;
 
+  // Uitsluitend voor de "LAN beëindigen"-check hieronder: is de huidige,
+  // (nog) niet-afgeronde game leeg genoeg om stilzwijgend op te ruimen, of
+  // staat er al iets in waar dan een waarschuwing voor moet komen? Zelfde
+  // queries/query keys als R6LiveDashboard (operator wheel) en Chaos Wheel
+  // gebruiken, dus geen dubbele netwerkverzoeken.
+  const currentMatchOperatorAssignmentsQuery = useR6GameOperatorAssignments(currentMatch?.id ?? null);
+  const sessionChaosEffectsQuery = useR6SessionChaosEffects(sessionId ?? "");
+
   const mapsById = useMemo(() => new Map(maps.map((m) => [m.id, m])), [maps]);
   const operatorsById = useMemo(() => new Map(operators.map((o) => [o.id, o])), [operators]);
   const challengesById = useMemo(() => new Map(challenges.map((c) => [c.id, c])), [challenges]);
@@ -103,6 +114,34 @@ export default function RainbowSixSiegeSession() {
   // ternary) zodat de `?? []`-fallback niet bij elke render een nieuwe
   // array-referentie geeft aan de useMemo's hieronder die van `events` afhangen.
   const events = useMemo(() => (isLive ? liveEvents : (detail?.events ?? [])), [isLive, liveEvents, detail]);
+
+  // Alleen afgeronde Gimma's horen in de Geschiedenis-lijst en de
+  // "Gespeelde Gimma's"-teller thuis — zie isR6GameCompleted. Vervangt de
+  // eerdere `id !== currentMatch?.id`-filter: die werkte alleen zolang de
+  // actieve game ook toevallig de hoogst-genummerde is, wat via het
+  // klassieke matchformulier (Gimma toevoegen) niet gegarandeerd is.
+  const historyMatches = useMemo(() => getCompletedR6Games(matches), [matches]);
+
+  // Is de huidige, nog niet-afgeronde game leeg genoeg om bij "LAN
+  // beëindigen" stilzwijgend op te ruimen (isR6MatchEmpty), of staat er al
+  // data in die dan alleen een waarschuwing verdient (isR6MatchIncompleteWithData)?
+  // Alleen zinvol zolang alle vier gerelateerde databronnen al geladen zijn —
+  // anders liever niets aannemen dan een onterecht "leeg" oordeel vellen.
+  const currentMatchRelatedDataLoaded =
+    !currentMatchOperatorAssignmentsQuery.isLoading && !sessionChaosEffectsQuery.isLoading;
+  const currentMatchEmptyRelated = useMemo(
+    () => ({
+      events,
+      matchPlayers: detail?.matchPlayers ?? [],
+      operatorAssignments: currentMatchOperatorAssignmentsQuery.data ?? [],
+      sessionChaosEffects: sessionChaosEffectsQuery.data ?? [],
+    }),
+    [events, detail, currentMatchOperatorAssignmentsQuery.data, sessionChaosEffectsQuery.data],
+  );
+  const currentMatchIsEmpty =
+    !!currentMatch && currentMatchRelatedDataLoaded && isR6MatchEmpty(currentMatch, currentMatchEmptyRelated);
+  const currentMatchHasIncompleteData =
+    !!currentMatch && currentMatchRelatedDataLoaded && isR6MatchIncompleteWithData(currentMatch, currentMatchEmptyRelated);
 
   const scoreboard = useMemo(() => {
     if (!detail) return [];
@@ -180,6 +219,19 @@ export default function RainbowSixSiegeSession() {
   async function handleDeleteSession() {
     await deleteSession.mutateAsync(session.id);
     navigate("/rainbow-six-siege/lan");
+  }
+
+  // Matches mogen alleen verwijderd worden zolang de sessie nog live is
+  // (RLS-policy), dus dit moet vóór endSession.mutate gebeuren, niet erna.
+  // Ruimt uitsluitend een volledig lege, niet-afgeronde laatste game op
+  // (isR6MatchEmpty) — een game met al data (tikken, MVP, map, operators,
+  // chaos, notities) blijft altijd staan, telt dan alleen niet mee in de
+  // statistieken (zie isR6GameCompleted elders op deze pagina).
+  async function handleConfirmEndSession() {
+    if (currentMatch && currentMatchIsEmpty) {
+      await deleteMatch.mutateAsync(currentMatch.id);
+    }
+    endSession.mutate(session.id, { onSuccess: () => setConfirmEndOpen(false) });
   }
 
   function handleTap(playerId: string, rule: R6ScoreRule) {
@@ -308,7 +360,7 @@ export default function RainbowSixSiegeSession() {
         </div>
         <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4">
           <p className="text-xs text-zinc-500">Gimma's</p>
-          <p className="font-serif text-lg font-semibold text-zinc-100">{matches.length}</p>
+          <p className="font-serif text-lg font-semibold text-zinc-100">{countCompletedR6Games(matches)}</p>
         </div>
       </div>
 
@@ -387,15 +439,15 @@ export default function RainbowSixSiegeSession() {
                 <Plus className="h-4 w-4" /> Gimma toevoegen
               </Button>
             </div>
-            {/* De actief lopende Gimma is nog een kale container zonder afgeronde
-                gegevens (zie R6EndGameSheet) — die hoort hier pas thuis zodra
-                "Gimma afronden" 'm heeft afgesloten, anders staat er verwarrend
-                een Gimma met "Onbekend" resultaat en 0 stats tussen. */}
-            {matches.filter((m) => m.id !== currentMatch?.id).length === 0 ? (
+            {/* De actief lopende, nog niet-afgeronde Gimma hoort hier pas thuis
+                zodra "Gimma afronden" 'm heeft afgesloten, anders staat er
+                verwarrend een Gimma met "Onbekend" resultaat en 0 stats
+                tussen — zie isR6GameCompleted/historyMatches hierboven. */}
+            {historyMatches.length === 0 ? (
               <p className="text-sm text-zinc-400">Nog geen Gimma's geregistreerd.</p>
             ) : (
               <div className="space-y-3">
-                {matches.filter((m) => m.id !== currentMatch?.id).map((match) => (
+                {historyMatches.map((match) => (
                   <R6MatchCard
                     key={match.id}
                     match={match}
@@ -451,23 +503,28 @@ export default function RainbowSixSiegeSession() {
               De eindbonussen worden definitief berekend en de sessie wordt alleen-lezen.
             </DialogDescription>
           </DialogHeader>
+          {currentMatchHasIncompleteData && (
+            <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-400">
+              De huidige game is niet afgerond en telt niet mee in de statistieken.
+            </p>
+          )}
           <DialogFooter>
             <Button
               type="button"
               variant="outline"
               className="border-zinc-700 bg-transparent text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100"
               onClick={() => setConfirmEndOpen(false)}
-              disabled={endSession.isPending}
+              disabled={endSession.isPending || deleteMatch.isPending}
             >
               Annuleer
             </Button>
             <Button
               type="button"
               className="bg-rose-500 text-zinc-950 hover:bg-rose-400"
-              disabled={endSession.isPending}
-              onClick={() => endSession.mutate(session.id, { onSuccess: () => setConfirmEndOpen(false) })}
+              disabled={endSession.isPending || deleteMatch.isPending}
+              onClick={handleConfirmEndSession}
             >
-              {endSession.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+              {(endSession.isPending || deleteMatch.isPending) && <Loader2 className="h-4 w-4 animate-spin" />}
               Ja, beëindigen
             </Button>
           </DialogFooter>

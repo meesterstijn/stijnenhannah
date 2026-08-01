@@ -1,5 +1,6 @@
 import { computeMapStats } from "@/features/rainbow-six-siege/lib/afterActionReport";
 import { computeScoreboard, rulePoints } from "@/features/rainbow-six-siege/lib/scoring";
+import { getCompletedR6Games } from "@/features/rainbow-six-siege/lib/matches";
 import type { R6LifetimeData } from "@/features/rainbow-six-siege/hooks/useR6LifetimeStats";
 import type { R6Map, R6Operator } from "@/features/rainbow-six-siege/types";
 
@@ -25,6 +26,12 @@ export type R6Records = {
  * per sessie) punten kent.
  */
 export function computeR6Records(data: R6LifetimeData, maps: Map<string, R6Map>, operators: Map<string, R6Operator>): R6Records {
+  // Records over "games" (i.p.v. over hele LAN's/spelers-totalen, die al via
+  // computeScoreboard/entry.totalPoints lopen) mogen een nooit-afgeronde
+  // game nooit meetellen — zie isR6GameCompleted.
+  const completedMatches = getCompletedR6Games(data.matches);
+  const completedMatchIds = new Set(completedMatches.map((m) => m.id));
+
   let highestSingleLan: R6Records["highestSingleLan"] = null;
   let mostAcesSingleLan: R6Records["mostAcesSingleLan"] = null;
   let mostHeadshotsSingleLan: R6Records["mostHeadshotsSingleLan"] = null;
@@ -94,7 +101,7 @@ export function computeR6Records(data: R6LifetimeData, maps: Map<string, R6Map>,
   let mostPointsSingleGame: R6Records["mostPointsSingleGame"] = null;
   const sessionById = new Map(data.sessions.map((s) => [s.id, s]));
   const playerNameById = new Map(data.sessionPlayers.map((sp) => [sp.player_id, sp.player.name]));
-  for (const match of data.matches) {
+  for (const match of completedMatches) {
     const pointsByPlayer = new Map<string, number>();
     for (const event of data.events) {
       if (event.match_id !== match.id) continue;
@@ -123,13 +130,14 @@ export function computeR6Records(data: R6LifetimeData, maps: Map<string, R6Map>,
     }
   }
 
-  const mapStats = computeMapStats(data.matches, maps);
+  const mapStats = computeMapStats(completedMatches, maps);
   const mostPlayedMapStat = mapStats.length > 0 ? [...mapStats].sort((a, b) => b.played - a.played)[0] : null;
   const mostPlayedMap = mostPlayedMapStat ? { mapName: mostPlayedMapStat.mapName, count: mostPlayedMapStat.played } : null;
 
   const attackerCounts = new Map<string, number>();
   const defenderCounts = new Map<string, number>();
   for (const assignment of data.operatorAssignments) {
+    if (!completedMatchIds.has(assignment.match_id)) continue;
     if (assignment.attacker_operator_id) {
       attackerCounts.set(assignment.attacker_operator_id, (attackerCounts.get(assignment.attacker_operator_id) ?? 0) + 1);
     }

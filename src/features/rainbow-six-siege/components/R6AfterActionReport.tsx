@@ -13,6 +13,7 @@ import {
   findBestAndWorstMap,
   MIN_MATCHES_FOR_MAP_RANKING,
 } from "@/features/rainbow-six-siege/lib/afterActionReport";
+import { getCompletedR6Games } from "@/features/rainbow-six-siege/lib/matches";
 import type {
   R6Challenge,
   R6Map,
@@ -51,6 +52,20 @@ export function R6AfterActionReport({
 }) {
   const players = useMemo(() => scoreboard.map((e) => e.player), [scoreboard]);
 
+  // Een game die nooit is afgerond (de automatisch aangemaakte "volgende
+  // game" na de laatste afgeronde Gimma, of een LAN die halverwege een game
+  // is beëindigd) mag het After Action Report nergens beïnvloeden — geen
+  // map-/operator-/challenge-/chaos-/grappigste-moment-statistiek. Puur
+  // weergave: de scoreboard-prop hierboven komt al kant-en-klaar binnen
+  // (computeScoreboard zelf blijft ongewijzigd, inclusief punten van de
+  // eventueel al getikte, niet-afgeronde laatste game).
+  const completedMatches = useMemo(() => getCompletedR6Games(matches), [matches]);
+  const completedMatchIds = useMemo(() => new Set(completedMatches.map((m) => m.id)), [completedMatches]);
+  const completedMatchPlayers = useMemo(
+    () => matchPlayers.filter((mp) => completedMatchIds.has(mp.match_id)),
+    [matchPlayers, completedMatchIds],
+  );
+
   const resultCounts = useMemo(() => {
     const counts = { win: 0, loss: 0, draw: 0, unknown: 0 };
     for (const m of matches) counts[m.result] += 1;
@@ -59,18 +74,18 @@ export function R6AfterActionReport({
   const decided = resultCounts.win + resultCounts.loss + resultCounts.draw;
   const winRate = decided > 0 ? Math.round((resultCounts.win / decided) * 100) : null;
 
-  const mapStats = useMemo(() => computeMapStats(matches, maps), [matches, maps]);
+  const mapStats = useMemo(() => computeMapStats(completedMatches, maps), [completedMatches, maps]);
   const { best: bestMap, worst: worstMap } = useMemo(() => findBestAndWorstMap(mapStats), [mapStats]);
   const playedMapCount = mapStats.reduce((sum, m) => sum + m.played, 0);
   const mostPlayed = mapStats.length > 0 ? [...mapStats].sort((a, b) => b.played - a.played)[0] : null;
 
   const operatorSummaries = useMemo(
-    () => computePlayerOperatorSummaries(players, matchPlayers, operators),
-    [players, matchPlayers, operators],
+    () => computePlayerOperatorSummaries(players, completedMatchPlayers, operators),
+    [players, completedMatchPlayers, operators],
   );
-  const challengeSummaries = useMemo(() => computeChallengeSummaries(matches, challenges), [matches, challenges]);
-  const chaosSummaries = useMemo(() => computeChaosSummaries(matches), [matches]);
-  const funnyMoments = useMemo(() => collectFunnyMoments(matches), [matches]);
+  const challengeSummaries = useMemo(() => computeChallengeSummaries(completedMatches, challenges), [completedMatches, challenges]);
+  const chaosSummaries = useMemo(() => computeChaosSummaries(completedMatches), [completedMatches]);
+  const funnyMoments = useMemo(() => collectFunnyMoments(completedMatches), [completedMatches]);
   const highlights = useMemo(() => computeHighlights(scoreboard), [scoreboard]);
   const summaryText = useMemo(() => buildSummaryText({ scoreboard, bestMap, highlights }), [scoreboard, bestMap, highlights]);
 
