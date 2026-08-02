@@ -34,6 +34,7 @@ export function R6MatchCard({
   operators,
   challenges,
   canEdit = false,
+  canDelete = false,
   onEdit,
   onDelete,
 }: {
@@ -44,6 +45,10 @@ export function R6MatchCard({
   operators: Map<string, R6Operator>;
   challenges: Map<string, R6Challenge>;
   canEdit?: boolean;
+  /** Los van `canEdit`: "Gimma verwijderen" is owner-only (zie
+   * useR6Permissions), terwijl bewerken ook voor r6_player mag — beide delen
+   * verder dezelfde live-sessie-voorwaarde. */
+  canDelete?: boolean;
   onEdit?: () => void;
   onDelete?: () => Promise<void>;
 }) {
@@ -76,20 +81,24 @@ export function R6MatchCard({
           <p className="text-xs text-zinc-500">
             {new Date(match.played_at).toLocaleString("nl-NL", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
           </p>
-          {canEdit && (
+          {(canEdit || canDelete) && (
             <div className="flex gap-1">
-              <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-zinc-400 hover:text-amber-400" onClick={onEdit}>
-                <Pencil className="h-3.5 w-3.5" />
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-zinc-400 hover:text-rose-400"
-                onClick={() => setConfirmDelete(true)}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
+              {canEdit && (
+                <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-zinc-400 hover:text-amber-400" onClick={onEdit}>
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+              )}
+              {canDelete && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-zinc-400 hover:text-rose-400"
+                  onClick={() => setConfirmDelete(true)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              )}
             </div>
           )}
         </div>

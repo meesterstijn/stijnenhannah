@@ -36,6 +36,7 @@ import { useR6GameOperatorAssignments } from "@/features/rainbow-six-siege/hooks
 import { useR6SessionChaosEffects } from "@/features/rainbow-six-siege/hooks/useR6ChaosEffects";
 import { buildR6Feed, computeScoreboard } from "@/features/rainbow-six-siege/lib/scoring";
 import { getCompletedR6Games, countCompletedR6Games, isR6MatchEmpty, isR6MatchIncompleteWithData } from "@/features/rainbow-six-siege/lib/matches";
+import { useR6Permissions } from "@/lib/permissions";
 import type { R6Match, R6ScoreRule } from "@/features/rainbow-six-siege/types";
 
 function formatDuration(startedAt: string, endedAt: string | null): string {
@@ -60,6 +61,7 @@ export default function RainbowSixSiegeSession() {
   const [endGameOpen, setEndGameOpen] = useState(false);
   const [justEndedGameNumber, setJustEndedGameNumber] = useState<number | null>(null);
 
+  const { canDeleteR6Session, canReopenR6Session, canDeleteR6Match, canRemoveR6SessionPlayer } = useR6Permissions();
   const { data: detail, isLoading } = useR6SessionDetail(sessionId);
   const { data: maps = [] } = useR6Maps();
   const { data: operators = [] } = useR6Operators();
@@ -285,14 +287,16 @@ export default function RainbowSixSiegeSession() {
             <Square className="h-4 w-4" /> LAN beëindigen
           </Button>
         ) : (
-          <Button
-            type="button"
-            variant="outline"
-            className="border-zinc-700 bg-transparent text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100"
-            onClick={() => setConfirmReopenOpen(true)}
-          >
-            <RotateCcw className="h-4 w-4" /> LAN heropenen
-          </Button>
+          canReopenR6Session && (
+            <Button
+              type="button"
+              variant="outline"
+              className="border-zinc-700 bg-transparent text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100"
+              onClick={() => setConfirmReopenOpen(true)}
+            >
+              <RotateCcw className="h-4 w-4" /> LAN heropenen
+            </Button>
+          )
         )}
         {isLive && (
           <Button
@@ -314,14 +318,16 @@ export default function RainbowSixSiegeSession() {
             <Tablet className="h-4 w-4" /> Tabletmodus
           </Button>
         )}
-        <Button
-          type="button"
-          variant="outline"
-          className="border-rose-500/40 bg-transparent text-rose-400 hover:bg-rose-500/10"
-          onClick={() => setConfirmDeleteOpen(true)}
-        >
-          <Trash2 className="h-4 w-4" /> LAN verwijderen
-        </Button>
+        {canDeleteR6Session && (
+          <Button
+            type="button"
+            variant="outline"
+            className="border-rose-500/40 bg-transparent text-rose-400 hover:bg-rose-500/10"
+            onClick={() => setConfirmDeleteOpen(true)}
+          >
+            <Trash2 className="h-4 w-4" /> LAN verwijderen
+          </Button>
+        )}
       </div>
     </>
   );
@@ -425,6 +431,7 @@ export default function RainbowSixSiegeSession() {
           <R6SessionSettings
             session={session}
             sessionPlayers={detail.sessionPlayers}
+            canRemovePlayer={canRemoveR6SessionPlayer}
             onUpdateDetails={(input) => updateSessionDetails.mutateAsync({ sessionId: session.id, ...input })}
             onAddPlayer={async (name) => {
               await addSessionPlayer.mutateAsync(name);
@@ -457,6 +464,7 @@ export default function RainbowSixSiegeSession() {
                     operators={operatorsById}
                     challenges={challengesById}
                     canEdit={isLive}
+                    canDelete={isLive && canDeleteR6Match}
                     onEdit={() => openEditMatch(match)}
                     onDelete={() => deleteMatch.mutateAsync(match.id)}
                   />

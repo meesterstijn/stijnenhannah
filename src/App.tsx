@@ -7,6 +7,7 @@ import {
 } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { RequireAppAccess } from "@/components/RequireAppAccess";
 import { SiteLayout } from "@/components/site-layout";
 import { handleSpotifyCallback } from "@/lib/spotify";
 import { Link } from "react-router-dom";
@@ -111,57 +112,59 @@ function AppRoutes() {
   }
 
   return (
-    <Suspense fallback={<PageLoader />}>
-      <Routes>
-        <Route element={<SiteLayout />}>
-          <Route path="/" element={<Home />} />
-          <Route path="/boodschappen" element={<Boodschappen />} />
-          <Route path="/recepten" element={<Recepten />} />
-          <Route path="/weekmenu" element={<Weekmenu />} />
-          <Route path="/dagvraag" element={<Dagvraag />} />
-          <Route path="/tuinieren" element={<Tuinieren />} />
-          <Route path="/fotografie" element={<Fotografie />} />
-          <Route path="/notities" element={<Notities />} />
-          <Route path="/todo" element={<Todo />} />
-          <Route path="/weer" element={<Weer />} />
-          <Route path="/verjaardagen" element={<Verjaardagen />} />
-          <Route path="/schoonmaak" element={<Schoonmaak />} />
-          <Route path="/vakantie" element={<Vakantie />} />
-          <Route path="/tips" element={<Tips />} />
-          <Route path="/rainbow-six-siege" element={<RainbowSixSiege />} />
-          <Route path="/rainbow-six-siege/lan" element={<RainbowSixSiegeLan />} />
-          <Route path="/rainbow-six-siege/lan/:sessionId" element={<RainbowSixSiegeSession />} />
-          <Route path="/rainbow-six-siege/scorebord" element={<RainbowSixSiegeScoreboard />} />
-          <Route path="/rainbow-six-siege/statistieken" element={<RainbowSixSiegeStatistics />} />
-          <Route path="/tuingids" element={<TuingidsLayout />}>
-            <Route index element={<TuingidsDashboard />} />
-            <Route path="encyclopedie" element={<TuingidsEncyclopedia />} />
-            <Route path="encyclopedie/:id" element={<TuingidsEncyclopediaDetail />} />
-            <Route path="dokter" element={<TuingidsDokter />} />
-            <Route path="dokter/:id" element={<TuingidsDokterDetail />} />
-            <Route path="logboek" element={<TuingidsLogboek />} />
-            <Route path="kalender" element={<TuingidsKalender />} />
-            <Route path="zoek" element={<TuingidsZoek />} />
-            <Route path="teeltplanner" element={<TuingidsTeeltplanner />} />
-            <Route path="teeltplanner/:planId" element={<TuingidsTeeltplanner />} />
+    <RequireAppAccess>
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          <Route element={<SiteLayout />}>
+            <Route path="/" element={<Home />} />
+            <Route path="/boodschappen" element={<Boodschappen />} />
+            <Route path="/recepten" element={<Recepten />} />
+            <Route path="/weekmenu" element={<Weekmenu />} />
+            <Route path="/dagvraag" element={<Dagvraag />} />
+            <Route path="/tuinieren" element={<Tuinieren />} />
+            <Route path="/fotografie" element={<Fotografie />} />
+            <Route path="/notities" element={<Notities />} />
+            <Route path="/todo" element={<Todo />} />
+            <Route path="/weer" element={<Weer />} />
+            <Route path="/verjaardagen" element={<Verjaardagen />} />
+            <Route path="/schoonmaak" element={<Schoonmaak />} />
+            <Route path="/vakantie" element={<Vakantie />} />
+            <Route path="/tips" element={<Tips />} />
+            <Route path="/rainbow-six-siege" element={<RainbowSixSiege />} />
+            <Route path="/rainbow-six-siege/lan" element={<RainbowSixSiegeLan />} />
+            <Route path="/rainbow-six-siege/lan/:sessionId" element={<RainbowSixSiegeSession />} />
+            <Route path="/rainbow-six-siege/scorebord" element={<RainbowSixSiegeScoreboard />} />
+            <Route path="/rainbow-six-siege/statistieken" element={<RainbowSixSiegeStatistics />} />
+            <Route path="/tuingids" element={<TuingidsLayout />}>
+              <Route index element={<TuingidsDashboard />} />
+              <Route path="encyclopedie" element={<TuingidsEncyclopedia />} />
+              <Route path="encyclopedie/:id" element={<TuingidsEncyclopediaDetail />} />
+              <Route path="dokter" element={<TuingidsDokter />} />
+              <Route path="dokter/:id" element={<TuingidsDokterDetail />} />
+              <Route path="logboek" element={<TuingidsLogboek />} />
+              <Route path="kalender" element={<TuingidsKalender />} />
+              <Route path="zoek" element={<TuingidsZoek />} />
+              <Route path="teeltplanner" element={<TuingidsTeeltplanner />} />
+              <Route path="teeltplanner/:planId" element={<TuingidsTeeltplanner />} />
+            </Route>
+            <Route path="*" element={<NotFound />} />
           </Route>
-          <Route path="*" element={<NotFound />} />
-        </Route>
-        {/* Big Screen Mode heeft bewust GEEN SiteLayout: geen navbar, geen
-            "Ons Huisje", geen paginabreedte-beperking — een tv/tweede monitor
-            mag alleen het live scorebord zelf tonen. */}
-        <Route path="/rainbow-six-siege/lan/:sessionId/big-screen" element={<RainbowSixSiegeBigScreen />} />
-        {/* Permanente Big Screen-route: geen sessionId in de URL, bepaalt
-            zelf altijd de huidige actieve LAN (zie RainbowSixSiegeAutoBigScreen
-            / useR6ActiveSessionWatch) — bedoeld om één keer op een tv/tweede
-            monitor te openen en nooit meer handmatig te hoeven wisselen. */}
-        <Route path="/rainbow-six-siege/big-screen" element={<RainbowSixSiegeAutoBigScreen />} />
-        {/* Tablet LAN Controller Mode — zelfde reden om buiten SiteLayout te
-            staan als Big Screen: geen navbar/"Ons Huisje", alleen de
-            controller zelf, fullscreen-geschikt. */}
-        <Route path="/rainbow-six-siege/lan/:sessionId/controller" element={<RainbowSixSiegeController />} />
-      </Routes>
-    </Suspense>
+          {/* Big Screen Mode heeft bewust GEEN SiteLayout: geen navbar, geen
+              "Ons Huisje", geen paginabreedte-beperking — een tv/tweede monitor
+              mag alleen het live scorebord zelf tonen. */}
+          <Route path="/rainbow-six-siege/lan/:sessionId/big-screen" element={<RainbowSixSiegeBigScreen />} />
+          {/* Permanente Big Screen-route: geen sessionId in de URL, bepaalt
+              zelf altijd de huidige actieve LAN (zie RainbowSixSiegeAutoBigScreen
+              / useR6ActiveSessionWatch) — bedoeld om één keer op een tv/tweede
+              monitor te openen en nooit meer handmatig te hoeven wisselen. */}
+          <Route path="/rainbow-six-siege/big-screen" element={<RainbowSixSiegeAutoBigScreen />} />
+          {/* Tablet LAN Controller Mode — zelfde reden om buiten SiteLayout te
+              staan als Big Screen: geen navbar/"Ons Huisje", alleen de
+              controller zelf, fullscreen-geschikt. */}
+          <Route path="/rainbow-six-siege/lan/:sessionId/controller" element={<RainbowSixSiegeController />} />
+        </Routes>
+      </Suspense>
+    </RequireAppAccess>
   );
 }
 

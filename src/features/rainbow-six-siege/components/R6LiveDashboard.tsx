@@ -9,6 +9,7 @@ import { R6OperatorWheel } from "@/features/rainbow-six-siege/components/R6Opera
 import { useR6Operators } from "@/features/rainbow-six-siege/hooks/useR6Reference";
 import { useR6GameOperatorAssignments } from "@/features/rainbow-six-siege/hooks/useR6OperatorWheel";
 import { useAcceptR6ChaosEffect, useR6ChaosEffects, useR6SessionChaosEffects } from "@/features/rainbow-six-siege/hooks/useR6ChaosEffects";
+import { useR6Permissions } from "@/lib/permissions";
 import type { R6Event, R6Match, R6Player, R6ScoreboardEntry, R6ScoreRule } from "@/features/rainbow-six-siege/types";
 
 // Het hoofdscherm tijdens het spelen: live scorebord bovenaan, daaronder
@@ -60,6 +61,7 @@ export function R6LiveDashboard({
    * (elders in de app staat dezelfde rij bovenaan, zie RainbowSixSiegeSession.tsx). */
   controlsRow: ReactNode;
 }) {
+  const { canManageR6Rules } = useR6Permissions();
   const quickActionsByCode = new Map(quickActions.map((r) => [r.code, r]));
   const currentGameEvents = currentMatch ? events.filter((e) => e.match_id === currentMatch.id) : [];
   // Geen aparte ranglijst meer bovenaan — de punten staan al bij elke
@@ -106,7 +108,7 @@ export function R6LiveDashboard({
           {currentMatch && (
             <R6OperatorWheel sessionId={sessionId} matchId={currentMatch.id} roster={roster} />
           )}
-          <R6QuickActionSettings />
+          {canManageR6Rules && <R6QuickActionSettings />}
           <Button
             type="button"
             className="bg-amber-500 text-zinc-950 hover:bg-amber-400"

@@ -8,6 +8,7 @@ import { R6OperatorWheel } from "@/features/rainbow-six-siege/components/R6Opera
 import { R6QuickActionSettings } from "@/features/rainbow-six-siege/components/R6QuickActionSettings";
 import { useScreenWakeLock } from "@/features/rainbow-six-siege/hooks/useScreenWakeLock";
 import { useR6UndoLastAction } from "@/features/rainbow-six-siege/hooks/useR6UndoLastAction";
+import { useR6Permissions } from "@/lib/permissions";
 import type {
   R6ChaosEffect,
   R6Event,
@@ -76,6 +77,7 @@ export function R6TabletController({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const wakeLock = useScreenWakeLock();
   const undo = useR6UndoLastAction(sessionId, events, matches, scoreRules);
+  const { canManageR6Rules } = useR6Permissions();
 
   useEffect(() => {
     if (isLive) wakeLock.request();
@@ -256,7 +258,7 @@ export function R6TabletController({
           </>
         )}
 
-        <R6QuickActionSettings />
+        {canManageR6Rules && <R6QuickActionSettings />}
 
         <Button
           type="button"

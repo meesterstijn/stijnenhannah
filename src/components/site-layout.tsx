@@ -2,6 +2,7 @@ import { Link, Outlet, useLocation } from "react-router-dom";
 import { Home, NotebookPen, ListTodo, Sprout } from "lucide-react";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { WeatherForecast } from "@/components/weather-forecast";
+import { useAuth } from "@/contexts/AuthContext";
 
 const nav = [
   { to: "/notities", label: "Notities", icon: NotebookPen },
@@ -10,6 +11,11 @@ const nav = [
 
 export function SiteLayout() {
   const { pathname } = useLocation();
+  // Een r6_player komt (via RequireAppAccess) sowieso nooit buiten
+  // /rainbow-six-siege — de "Ons Huisje"-link zou 'm alleen maar terugsturen
+  // naar waar hij toch niet mag komen. Geen algemene link naar privépagina's
+  // tonen aan die rol, zie ook de gebruikersrollen-opdracht sectie 7.
+  const { isR6Player } = useAuth();
   const isTuinieren = pathname === "/tuinieren";
   // Rainbow Six-pagina's hebben hun eigen, donkere gaming-vormgeving en
   // willen geen volle navbalk die daaroverheen hangt — alleen een manier om
@@ -24,7 +30,7 @@ export function SiteLayout() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {isR6 && !isR6SessionDetail && (
+      {isR6 && !isR6SessionDetail && !isR6Player && (
         <Link
           to="/"
           className="fixed left-3 top-3 z-50 flex items-center gap-2 rounded-full bg-background/80 px-3 py-1.5 shadow-sm backdrop-blur-sm group"

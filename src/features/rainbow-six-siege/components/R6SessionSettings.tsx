@@ -12,12 +12,16 @@ function toDateInputValue(iso: string): string {
 export function R6SessionSettings({
   session,
   sessionPlayers,
+  canRemovePlayer = false,
   onUpdateDetails,
   onAddPlayer,
   onRemovePlayer,
 }: {
   session: R6Session;
   sessionPlayers: R6SessionPlayer[];
+  /** "Spelers definitief verwijderen" is owner-only (zie useR6Permissions) —
+   * de X-knop per speler verschijnt alleen als dit true is. */
+  canRemovePlayer?: boolean;
   onUpdateDetails: (input: { name: string; startedAt: string; notes: string | null }) => Promise<void>;
   onAddPlayer: (name: string) => Promise<void>;
   onRemovePlayer: (playerId: string) => Promise<void>;
@@ -127,16 +131,18 @@ export function R6SessionSettings({
           {sessionPlayers.map((sp) => (
             <div key={sp.id} className="flex items-center justify-between gap-2 rounded-lg border border-zinc-800 bg-zinc-950/50 px-3 py-1.5">
               <span className="text-sm text-zinc-200">{sp.player.name}</span>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 text-zinc-500 hover:text-rose-400"
-                onClick={() => handleRemovePlayer(sp.player_id)}
-                disabled={removingId === sp.player_id}
-              >
-                {removingId === sp.player_id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
-              </Button>
+              {canRemovePlayer && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-zinc-500 hover:text-rose-400"
+                  onClick={() => handleRemovePlayer(sp.player_id)}
+                  disabled={removingId === sp.player_id}
+                >
+                  {removingId === sp.player_id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
+                </Button>
+              )}
             </div>
           ))}
         </div>
