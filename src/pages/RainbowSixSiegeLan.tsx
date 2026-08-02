@@ -7,9 +7,11 @@ import { R6SessionCard } from "@/features/rainbow-six-siege/components/R6Session
 import { R6NewSessionWizard } from "@/features/rainbow-six-siege/components/R6NewSessionWizard";
 import { useActiveR6Session } from "@/features/rainbow-six-siege/hooks/useR6Sessions";
 import { useR6History } from "@/features/rainbow-six-siege/hooks/useR6History";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function RainbowSixSiegeLan() {
   const navigate = useNavigate();
+  const { isOwner } = useAuth();
   const [wizardOpen, setWizardOpen] = useState(false);
   const { data: activeSession, isLoading: activeLoading } = useActiveR6Session();
   const { data: history = [], isLoading: historyLoading } = useR6History();
@@ -43,7 +45,7 @@ export default function RainbowSixSiegeLan() {
             </button>
           )}
 
-          {!activeSession && (
+          {!activeSession && isOwner && (
             <Button
               type="button"
               className="w-full bg-amber-500 text-zinc-950 hover:bg-amber-400 sm:w-auto"
@@ -58,7 +60,7 @@ export default function RainbowSixSiegeLan() {
             {history.length === 0 ? (
               <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-8 text-center">
                 <p className="text-sm text-zinc-400">Nog geen afgeronde LAN-avonden.</p>
-                {!activeSession && (
+                {!activeSession && isOwner && (
                   <Button
                     type="button"
                     className="mt-4 bg-amber-500 text-zinc-950 hover:bg-amber-400"
