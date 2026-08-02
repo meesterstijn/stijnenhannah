@@ -31,12 +31,46 @@ export function useR6SessionRealtimeSync(sessionId: string | undefined, isLive: 
       .channel(`r6-session-realtime-${sessionId}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "r6_events", filter: `session_id=eq.${sessionId}` },
+        { event: "INSERT", schema: "public", table: "r6_events", filter: `session_id=eq.${sessionId}` },
+        () => queryClient.invalidateQueries({ queryKey: ["r6_events", sessionId] }),
+      )
+      // Bewust GEEN `filter` op DELETE (i.t.t. INSERT hierboven) — zelfde
+      // reden als RainbowSixSiegeBigScreenContent.tsx: Postgres' logical
+      // replication levert bij een DELETE standaard alleen de primary key
+      // (`id`) in `old`, niet `session_id` (r6_events staat niet op REPLICA
+      // IDENTITY FULL). Een filter op session_id kan zo'n rij dus nooit
+      // matchen en Realtime levert 'm dan stilzwijgend HELEMAAL NIET af —
+      // dit was de daadwerkelijke oorzaak van "tikken verschijnt live,
+      // ongedaan maken pas na een refresh". Onvoorwaardelijk invalideren bij
+      // ELKE r6_events-DELETE is hier goedkoop genoeg (huishoud-app, geen
+      // hoogfrequente onbekende sessies) om niet te hoeven filteren.
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "r6_events" },
         () => queryClient.invalidateQueries({ queryKey: ["r6_events", sessionId] }),
       )
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "r6_matches", filter: `session_id=eq.${sessionId}` },
+        { event: "INSERT", schema: "public", table: "r6_matches", filter: `session_id=eq.${sessionId}` },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["r6_latest_match", sessionId] });
+          queryClient.invalidateQueries({ queryKey: ["r6_session_detail", sessionId] });
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "r6_matches", filter: `session_id=eq.${sessionId}` },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["r6_latest_match", sessionId] });
+          queryClient.invalidateQueries({ queryKey: ["r6_session_detail", sessionId] });
+        },
+      )
+      // Zelfde REPLICA IDENTITY-beperking als bij r6_events hierboven — een
+      // match-DELETE ("game verwijderen") zou anders om dezelfde reden nooit
+      // live doorkomen, alleen na een refresh.
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "r6_matches" },
         () => {
           queryClient.invalidateQueries({ queryKey: ["r6_latest_match", sessionId] });
           queryClient.invalidateQueries({ queryKey: ["r6_session_detail", sessionId] });
