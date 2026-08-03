@@ -58,8 +58,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // ontbrekende profielrij blijft `profile` gewoon `null` — nooit een
   // impliciete owner-fallback. RequireAppAccess (App.tsx) behandelt
   // `profile === null` na het laden als "geen toegang", nooit als "owner".
+  //
+  // Effect-dependency is bewust `userId` (session.user.id), NIET de hele
+  // `session`. Supabase geeft bij elke stille token-refresh (o.a. wanneer het
+  // tabblad weer focus/zichtbaarheid krijgt, bv. na het sluiten van de native
+  // camera-app voor een groeifoto) een NIEUW session-object terug voor
+  // dezelfde ingelogde gebruiker. Op `session` zelf reageren zou dan bij elke
+  // refresh opnieuw isLoadingRole=true zetten, waardoor RequireAppAccess de
+  // hele pagina (incl. open dialogen zoals QuickGrowthPhotoDialog) tijdelijk
+  // vervangt door de laadspinner — precies het scenario waarbij de
+  // groeifoto-dialoog na het maken van een foto verdween. Bij hetzelfde
+  // gebruikers-id is een refetch overbodig: de rol verandert niet door een
+  // tokenrefresh.
+  const userId = session?.user.id ?? null;
   useEffect(() => {
-    if (!session) {
+    if (!userId) {
       setProfile(null);
       setIsLoadingRole(false);
       return;
@@ -69,7 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     supabase
       .from("profiles")
       .select("id, display_name, app_role")
-      .eq("id", session.user.id)
+      .eq("id", userId)
       .single()
       .then(({ data, error }) => {
         if (cancelled) return;
@@ -79,7 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [session]);
+  }, [userId]);
 
   const appRole = profile?.app_role ?? null;
 
