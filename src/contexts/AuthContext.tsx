@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 
-export type AppRole = "owner" | "r6_player";
+export type AppRole = "owner" | "r6_player" | "cocktail_guest";
 
 export type Profile = {
   id: string;
@@ -17,6 +17,7 @@ type AuthContextType = {
   appRole: AppRole | null;
   isOwner: boolean;
   isR6Player: boolean;
+  isCocktailGuest: boolean;
   isLoadingRole: boolean;
 };
 
@@ -27,6 +28,7 @@ const AuthContext = createContext<AuthContextType>({
   appRole: null,
   isOwner: false,
   isR6Player: false,
+  isCocktailGuest: false,
   isLoadingRole: true,
 });
 
@@ -105,6 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         appRole,
         isOwner: appRole === "owner",
         isR6Player: appRole === "r6_player",
+        isCocktailGuest: appRole === "cocktail_guest",
         isLoadingRole: loading || isLoadingRole,
       }}
     >

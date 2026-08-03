@@ -9,6 +9,14 @@ const nav = [
   { to: "/todo", label: "To-do", icon: ListTodo },
 ] as const;
 
+// Vroeger als eigen <nav> binnen CocktailBarLayout gerenderd (in de
+// paginainhoud); staat nu hier zodat de knoppen naast de zwevende "Ons
+// Huisje"-link kunnen staan, in dezelfde vaste hoek.
+const cocktailBarNav = [
+  { to: "/cocktail-bar", label: "Cocktails" },
+  { to: "/cocktail-bar/beheren", label: "Beheer" },
+] as const;
+
 export function SiteLayout() {
   const { pathname } = useLocation();
   // Een r6_player komt (via RequireAppAccess) sowieso nooit buiten
@@ -27,19 +35,51 @@ export function SiteLayout() {
   // inline, samen met de Status/Datum/Looptijd/Gimma's-blokken in één rij —
   // de zwevende variant zou daar dus dubbel op staan.
   const isR6SessionDetail = /^\/rainbow-six-siege\/lan\/[^/]+$/.test(pathname);
+  // Cocktail Bar-routes buiten SiteLayout (tablet/big-screen) bestaan niet
+  // via deze component — hier gaat het alleen om de owner-facing pagina's
+  // (showcase/beheer/bereiden/dashboard), die net als R6 hun eigen donkere
+  // thema en een zwevende terug-link i.p.v. de volle navbalk willen.
+  const isCocktailBar = pathname.startsWith("/cocktail-bar");
 
   return (
     <div className="min-h-screen flex flex-col">
-      {isR6 && !isR6SessionDetail && !isR6Player && (
-        <Link
-          to="/"
-          className="fixed left-3 top-3 z-50 flex items-center gap-2 rounded-full bg-background/80 px-3 py-1.5 shadow-sm backdrop-blur-sm group"
-        >
-          <Home className="h-5 w-5" />
-          <span className="tuin-font text-lg font-semibold">Ons Huisje</span>
-        </Link>
+      {((isR6 && !isR6SessionDetail && !isR6Player) || isCocktailBar) && (
+        // Op Cocktail Bar-pagina's staat de hele groep (incl. "Ons Huisje")
+        // in .cocktail-theme, zodat de knop daar dezelfde look krijgt als
+        // Cocktails/Beheer (cb-button-ghost, Playfair Display). Op R6 blijft
+        // "Ons Huisje" ongewijzigd in zijn normale, sitewide stijl — dat is
+        // hier niet gevraagd.
+        <div className={`fixed left-3 top-3 z-50 flex items-center gap-2 ${isCocktailBar ? "cocktail-theme" : ""}`}>
+          <Link
+            to="/"
+            className={
+              isCocktailBar
+                ? "cb-button-ghost flex items-center gap-1.5 rounded-full px-3 py-1"
+                : "flex items-center gap-2 rounded-full bg-background/80 px-3 py-1.5 shadow-sm backdrop-blur-sm group"
+            }
+          >
+            <Home className={isCocktailBar ? "h-4 w-4" : "h-5 w-5"} />
+            <span className={isCocktailBar ? "text-xs font-semibold" : "tuin-font text-lg font-semibold"}>Ons Huisje</span>
+          </Link>
+          {isCocktailBar && (
+            <nav className="flex items-center gap-1.5">
+              {cocktailBarNav.map((item) => {
+                const active = pathname === item.to;
+                return (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    className={`rounded-full px-3 py-1 text-xs whitespace-nowrap ${active ? "cb-button" : "cb-button-ghost"}`}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </nav>
+          )}
+        </div>
       )}
-      {!isR6 && (
+      {!isR6 && !isCocktailBar && (
         <header className="border-b border-border/60 backdrop-blur-sm bg-background/70 sticky top-0 z-40">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-4 md:grid md:grid-cols-[auto_1fr_auto]">
             <Link to="/" className="flex items-center gap-2 group">
@@ -94,7 +134,13 @@ export function SiteLayout() {
       )}
       <main
         className={`flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 ${
-          isR6SessionDetail ? "r6-theme py-8 sm:py-12" : isR6 ? "r6-theme pt-16 pb-8 sm:pb-12" : "py-8 sm:py-12"
+          isR6SessionDetail
+            ? "r6-theme py-8 sm:py-12"
+            : isR6
+              ? "r6-theme pt-16 pb-8 sm:pb-12"
+              : isCocktailBar
+                ? "cocktail-theme pt-16 pb-8 sm:pb-12"
+                : "py-8 sm:py-12"
         }`}
       >
         <ErrorBoundary>

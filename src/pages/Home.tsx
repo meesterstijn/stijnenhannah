@@ -19,6 +19,7 @@ import {
   Sparkles,
   Sprout,
   Crosshair,
+  Martini,
 } from "lucide-react";
 
 type GroceryItem = { id: string; text: string; done: boolean };
@@ -111,6 +112,12 @@ export default function Home() {
           icon={Crosshair}
           title="Rainbow Six Siege"
           desc="Plan en speel jullie eigen R6 LAN Night"
+        />
+        <QuickCard
+          to="/cocktail-bar"
+          icon={Martini}
+          title="Cocktail Bar"
+          desc="Handcrafted cocktails voor onvergetelijke avonden"
         />
         <SpotifyWidget />
         <VerjaarDagWidget />

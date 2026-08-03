@@ -14,6 +14,17 @@ function isR6Path(pathname: string): boolean {
   return pathname === R6_PATH_PREFIX || pathname.startsWith(`${R6_PATH_PREFIX}/`);
 }
 
+// cocktail_guest is een gedeeld tablet-account dat UITSLUITEND de
+// Tabletmodus mag zien — geen enkele andere Cocktail Bar-pagina (beheer/
+// dashboard/bereiden) en zeker geen andere feature. Vandaar een eigen, veel
+// smaller pad-prefix dan R6_PATH_PREFIX (die daar wél toegang tot heeft:
+// het volledige /rainbow-six-siege-pad, incl. big-screen/controller).
+const COCKTAIL_GUEST_PATH_PREFIX = "/cocktail-bar/tablet";
+
+function isCocktailGuestPath(pathname: string): boolean {
+  return pathname === COCKTAIL_GUEST_PATH_PREFIX || pathname.startsWith(`${COCKTAIL_GUEST_PATH_PREFIX}/`);
+}
+
 /**
  * Centrale route-/permissiebewaker — wrapt de VOLLEDIGE <Routes>-boom in
  * App.tsx (dus zowel de <SiteLayout>-routes als de drie losstaande R6-routes
@@ -32,7 +43,7 @@ function isR6Path(pathname: string): boolean {
  * "geen toegang" te zien, nooit impliciet ownerrechten.
  */
 export function RequireAppAccess({ children }: { children: ReactNode }) {
-  const { isLoadingRole, appRole, isR6Player } = useAuth();
+  const { isLoadingRole, appRole, isR6Player, isCocktailGuest } = useAuth();
   const location = useLocation();
 
   if (isLoadingRole) {
@@ -65,6 +76,10 @@ export function RequireAppAccess({ children }: { children: ReactNode }) {
 
   if (isR6Player && !isR6Path(location.pathname)) {
     return <Navigate to="/rainbow-six-siege" replace />;
+  }
+
+  if (isCocktailGuest && !isCocktailGuestPath(location.pathname)) {
+    return <Navigate to="/cocktail-bar/tablet" replace />;
   }
 
   return <>{children}</>;

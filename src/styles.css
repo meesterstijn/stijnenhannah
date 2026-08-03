@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400&family=Inter:wght@300;400;500;600;700&family=Pixelify+Sans:wght@400;500;600;700&family=Teko:wght@300;400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400&family=Inter:wght@300;400;500;600;700&family=Pixelify+Sans:wght@400;500;600;700&family=Teko:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,400&display=swap");
 @import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
@@ -608,4 +608,213 @@ body:has(.tuinieren-theme) header span {
   box-shadow:
     inset 0 1px 3px rgba(59, 33, 12, 0.18),
     0 0 0 3px rgba(217, 154, 36, 0.4) !important;
+}
+
+/*
+ * Cocktail Bar — diepzwart/amber/goud, glaseffect, uitsluitend actief binnen
+ * .cocktail-theme (zelfde scoping-aanpak als .tuinieren-theme/.r6-theme
+ * hierboven, dus dit lekt nooit naar de rest van de site).
+ */
+.cocktail-theme {
+  /* Zelfde kleur als de paginabrede achtergrond hieronder (body:has(...)) —
+     die staat noodgedwongen als losse letterlijke waarde, want `body` is
+     een voorouder van .cocktail-theme, niet een afstammeling, en kan deze
+     variabele dus niet lezen. Bij aanpassing hier: die waarde ook bijwerken. */
+  --cb-black: oklch(0.09 0.006 280);
+  --cb-amber: oklch(0.75 0.15 60);
+  --cb-gold: oklch(0.82 0.12 82);
+  --cb-text: oklch(0.95 0.01 80);
+  --cb-muted: oklch(0.68 0.025 80);
+  --cb-border: oklch(0.75 0.15 60 / 0.25);
+
+  color: var(--cb-text);
+}
+
+/* Vlak, egaal diepzwart — net als de referentiestijl (donkere achtergrond,
+   donkere vakken, geen kleur/gloed die over de hele pagina uitwaaiert). De
+   amberglow blijft lokaal: in de hero (CocktailParallaxBackground) en achter
+   elke productfoto (.cb-product-glow) — niet meer op de paginabrede
+   achtergrond zelf, dat concurreerde er visueel mee. */
+body:has(.cocktail-theme) {
+  background-color: oklch(0.09 0.006 280);
+  background-image: none;
+  background-attachment: fixed;
+}
+
+/* Playfair Display voor ALLE tekst binnen de Cocktail Bar — niet alleen
+   koppen, ook lopende tekst, badges, knoppen, invoervelden — i.p.v. alleen
+   .cb-heading. Zelfde aanpak als .r6-theme, .r6-theme * met Teko hierboven.
+   Hoger contrast tussen dikke en dunne lijnen dan de sitewide Fraunces,
+   formeler/scherper, past beter bij het "gegraveerde menukaart"-gevoel van
+   een exclusieve loungebar. */
+.cocktail-theme,
+.cocktail-theme * {
+  font-family: "Playfair Display", var(--font-serif), serif;
+}
+
+.cocktail-theme .cb-heading {
+  color: var(--cb-gold);
+  letter-spacing: 0.01em;
+}
+
+.cocktail-theme .cb-muted {
+  color: var(--cb-muted);
+}
+
+/* Het "glas"-effect: lichte blur, gouden rand, zachte schaduw — gebruikt
+   voor zwevende chrome-elementen (filterbalk, later dialogen), niet meer
+   voor de productkaarten zelf (zie .cb-tile hieronder). */
+.cocktail-theme .cb-glass {
+  background: oklch(0.19 0.016 280 / 0.6);
+  border: 1px solid var(--cb-border);
+  border-radius: 1.25rem;
+  backdrop-filter: blur(16px);
+  box-shadow:
+    0 20px 45px -15px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/* Plat vak in EXACT dezelfde zwarte kleur als de paginabrede achtergrond —
+   geen apart "paneel"-grijs, zodat de tegel zelf niet als los blok afsteekt.
+   Alleen de dunne gouden rand en zachte schaduw scheiden 'm nog van de
+   achtergrond, net als de referentiestijl. */
+.cocktail-theme .cb-tile {
+  background: var(--cb-black);
+  border: 1px solid var(--cb-border);
+  border-radius: 1.25rem;
+  box-shadow: 0 20px 45px -18px rgba(0, 0, 0, 0.65);
+  transition:
+    border-color 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.cocktail-theme .cb-tile:hover {
+  border-color: oklch(0.75 0.15 60 / 0.5);
+  box-shadow: 0 24px 55px -18px rgba(0, 0, 0, 0.75);
+}
+
+/* Zachte gloed achter de vrijstaande productfoto — laat een transparante PNG
+   "zweven" i.p.v. plat op een egale achtergrond te staan. */
+.cocktail-theme .cb-product-glow {
+  background: radial-gradient(circle, oklch(0.4 0.09 60 / 0.28), transparent 70%);
+}
+
+.cocktail-theme .cb-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border-radius: 999px;
+  border: 1px solid var(--cb-border);
+  background: oklch(0.75 0.15 60 / 0.12);
+  color: var(--cb-gold);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  padding: 0.2rem 0.65rem;
+  white-space: nowrap;
+}
+
+.cocktail-theme .cb-button {
+  background: linear-gradient(180deg, oklch(0.8 0.13 65), oklch(0.68 0.15 55));
+  color: oklch(0.16 0.02 60);
+  border-radius: 999px;
+  font-weight: 600;
+  box-shadow: 0 6px 20px -6px oklch(0.6 0.15 55 / 0.55);
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.cocktail-theme .cb-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 26px -6px oklch(0.6 0.15 55 / 0.65);
+}
+
+.cocktail-theme .cb-button:disabled {
+  opacity: 0.5;
+  transform: none;
+  cursor: not-allowed;
+}
+
+.cocktail-theme .cb-button-ghost {
+  background: transparent;
+  border: 1px solid var(--cb-border);
+  color: var(--cb-gold);
+}
+
+.cocktail-theme .cb-button-ghost:hover {
+  background: oklch(0.75 0.15 60 / 0.08);
+}
+
+.cocktail-theme input,
+.cocktail-theme textarea,
+.cocktail-theme select {
+  background: oklch(0.16 0.014 280) !important;
+  border: 1px solid var(--cb-border) !important;
+  color: var(--cb-text) !important;
+}
+
+.cocktail-theme input::placeholder,
+.cocktail-theme textarea::placeholder {
+  color: var(--cb-muted);
+}
+
+.cocktail-theme input:focus,
+.cocktail-theme textarea:focus,
+.cocktail-theme select:focus {
+  outline: none !important;
+  box-shadow: 0 0 0 2px oklch(0.75 0.15 60 / 0.4) !important;
+}
+
+/* Ambient achtergrondbeweging (rook/lichtreflectie/stofdeeltjes/golven) —
+   los van de scroll-gekoppelde parallax, die via inline transform door
+   useParallaxScroll wordt aangestuurd (nooit dezelfde property op hetzelfde
+   element als deze animaties, om conflicten met de inline transform te
+   voorkomen — zie CocktailParallaxBackground.tsx). Extreem subtiel: kleine
+   waarden, lange duren, nooit "druk". */
+@keyframes cb-smoke-drift {
+  0%, 100% { transform: translate3d(-3%, 0, 0) scale(1); opacity: 0.35; }
+  50% { transform: translate3d(3%, -2%, 0) scale(1.04); opacity: 0.55; }
+}
+
+@keyframes cb-shimmer {
+  0%, 100% { opacity: 0.12; }
+  50% { opacity: 0.3; }
+}
+
+@keyframes cb-dust-float {
+  0% { transform: translate3d(0, 0, 0); opacity: 0; }
+  12% { opacity: 0.55; }
+  88% { opacity: 0.55; }
+  100% { transform: translate3d(1.5%, -26%, 0); opacity: 0; }
+}
+
+@keyframes cb-wave {
+  0%, 100% { transform: translate3d(0, 0, 0) scaleY(1); }
+  50% { transform: translate3d(0, 0.6%, 0) scaleY(1.015); }
+}
+
+.cocktail-theme .cb-layer-smoke {
+  animation: cb-smoke-drift 42s ease-in-out infinite;
+}
+
+.cocktail-theme .cb-layer-shimmer {
+  animation: cb-shimmer 9s ease-in-out infinite;
+}
+
+.cocktail-theme .cb-layer-dust {
+  animation: cb-dust-float linear infinite;
+}
+
+.cocktail-theme .cb-layer-wave {
+  animation: cb-wave 16s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cocktail-theme .cb-layer-smoke,
+  .cocktail-theme .cb-layer-shimmer,
+  .cocktail-theme .cb-layer-dust,
+  .cocktail-theme .cb-layer-wave {
+    animation: none !important;
+  }
 }

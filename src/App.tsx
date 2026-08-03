@@ -37,6 +37,9 @@ const RainbowSixSiegeStatistics = lazy(() => import("@/pages/RainbowSixSiegeStat
 const RainbowSixSiegeBigScreen = lazy(() => import("@/pages/RainbowSixSiegeBigScreen"));
 const RainbowSixSiegeAutoBigScreen = lazy(() => import("@/pages/RainbowSixSiegeAutoBigScreen"));
 const RainbowSixSiegeController = lazy(() => import("@/pages/RainbowSixSiegeController"));
+const CocktailBarLayout = lazy(() => import("@/pages/CocktailBarLayout"));
+const CocktailBar = lazy(() => import("@/pages/CocktailBar"));
+const CocktailBarAdmin = lazy(() => import("@/pages/CocktailBarAdmin"));
 const TuingidsLayout = lazy(() => import("@/pages/tuingids/TuingidsLayout"));
 const TuingidsDashboard = lazy(() => import("@/pages/tuingids/TuingidsDashboard"));
 const TuingidsEncyclopedia = lazy(() => import("@/pages/tuingids/TuingidsEncyclopedia"));
@@ -135,6 +138,10 @@ function AppRoutes() {
             <Route path="/rainbow-six-siege/lan/:sessionId" element={<RainbowSixSiegeSession />} />
             <Route path="/rainbow-six-siege/scorebord" element={<RainbowSixSiegeScoreboard />} />
             <Route path="/rainbow-six-siege/statistieken" element={<RainbowSixSiegeStatistics />} />
+            <Route path="/cocktail-bar" element={<CocktailBarLayout />}>
+              <Route index element={<CocktailBar />} />
+              <Route path="beheren" element={<CocktailBarAdmin />} />
+            </Route>
             <Route path="/tuingids" element={<TuingidsLayout />}>
               <Route index element={<TuingidsDashboard />} />
               <Route path="encyclopedie" element={<TuingidsEncyclopedia />} />
