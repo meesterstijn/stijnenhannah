@@ -1,3 +1,4 @@
+import { Heart } from "lucide-react";
 import type { CocktailBaseCategory, CocktailFiltersState } from "@/features/cocktail-bar/hooks/useCocktailFilters";
 import { flavourBadgeLabel, type FlavourBadgeCode } from "@/features/cocktail-bar/lib/flavourBadges";
 
@@ -61,6 +62,12 @@ export function CocktailFilterBar({
           </Chip>
         ))}
       </div>
+
+      <span className="mx-1 h-5 w-px shrink-0 bg-[var(--cb-border)]" aria-hidden="true" />
+
+      <Chip active={filters.favoritesOnly} onClick={() => patch({ favoritesOnly: !filters.favoritesOnly })}>
+        <Heart className="h-3 w-3" fill={filters.favoritesOnly ? "currentColor" : "none"} /> Favorieten
+      </Chip>
     </div>
   );
 }

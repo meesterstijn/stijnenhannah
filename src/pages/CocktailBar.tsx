@@ -1,18 +1,21 @@
+import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { CocktailHero } from "@/features/cocktail-bar/components/CocktailHero";
 import { CocktailCard } from "@/features/cocktail-bar/components/CocktailCard";
 import { CocktailFilterBar } from "@/features/cocktail-bar/components/CocktailFilterBar";
+import { CocktailDetailDialog } from "@/features/cocktail-bar/components/CocktailDetailDialog";
 import { useCocktailShowcase } from "@/features/cocktail-bar/hooks/useCocktailShowcase";
 import { useCocktailShowcaseRealtimeSync } from "@/features/cocktail-bar/hooks/useCocktailShowcaseRealtimeSync";
 import { useCocktailFilters } from "@/features/cocktail-bar/hooks/useCocktailFilters";
+import { useCocktailFavorites } from "@/features/cocktail-bar/hooks/useCocktailFavorites";
+import type { CocktailFull } from "@/features/cocktail-bar/types";
 
-// Detailvenster bij het klikken op een kaart komt in fase 3 — CocktailCard
-// krijgt dan pas een `onSelect` mee. Deze pagina zelf (hero/parallax/
-// filters/grid) is fase 2's scope, zie het Cocktail Bar-implementatieplan §9.
 export default function CocktailBar() {
   useCocktailShowcaseRealtimeSync();
   const { data: cocktails = [], isLoading } = useCocktailShowcase();
-  const { filters, setFilters, filteredCocktails } = useCocktailFilters(cocktails);
+  const { isFavorite, toggleFavorite } = useCocktailFavorites();
+  const { filters, setFilters, filteredCocktails } = useCocktailFilters(cocktails, isFavorite);
+  const [selectedCocktail, setSelectedCocktail] = useState<CocktailFull | null>(null);
 
   return (
     <div className="space-y-8">
@@ -29,10 +32,18 @@ export default function CocktailBar() {
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredCocktails.map((cocktail) => (
-            <CocktailCard key={cocktail.id} cocktail={cocktail} />
+            <CocktailCard
+              key={cocktail.id}
+              cocktail={cocktail}
+              onSelect={setSelectedCocktail}
+              isFavorite={isFavorite(cocktail.id)}
+              onToggleFavorite={toggleFavorite}
+            />
           ))}
         </div>
       )}
+
+      <CocktailDetailDialog cocktail={selectedCocktail} onClose={() => setSelectedCocktail(null)} />
     </div>
   );
 }

@@ -689,6 +689,17 @@ body:has(.cocktail-theme) {
     box-shadow 0.2s ease;
 }
 
+/* Fullscreen-achtig luxe detailvenster — compound selector (beide klassen op
+   hetzelfde element), net als .tuinieren-theme.sv-dialog: een gewone
+   nakomeling-selector (.cocktail-theme .cb-dialog) zou hier niet matchen
+   omdat cocktail-theme en cb-dialog op DialogContent zelf staan, niet op
+   voorouder/nakomeling van elkaar. */
+.cocktail-theme.cb-dialog {
+  background: var(--cb-black);
+  border: 1px solid var(--cb-border) !important;
+  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.8);
+}
+
 .cocktail-theme .cb-tile:hover {
   border-color: oklch(0.75 0.15 60 / 0.5);
   box-shadow: 0 24px 55px -18px rgba(0, 0, 0, 0.75);

@@ -15,6 +15,7 @@ export type CocktailFiltersState = {
   search: string;
   baseCategory: CocktailBaseCategory | null;
   flavour: FlavourBadgeCode | null;
+  favoritesOnly: boolean;
   sort: CocktailSortOption;
 };
 
@@ -22,13 +23,16 @@ const DEFAULT_FILTERS: CocktailFiltersState = {
   search: "",
   baseCategory: null,
   flavour: null,
+  favoritesOnly: false,
   sort: "name",
 };
 
 // Puur client-side filteren/sorteren — de dataset (huiselijke cocktailkaart,
 // geen commerciële menukaart met honderden items) is klein genoeg dat een
 // serverside query hier premature complexiteit zou zijn.
-export function useCocktailFilters(cocktails: CocktailFull[]) {
+// `isFavorite` komt van useCocktailFavorites via de aanroeper — deze hook
+// weet zelf niets van favorieten-opslag, puur filteren op een gegeven set.
+export function useCocktailFilters(cocktails: CocktailFull[], isFavorite: (cocktailId: string) => boolean = () => false) {
   const [filters, setFilters] = useState<CocktailFiltersState>(DEFAULT_FILTERS);
 
   const filteredCocktails = useMemo(() => {
@@ -38,6 +42,7 @@ export function useCocktailFilters(cocktails: CocktailFull[]) {
       if (search && !cocktail.name.toLowerCase().includes(search) && !cocktail.tagline.toLowerCase().includes(search)) {
         return false;
       }
+      if (filters.favoritesOnly && !isFavorite(cocktail.id)) return false;
       if (filters.baseCategory === "alcohol_free") {
         if (!cocktail.variants.some((v) => v.variant_type === "alcohol_free")) return false;
       } else if (filters.baseCategory && primary?.spirit?.id !== filters.baseCategory) {
@@ -64,7 +69,7 @@ export function useCocktailFilters(cocktails: CocktailFull[]) {
       default:
         return [...result].sort((a, b) => a.name.localeCompare(b.name));
     }
-  }, [cocktails, filters]);
+  }, [cocktails, filters, isFavorite]);
 
   return { filters, setFilters, filteredCocktails };
 }
