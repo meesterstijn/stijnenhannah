@@ -2,7 +2,6 @@ import { useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Camera, ChevronDown, Loader2, Sprout } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -88,7 +87,7 @@ function InstanceCombobox({
       <PopoverContent align="start" className="p-0 z-[60] w-[var(--radix-popover-trigger-width)]">
         <Command filter={(value, search) => (value.toLowerCase().includes(search.toLowerCase()) ? 1 : 0)}>
           <CommandInput placeholder="Zoek op exemplaar- of soortnaam..." />
-          <CommandList className="max-h-60">
+          <CommandList className="max-h-[min(70vh,32rem)]">
             <CommandEmpty>
               <p className="text-xs sv-muted px-3 py-2">Geen exemplaar gevonden.</p>
             </CommandEmpty>
@@ -178,10 +177,6 @@ export function QuickGrowthPhotoDialog({
 
   const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null);
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [heightCm, setHeightCm] = useState("");
-  const [fruitLengthCm, setFruitLengthCm] = useState("");
-  const [fruitWidthCm, setFruitWidthCm] = useState("");
-  const [notes, setNotes] = useState("");
   const [selectedPhotos, setSelectedPhotos] = useState<File[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -193,17 +188,11 @@ export function QuickGrowthPhotoDialog({
   const selectedSpecies = selectedInstance ? speciesById.get(selectedInstance.species_id) : undefined;
   const selectedName = selectedInstance ? plantInstanceDisplayName(selectedInstance, selectedSpecies) : null;
 
-  const hasUnsavedInput =
-    !savedConfirmation &&
-    (!!selectedInstanceId || selectedPhotos.length > 0 || !!heightCm || !!fruitLengthCm || !!fruitWidthCm || !!notes.trim());
+  const hasUnsavedInput = !savedConfirmation && (!!selectedInstanceId || selectedPhotos.length > 0);
 
   function resetAll() {
     setSelectedInstanceId(null);
     setDate(new Date().toISOString().slice(0, 10));
-    setHeightCm("");
-    setFruitLengthCm("");
-    setFruitWidthCm("");
-    setNotes("");
     setSelectedPhotos([]);
     setFormError(null);
     setSavedConfirmation(null);
@@ -246,22 +235,6 @@ export function QuickGrowthPhotoDialog({
       setFormError("Voeg een foto toe.");
       return;
     }
-    const height = heightCm.trim() ? Number(heightCm) : null;
-    const fruitLength = fruitLengthCm.trim() ? Number(fruitLengthCm) : null;
-    const fruitWidth = fruitWidthCm.trim() ? Number(fruitWidthCm) : null;
-    if (height !== null && (!Number.isFinite(height) || height < 0)) {
-      setFormError("Planthoogte moet nul of een positief getal zijn.");
-      return;
-    }
-    if (fruitLength !== null && (!Number.isFinite(fruitLength) || fruitLength <= 0)) {
-      setFormError("Vruchtlengte moet een getal groter dan nul zijn.");
-      return;
-    }
-    if (fruitWidth !== null && (!Number.isFinite(fruitWidth) || fruitWidth <= 0)) {
-      setFormError("Vruchtbreedte/diameter moet een getal groter dan nul zijn.");
-      return;
-    }
-
     isSavingRef.current = true;
     setIsSaving(true);
 
@@ -274,12 +247,12 @@ export function QuickGrowthPhotoDialog({
         plant_instance_id: selectedInstanceId,
         growing_season_id: activeSeasonIdByInstance.get(selectedInstanceId) ?? null,
         date,
-        notes: notes.trim(),
-        height_cm: height,
+        notes: "",
+        height_cm: null,
         flower_count: null,
         fruit_count: null,
-        fruit_length_cm: fruitLength,
-        fruit_width_cm: fruitWidth,
+        fruit_length_cm: null,
+        fruit_width_cm: null,
         watered: false,
         fertilized: false,
         photo_url: "",
@@ -378,64 +351,9 @@ export function QuickGrowthPhotoDialog({
                 <GrowthPhotoInput files={selectedPhotos} onFilesChange={setSelectedPhotos} disabled={isSaving} />
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-xs sv-muted block mb-1">Datum</label>
-                  <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="text-sm" />
-                </div>
-                <div>
-                  <label className="text-xs sv-muted block mb-1">Hoogte plant (cm)</label>
-                  <Input
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    placeholder="optioneel"
-                    value={heightCm}
-                    onChange={(e) => setHeightCm(e.target.value)}
-                    className="text-sm"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <p className="text-xs sv-muted font-medium uppercase tracking-wide">Vrucht of groente (optioneel)</p>
-                <div className="grid sm:grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-xs sv-muted block mb-1">Lengte (cm)</label>
-                    <Input
-                      type="number"
-                      step="0.1"
-                      min="0"
-                      placeholder="optioneel"
-                      value={fruitLengthCm}
-                      onChange={(e) => setFruitLengthCm(e.target.value)}
-                      className="text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs sv-muted block mb-1">Breedte / diameter (cm)</label>
-                    <Input
-                      type="number"
-                      step="0.1"
-                      min="0"
-                      placeholder="optioneel"
-                      value={fruitWidthCm}
-                      onChange={(e) => setFruitWidthCm(e.target.value)}
-                      className="text-sm"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <p className="text-xs sv-muted font-medium uppercase tracking-wide">Notitie (optioneel)</p>
-                <Textarea
-                  placeholder="bijv. Eerste kleine tomaat zichtbaar..."
-                  rows={2}
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  className="text-sm resize-none"
-                />
+              <div>
+                <label className="text-xs sv-muted block mb-1">Datum</label>
+                <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="text-sm" />
               </div>
 
               {formError && <p className="text-xs sv-destructive-text">{formError}</p>}

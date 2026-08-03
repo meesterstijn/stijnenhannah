@@ -53,17 +53,14 @@ import {
   ChevronLeft,
   ChevronRight,
   Lightbulb,
-  BookOpen,
   ClipboardCheck,
   Ruler,
   Euro,
-  MapPin,
   Scissors,
   Boxes,
   Apple,
   Clock,
   Check,
-  TrendingUp,
   Layers,
 } from "lucide-react";
 import { useGrowthLog } from "@/features/tuingids/hooks/useGrowthLog";
@@ -74,7 +71,6 @@ import { uploadGrowthPhoto } from "@/features/tuingids/lib/growthPhotoStorage";
 import { GrowthPhotoInput } from "@/features/tuingids/components/GrowthPhotoInput";
 import { GrowthPhotoTimeline } from "@/features/tuingids/components/GrowthPhotoTimeline";
 import { QuickGrowthPhotoDialog } from "@/features/tuingids/components/QuickGrowthPhotoDialog";
-import { GrowthCompareTimeline } from "@/features/tuingids/components/GrowthCompareTimeline";
 import {
   fetchPlants,
   fetchHarvestLogs,
@@ -85,18 +81,6 @@ import {
   fetchRepotLogsForInstance,
   fetchInspectionLogsForInstance,
 } from "@/features/tuingids/lib/plantLogs";
-import {
-  buildWaterEvents,
-  buildFeedingEvents,
-  buildGrowthEvents,
-  buildHarvestEvents,
-  buildPruningEvents,
-  buildRepotEvents,
-  buildInspectionEvents,
-  buildPhotoEvents,
-  EVENT_META,
-  type LogboekEvent,
-} from "@/features/tuingids/lib/events";
 import { MONTH_OPTIONS } from "@/features/tuingids/lib/plantStatus";
 import {
   instanceWaterStatus,
@@ -1910,202 +1894,6 @@ function SeasonalOverview({ plants }: { plants: Plant[] }) {
 
 
 
-// ─── Water advice ───────────────────────────────────────────────────────────
-
-type SoilMoisture = "kurkdroog" | "droog" | "vochtig" | "nat" | "";
-type PotMaterial = "terracotta" | "kunststof" | "";
-type WaterUrgency = "hoog" | "middel" | "laag" | "overslaan";
-
-interface WaterAdvice {
-  urgency: WaterUrgency;
-  message: string;
-}
-
-function computeWaterAdvice(
-  plant: Plant,
-  opts: { soilMoisture: SoilMoisture; rainToday: boolean; tempHigh: boolean; strongWind: boolean; potMaterial: PotMaterial; inPotOverride?: boolean },
-): WaterAdvice | null {
-  const { soilMoisture, rainToday, tempHigh, strongWind, potMaterial, inPotOverride } = opts;
-  if (!soilMoisture && !rainToday && !tempHigh && !strongWind && !potMaterial) return null;
-
-  const inPot = inPotOverride ?? plant.growing_method === "Pot";
-  const greenPref = parseGreenhouseNotes(plant.greenhouse_notes).pref?.toLowerCase() ?? "";
-  const inGreenhouse = greenPref.includes("kas") && !greenPref.includes("alleen buiten");
-
-  if (soilMoisture === "nat")
-    return { urgency: "overslaan", message: "De grond is nog nat — wacht nog even met water geven." };
-
-  if (soilMoisture === "vochtig" && rainToday && !inGreenhouse)
-    return { urgency: "overslaan", message: "Het heeft geregend en de grond is vochtig — sla vandaag over." };
-
-  if (soilMoisture === "vochtig")
-    return { urgency: "laag", message: "De grond is licht vochtig. Wacht een dag of geef een kleine hoeveelheid." };
-
-  if (rainToday && !inGreenhouse && !inPot && soilMoisture !== "kurkdroog" && soilMoisture !== "droog")
-    return { urgency: "laag", message: "Het heeft geregend — volle-grond planten hebben genoeg water gekregen." };
-
-  const mods: string[] = [];
-  if (tempHigh) mods.push("warmte versnelt verdamping");
-  if (strongWind) mods.push("wind droogt de aarde sneller uit");
-  if (potMaterial === "terracotta") mods.push("terracotta droogt sneller uit dan kunststof");
-  if (inPot && rainToday && !inGreenhouse) mods.push("pot vangt geen regen op — toch water geven");
-
-  const urgency: WaterUrgency =
-    soilMoisture === "kurkdroog" || soilMoisture === "droog" ? "hoog" : "middel";
-
-  let message =
-    urgency === "hoog"
-      ? "Geef nu water — de plant heeft het zeker nodig."
-      : "Het is een goed moment om water te geven.";
-  if (mods.length > 0) message += ` Let op: ${mods.join("; ")}.`;
-
-  return { urgency, message };
-}
-
-// ─── WaterPanel component ───────────────────────────────────────────────────
-
-function WaterPanel({
-  plant,
-  inPotOverride,
-  onWatered,
-  onSkipWet,
-  onSkipToday,
-}: {
-  plant: Plant;
-  // Set from an instance's actual cultivation_type when this panel is shown
-  // for a concrete PlantInstance, since that can differ from the species'
-  // general growing_method recommendation.
-  inPotOverride?: boolean;
-  onWatered: (note: string) => void;
-  onSkipWet: () => void;
-  onSkipToday: () => void;
-}) {
-  const inPot = inPotOverride ?? plant.growing_method === "Pot";
-
-  const [soilMoisture, setSoilMoisture] = useState<SoilMoisture>("");
-  const [rainToday, setRainToday] = useState(false);
-  const [tempHigh, setTempHigh] = useState(false);
-  const [strongWind, setStrongWind] = useState(false);
-  const [potMaterial, setPotMaterial] = useState<PotMaterial>("");
-  const [note, setNote] = useState("");
-
-  const advice = computeWaterAdvice(plant, { soilMoisture, rainToday, tempHigh, strongWind, potMaterial, inPotOverride });
-
-  const wateringTip = inPot
-    ? "Geef water totdat er water uit de drainagegaten onder de pot begint te lopen. Geef liever één keer goed water dan meerdere kleine beetjes."
-    : "Geef minder vaak, maar wel royaal zodat het water diep in de bodem trekt. Hierdoor ontwikkelen planten diepere en sterkere wortels.";
-
-  function handleWatered() {
-    onWatered(note.trim());
-    setNote("");
-  }
-
-  const soilBtns: { value: Exclude<SoilMoisture, "">; emoji: string; label: string }[] = [
-    { value: "kurkdroog", emoji: "🏜️", label: "Kurkdroog" },
-    { value: "droog", emoji: "🌵", label: "Droog" },
-    { value: "vochtig", emoji: "💧", label: "Vochtig" },
-    { value: "nat", emoji: "💦", label: "Nat" },
-  ];
-
-  const urgencyStyle: Record<WaterUrgency, string> = {
-    hoog: "sv-badge-overdue rounded-xl px-4 py-3",
-    middel: "sv-badge-ok rounded-xl px-4 py-3",
-    laag: "sv-badge-ok rounded-xl px-4 py-3",
-    overslaan: "sv-inset px-4 py-3",
-  };
-  const urgencyLabel: Record<WaterUrgency, string> = {
-    hoog: "🔴 Dringend water geven",
-    middel: "🟡 Tijd om water te geven",
-    laag: "🟢 Nog even wachten",
-    overslaan: "⏭️ Overslaan vandaag",
-  };
-
-  function toggleChip(label: string, active: boolean, onToggle: () => void) {
-    return (
-      <button
-        type="button"
-        onClick={onToggle}
-        className={`sv-button sv-button-thin-border px-3 py-1.5 text-xs whitespace-nowrap flex items-center gap-1${active ? " ring-2 ring-offset-1 ring-[var(--sv-wood-dark)]" : ""}`}
-      >
-        {active && <span>✓</span>}
-        {label}
-      </button>
-    );
-  }
-
-  return (
-    <div className="sv-inset p-4 space-y-5 rounded-xl">
-      {/* Watertip */}
-      <p className="text-xs sv-muted italic">{wateringTip}</p>
-
-      {/* Grondvocht meting */}
-      <div className="space-y-2">
-        <p className="text-[11px] sv-muted uppercase tracking-wider font-semibold">Hoe voelt de grond?</p>
-        <div className="grid grid-cols-4 gap-1.5">
-          {soilBtns.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => setSoilMoisture(soilMoisture === opt.value ? "" : opt.value)}
-              className={`sv-button sv-button-thin-border flex flex-col items-center gap-1 py-2.5 text-xs leading-snug${soilMoisture === opt.value ? " ring-2 ring-offset-1 ring-[var(--sv-wood-dark)]" : ""}`}
-            >
-              <span className="text-lg">{opt.emoji}</span>
-              <span>{opt.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Omstandigheden */}
-      <div className="space-y-2">
-        <p className="text-[11px] sv-muted uppercase tracking-wider font-semibold">Omstandigheden vandaag</p>
-        <div className="flex flex-wrap gap-1.5">
-          {toggleChip("🌧️ Regen", rainToday, () => setRainToday(!rainToday))}
-          {toggleChip("🌡️ Heet (>25°C)", tempHigh, () => setTempHigh(!tempHigh))}
-          {toggleChip("💨 Sterke wind", strongWind, () => setStrongWind(!strongWind))}
-          {inPot && toggleChip("🏺 Terracotta", potMaterial === "terracotta", () => setPotMaterial(potMaterial === "terracotta" ? "" : "terracotta"))}
-          {inPot && toggleChip("🪣 Kunststof", potMaterial === "kunststof", () => setPotMaterial(potMaterial === "kunststof" ? "" : "kunststof"))}
-        </div>
-      </div>
-
-      {/* Advieskaart */}
-      {advice && (
-        <div className={urgencyStyle[advice.urgency]}>
-          <p className="sv-heading text-sm font-semibold">{urgencyLabel[advice.urgency]}</p>
-          <p className="text-sm mt-0.5">{advice.message}</p>
-        </div>
-      )}
-
-      {/* Optionele notitie */}
-      <div className="space-y-1.5">
-        <label className="text-[11px] sv-muted uppercase tracking-wider font-semibold block">
-          Notitie <span className="normal-case opacity-60">(optioneel)</span>
-        </label>
-        <Textarea
-          placeholder="Bijv. bladeren hingen slap, of aarde voelde heel droog..."
-          rows={2}
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          className="text-sm resize-none"
-        />
-      </div>
-
-      {/* Actieknoppen */}
-      <div className="flex flex-wrap gap-2">
-        <Button size="sm" className="sv-button gap-1.5" onClick={handleWatered}>
-          <Droplet className="h-3.5 w-3.5" /> Water gegeven
-        </Button>
-        <Button size="sm" className="sv-button sv-button-ghost gap-1.5" onClick={onSkipWet}>
-          💧 Grond nog nat
-        </Button>
-        <Button size="sm" className="sv-button sv-button-ghost gap-1.5" onClick={onSkipToday}>
-          ⏭️ Sla vandaag over
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 // ─── WaterSection component ─────────────────────────────────────────────────
 
 type InstanceCareState = {
@@ -2121,8 +1909,6 @@ function WaterSection({
   plant,
   instanceState,
   onRecordWatering,
-  onSyncLastWatered,
-  onSkipToday,
   isUpdating,
   isRecording,
 }: {
@@ -2133,12 +1919,10 @@ function WaterSection({
   // and history/actions are scoped to this instance instead.
   instanceState?: InstanceCareState;
   onRecordWatering: (note?: string) => void;
-  onSyncLastWatered: (isoDate: string | null) => void;
-  onSkipToday: () => void;
   isUpdating: boolean;
   isRecording: boolean;
 }) {
-  const { entries, updateEntry, deleteEntry } = useGrowthLog();
+  const { entries } = useGrowthLog();
   const inPot = instanceState ? instanceState.cultivation_type === "pot" : plant.growing_method === "Pot";
 
   // Water history: growth log entries where watered=true for this plant.
@@ -2190,40 +1974,7 @@ function WaterSection({
   const waterSkipUntil = instanceState ? instanceState.water_skip_until : plant.water_skip_until;
   const isSkippedToday = !!waterSkipUntil && todayIso < waterSkipUntil;
 
-  const [quickNote, setQuickNote] = useState("");
-  const [grondcheckOpen, setGrondcheckOpen] = useState(false);
   const [adviceOpen, setAdviceOpen] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editNote, setEditNote] = useState("");
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-
-  function recordWatering(note: string) {
-    onRecordWatering(note);
-    setQuickNote("");
-    setGrondcheckOpen(false);
-  }
-
-  function handleDelete(id: string) {
-    const remaining = entries
-      .filter(
-        (e) =>
-          e.id !== id &&
-          e.watered &&
-          (instanceState
-            ? e.plant_instance_id === instanceState.id
-            : e.plant_id ? e.plant_id === plant.id : e.plant_name === plant.name),
-      )
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    deleteEntry(id);
-    onSyncLastWatered(remaining[0]?.date ?? null);
-    setConfirmDeleteId(null);
-  }
-
-  function handleSaveNote(id: string) {
-    updateEntry(id, { notes: editNote.trim() || "Water gegeven" });
-    setEditingId(null);
-  }
 
   function daysLeftBadge() {
     if (isSkippedToday) return { label: "Uitgesteld tot morgen", overdue: false };
@@ -2271,17 +2022,6 @@ function WaterSection({
                 <span className="sv-muted ml-1.5">({daysAgoLabel(daysAgo)})</span>
               )}
             </span>
-            {nextWaterDate && (
-              <>
-                <span className="sv-muted">Volgende watergift</span>
-                <span>
-                  {nextWaterDate.toLocaleDateString("nl-NL", {
-                    day: "numeric",
-                    month: "long",
-                  })}
-                </span>
-              </>
-            )}
             {interval && (
               <>
                 <span className="sv-muted">Waterinterval</span>
@@ -2298,30 +2038,25 @@ function WaterSection({
             Geen vast waterinterval beschikbaar — controleer de grond voordat je water geeft.
           </p>
         )}
-        {badge && (
+      </div>
+
+      {/* Wateractie: interval-status en knop in één compacte, responsieve rij */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+        {badge ? (
           <span
-            className={`inline-flex items-center gap-1.5 text-sm px-3 py-1 rounded-full sv-heading ${
+            className={`inline-flex items-center gap-1.5 text-sm px-3 py-1 rounded-full sv-heading sm:flex-1 ${
               badge.overdue ? "sv-badge-overdue" : "sv-badge-ok"
             }`}
           >
             <Droplet className="h-3 w-3" /> {badge.label}
           </span>
+        ) : (
+          <span className="text-sm sv-muted sm:flex-1">Geen vast waterinterval — geef water wanneer nodig.</span>
         )}
-      </div>
-
-      {/* Snelle wateractie */}
-      <div className="flex gap-2">
-        <Input
-          placeholder="Notitie (optioneel)..."
-          value={quickNote}
-          onChange={(e) => setQuickNote(e.target.value)}
-          className="text-sm"
-          onKeyDown={(e) => e.key === "Enter" && recordWatering(quickNote)}
-        />
         <Button
           size="sm"
-          className="sv-button shrink-0 gap-1.5"
-          onClick={() => recordWatering(quickNote)}
+          className="sv-button gap-1.5 w-full sm:w-auto shrink-0"
+          onClick={() => onRecordWatering()}
           disabled={isUpdating || isRecording}
         >
           {isRecording ? (
@@ -2331,36 +2066,6 @@ function WaterSection({
           )}{" "}
           Water gegeven
         </Button>
-      </div>
-
-      {/* Grondcheck (optioneel) */}
-      <div>
-        <button
-          type="button"
-          onClick={() => setGrondcheckOpen(!grondcheckOpen)}
-          className="sv-button sv-button-thin-border w-full flex items-center justify-between gap-2 px-4 py-2 text-sm"
-        >
-          <span>Grondcheck (optioneel)</span>
-          {grondcheckOpen ? (
-            <ChevronUp className="h-3.5 w-3.5" />
-          ) : (
-            <ChevronDown className="h-3.5 w-3.5" />
-          )}
-        </button>
-        {grondcheckOpen && (
-          <div className="mt-2">
-            <WaterPanel
-              plant={plant}
-              inPotOverride={instanceState ? inPot : undefined}
-              onWatered={(note) => recordWatering(note)}
-              onSkipWet={() => setGrondcheckOpen(false)}
-              onSkipToday={() => {
-                onSkipToday();
-                setGrondcheckOpen(false);
-              }}
-            />
-          </div>
-        )}
       </div>
 
       {/* Wateradvies */}
@@ -2423,125 +2128,6 @@ function WaterSection({
         </div>
       )}
 
-      {/* Watergeschiedenis */}
-      <div>
-        <button
-          type="button"
-          onClick={() => setHistoryOpen(!historyOpen)}
-          className="sv-button sv-button-thin-border w-full flex items-center justify-between gap-2 px-4 py-2 text-sm"
-        >
-          <span>
-            Watergeschiedenis
-            {waterHistory.length > 0 && (
-              <span className="sv-muted ml-1">({waterHistory.length})</span>
-            )}
-          </span>
-          {historyOpen ? (
-            <ChevronUp className="h-3.5 w-3.5" />
-          ) : (
-            <ChevronDown className="h-3.5 w-3.5" />
-          )}
-        </button>
-        {historyOpen && (
-          <div className="mt-2 space-y-1.5 max-h-72 overflow-y-auto pr-0.5">
-            {waterHistory.length === 0 ? (
-              <p className="text-sm sv-muted text-center py-4">
-                Nog geen watergiften geregistreerd.
-              </p>
-            ) : (
-              waterHistory.map((entry) => (
-                <div
-                  key={entry.id}
-                  className="sv-inset px-3 py-2.5 rounded-xl space-y-1.5"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-xs sv-muted font-medium">
-                      {new Date(
-                        entry.date + "T00:00:00",
-                      ).toLocaleDateString("nl-NL", {
-                        day: "numeric",
-                        month: "long",
-                        year: "numeric",
-                      })}
-                    </p>
-                    {confirmDeleteId === entry.id ? (
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <span className="text-xs sv-muted">Verwijderen?</span>
-                        <button
-                          onClick={() => handleDelete(entry.id)}
-                          className="text-xs sv-badge-overdue px-2 py-0.5 rounded-full"
-                        >
-                          Ja
-                        </button>
-                        <button
-                          onClick={() => setConfirmDeleteId(null)}
-                          className="text-xs sv-badge-ok px-2 py-0.5 rounded-full"
-                        >
-                          Nee
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button
-                          onClick={() => {
-                            setEditingId(entry.id);
-                            setEditNote(
-                              entry.notes === "Water gegeven" ? "" : entry.notes,
-                            );
-                          }}
-                          className="sv-icon-slot h-6 w-6 flex items-center justify-center opacity-60 hover:opacity-100"
-                          title="Notitie bewerken"
-                        >
-                          <Pencil className="h-2.5 w-2.5" />
-                        </button>
-                        <button
-                          onClick={() => setConfirmDeleteId(entry.id)}
-                          className="sv-icon-slot h-6 w-6 flex items-center justify-center opacity-60 hover:opacity-100"
-                          title="Verwijderen"
-                        >
-                          <X className="h-2.5 w-2.5" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                  {editingId === entry.id ? (
-                    <div className="flex gap-1.5">
-                      <Input
-                        value={editNote}
-                        onChange={(e) => setEditNote(e.target.value)}
-                        placeholder="Notitie..."
-                        className="text-xs h-7"
-                        autoFocus
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") handleSaveNote(entry.id);
-                          if (e.key === "Escape") setEditingId(null);
-                        }}
-                      />
-                      <button
-                        onClick={() => handleSaveNote(entry.id)}
-                        className="sv-button sv-button-thin-border px-2 py-1 text-xs shrink-0"
-                      >
-                        ✓
-                      </button>
-                      <button
-                        onClick={() => setEditingId(null)}
-                        className="sv-button sv-button-ghost px-2 py-1 text-xs shrink-0"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ) : (
-                    entry.notes &&
-                    entry.notes !== "Water gegeven" && (
-                      <p className="text-sm">{entry.notes}</p>
-                    )
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-        )}
-      </div>
     </div>
   );
 }
@@ -2552,18 +2138,16 @@ function FeedingSection({
   plant,
   instanceState,
   onRecordFeeding,
-  onSyncLastFed,
   isUpdating,
   isRecording,
 }: {
   plant: Plant;
   instanceState?: InstanceCareState;
   onRecordFeeding: (note?: string) => void;
-  onSyncLastFed: (isoDate: string | null) => void;
   isUpdating: boolean;
   isRecording: boolean;
 }) {
-  const { entries, updateEntry, deleteEntry } = useGrowthLog();
+  const { entries } = useGrowthLog();
 
   const feedHistory = entries
     .filter(
@@ -2609,38 +2193,7 @@ function FeedingSection({
     plant.feeding_months.length > 0 &&
     !plant.feeding_months.includes(currentMonth);
 
-  const [quickNote, setQuickNote] = useState("");
   const [adviceOpen, setAdviceOpen] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editNote, setEditNote] = useState("");
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-
-  function recordFeeding(note: string) {
-    onRecordFeeding(note);
-    setQuickNote("");
-  }
-
-  function handleDelete(id: string) {
-    const remaining = entries
-      .filter(
-        (e) =>
-          e.id !== id &&
-          e.fertilized &&
-          (instanceState
-            ? e.plant_instance_id === instanceState.id
-            : e.plant_id ? e.plant_id === plant.id : e.plant_name === plant.name),
-      )
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    deleteEntry(id);
-    onSyncLastFed(remaining[0]?.date ?? null);
-    setConfirmDeleteId(null);
-  }
-
-  function handleSaveNote(id: string) {
-    updateEntry(id, { notes: editNote.trim() || "Voeding gegeven" });
-    setEditingId(null);
-  }
 
   function daysLeftBadge() {
     if (daysLeft === null || !interval) return null;
@@ -2689,17 +2242,6 @@ function FeedingSection({
                 <span className="sv-muted ml-1.5">({daysAgoLabel(daysAgo)})</span>
               )}
             </span>
-            {nextFeedDate && (
-              <>
-                <span className="sv-muted">Volgende voedingsgift</span>
-                <span>
-                  {nextFeedDate.toLocaleDateString("nl-NL", {
-                    day: "numeric",
-                    month: "long",
-                  })}
-                </span>
-              </>
-            )}
             {interval && (
               <>
                 <span className="sv-muted">Voedingsinterval</span>
@@ -2715,30 +2257,25 @@ function FeedingSection({
             Geen vast voedingsinterval beschikbaar — geef alleen voeding wanneer de plant actief groeit.
           </p>
         )}
-        {badge && (
+      </div>
+
+      {/* Voedingsactie: interval-status en knop in één compacte, responsieve rij */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+        {badge ? (
           <span
-            className={`inline-flex items-center gap-1.5 text-sm px-3 py-1 rounded-full sv-heading ${
+            className={`inline-flex items-center gap-1.5 text-sm px-3 py-1 rounded-full sv-heading sm:flex-1 ${
               badge.overdue ? "sv-badge-overdue" : "sv-badge-ok"
             }`}
           >
             <Leaf className="h-3 w-3" /> {badge.label}
           </span>
+        ) : (
+          <span className="text-sm sv-muted sm:flex-1">Geen vast voedingsinterval — geef voeding wanneer nodig.</span>
         )}
-      </div>
-
-      {/* Snelle voedingsactie */}
-      <div className="flex gap-2">
-        <Input
-          placeholder="Notitie (optioneel)..."
-          value={quickNote}
-          onChange={(e) => setQuickNote(e.target.value)}
-          className="text-sm"
-          onKeyDown={(e) => e.key === "Enter" && recordFeeding(quickNote)}
-        />
         <Button
           size="sm"
-          className="sv-button shrink-0 gap-1.5"
-          onClick={() => recordFeeding(quickNote)}
+          className="sv-button gap-1.5 w-full sm:w-auto shrink-0"
+          onClick={() => onRecordFeeding()}
           disabled={isUpdating || isRecording}
         >
           {isRecording ? (
@@ -2792,122 +2329,6 @@ function FeedingSection({
         </div>
       )}
 
-      {/* Voedingsgeschiedenis */}
-      <div>
-        <button
-          type="button"
-          onClick={() => setHistoryOpen(!historyOpen)}
-          className="sv-button sv-button-thin-border w-full flex items-center justify-between gap-2 px-4 py-2 text-sm"
-        >
-          <span>
-            Voedingsgeschiedenis
-            {feedHistory.length > 0 && (
-              <span className="sv-muted ml-1">({feedHistory.length})</span>
-            )}
-          </span>
-          {historyOpen ? (
-            <ChevronUp className="h-3.5 w-3.5" />
-          ) : (
-            <ChevronDown className="h-3.5 w-3.5" />
-          )}
-        </button>
-        {historyOpen && (
-          <div className="mt-2 space-y-1.5 max-h-72 overflow-y-auto pr-0.5">
-            {feedHistory.length === 0 ? (
-              <p className="text-sm sv-muted text-center py-4">
-                Nog geen voedingsgiften geregistreerd.
-              </p>
-            ) : (
-              feedHistory.map((entry) => (
-                <div
-                  key={entry.id}
-                  className="sv-inset px-3 py-2.5 rounded-xl space-y-1.5"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-xs sv-muted font-medium">
-                      {new Date(entry.date + "T00:00:00").toLocaleDateString(
-                        "nl-NL",
-                        { day: "numeric", month: "long", year: "numeric" },
-                      )}
-                    </p>
-                    {confirmDeleteId === entry.id ? (
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <span className="text-xs sv-muted">Verwijderen?</span>
-                        <button
-                          onClick={() => handleDelete(entry.id)}
-                          className="text-xs sv-badge-overdue px-2 py-0.5 rounded-full"
-                        >
-                          Ja
-                        </button>
-                        <button
-                          onClick={() => setConfirmDeleteId(null)}
-                          className="text-xs sv-badge-ok px-2 py-0.5 rounded-full"
-                        >
-                          Nee
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button
-                          onClick={() => {
-                            setEditingId(entry.id);
-                            setEditNote(
-                              entry.notes === "Voeding gegeven" ? "" : entry.notes,
-                            );
-                          }}
-                          className="sv-icon-slot h-6 w-6 flex items-center justify-center opacity-60 hover:opacity-100"
-                          title="Notitie bewerken"
-                        >
-                          <Pencil className="h-2.5 w-2.5" />
-                        </button>
-                        <button
-                          onClick={() => setConfirmDeleteId(entry.id)}
-                          className="sv-icon-slot h-6 w-6 flex items-center justify-center opacity-60 hover:opacity-100"
-                          title="Verwijderen"
-                        >
-                          <X className="h-2.5 w-2.5" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                  {editingId === entry.id ? (
-                    <div className="flex gap-1.5">
-                      <Input
-                        value={editNote}
-                        onChange={(e) => setEditNote(e.target.value)}
-                        placeholder="Notitie..."
-                        className="text-xs h-7"
-                        autoFocus
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") handleSaveNote(entry.id);
-                          if (e.key === "Escape") setEditingId(null);
-                        }}
-                      />
-                      <button
-                        onClick={() => handleSaveNote(entry.id)}
-                        className="sv-button sv-button-thin-border px-2 py-1 text-xs shrink-0"
-                      >
-                        ✓
-                      </button>
-                      <button
-                        onClick={() => setEditingId(null)}
-                        className="sv-button sv-button-ghost px-2 py-1 text-xs shrink-0"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ) : (
-                    entry.notes &&
-                    entry.notes !== "Voeding gegeven" && (
-                      <p className="text-sm">{entry.notes}</p>
-                    )
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-        )}
-      </div>
     </div>
   );
 }
@@ -3883,178 +3304,6 @@ function InspectionLogSection({
   );
 }
 
-// ─── TimelineSection component ─────────────────────────────────────────────
-// Merges existing history sources (growth log, photos) with the new log
-// tables into one read-only chronological view. No new storage — every
-// item is derived from data that already lives somewhere else.
-
-type TimelineItem = { date: string; icon: typeof Droplet; label: string; entryId?: string };
-
-// Shared renderer for both the species timeline (legacy, name-based) and the
-// instance timeline (new, plant_instance_id-based). When `onDeleteEntry` is
-// provided, items that carry `entryId` (i.e. growth log entries) show a
-// compact trash button — the caller owns the delete logic and confirmation.
-function TimelineList({
-  items,
-  onDeleteEntry,
-}: {
-  items: TimelineItem[];
-  onDeleteEntry?: (entryId: string) => void;
-}) {
-  const sorted = [...items].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-  if (sorted.length === 0) {
-    return <p className="text-sm sv-muted px-1">Nog geen gebeurtenissen vastgelegd.</p>;
-  }
-
-  return (
-    <div className="space-y-3 max-h-80 overflow-y-auto scrollbar-none">
-      {sorted.map((item, i) => {
-        const Icon = item.icon;
-        return (
-          <div key={i} className="flex items-start gap-2 text-sm">
-            <Icon className="h-4 w-4 shrink-0 mt-0.5 sv-muted" />
-            <div className="flex-1 min-w-0">
-              <p className="sv-muted text-xs">
-                {new Date(item.date).toLocaleDateString("nl-NL", { day: "numeric", month: "long", year: "numeric" })}
-              </p>
-              <p>{item.label}</p>
-            </div>
-            {onDeleteEntry && item.entryId && (
-              <button
-                type="button"
-                onClick={() => onDeleteEntry(item.entryId!)}
-                className="sv-icon-slot h-5 w-5 flex items-center justify-center shrink-0 opacity-40 hover:opacity-100 mt-0.5"
-                aria-label="Groeimoment verwijderen"
-              >
-                <Trash2 className="h-3 w-3" />
-              </button>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// Instance-scoped timeline: builds the same kind of
-// chronological item list but from plant_instance_id-scoped data (growth
-// entries via getEntriesForPlantInstance, logs already fetched per instance)
-// instead of name-based lookups — reuses the events.ts builder functions
-// directly rather than duplicating their event-shaping logic.
-function InstanceTimelineSection({
-  instance,
-  species,
-  harvestLogs,
-  pruningLogs,
-  repotLogs,
-  inspectionLogs,
-  photos,
-}: {
-  instance: PlantInstance;
-  species: Plant | undefined;
-  harvestLogs: PlantHarvestLog[];
-  pruningLogs: PlantPruningLog[];
-  repotLogs: PlantRepotLog[];
-  inspectionLogs: PlantInspectionLog[];
-  photos: PlantPhoto[];
-}) {
-  const { getEntriesForPlantInstance, deleteEntry } = useGrowthLog();
-  const { deleteStorageFilesForEntry } = useGrowthPhotos();
-  const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const growthEntries: LogEntry[] = getEntriesForPlantInstance(instance.id);
-
-  async function handleDeleteEntry(id: string) {
-    setIsDeleting(true);
-    // Storage files first so we never leave orphaned blobs.
-    // DB cascade removes growth_log_photos rows when the entry is deleted.
-    await deleteStorageFilesForEntry(id);
-    deleteEntry(id);
-    setEntryToDelete(null);
-    setIsDeleting(false);
-  }
-  const name = plantInstanceDisplayName(instance, species);
-  const plantNameById = new Map([[instance.species_id, name], [instance.id, name]]);
-
-  const items: TimelineItem[] = [];
-
-  if (instance.acquired_at) {
-    items.push({ date: instance.acquired_at, icon: MapPin, label: sn([instance.source ? `Verkregen — ${instance.source}` : "Verkregen"], []) ?? "Verkregen" });
-  }
-  if (instance.planted_at) {
-    items.push({ date: instance.planted_at, icon: Sprout, label: "Geplant / gezaaid" });
-  }
-  const events: LogboekEvent[] = [
-    ...buildWaterEvents(growthEntries),
-    ...buildFeedingEvents(growthEntries),
-    ...buildGrowthEvents(growthEntries),
-    ...buildHarvestEvents(harvestLogs, plantNameById),
-    ...buildPruningEvents(pruningLogs, plantNameById),
-    ...buildRepotEvents(repotLogs, plantNameById),
-    ...buildInspectionEvents(inspectionLogs, plantNameById),
-    ...buildPhotoEvents(photos, plantNameById),
-  ];
-  if (instance.first_flower_at) {
-    events.push({ id: `first_flower-${instance.id}`, type: "first_flower", date: instance.first_flower_at, plantId: null, instanceId: instance.id, growingSeasonId: null, plantName: name, label: "Kreeg de eerste bloem" });
-  }
-  if (instance.first_fruit_at) {
-    events.push({ id: `first_fruit-${instance.id}`, type: "first_fruit", date: instance.first_fruit_at, plantId: null, instanceId: instance.id, growingSeasonId: null, plantName: name, label: "Kreeg de eerste vrucht" });
-  }
-  for (const event of events) {
-    // Preserve the original growth_log_entry id so the timeline can offer a
-    // delete action. Growth event ids are encoded as "growth-<uuid>".
-    const entryId = event.type === "growth" ? event.id.slice(7) : undefined;
-    items.push({
-      date: event.date,
-      icon: EVENT_META[event.type].icon,
-      label: event.detail ? `${event.label} (${event.detail})` : event.label,
-      entryId,
-    });
-  }
-  for (const entry of growthEntries) {
-    if (entry.notes && !entry.watered && !entry.fertilized && entry.height_cm === null) {
-      items.push({ date: entry.date, icon: BookOpen, label: entry.notes, entryId: entry.id });
-    }
-  }
-
-  return (
-    <>
-      <TimelineList items={items} onDeleteEntry={(id) => setEntryToDelete(id)} />
-
-      {entryToDelete && (
-        <Dialog open onOpenChange={(open) => { if (!open) setEntryToDelete(null); }}>
-          <DialogContent className="sv-dialog max-w-sm">
-            <DialogHeader>
-              <DialogTitle>Groeimoment verwijderen</DialogTitle>
-            </DialogHeader>
-            <p className="text-sm sv-muted">
-              Dit verwijdert het groeimoment inclusief alle bijbehorende foto's permanent. Dit kan niet ongedaan worden gemaakt.
-            </p>
-            <DialogFooter className="flex gap-2 justify-end pt-2">
-              <Button
-                size="sm"
-                className="sv-button sv-button-ghost"
-                onClick={() => setEntryToDelete(null)}
-                disabled={isDeleting}
-              >
-                Annuleer
-              </Button>
-              <Button
-                size="sm"
-                className="sv-button bg-red-600 hover:bg-red-700 text-white border-0"
-                onClick={() => handleDeleteEntry(entryToDelete)}
-                disabled={isDeleting}
-              >
-                {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Verwijderen"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
-    </>
-  );
-}
 
 // ─── SpeciesCombobox ────────────────────────────────────────────────────────
 // A real searchable combobox (Popover + cmdk Command, both already used
@@ -5113,8 +4362,6 @@ function PlantInstanceDetailDialog({
   const [repotOpen, setRepotOpen] = useState(false);
   const [inspectionOpen, setInspectionOpen] = useState(false);
   const [groeifotosOpen, setGroeifotosOpen] = useState(false);
-  const [groeivergelijkingOpen, setGroeivergelijkingOpen] = useState(false);
-  const [timelineOpen, setTimelineOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const name = plantInstanceDisplayName(instance, species);
   const { patchInstance } = usePlantInstances();
@@ -5252,57 +4499,6 @@ function PlantInstanceDetailDialog({
             </p>
           )}
 
-          {(() => {
-            const waterStat = species ? instanceWaterStatus(instance, species) : null;
-            const feedStat = species ? instanceFeedingStatus(instance, species) : null;
-            const seasonEntries = activeSeason ? getEntriesForGrowingSeason(activeSeason.id) : [];
-            const heightEntries = seasonEntries.filter((e) => e.height_cm !== null).sort((a, b) => b.date.localeCompare(a.date));
-            const fruitEntries = seasonEntries
-              .filter((e) => e.fruit_length_cm !== null || e.fruit_width_cm !== null)
-              .sort((a, b) => b.date.localeCompare(a.date));
-            const currentSeasonHarvestWeights = harvestLogs
-              .filter((h) => h.growing_season_id === activeSeason?.id)
-              .map((h) => h.weight_grams)
-              .filter((w): w is number => w !== null);
-            const chips: { key: string; label: string; overdue?: boolean }[] = [];
-            if (waterStat) chips.push({ key: "water", label: `💧 ${waterStat.label}`, overdue: waterStat.overdue });
-            if (feedStat) chips.push({ key: "feed", label: `🌿 ${feedStat.label}`, overdue: feedStat.overdue });
-            chips.push({
-              key: "inspection",
-              label: instance.last_checked_at
-                ? `🔍 Laatst geïnspecteerd: ${new Date(instance.last_checked_at).toLocaleDateString("nl-NL", { day: "numeric", month: "short" })}`
-                : "🔍 Nog niet geïnspecteerd",
-            });
-            chips.push({
-              key: "height",
-              label: heightEntries.length > 0 ? `📏 Huidige hoogte: ${formatMeasurement(heightEntries[0].height_cm as number)} cm` : "📏 Hoogte: nog niet gemeten",
-            });
-            chips.push({
-              key: "fruit",
-              label: fruitEntries.length > 0
-                ? `🍅 ${formatFruitSize(fruitEntries[0].fruit_length_cm, fruitEntries[0].fruit_width_cm) ?? "gemeten"}`
-                : "🍅 Vruchtgrootte: nog niet gemeten",
-            });
-            chips.push({
-              key: "harvest",
-              label: currentSeasonHarvestWeights.length > 0
-                ? `🧺 Oogst dit seizoen: ${currentSeasonHarvestWeights.reduce((a, b) => a + b, 0)} g`
-                : "🧺 Nog geen oogst dit seizoen",
-            });
-            return (
-              <div className="sv-inset rounded-xl p-3 flex flex-wrap gap-1.5">
-                {chips.map((c) => (
-                  <span
-                    key={c.key}
-                    className={`sv-heading inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full ${c.overdue ? "sv-badge-overdue" : "sv-badge-ok"}`}
-                  >
-                    {c.label}
-                  </span>
-                ))}
-              </div>
-            );
-          })()}
-
           {instance.health_status === "Zaailing" && (
             <>
               <Button
@@ -5367,15 +4563,6 @@ function PlantInstanceDetailDialog({
                   cultivation_type: instance.cultivation_type,
                 }}
                 onRecordWatering={(note) => recordWatering(instance, name, activeSeason?.id ?? null, note)}
-                onSyncLastWatered={(isoDate) =>
-                  patchInstance({ id: instance.id, patch: { last_watered_at: isoDate ? new Date(isoDate).toISOString() : null } })
-                }
-                onSkipToday={() => {
-                  const tomorrow = new Date();
-                  tomorrow.setDate(tomorrow.getDate() + 1);
-                  const tomorrowLocal = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`;
-                  patchInstance({ id: instance.id, patch: { water_skip_until: tomorrowLocal } });
-                }}
                 isUpdating={false}
                 isRecording={recordingWaterId === instance.id}
               />
@@ -5391,9 +4578,6 @@ function PlantInstanceDetailDialog({
                   cultivation_type: instance.cultivation_type,
                 }}
                 onRecordFeeding={(note) => recordFeeding(instance, name, activeSeason?.id ?? null, note)}
-                onSyncLastFed={(isoDate) =>
-                  patchInstance({ id: instance.id, patch: { last_fed_at: isoDate ? new Date(isoDate).toISOString() : null } })
-                }
                 isUpdating={false}
                 isRecording={recordingFeedId === instance.id}
               />
@@ -5513,49 +4697,6 @@ function PlantInstanceDetailDialog({
                   onDeletePhoto={(photo) => deleteGrowthPhoto(photo)}
                   showLightbox
                   sortDir="desc"
-                />
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-3">
-            <button
-              type="button"
-              onClick={() => setGroeivergelijkingOpen((o) => !o)}
-              className="sv-button sv-button-thin-border w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm"
-            >
-              <span className="flex items-center gap-2"><TrendingUp className="h-4 w-4" /> Groei vergelijken</span>
-              {groeivergelijkingOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </button>
-            {groeivergelijkingOpen && (
-              <div className="sv-inset p-4 rounded-xl">
-                <GrowthCompareTimeline
-                  entries={getEntriesForPlantInstance(instance.id)}
-                  photos={getPhotosForInstance(instance.id)}
-                />
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-3">
-            <button
-              type="button"
-              onClick={() => setTimelineOpen((o) => !o)}
-              className="sv-button sv-button-thin-border w-full flex items-center justify-between gap-2 px-4 py-2.5 text-sm"
-            >
-              <span className="flex items-center gap-2"><Clock className="h-4 w-4" /> Tijdlijn</span>
-              {timelineOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </button>
-            {timelineOpen && (
-              <div className="sv-inset p-4 rounded-xl">
-                <InstanceTimelineSection
-                  instance={instance}
-                  species={species}
-                  harvestLogs={harvestLogs}
-                  pruningLogs={pruningLogs}
-                  repotLogs={repotLogs}
-                  inspectionLogs={inspectionLogs}
-                  photos={[]}
                 />
               </div>
             )}
