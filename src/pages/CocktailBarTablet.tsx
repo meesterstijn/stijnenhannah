@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Loader2, LogOut, Maximize, Minimize } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Home, Loader2, LogOut, Maximize, Minimize } from "lucide-react";
 import { CocktailHero } from "@/features/cocktail-bar/components/CocktailHero";
 import { CocktailCard } from "@/features/cocktail-bar/components/CocktailCard";
 import { CocktailDetailDialog } from "@/features/cocktail-bar/components/CocktailDetailDialog";
@@ -25,6 +26,13 @@ export default function CocktailBarTablet() {
   return (
     <div className="cocktail-theme min-h-screen px-4 pb-12 pt-4 sm:px-6">
       <div className="fixed right-3 top-3 z-50 flex items-center gap-1.5">
+        <Link
+          to="/"
+          aria-label="Naar home"
+          className="cb-button-ghost rounded-full p-2"
+        >
+          <Home className="h-4 w-4" />
+        </Link>
         <button
           type="button"
           onClick={toggleFullscreen}
