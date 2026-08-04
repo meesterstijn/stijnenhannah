@@ -64,6 +64,17 @@ export async function extendReadyWindow(orderId: string): Promise<void> {
     .eq("id", orderId)
     .eq("status", "ready");
   if (error) throw error;
+
+  // Als deze bestelling eerder van het Big Screen was gehaald via
+  // "Beëindigen", maakt Verlengen 'm weer zichtbaar — anders zou alleen de
+  // klok verversen terwijl de melding door de oude dismissed_ready_order_id
+  // toch verborgen bleef.
+  const { error: clearError } = await supabase
+    .from("cocktail_bar_state")
+    .update({ dismissed_ready_order_id: null })
+    .eq("id", true)
+    .eq("dismissed_ready_order_id", orderId);
+  if (clearError) throw clearError;
 }
 
 // Laat het Big Screen (fase 8) dit specifieke klaar-scherm vroegtijdig

@@ -29,6 +29,7 @@ export function CocktailBarQueueCard({
   onExtend,
   onDismiss,
   onCreateHighlight,
+  canStartBrewing = true,
 }: {
   order: CocktailOrder;
   cocktail: CocktailFull | undefined;
@@ -38,6 +39,9 @@ export function CocktailBarQueueCard({
   onExtend: (orderId: string) => void;
   onDismiss: (orderId: string) => void;
   onCreateHighlight: (order: CocktailOrder) => void;
+  // Maximaal 1 bestelling gelijktijdig "Bezig" — de "Besteld"-kaarten mogen
+  // pas weer starten zodra de Bezig-kolom leeg is (zie CocktailBarBereiden.tsx).
+  canStartBrewing?: boolean;
 }) {
   const photoPath =
     variant?.photo_storage_path ?? cocktail?.photo_storage_path ?? null;
@@ -103,7 +107,13 @@ export function CocktailBarQueueCard({
             <button
               type="button"
               onClick={() => onAdvance(order.id)}
-              className="cb-button flex-1 rounded-full py-1.5 text-sm"
+              disabled={!canStartBrewing}
+              title={
+                canStartBrewing
+                  ? undefined
+                  : "Er wordt al een cocktail bereid — rond die eerst af."
+              }
+              className="cb-button flex-1 rounded-full py-1.5 text-sm disabled:opacity-40"
             >
               Begin bereiden
             </button>

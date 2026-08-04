@@ -54,6 +54,9 @@ export default function CocktailBarBereiden() {
   const { isFullscreen, toggle: toggleFullscreen } = useFullscreen();
 
   const cocktailsById = new Map(cocktails.map((c) => [c.id, c]));
+  // Maximaal 1 bestelling gelijktijdig "Bezig" — een nieuwe mag alleen
+  // starten zodra de Bezig-kolom leeg is.
+  const hasOrderInProgress = orders.some((o) => o.status === "in_progress");
 
   const advance = useMutation({
     mutationFn: (input: { orderId: string; status: CocktailOrderStatus }) =>
@@ -78,7 +81,9 @@ export default function CocktailBarBereiden() {
 
   function handleAdvance(orderId: string) {
     const order = orders.find((o) => o.id === orderId);
-    const next = order ? NEXT_STATUS[order.status] : null;
+    if (!order) return;
+    if (order.status === "ordered" && hasOrderInProgress) return;
+    const next = NEXT_STATUS[order.status];
     if (next) advance.mutate({ orderId, status: next });
   }
 
@@ -164,6 +169,7 @@ export default function CocktailBarBereiden() {
                         onExtend={(id) => extend.mutate(id)}
                         onDismiss={(id) => dismiss.mutate(id)}
                         onCreateHighlight={handleCreateHighlight}
+                        canStartBrewing={!hasOrderInProgress}
                       />
                     );
                   })
