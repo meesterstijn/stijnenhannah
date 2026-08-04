@@ -777,22 +777,11 @@ body:has(.cocktail-theme) {
   box-shadow: 0 0 0 2px oklch(0.75 0.15 60 / 0.4) !important;
 }
 
-/* Ambient achtergrondbeweging (rook/lichtreflectie/stofdeeltjes/golven) —
-   los van de scroll-gekoppelde parallax, die via inline transform door
-   useParallaxScroll wordt aangestuurd (nooit dezelfde property op hetzelfde
-   element als deze animaties, om conflicten met de inline transform te
-   voorkomen — zie CocktailParallaxBackground.tsx). Extreem subtiel: kleine
-   waarden, lange duren, nooit "druk". */
-@keyframes cb-smoke-drift {
-  0%, 100% { transform: translate3d(-3%, 0, 0) scale(1); opacity: 0.35; }
-  50% { transform: translate3d(3%, -2%, 0) scale(1.04); opacity: 0.55; }
-}
-
-@keyframes cb-shimmer {
-  0%, 100% { opacity: 0.12; }
-  50% { opacity: 0.3; }
-}
-
+/* Ambient achtergrondbeweging van de gouden stofdeeltjes — los van de
+   scroll-gekoppelde parallax, die via inline transform door
+   CocktailParallaxBackground wordt aangestuurd (nooit dezelfde property op
+   hetzelfde element als deze animatie, om conflicten met de inline transform
+   te voorkomen). Extreem subtiel: kleine waarden, lange duren, nooit "druk". */
 @keyframes cb-dust-float {
   0% { transform: translate3d(0, 0, 0); opacity: 0; }
   12% { opacity: 0.55; }
@@ -800,25 +789,8 @@ body:has(.cocktail-theme) {
   100% { transform: translate3d(1.5%, -26%, 0); opacity: 0; }
 }
 
-@keyframes cb-wave {
-  0%, 100% { transform: translate3d(0, 0, 0) scaleY(1); }
-  50% { transform: translate3d(0, 0.6%, 0) scaleY(1.015); }
-}
-
-.cocktail-theme .cb-layer-smoke {
-  animation: cb-smoke-drift 42s ease-in-out infinite;
-}
-
-.cocktail-theme .cb-layer-shimmer {
-  animation: cb-shimmer 9s ease-in-out infinite;
-}
-
 .cocktail-theme .cb-layer-dust {
   animation: cb-dust-float linear infinite;
-}
-
-.cocktail-theme .cb-layer-wave {
-  animation: cb-wave 16s ease-in-out infinite;
 }
 
 /* Overgang tussen Big Screen-toestanden (idle/bereiden/klaar/highlight,
@@ -843,10 +815,7 @@ body:has(.cocktail-theme) {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cocktail-theme .cb-layer-smoke,
-  .cocktail-theme .cb-layer-shimmer,
   .cocktail-theme .cb-layer-dust,
-  .cocktail-theme .cb-layer-wave,
   .cocktail-theme .cb-bigscreen-enter {
     animation: none !important;
   }

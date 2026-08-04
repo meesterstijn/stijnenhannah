@@ -15,7 +15,7 @@ export function CocktailHero() {
 
   return (
     <section className="relative flex min-h-[60vh] items-center justify-center overflow-hidden rounded-3xl px-4 text-center sm:min-h-[70vh]">
-      <CocktailParallaxBackground scrollY={scrollY} variant="dust-only" />
+      <CocktailParallaxBackground scrollY={scrollY} />
       <div
         className="relative z-10 max-w-2xl space-y-4"
         style={{
