@@ -56,6 +56,7 @@ export default function CocktailBarTablet() {
                 key={cocktail.id}
                 cocktail={cocktail}
                 onSelect={setSelectedCocktail}
+                scrollReveal
               />
             ))}
           </div>
