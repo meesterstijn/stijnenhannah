@@ -25,8 +25,22 @@ import { useMemo } from "react";
 const DUST_PARTICLE_COUNT_LAYERED = 14;
 const DUST_PARTICLE_COUNT_DUST_ONLY = 24;
 
+// Grote bollen scrollen sneller omhoog dan kleine — dat afstandseffect
+// (dichterbij = groter + sneller) is alleen voor dust-only ingebouwd, de
+// deeltjes lopen hier dus van 4-10px (zie hieronder).
+const DUST_ONLY_MIN_SIZE = 4;
+const DUST_ONLY_SIZE_RANGE = 6;
+const DUST_ONLY_MIN_SPEED = 0.05;
+const DUST_ONLY_SPEED_RANGE = 0.4;
+
+function dustOnlyScrollSpeed(size: number): number {
+  const sizeRatio = (size - DUST_ONLY_MIN_SIZE) / DUST_ONLY_SIZE_RANGE;
+  return DUST_ONLY_MIN_SPEED + sizeRatio * DUST_ONLY_SPEED_RANGE;
+}
+
 type DustParticle = {
   left: number;
+  top: number | null;
   size: number;
   duration: number;
   delay: number;
@@ -50,6 +64,10 @@ export function CocktailParallaxBackground({
       : DUST_PARTICLE_COUNT_LAYERED;
     return Array.from({ length: count }, () => ({
       left: Math.random() * 100,
+      // Alleen dust-only verspreidt de deeltjes over de hele hoogte (anders
+      // clusterden ze allemaal onderaan) — de layered-variant (Big Screen-
+      // idlescherm) blijft ongewijzigd op `bottom: 0`.
+      top: isDustOnly ? 5 + Math.random() * 90 : null,
       size: isDustOnly ? 4 + Math.random() * 6 : 2 + Math.random() * 3,
       duration: 18 + Math.random() * 22,
       delay: Math.random() * -30,
@@ -105,29 +123,71 @@ export function CocktailParallaxBackground({
         </>
       )}
 
-      {/* Laag 5 — zwevende gouden stofdeeltjes (beide varianten, dust-only heeft er meer en grotere) */}
-      <div
-        style={{ transform: `translate3d(0, ${scrollY * 0.14}px, 0)` }}
-        className="absolute inset-0"
-      >
-        {dustParticles.map((p, i) => (
-          <span
-            key={i}
-            className="cb-layer-dust absolute rounded-full bg-[oklch(0.82_0.12_82_/_0.6)]"
-            style={{
-              left: `${p.left}%`,
-              bottom: 0,
-              width: p.size,
-              height: p.size,
-              boxShadow: isDustOnly
-                ? "0 0 8px 1px oklch(0.82 0.12 82 / 0.5)"
-                : undefined,
-              animationDuration: `${p.duration}s`,
-              animationDelay: `${p.delay}s`,
-            }}
-          />
-        ))}
-      </div>
+      {/* Laag 5 — zwevende gouden stofdeeltjes (beide varianten, dust-only heeft er meer en grotere).
+          dust-only heeft per deeltje zijn EIGEN scroll-snelheid (op basis van
+          grootte) i.p.v. één gedeelde snelheid voor de hele laag — vandaar een
+          los wrapper-span per deeltje voor de scroll-transform, met de
+          cb-layer-dust-animatie (die ook `transform` gebruikt) op een geneste
+          kind-span, nooit op hetzelfde element (zie bovenaan dit bestand). De
+          layered-variant blijft de oude, ongewijzigde gedeelde-laag-opzet. */}
+      {isDustOnly ? (
+        // mask-image i.p.v. per-deeltje opacity-berekening: dit vervaagt
+        // ALLES wat de rand van dit vak nadert naar 0% — onafhankelijk van
+        // welke combinatie van scroll-snelheid/ambient float een deeltje daar
+        // bracht — precies "net voordat ze uit beeld scrollen".
+        <div
+          className="absolute inset-0"
+          style={{
+            maskImage:
+              "linear-gradient(to bottom, transparent 0%, black 12%, black 88%, transparent 100%)",
+            WebkitMaskImage:
+              "linear-gradient(to bottom, transparent 0%, black 12%, black 88%, transparent 100%)",
+          }}
+        >
+          {dustParticles.map((p, i) => (
+            <span
+              key={i}
+              className="absolute"
+              style={{
+                left: `${p.left}%`,
+                top: `${p.top}%`,
+                transform: `translate3d(0, ${scrollY * dustOnlyScrollSpeed(p.size)}px, 0)`,
+              }}
+            >
+              <span
+                className="cb-layer-dust block rounded-full bg-[oklch(0.82_0.12_82_/_0.6)]"
+                style={{
+                  width: p.size,
+                  height: p.size,
+                  boxShadow: "0 0 8px 1px oklch(0.82 0.12 82 / 0.5)",
+                  animationDuration: `${p.duration}s`,
+                  animationDelay: `${p.delay}s`,
+                }}
+              />
+            </span>
+          ))}
+        </div>
+      ) : (
+        <div
+          style={{ transform: `translate3d(0, ${scrollY * 0.14}px, 0)` }}
+          className="absolute inset-0"
+        >
+          {dustParticles.map((p, i) => (
+            <span
+              key={i}
+              className="cb-layer-dust absolute rounded-full bg-[oklch(0.82_0.12_82_/_0.6)]"
+              style={{
+                left: `${p.left}%`,
+                bottom: 0,
+                width: p.size,
+                height: p.size,
+                animationDuration: `${p.duration}s`,
+                animationDelay: `${p.delay}s`,
+              }}
+            />
+          ))}
+        </div>
+      )}
 
       {!isDustOnly && (
         /* Laag 6 — subtiele vloeistofgolven onderaan */
