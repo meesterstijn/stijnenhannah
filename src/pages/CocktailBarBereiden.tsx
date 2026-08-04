@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Loader2, Maximize, Minimize } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { Loader2, Maximize, Minimize, Tv } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CocktailBarQueueCard } from "@/features/cocktail-bar/components/CocktailBarQueueCard";
 import { CocktailDetailDialog } from "@/features/cocktail-bar/components/CocktailDetailDialog";
@@ -111,7 +111,17 @@ export default function CocktailBarBereiden() {
         )}
       </button>
 
-      <h1 className="cb-heading font-serif text-3xl">Cocktails bereiden</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="cb-heading font-serif text-3xl">Cocktails bereiden</h1>
+        <Link
+          to="/cocktail-bar/big-screen"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="cb-button-ghost flex items-center gap-1.5 rounded-full px-4 py-2 text-sm"
+        >
+          <Tv className="h-4 w-4" /> Big Screen
+        </Link>
+      </div>
 
       {isLoading ? (
         <div className="flex justify-center py-16 cb-muted">

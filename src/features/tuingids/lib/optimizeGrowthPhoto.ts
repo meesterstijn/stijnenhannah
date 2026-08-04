@@ -8,8 +8,10 @@
 //      orientation and compensates accordingly — so the output canvas always
 //      contains physically correct pixels, never double-rotated.
 //   3. Scale down to ≤ 1600 px on the longest side (no upscaling).
-//   4. Export to WebP @ 0.82; JPEG @ 0.85 as fallback.
-//   5. For JPEG fallback, flatten transparency onto white.
+//   4. Export to WebP @ 0.82; PNG (lossless) as fallback when the browser
+//      can't encode WebP (bv. Safari <16) — never JPEG, dat heeft geen
+//      alphakanaal en zou transparante PNG's (bv. cocktailfoto's) stilzwijgend
+//      op een witte achtergrond plakken.
 //
 // No manual EXIF-rotation is performed after loadImage — that would double-rotate.
 
@@ -17,7 +19,6 @@ import loadImage from "blueimp-load-image";
 
 const MAX_SIDE_PX = 1600;
 const QUALITY_WEBP = 0.82;
-const QUALITY_JPEG = 0.85;
 const MAX_FILE_BYTES = 20 * 1024 * 1024; // 20 MB
 
 const ACCEPTED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -25,8 +26,8 @@ const HEIC_TYPES = new Set(["image/heic", "image/heif"]);
 
 export type OptimizedPhoto = {
   blob: Blob;
-  mimeType: "image/webp" | "image/jpeg";
-  extension: "webp" | "jpg";
+  mimeType: "image/webp" | "image/png";
+  extension: "webp" | "png";
   originalFilename: string;
   fileSizeBytes: number;
   width: number;
@@ -36,13 +37,18 @@ export type OptimizedPhoto = {
 function canvasToBlob(
   canvas: HTMLCanvasElement,
   mimeType: string,
-  quality: number,
+  quality?: number,
 ): Promise<Blob> {
   return new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(
       (blob) => {
         if (blob) resolve(blob);
-        else reject(new Error("Afbeelding kan niet worden geëxporteerd (toBlob retourneerde null)."));
+        else
+          reject(
+            new Error(
+              "Afbeelding kan niet worden geëxporteerd (toBlob retourneerde null).",
+            ),
+          );
       },
       mimeType,
       quality,
@@ -101,21 +107,25 @@ export async function optimizeGrowthPhoto(file: File): Promise<OptimizedPhoto> {
 
   const { width, height } = canvas;
   if (width === 0 || height === 0) {
-    throw new Error("Afbeeldingsmetadata kan niet worden verwerkt: canvas heeft geen afmetingen.");
+    throw new Error(
+      "Afbeeldingsmetadata kan niet worden verwerkt: canvas heeft geen afmetingen.",
+    );
   }
 
-  // Export to WebP; fall back to JPEG when the browser does not support it.
+  // Export to WebP; fall back to PNG when the browser does not support it.
   // canvas.toBlob with "image/webp" may silently return a PNG in some browsers
-  // (e.g. Safari before 16) — we verify the returned MIME type.
+  // (e.g. Safari before 16) — we verify the returned MIME type. PNG (not
+  // JPEG) as fallback: canvas.toBlob("image/png") is universally supported
+  // and, unlike JPEG, keeps the alpha channel intact.
   let blob: Blob;
-  let mimeType: "image/webp" | "image/jpeg";
-  let extension: "webp" | "jpg";
+  let mimeType: "image/webp" | "image/png";
+  let extension: "webp" | "png";
 
   let webpBlob: Blob | null = null;
   try {
     webpBlob = await canvasToBlob(canvas, "image/webp", QUALITY_WEBP);
   } catch {
-    // toBlob failed entirely — fall through to JPEG
+    // toBlob failed entirely — fall through to PNG
   }
 
   if (webpBlob?.type === "image/webp") {
@@ -123,28 +133,15 @@ export async function optimizeGrowthPhoto(file: File): Promise<OptimizedPhoto> {
     mimeType = "image/webp";
     extension = "webp";
   } else {
-    // JPEG fallback: flatten any transparency onto a white background so that
-    // transparent regions in PNG/WebP sources do not become black in JPEG.
-    const flat = document.createElement("canvas");
-    flat.width = width;
-    flat.height = height;
-    const ctx = flat.getContext("2d");
-    if (!ctx) {
-      throw new Error("Canvascontext ontbreekt bij JPEG-fallback.");
-    }
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, width, height);
-    ctx.drawImage(canvas, 0, 0);
-
     try {
-      blob = await canvasToBlob(flat, "image/jpeg", QUALITY_JPEG);
+      blob = await canvasToBlob(canvas, "image/png");
     } catch {
       throw new Error(
         "Afbeelding kan niet worden geëxporteerd. Probeer een andere foto.",
       );
     }
-    mimeType = "image/jpeg";
-    extension = "jpg";
+    mimeType = "image/png";
+    extension = "png";
   }
 
   return {
