@@ -1,37 +1,12 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Loader2, Maximize, Minimize } from "lucide-react";
 import { CocktailHero } from "@/features/cocktail-bar/components/CocktailHero";
 import { CocktailCard } from "@/features/cocktail-bar/components/CocktailCard";
 import { CocktailDetailDialog } from "@/features/cocktail-bar/components/CocktailDetailDialog";
 import { useCocktailShowcase } from "@/features/cocktail-bar/hooks/useCocktailShowcase";
 import { useCocktailShowcaseRealtimeSync } from "@/features/cocktail-bar/hooks/useCocktailShowcaseRealtimeSync";
+import { useFullscreen } from "@/features/cocktail-bar/hooks/useFullscreen";
 import type { CocktailFull } from "@/features/cocktail-bar/types";
-
-// Losstaand hier i.p.v. een gedeelde hook: enige gebruiksplek, en een
-// tablet-kiosk is de enige plek in de app waar fullscreen relevant is.
-function useFullscreen() {
-  const [isFullscreen, setIsFullscreen] = useState(
-    () => !!document.fullscreenElement,
-  );
-
-  useEffect(() => {
-    function handleChange() {
-      setIsFullscreen(!!document.fullscreenElement);
-    }
-    document.addEventListener("fullscreenchange", handleChange);
-    return () => document.removeEventListener("fullscreenchange", handleChange);
-  }, []);
-
-  function toggle() {
-    if (document.fullscreenElement) {
-      document.exitFullscreen();
-    } else {
-      document.documentElement.requestFullscreen().catch(() => {});
-    }
-  }
-
-  return { isFullscreen, toggle };
-}
 
 // Buiten SiteLayout (net als de R6 Big Screen/Controller-routes): geen
 // navbar, geen "Ons Huisje", geen filters/favorieten/sorteren/zoeken — de

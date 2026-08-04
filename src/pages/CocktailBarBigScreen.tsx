@@ -1,7 +1,9 @@
+import { Maximize, Minimize } from "lucide-react";
 import { useCocktailShowcase } from "@/features/cocktail-bar/hooks/useCocktailShowcase";
 import { useCocktailBarActiveOrderWatch } from "@/features/cocktail-bar/hooks/useCocktailBarActiveOrderWatch";
 import { useCocktailBarHighlightWatch } from "@/features/cocktail-bar/hooks/useCocktailBarHighlightWatch";
 import { useCocktailBarConnectionStatus } from "@/features/cocktail-bar/hooks/useCocktailBarConnectionStatus";
+import { useFullscreen } from "@/features/cocktail-bar/hooks/useFullscreen";
 import { CocktailBigScreenIdle } from "@/features/cocktail-bar/components/CocktailBigScreenIdle";
 import { CocktailBigScreenBrewing } from "@/features/cocktail-bar/components/CocktailBigScreenBrewing";
 import { CocktailBigScreenReady } from "@/features/cocktail-bar/components/CocktailBigScreenReady";
@@ -23,6 +25,7 @@ export default function CocktailBarBigScreen() {
   const activeOrder = useCocktailBarActiveOrderWatch();
   const activeHighlight = useCocktailBarHighlightWatch();
   const connectionStatus = useCocktailBarConnectionStatus();
+  const { isFullscreen, toggle: toggleFullscreen } = useFullscreen();
 
   const cocktailsById = new Map(cocktails.map((c) => [c.id, c]));
 
@@ -61,6 +64,20 @@ export default function CocktailBarBigScreen() {
 
   return (
     <div className="cocktail-theme relative min-h-screen overflow-hidden">
+      <button
+        type="button"
+        onClick={toggleFullscreen}
+        aria-label={
+          isFullscreen ? "Volledig scherm verlaten" : "Volledig scherm"
+        }
+        className="cb-button-ghost fixed right-3 top-3 z-50 rounded-full p-2"
+      >
+        {isFullscreen ? (
+          <Minimize className="h-4 w-4" />
+        ) : (
+          <Maximize className="h-4 w-4" />
+        )}
+      </button>
       {renderContent()}
       <p className="fixed bottom-3 right-3 z-20 flex items-center gap-1.5 text-xs uppercase tracking-wide cb-muted">
         <span

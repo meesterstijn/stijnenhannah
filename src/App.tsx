@@ -1,10 +1,5 @@
 import { lazy, Suspense, useEffect } from "react";
-import {
-  HashRouter,
-  Routes,
-  Route,
-  useLocation,
-} from "react-router-dom";
+import { HashRouter, Routes, Route, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { RequireAppAccess } from "@/components/RequireAppAccess";
@@ -31,30 +26,57 @@ const Vakantie = lazy(() => import("@/pages/Vakantie"));
 const Tips = lazy(() => import("@/pages/Tips"));
 const RainbowSixSiege = lazy(() => import("@/pages/RainbowSixSiege"));
 const RainbowSixSiegeLan = lazy(() => import("@/pages/RainbowSixSiegeLan"));
-const RainbowSixSiegeSession = lazy(() => import("@/pages/RainbowSixSiegeSession"));
-const RainbowSixSiegeScoreboard = lazy(() => import("@/pages/RainbowSixSiegeScoreboard"));
-const RainbowSixSiegeStatistics = lazy(() => import("@/pages/RainbowSixSiegeStatistics"));
-const RainbowSixSiegeBigScreen = lazy(() => import("@/pages/RainbowSixSiegeBigScreen"));
-const RainbowSixSiegeAutoBigScreen = lazy(() => import("@/pages/RainbowSixSiegeAutoBigScreen"));
-const RainbowSixSiegeController = lazy(() => import("@/pages/RainbowSixSiegeController"));
+const RainbowSixSiegeSession = lazy(
+  () => import("@/pages/RainbowSixSiegeSession"),
+);
+const RainbowSixSiegeScoreboard = lazy(
+  () => import("@/pages/RainbowSixSiegeScoreboard"),
+);
+const RainbowSixSiegeStatistics = lazy(
+  () => import("@/pages/RainbowSixSiegeStatistics"),
+);
+const RainbowSixSiegeBigScreen = lazy(
+  () => import("@/pages/RainbowSixSiegeBigScreen"),
+);
+const RainbowSixSiegeAutoBigScreen = lazy(
+  () => import("@/pages/RainbowSixSiegeAutoBigScreen"),
+);
+const RainbowSixSiegeController = lazy(
+  () => import("@/pages/RainbowSixSiegeController"),
+);
 const CocktailBarLayout = lazy(() => import("@/pages/CocktailBarLayout"));
 const CocktailBar = lazy(() => import("@/pages/CocktailBar"));
 const CocktailBarAdmin = lazy(() => import("@/pages/CocktailBarAdmin"));
 const CocktailBarWizard = lazy(() => import("@/pages/CocktailBarWizard"));
-const CocktailBarHighlightsAdmin = lazy(() => import("@/pages/CocktailBarHighlightsAdmin"));
+const CocktailBarHighlightsAdmin = lazy(
+  () => import("@/pages/CocktailBarHighlightsAdmin"),
+);
+const CocktailBarDashboard = lazy(() => import("@/pages/CocktailBarDashboard"));
 const CocktailBarBereiden = lazy(() => import("@/pages/CocktailBarBereiden"));
 const CocktailBarTablet = lazy(() => import("@/pages/CocktailBarTablet"));
 const CocktailBarBigScreen = lazy(() => import("@/pages/CocktailBarBigScreen"));
 const TuingidsLayout = lazy(() => import("@/pages/tuingids/TuingidsLayout"));
-const TuingidsDashboard = lazy(() => import("@/pages/tuingids/TuingidsDashboard"));
-const TuingidsEncyclopedia = lazy(() => import("@/pages/tuingids/TuingidsEncyclopedia"));
-const TuingidsEncyclopediaDetail = lazy(() => import("@/pages/tuingids/TuingidsEncyclopediaDetail"));
+const TuingidsDashboard = lazy(
+  () => import("@/pages/tuingids/TuingidsDashboard"),
+);
+const TuingidsEncyclopedia = lazy(
+  () => import("@/pages/tuingids/TuingidsEncyclopedia"),
+);
+const TuingidsEncyclopediaDetail = lazy(
+  () => import("@/pages/tuingids/TuingidsEncyclopediaDetail"),
+);
 const TuingidsDokter = lazy(() => import("@/pages/tuingids/TuingidsDokter"));
-const TuingidsDokterDetail = lazy(() => import("@/pages/tuingids/TuingidsDokterDetail"));
+const TuingidsDokterDetail = lazy(
+  () => import("@/pages/tuingids/TuingidsDokterDetail"),
+);
 const TuingidsLogboek = lazy(() => import("@/pages/tuingids/TuingidsLogboek"));
-const TuingidsKalender = lazy(() => import("@/pages/tuingids/TuingidsKalender"));
+const TuingidsKalender = lazy(
+  () => import("@/pages/tuingids/TuingidsKalender"),
+);
 const TuingidsZoek = lazy(() => import("@/pages/tuingids/TuingidsZoek"));
-const TuingidsTeeltplanner = lazy(() => import("@/pages/tuingids/TuingidsTeeltplanner"));
+const TuingidsTeeltplanner = lazy(
+  () => import("@/pages/tuingids/TuingidsTeeltplanner"),
+);
 
 const queryClient = new QueryClient();
 
@@ -139,45 +161,76 @@ function AppRoutes() {
             <Route path="/vakantie" element={<Vakantie />} />
             <Route path="/tips" element={<Tips />} />
             <Route path="/rainbow-six-siege" element={<RainbowSixSiege />} />
-            <Route path="/rainbow-six-siege/lan" element={<RainbowSixSiegeLan />} />
-            <Route path="/rainbow-six-siege/lan/:sessionId" element={<RainbowSixSiegeSession />} />
-            <Route path="/rainbow-six-siege/scorebord" element={<RainbowSixSiegeScoreboard />} />
-            <Route path="/rainbow-six-siege/statistieken" element={<RainbowSixSiegeStatistics />} />
+            <Route
+              path="/rainbow-six-siege/lan"
+              element={<RainbowSixSiegeLan />}
+            />
+            <Route
+              path="/rainbow-six-siege/lan/:sessionId"
+              element={<RainbowSixSiegeSession />}
+            />
+            <Route
+              path="/rainbow-six-siege/scorebord"
+              element={<RainbowSixSiegeScoreboard />}
+            />
+            <Route
+              path="/rainbow-six-siege/statistieken"
+              element={<RainbowSixSiegeStatistics />}
+            />
             <Route path="/cocktail-bar" element={<CocktailBarLayout />}>
               <Route index element={<CocktailBar />} />
               <Route path="beheren" element={<CocktailBarAdmin />} />
               <Route path="beheren/nieuw" element={<CocktailBarWizard />} />
               <Route path="beheren/:id" element={<CocktailBarWizard />} />
-              <Route path="beheren/highlights" element={<CocktailBarHighlightsAdmin />} />
+              <Route
+                path="beheren/highlights"
+                element={<CocktailBarHighlightsAdmin />}
+              />
               <Route path="bereiden" element={<CocktailBarBereiden />} />
+              <Route path="dashboard" element={<CocktailBarDashboard />} />
             </Route>
             <Route path="/tuingids" element={<TuingidsLayout />}>
               <Route index element={<TuingidsDashboard />} />
               <Route path="encyclopedie" element={<TuingidsEncyclopedia />} />
-              <Route path="encyclopedie/:id" element={<TuingidsEncyclopediaDetail />} />
+              <Route
+                path="encyclopedie/:id"
+                element={<TuingidsEncyclopediaDetail />}
+              />
               <Route path="dokter" element={<TuingidsDokter />} />
               <Route path="dokter/:id" element={<TuingidsDokterDetail />} />
               <Route path="logboek" element={<TuingidsLogboek />} />
               <Route path="kalender" element={<TuingidsKalender />} />
               <Route path="zoek" element={<TuingidsZoek />} />
               <Route path="teeltplanner" element={<TuingidsTeeltplanner />} />
-              <Route path="teeltplanner/:planId" element={<TuingidsTeeltplanner />} />
+              <Route
+                path="teeltplanner/:planId"
+                element={<TuingidsTeeltplanner />}
+              />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Route>
           {/* Big Screen Mode heeft bewust GEEN SiteLayout: geen navbar, geen
               "Ons Huisje", geen paginabreedte-beperking — een tv/tweede monitor
               mag alleen het live scorebord zelf tonen. */}
-          <Route path="/rainbow-six-siege/lan/:sessionId/big-screen" element={<RainbowSixSiegeBigScreen />} />
+          <Route
+            path="/rainbow-six-siege/lan/:sessionId/big-screen"
+            element={<RainbowSixSiegeBigScreen />}
+          />
           {/* Permanente Big Screen-route: geen sessionId in de URL, bepaalt
               zelf altijd de huidige actieve LAN (zie RainbowSixSiegeAutoBigScreen
               / useR6ActiveSessionWatch) — bedoeld om één keer op een tv/tweede
               monitor te openen en nooit meer handmatig te hoeven wisselen. */}
-          <Route path="/rainbow-six-siege/big-screen" element={<RainbowSixSiegeAutoBigScreen />} />
+          <Route
+            path="/rainbow-six-siege/big-screen"
+            element={<RainbowSixSiegeAutoBigScreen />}
+          />
           {/* Tablet LAN Controller Mode — zelfde reden om buiten SiteLayout te
               staan als Big Screen: geen navbar/"Ons Huisje", alleen de
               controller zelf, fullscreen-geschikt. */}
-          <Route path="/rainbow-six-siege/lan/:sessionId/controller" element={<RainbowSixSiegeController />} />
+          <Route
+            path="/rainbow-six-siege/lan/:sessionId/controller"
+            element={<RainbowSixSiegeController />}
+          />
           {/* Tabletmodus voor de gedeelde cocktail_guest-rol — geen SiteLayout
               (geen navbar/"Ons Huisje"/beheer), exact het patroon van de R6
               Big Screen/Controller-routes hierboven. RequireAppAccess stuurt
@@ -187,7 +240,10 @@ function AppRoutes() {
           {/* Big Screen-route voor de Raspberry Pi — logt in als owner, dus
               geen COCKTAIL_GUEST_PATH_PREFIX-achtige gating nodig, alleen
               buiten SiteLayout net als de tabletroute hierboven. */}
-          <Route path="/cocktail-bar/big-screen" element={<CocktailBarBigScreen />} />
+          <Route
+            path="/cocktail-bar/big-screen"
+            element={<CocktailBarBigScreen />}
+          />
         </Routes>
       </Suspense>
     </RequireAppAccess>
