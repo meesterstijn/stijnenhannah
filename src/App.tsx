@@ -44,6 +44,7 @@ const CocktailBarWizard = lazy(() => import("@/pages/CocktailBarWizard"));
 const CocktailBarHighlightsAdmin = lazy(() => import("@/pages/CocktailBarHighlightsAdmin"));
 const CocktailBarBereiden = lazy(() => import("@/pages/CocktailBarBereiden"));
 const CocktailBarTablet = lazy(() => import("@/pages/CocktailBarTablet"));
+const CocktailBarBigScreen = lazy(() => import("@/pages/CocktailBarBigScreen"));
 const TuingidsLayout = lazy(() => import("@/pages/tuingids/TuingidsLayout"));
 const TuingidsDashboard = lazy(() => import("@/pages/tuingids/TuingidsDashboard"));
 const TuingidsEncyclopedia = lazy(() => import("@/pages/tuingids/TuingidsEncyclopedia"));
@@ -183,6 +184,10 @@ function AppRoutes() {
               cocktail_guest hier altijd naar terug, dus dit pad moet exact
               overeenkomen met COCKTAIL_GUEST_PATH_PREFIX daar. */}
           <Route path="/cocktail-bar/tablet" element={<CocktailBarTablet />} />
+          {/* Big Screen-route voor de Raspberry Pi — logt in als owner, dus
+              geen COCKTAIL_GUEST_PATH_PREFIX-achtige gating nodig, alleen
+              buiten SiteLayout net als de tabletroute hierboven. */}
+          <Route path="/cocktail-bar/big-screen" element={<CocktailBarBigScreen />} />
         </Routes>
       </Suspense>
     </RequireAppAccess>

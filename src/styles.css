@@ -821,11 +821,33 @@ body:has(.cocktail-theme) {
   animation: cb-wave 16s ease-in-out infinite;
 }
 
+/* Overgang tussen Big Screen-toestanden (idle/bereiden/klaar/highlight,
+   CocktailBarBigScreen.tsx) — de vorige toestand unmount volledig en de
+   nieuwe mount, dus een CSS-animation bij mount is hier voldoende voor een
+   rustige "staggered entrance", zonder een animatiebibliotheek. */
+@keyframes cb-bigscreen-enter {
+  0% { opacity: 0; transform: translate3d(0, 12px, 0) scale(0.98); filter: blur(6px); }
+  100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); filter: blur(0); }
+}
+
+.cb-bigscreen-enter {
+  animation: cb-bigscreen-enter 700ms ease-out both;
+}
+
+.cb-bigscreen-enter-delay-1 {
+  animation-delay: 120ms;
+}
+
+.cb-bigscreen-enter-delay-2 {
+  animation-delay: 240ms;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .cocktail-theme .cb-layer-smoke,
   .cocktail-theme .cb-layer-shimmer,
   .cocktail-theme .cb-layer-dust,
-  .cocktail-theme .cb-layer-wave {
+  .cocktail-theme .cb-layer-wave,
+  .cocktail-theme .cb-bigscreen-enter {
     animation: none !important;
   }
 }
