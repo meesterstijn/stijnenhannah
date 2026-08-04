@@ -14,6 +14,7 @@ const nav = [
 // Huisje"-link kunnen staan, in dezelfde vaste hoek.
 const cocktailBarNav = [
   { to: "/cocktail-bar", label: "Cocktails" },
+  { to: "/cocktail-bar/bereiden", label: "Bereiden" },
   { to: "/cocktail-bar/beheren", label: "Beheer" },
 ] as const;
 
