@@ -41,6 +41,7 @@ const CocktailBarLayout = lazy(() => import("@/pages/CocktailBarLayout"));
 const CocktailBar = lazy(() => import("@/pages/CocktailBar"));
 const CocktailBarAdmin = lazy(() => import("@/pages/CocktailBarAdmin"));
 const CocktailBarWizard = lazy(() => import("@/pages/CocktailBarWizard"));
+const CocktailBarHighlightsAdmin = lazy(() => import("@/pages/CocktailBarHighlightsAdmin"));
 const CocktailBarBereiden = lazy(() => import("@/pages/CocktailBarBereiden"));
 const CocktailBarTablet = lazy(() => import("@/pages/CocktailBarTablet"));
 const TuingidsLayout = lazy(() => import("@/pages/tuingids/TuingidsLayout"));
@@ -146,6 +147,7 @@ function AppRoutes() {
               <Route path="beheren" element={<CocktailBarAdmin />} />
               <Route path="beheren/nieuw" element={<CocktailBarWizard />} />
               <Route path="beheren/:id" element={<CocktailBarWizard />} />
+              <Route path="beheren/highlights" element={<CocktailBarHighlightsAdmin />} />
               <Route path="bereiden" element={<CocktailBarBereiden />} />
             </Route>
             <Route path="/tuingids" element={<TuingidsLayout />}>

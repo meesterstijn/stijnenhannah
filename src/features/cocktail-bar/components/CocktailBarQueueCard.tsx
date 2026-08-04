@@ -1,4 +1,4 @@
-import { Clock, StickyNote } from "lucide-react";
+import { Clock, Sparkles, StickyNote } from "lucide-react";
 import { getCocktailPhotoUrl } from "@/features/cocktail-bar/lib/cocktailPhotoStorage";
 import type {
   CocktailFull,
@@ -28,6 +28,7 @@ export function CocktailBarQueueCard({
   onAdvance,
   onExtend,
   onDismiss,
+  onCreateHighlight,
 }: {
   order: CocktailOrder;
   cocktail: CocktailFull | undefined;
@@ -36,6 +37,7 @@ export function CocktailBarQueueCard({
   onAdvance: (orderId: string) => void;
   onExtend: (orderId: string) => void;
   onDismiss: (orderId: string) => void;
+  onCreateHighlight: (order: CocktailOrder) => void;
 }) {
   const photoPath =
     variant?.photo_storage_path ?? cocktail?.photo_storage_path ?? null;
@@ -123,6 +125,14 @@ export function CocktailBarQueueCard({
             </button>
           </>
         )}
+        <button
+          type="button"
+          onClick={() => onCreateHighlight(order)}
+          aria-label={`Persoonlijke presentatie maken voor ${order.guest_name}`}
+          className="cb-button-ghost rounded-full p-2"
+        >
+          <Sparkles className="h-4 w-4" />
+        </button>
       </div>
     </div>
   );

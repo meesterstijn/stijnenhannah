@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CocktailBarQueueCard } from "@/features/cocktail-bar/components/CocktailBarQueueCard";
@@ -16,6 +17,7 @@ import {
 } from "@/features/cocktail-bar/lib/orders";
 import type {
   CocktailFull,
+  CocktailOrder,
   CocktailOrderStatus,
 } from "@/features/cocktail-bar/types";
 
@@ -33,6 +35,7 @@ const COLUMNS: { status: CocktailOrderStatus; title: string }[] = [
 
 export default function CocktailBarBereiden() {
   useCocktailOrderRealtimeSync();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: orders = [], isLoading } = useCocktailBarOrderQueue();
   const { data: cocktails = [] } = useCocktailShowcase();
@@ -67,6 +70,18 @@ export default function CocktailBarBereiden() {
     const order = orders.find((o) => o.id === orderId);
     const next = order ? NEXT_STATUS[order.status] : null;
     if (next) advance.mutate({ orderId, status: next });
+  }
+
+  function handleCreateHighlight(order: CocktailOrder) {
+    navigate("/cocktail-bar/beheren/highlights", {
+      state: {
+        prefillOrder: {
+          orderId: order.id,
+          guestName: order.guest_name,
+          cocktailId: order.cocktail_id,
+        },
+      },
+    });
   }
 
   return (
@@ -111,6 +126,7 @@ export default function CocktailBarBereiden() {
                         onAdvance={handleAdvance}
                         onExtend={(id) => extend.mutate(id)}
                         onDismiss={(id) => dismiss.mutate(id)}
+                        onCreateHighlight={handleCreateHighlight}
                       />
                     );
                   })

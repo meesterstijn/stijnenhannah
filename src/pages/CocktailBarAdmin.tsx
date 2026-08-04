@@ -1,16 +1,24 @@
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Plus, Trash2 } from "lucide-react";
-import { deleteCocktail, fetchAllCocktails, setCocktailPublished } from "@/features/cocktail-bar/lib/cocktails";
+import {
+  deleteCocktail,
+  fetchAllCocktails,
+  setCocktailPublished,
+} from "@/features/cocktail-bar/lib/cocktails";
 
 const QUERY_KEY = ["cocktail_bar", "cocktails", "all"];
 
 export default function CocktailBarAdmin() {
   const queryClient = useQueryClient();
-  const { data: cocktails = [], isLoading } = useQuery({ queryKey: QUERY_KEY, queryFn: fetchAllCocktails });
+  const { data: cocktails = [], isLoading } = useQuery({
+    queryKey: QUERY_KEY,
+    queryFn: fetchAllCocktails,
+  });
 
   const togglePublish = useMutation({
-    mutationFn: ({ id, isPublished }: { id: string; isPublished: boolean }) => setCocktailPublished(id, isPublished),
+    mutationFn: ({ id, isPublished }: { id: string; isPublished: boolean }) =>
+      setCocktailPublished(id, isPublished),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEY }),
   });
 
@@ -23,9 +31,20 @@ export default function CocktailBarAdmin() {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
         <h1 className="cb-heading font-serif text-3xl">Cocktails beheren</h1>
-        <Link to="/cocktail-bar/beheren/nieuw" className="cb-button flex items-center gap-1.5 rounded-full px-4 py-2 text-sm">
-          <Plus className="h-4 w-4" /> Nieuwe cocktail
-        </Link>
+        <div className="flex items-center gap-1.5">
+          <Link
+            to="/cocktail-bar/beheren/highlights"
+            className="cb-button-ghost rounded-full px-4 py-2 text-sm"
+          >
+            Presentaties
+          </Link>
+          <Link
+            to="/cocktail-bar/beheren/nieuw"
+            className="cb-button flex items-center gap-1.5 rounded-full px-4 py-2 text-sm"
+          >
+            <Plus className="h-4 w-4" /> Nieuwe cocktail
+          </Link>
+        </div>
       </div>
 
       {isLoading ? (
@@ -37,19 +56,32 @@ export default function CocktailBarAdmin() {
       ) : (
         <ul className="space-y-3">
           {cocktails.map((cocktail) => (
-            <li key={cocktail.id} className="cb-tile flex flex-wrap items-center justify-between gap-3 p-4">
+            <li
+              key={cocktail.id}
+              className="cb-tile flex flex-wrap items-center justify-between gap-3 p-4"
+            >
               <div className="min-w-0">
                 <p className="cb-heading font-serif text-xl">{cocktail.name}</p>
                 <p className="cb-muted truncate text-sm">{cocktail.tagline}</p>
-                <span className="cb-badge mt-1 inline-flex">{cocktail.is_published ? "Gepubliceerd" : "Concept"}</span>
+                <span className="cb-badge mt-1 inline-flex">
+                  {cocktail.is_published ? "Gepubliceerd" : "Concept"}
+                </span>
               </div>
               <div className="flex shrink-0 items-center gap-1.5">
-                <Link to={`/cocktail-bar/beheren/${cocktail.id}`} className="cb-button-ghost rounded-full px-3 py-1.5 text-sm">
+                <Link
+                  to={`/cocktail-bar/beheren/${cocktail.id}`}
+                  className="cb-button-ghost rounded-full px-3 py-1.5 text-sm"
+                >
                   Bewerken
                 </Link>
                 <button
                   type="button"
-                  onClick={() => togglePublish.mutate({ id: cocktail.id, isPublished: !cocktail.is_published })}
+                  onClick={() =>
+                    togglePublish.mutate({
+                      id: cocktail.id,
+                      isPublished: !cocktail.is_published,
+                    })
+                  }
                   disabled={togglePublish.isPending}
                   className="cb-button-ghost rounded-full px-3 py-1.5 text-sm"
                 >
@@ -58,7 +90,12 @@ export default function CocktailBarAdmin() {
                 <button
                   type="button"
                   onClick={() => {
-                    if (window.confirm(`"${cocktail.name}" definitief verwijderen?`)) remove.mutate(cocktail.id);
+                    if (
+                      window.confirm(
+                        `"${cocktail.name}" definitief verwijderen?`,
+                      )
+                    )
+                      remove.mutate(cocktail.id);
                   }}
                   disabled={remove.isPending}
                   aria-label={`${cocktail.name} verwijderen`}
@@ -68,7 +105,9 @@ export default function CocktailBarAdmin() {
                 </button>
               </div>
               {remove.isError && remove.variables === cocktail.id && (
-                <p className="w-full text-xs text-red-400">{(remove.error as Error).message}</p>
+                <p className="w-full text-xs text-red-400">
+                  {(remove.error as Error).message}
+                </p>
               )}
             </li>
           ))}
