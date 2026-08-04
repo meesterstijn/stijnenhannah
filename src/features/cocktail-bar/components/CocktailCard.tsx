@@ -48,7 +48,7 @@ export function CocktailCard({
   const imageWrapperStyle = scrollReveal
     ? {
         opacity: 0.35 + proximity * 0.65,
-        transform: `translate3d(0, ${(1 - proximity) * 18}px, 0) scale(${1 + proximity * 0.08})`,
+        transform: `translate3d(0, ${(1 - proximity) * 18}px, 0) scale(${1 + proximity * 0.1})`,
       }
     : undefined;
 
