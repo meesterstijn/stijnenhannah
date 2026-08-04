@@ -26,7 +26,8 @@ import type {
 const NEXT_STATUS: Record<CocktailOrderStatus, CocktailOrderStatus | null> = {
   ordered: "in_progress",
   in_progress: "ready",
-  ready: null,
+  ready: "served",
+  served: null,
 };
 
 const COLUMNS: { status: CocktailOrderStatus; title: string }[] = [

@@ -13,6 +13,7 @@ export const ORDER_STATUS_LABELS: Record<CocktailOrderStatus, string> = {
   ordered: "Besteld",
   in_progress: "Bezig",
   ready: "Klaar",
+  served: "Geserveerd",
 };
 
 export type DashboardOrderSummary = {
@@ -215,7 +216,8 @@ export async function fetchDashboardStats(
       orders: orders.length,
       openOrders:
         (statusCounts.get("ordered") ?? 0) +
-        (statusCounts.get("in_progress") ?? 0),
+        (statusCounts.get("in_progress") ?? 0) +
+        (statusCounts.get("ready") ?? 0),
       highlights: highlights.length,
       activeHighlights: highlights.filter((h) => h.is_active).length,
     },
@@ -232,9 +234,9 @@ export async function fetchDashboardStats(
         }
       : null,
     averageFlavourProfile,
-    ordersByStatus: (["ordered", "in_progress", "ready"] as const).map(
-      (status) => ({ status, count: statusCounts.get(status) ?? 0 }),
-    ),
+    ordersByStatus: (
+      ["ordered", "in_progress", "ready", "served"] as const
+    ).map((status) => ({ status, count: statusCounts.get(status) ?? 0 })),
     recentOrders,
   };
 }

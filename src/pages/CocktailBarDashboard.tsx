@@ -8,6 +8,7 @@ import { CocktailDashboardFlavourOverview } from "@/features/cocktail-bar/compon
 import { CocktailDashboardOrdersByStatus } from "@/features/cocktail-bar/components/CocktailDashboardOrdersByStatus";
 import { CocktailDashboardRecentOrders } from "@/features/cocktail-bar/components/CocktailDashboardRecentOrders";
 import { CocktailDashboardHighlights } from "@/features/cocktail-bar/components/CocktailDashboardHighlights";
+import { CocktailDashboardCleanup } from "@/features/cocktail-bar/components/CocktailDashboardCleanup";
 import type { DashboardPeriod } from "@/features/cocktail-bar/lib/dashboard";
 
 export default function CocktailBarDashboard() {
@@ -55,6 +56,8 @@ export default function CocktailBarDashboard() {
               <CocktailDashboardRecentOrders stats={stats} />
             </div>
           </div>
+
+          <CocktailDashboardCleanup />
         </>
       )}
     </div>

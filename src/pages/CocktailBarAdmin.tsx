@@ -92,7 +92,7 @@ export default function CocktailBarAdmin() {
                   onClick={() => {
                     if (
                       window.confirm(
-                        `"${cocktail.name}" definitief verwijderen?`,
+                        `"${cocktail.name}" definitief verwijderen? Bijbehorende bestellingen worden ook verwijderd.`,
                       )
                     )
                       remove.mutate(cocktail.id);

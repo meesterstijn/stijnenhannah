@@ -77,4 +77,16 @@ export async function dismissReadyOnBigScreen(orderId: string): Promise<void> {
   if (error) throw error;
 }
 
+// Testbestellingen opruimen (dashboard, §9) — verwijdert alleen de
+// bestellingen zelf, nooit de cocktails waaruit gasten kiezen. Veilig: niets
+// anders verwijst met "on delete restrict" naar cocktail_orders.id
+// (cocktail_highlights.order_id staat op "on delete set null").
+export async function deleteOrders(orderIds: string[]): Promise<void> {
+  const { error } = await supabase
+    .from("cocktail_orders")
+    .delete()
+    .in("id", orderIds);
+  if (error) throw error;
+}
+
 export type { CocktailOrder };

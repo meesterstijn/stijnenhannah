@@ -1,5 +1,9 @@
 export type CocktailVariantType = "alcoholic" | "alcohol_free";
-export type CocktailOrderStatus = "ordered" | "in_progress" | "ready";
+export type CocktailOrderStatus =
+  | "ordered"
+  | "in_progress"
+  | "ready"
+  | "served";
 
 export type CocktailSpirit = {
   id: string;

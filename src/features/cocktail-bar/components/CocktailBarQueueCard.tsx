@@ -88,51 +88,62 @@ export function CocktailBarQueueCard({
         </p>
       )}
 
-      <div className="flex gap-1.5 pt-1">
-        {order.status === "ordered" && (
-          <button
-            type="button"
-            onClick={() => onAdvance(order.id)}
-            className="cb-button flex-1 rounded-full py-1.5 text-sm"
-          >
-            Begin bereiden
-          </button>
-        )}
-        {order.status === "in_progress" && (
-          <button
-            type="button"
-            onClick={() => onAdvance(order.id)}
-            className="cb-button flex-1 rounded-full py-1.5 text-sm"
-          >
-            Klaar
-          </button>
-        )}
+      <div className="flex flex-col gap-1.5 pt-1">
         {order.status === "ready" && (
-          <>
-            <button
-              type="button"
-              onClick={() => onExtend(order.id)}
-              className="cb-button-ghost flex-1 rounded-full py-1.5 text-sm"
-            >
-              Verlengen
-            </button>
-            <button
-              type="button"
-              onClick={() => onDismiss(order.id)}
-              className="cb-button-ghost flex-1 rounded-full py-1.5 text-sm"
-            >
-              Beëindigen
-            </button>
-          </>
+          <button
+            type="button"
+            onClick={() => onAdvance(order.id)}
+            className="cb-button rounded-full py-1.5 text-sm"
+          >
+            Serveren
+          </button>
         )}
-        <button
-          type="button"
-          onClick={() => onCreateHighlight(order)}
-          aria-label={`Persoonlijke presentatie maken voor ${order.guest_name}`}
-          className="cb-button-ghost rounded-full p-2"
-        >
-          <Sparkles className="h-4 w-4" />
-        </button>
+        <div className="flex gap-1.5">
+          {order.status === "ordered" && (
+            <button
+              type="button"
+              onClick={() => onAdvance(order.id)}
+              className="cb-button flex-1 rounded-full py-1.5 text-sm"
+            >
+              Begin bereiden
+            </button>
+          )}
+          {order.status === "in_progress" && (
+            <button
+              type="button"
+              onClick={() => onAdvance(order.id)}
+              className="cb-button flex-1 rounded-full py-1.5 text-sm"
+            >
+              Klaar
+            </button>
+          )}
+          {order.status === "ready" && (
+            <>
+              <button
+                type="button"
+                onClick={() => onExtend(order.id)}
+                className="cb-button-ghost flex-1 rounded-full py-1.5 text-sm"
+              >
+                Verlengen
+              </button>
+              <button
+                type="button"
+                onClick={() => onDismiss(order.id)}
+                className="cb-button-ghost flex-1 rounded-full py-1.5 text-sm"
+              >
+                Beëindigen
+              </button>
+            </>
+          )}
+          <button
+            type="button"
+            onClick={() => onCreateHighlight(order)}
+            aria-label={`Persoonlijke presentatie maken voor ${order.guest_name}`}
+            className="cb-button-ghost rounded-full p-2"
+          >
+            <Sparkles className="h-4 w-4" />
+          </button>
+        </div>
       </div>
     </div>
   );
