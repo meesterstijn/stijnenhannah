@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Loader2 } from "lucide-react";
+import { Loader2, Maximize, Minimize } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CocktailBarQueueCard } from "@/features/cocktail-bar/components/CocktailBarQueueCard";
 import { CocktailDetailDialog } from "@/features/cocktail-bar/components/CocktailDetailDialog";
 import { useCocktailShowcase } from "@/features/cocktail-bar/hooks/useCocktailShowcase";
+import { useFullscreen } from "@/features/cocktail-bar/hooks/useFullscreen";
 import {
   COCKTAIL_ORDER_QUEUE_QUERY_KEY,
   useCocktailBarOrderQueue,
@@ -42,6 +43,7 @@ export default function CocktailBarBereiden() {
   const [selectedCocktail, setSelectedCocktail] = useState<CocktailFull | null>(
     null,
   );
+  const { isFullscreen, toggle: toggleFullscreen } = useFullscreen();
 
   const cocktailsById = new Map(cocktails.map((c) => [c.id, c]));
 
@@ -86,6 +88,21 @@ export default function CocktailBarBereiden() {
 
   return (
     <div className="space-y-6">
+      <button
+        type="button"
+        onClick={toggleFullscreen}
+        aria-label={
+          isFullscreen ? "Volledig scherm verlaten" : "Volledig scherm"
+        }
+        className="cb-button-ghost fixed right-3 top-3 z-50 rounded-full p-2"
+      >
+        {isFullscreen ? (
+          <Minimize className="h-4 w-4" />
+        ) : (
+          <Maximize className="h-4 w-4" />
+        )}
+      </button>
+
       <h1 className="cb-heading font-serif text-3xl">Cocktails bereiden</h1>
 
       {isLoading ? (
