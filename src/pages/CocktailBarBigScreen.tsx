@@ -14,11 +14,13 @@ import { CocktailBigScreenHighlight } from "@/features/cocktail-bar/components/C
  * SiteLayout — zelfde reden als de R6 Big Screen-routes: geen navbar/"Ons
  * Huisje", fullscreen-geschikt. Logt in als owner (zie plan).
  *
- * Prioriteit uit plan §6: 1) actieve persoonlijke presentatie, 2) bestelling
- * "Bezig", 3) bestelling "Klaar" (binnen ready_display_seconds, niet
- * dismissed), 4) idle. De twee watch-hooks bepalen elk hun eigen prioriteit
- * onafhankelijk, deze pagina combineert ze door highlight altijd voorrang
- * te geven op een actieve bestelling.
+ * Prioriteit: 1) bestelling "Klaar" (binnen ready_display_seconds, niet
+ * dismissed), 2) actieve persoonlijke presentatie, 3) bestelling "Bezig",
+ * 4) idle. "Klaar" staat bewust bovenaan — dat is een kort, urgent moment
+ * voor een wachtende gast en moet altijd zichtbaar zijn, ook terwijl een
+ * presentatie loopt; zodra het klaar-scherm verdwijnt (tijd verstreken of
+ * dismissed) valt het vanzelf terug op de presentatie, die intussen actief
+ * is blijven staan.
  */
 export default function CocktailBarBigScreen() {
   const { data: cocktails = [] } = useCocktailShowcase();
@@ -30,6 +32,27 @@ export default function CocktailBarBigScreen() {
   const cocktailsById = new Map(cocktails.map((c) => [c.id, c]));
 
   function renderContent() {
+    const orderCocktail =
+      activeOrder.kind !== "none"
+        ? cocktailsById.get(activeOrder.order.cocktail_id)
+        : undefined;
+    const orderVariant =
+      activeOrder.kind !== "none"
+        ? orderCocktail?.variants.find(
+            (v) => v.id === activeOrder.order.variant_id,
+          )
+        : undefined;
+
+    if (activeOrder.kind === "ready") {
+      return (
+        <CocktailBigScreenReady
+          order={activeOrder.order}
+          cocktail={orderCocktail}
+          variant={orderVariant}
+        />
+      );
+    }
+
     if (activeHighlight) {
       return (
         <CocktailBigScreenHighlight
@@ -39,22 +62,12 @@ export default function CocktailBarBigScreen() {
       );
     }
 
-    if (activeOrder.kind !== "none") {
-      const cocktail = cocktailsById.get(activeOrder.order.cocktail_id);
-      const variant = cocktail?.variants.find(
-        (v) => v.id === activeOrder.order.variant_id,
-      );
-      return activeOrder.kind === "brewing" ? (
+    if (activeOrder.kind === "brewing") {
+      return (
         <CocktailBigScreenBrewing
           order={activeOrder.order}
-          cocktail={cocktail}
-          variant={variant}
-        />
-      ) : (
-        <CocktailBigScreenReady
-          order={activeOrder.order}
-          cocktail={cocktail}
-          variant={variant}
+          cocktail={orderCocktail}
+          variant={orderVariant}
         />
       );
     }

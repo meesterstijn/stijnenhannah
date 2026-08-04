@@ -20,6 +20,7 @@ import type {
   CocktailFull,
   CocktailOrder,
   CocktailOrderStatus,
+  CocktailVariantType,
 } from "@/features/cocktail-bar/types";
 
 const NEXT_STATUS: Record<CocktailOrderStatus, CocktailOrderStatus | null> = {
@@ -43,6 +44,12 @@ export default function CocktailBarBereiden() {
   const [selectedCocktail, setSelectedCocktail] = useState<CocktailFull | null>(
     null,
   );
+  // De daadwerkelijk bestelde variant — laat het detailvenster meteen op
+  // Alcoholvrij openen voor een alcoholvrije bestelling, i.p.v. altijd op
+  // "Origineel" te starten en dat handmatig te moeten omzetten.
+  const [selectedVariantType, setSelectedVariantType] = useState<
+    CocktailVariantType | undefined
+  >(undefined);
   const { isFullscreen, toggle: toggleFullscreen } = useFullscreen();
 
   const cocktailsById = new Map(cocktails.map((c) => [c.id, c]));
@@ -137,9 +144,11 @@ export default function CocktailBarBereiden() {
                         order={order}
                         cocktail={cocktail}
                         variant={variant}
-                        onSelect={() =>
-                          cocktail && setSelectedCocktail(cocktail)
-                        }
+                        onSelect={() => {
+                          if (!cocktail) return;
+                          setSelectedCocktail(cocktail);
+                          setSelectedVariantType(variant?.variant_type);
+                        }}
                         onAdvance={handleAdvance}
                         onExtend={(id) => extend.mutate(id)}
                         onDismiss={(id) => dismiss.mutate(id)}
@@ -157,6 +166,7 @@ export default function CocktailBarBereiden() {
       <CocktailDetailDialog
         cocktail={selectedCocktail}
         onClose={() => setSelectedCocktail(null)}
+        initialVariantType={selectedVariantType}
       />
     </div>
   );

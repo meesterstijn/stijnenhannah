@@ -3,16 +3,21 @@ import { Loader2, Martini } from "lucide-react";
 import { insertOrder } from "@/features/cocktail-bar/lib/orders";
 
 // Ingebed in CocktailDetailDialog wanneer mode="guest" (zie CocktailDetailDialog.tsx).
-// Na een succesvolle bestelling toont dit component zelf de bevestiging —
-// geen aparte pagina/route nodig voor "bedankt voor je bestelling".
+// Na een succesvolle bestelling toont dit component kort zelf de bevestiging
+// en sluit daarna automatisch het venster via onOrdered — de gast hoeft niet
+// zelf op het kruisje te klikken.
+const AUTO_CLOSE_DELAY_MS = 1500;
+
 export function CocktailOrderForm({
   cocktailId,
   variantId,
   cocktailName,
+  onOrdered,
 }: {
   cocktailId: string;
   variantId: string;
   cocktailName: string;
+  onOrdered: () => void;
 }) {
   const [guestName, setGuestName] = useState("");
   const [note, setNote] = useState("");
@@ -36,6 +41,7 @@ export function CocktailOrderForm({
         note: note.trim() || null,
       });
       setOrdered(true);
+      setTimeout(onOrdered, AUTO_CLOSE_DELAY_MS);
     } catch (err) {
       setError(
         err instanceof Error

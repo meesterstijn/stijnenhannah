@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { GlassWater, Percent, Sparkles, BookOpen, Martini } from "lucide-react";
 import {
   Dialog,
@@ -16,6 +16,7 @@ import { CocktailOrderForm } from "@/features/cocktail-bar/components/CocktailOr
 import type {
   CocktailFull,
   CocktailVariantFull,
+  CocktailVariantType,
 } from "@/features/cocktail-bar/types";
 
 // Neemt de al opgehaalde CocktailFull-data als prop aan i.p.v. zelf opnieuw
@@ -32,14 +33,26 @@ export function CocktailDetailDialog({
   cocktail,
   onClose,
   mode = "full",
+  initialVariantType,
 }: {
   cocktail: CocktailFull | null;
   onClose: () => void;
   mode?: "full" | "guest";
+  // Bereiden (fase 6) geeft hier de daadwerkelijk bestelde variant door, zodat
+  // een klik op een alcoholvrije bestelling meteen die variant opent i.p.v.
+  // altijd op "Origineel" te beginnen. Zonder deze prop (showcase/tablet) is
+  // "Origineel" altijd het startpunt — ook nadat een vorige keer bewust
+  // Alcoholvrij gekozen was, want dat mag niet blijven "plakken" op de
+  // volgende geopende cocktail.
+  initialVariantType?: CocktailVariantType;
 }) {
-  const [variantType, setVariantType] = useState<"alcoholic" | "alcohol_free">(
-    "alcoholic",
+  const [variantType, setVariantType] = useState<CocktailVariantType>(
+    initialVariantType ?? "alcoholic",
   );
+
+  useEffect(() => {
+    setVariantType(initialVariantType ?? "alcoholic");
+  }, [cocktail?.id, initialVariantType]);
 
   const alcoholicVariant =
     cocktail?.variants.find((v) => v.variant_type === "alcoholic") ?? null;
@@ -183,6 +196,7 @@ export function CocktailDetailDialog({
                   cocktailId={cocktail.id}
                   variantId={activeVariant.id}
                   cocktailName={cocktail.name}
+                  onOrdered={onClose}
                 />
               </div>
             )}
