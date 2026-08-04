@@ -1,8 +1,9 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
-import { Home, NotebookPen, ListTodo, Sprout } from "lucide-react";
+import { Home, NotebookPen, ListTodo, LogOut, Sprout } from "lucide-react";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { WeatherForecast } from "@/components/weather-forecast";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
 
 const nav = [
   { to: "/notities", label: "Notities", icon: NotebookPen },
@@ -41,6 +42,7 @@ export function SiteLayout() {
   // (showcase/beheer/bereiden/dashboard), die net als R6 hun eigen donkere
   // thema en een zwevende terug-link i.p.v. de volle navbalk willen.
   const isCocktailBar = pathname.startsWith("/cocktail-bar");
+  const isHome = pathname === "/";
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -50,7 +52,9 @@ export function SiteLayout() {
         // Cocktails/Beheer (cb-button-ghost, Playfair Display). Op R6 blijft
         // "Ons Huisje" ongewijzigd in zijn normale, sitewide stijl — dat is
         // hier niet gevraagd.
-        <div className={`fixed left-3 top-3 z-50 flex items-center gap-2 ${isCocktailBar ? "cocktail-theme" : ""}`}>
+        <div
+          className={`fixed left-3 top-3 z-50 flex items-center gap-2 ${isCocktailBar ? "cocktail-theme" : ""}`}
+        >
           <Link
             to="/"
             className={
@@ -60,7 +64,15 @@ export function SiteLayout() {
             }
           >
             <Home className={isCocktailBar ? "h-4 w-4" : "h-5 w-5"} />
-            <span className={isCocktailBar ? "text-xs font-semibold" : "tuin-font text-lg font-semibold"}>Ons Huisje</span>
+            <span
+              className={
+                isCocktailBar
+                  ? "text-xs font-semibold"
+                  : "tuin-font text-lg font-semibold"
+              }
+            >
+              Ons Huisje
+            </span>
           </Link>
           {isCocktailBar && (
             <nav className="flex items-center gap-1.5">
@@ -89,7 +101,13 @@ export function SiteLayout() {
               ) : (
                 <Home className="h-5 w-5" />
               )}
-              <span className={isTuinieren ? "sv-heading text-2xl" : "tuin-font text-xl font-semibold"}>
+              <span
+                className={
+                  isTuinieren
+                    ? "sv-heading text-2xl"
+                    : "tuin-font text-xl font-semibold"
+                }
+              >
                 {isTuinieren ? "Tuinieren" : "Ons Huisje"}
               </span>
             </Link>
@@ -117,16 +135,31 @@ export function SiteLayout() {
                         key={item.to}
                         to={item.to}
                         className={`flex items-center gap-2 px-3 py-2 rounded-full text-sm transition-colors ${
-                          pathname === item.to || pathname.startsWith(item.to + "/")
+                          pathname === item.to ||
+                          pathname.startsWith(item.to + "/")
                             ? "bg-primary text-primary-foreground shadow-sm"
                             : "text-muted-foreground hover:bg-secondary hover:text-foreground"
                         }`}
                       >
                         <Icon className="h-5 w-5" />
-                        <span className="hidden sm:inline text-base">{item.label}</span>
+                        <span className="hidden sm:inline text-base">
+                          {item.label}
+                        </span>
                       </Link>
                     );
                   })}
+                  {isHome && (
+                    <button
+                      type="button"
+                      onClick={() => supabase.auth.signOut()}
+                      className="flex items-center gap-2 px-3 py-2 rounded-full text-sm transition-colors text-muted-foreground hover:bg-secondary hover:text-foreground"
+                    >
+                      <LogOut className="h-5 w-5" />
+                      <span className="hidden sm:inline text-base">
+                        Uitloggen
+                      </span>
+                    </button>
+                  )}
                 </nav>
               )}
             </div>

@@ -1,11 +1,37 @@
-import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Loader2, Maximize, Minimize } from "lucide-react";
 import { CocktailHero } from "@/features/cocktail-bar/components/CocktailHero";
 import { CocktailCard } from "@/features/cocktail-bar/components/CocktailCard";
 import { CocktailDetailDialog } from "@/features/cocktail-bar/components/CocktailDetailDialog";
 import { useCocktailShowcase } from "@/features/cocktail-bar/hooks/useCocktailShowcase";
 import { useCocktailShowcaseRealtimeSync } from "@/features/cocktail-bar/hooks/useCocktailShowcaseRealtimeSync";
 import type { CocktailFull } from "@/features/cocktail-bar/types";
+
+// Losstaand hier i.p.v. een gedeelde hook: enige gebruiksplek, en een
+// tablet-kiosk is de enige plek in de app waar fullscreen relevant is.
+function useFullscreen() {
+  const [isFullscreen, setIsFullscreen] = useState(
+    () => !!document.fullscreenElement,
+  );
+
+  useEffect(() => {
+    function handleChange() {
+      setIsFullscreen(!!document.fullscreenElement);
+    }
+    document.addEventListener("fullscreenchange", handleChange);
+    return () => document.removeEventListener("fullscreenchange", handleChange);
+  }, []);
+
+  function toggle() {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      document.documentElement.requestFullscreen().catch(() => {});
+    }
+  }
+
+  return { isFullscreen, toggle };
+}
 
 // Buiten SiteLayout (net als de R6 Big Screen/Controller-routes): geen
 // navbar, geen "Ons Huisje", geen filters/favorieten/sorteren/zoeken — de
@@ -18,9 +44,25 @@ export default function CocktailBarTablet() {
   const [selectedCocktail, setSelectedCocktail] = useState<CocktailFull | null>(
     null,
   );
+  const { isFullscreen, toggle: toggleFullscreen } = useFullscreen();
 
   return (
     <div className="cocktail-theme min-h-screen px-4 pb-12 pt-4 sm:px-6">
+      <button
+        type="button"
+        onClick={toggleFullscreen}
+        aria-label={
+          isFullscreen ? "Volledig scherm verlaten" : "Volledig scherm"
+        }
+        className="cb-button-ghost fixed right-3 top-3 z-50 rounded-full p-2"
+      >
+        {isFullscreen ? (
+          <Minimize className="h-4 w-4" />
+        ) : (
+          <Maximize className="h-4 w-4" />
+        )}
+      </button>
+
       <div className="mx-auto max-w-5xl space-y-8">
         <CocktailHero />
 

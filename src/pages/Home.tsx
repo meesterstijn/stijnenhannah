@@ -155,12 +155,8 @@ function QuickCard({
         <Icon className="h-5 w-5" strokeWidth={1.6} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="sv-heading text-2xl leading-tight truncate">
-          {title}
-        </p>
-        <p className="text-xs sv-muted mt-0.5 leading-tight truncate">
-          {desc}
-        </p>
+        <p className="sv-heading text-2xl leading-tight truncate">{title}</p>
+        <p className="text-xs sv-muted mt-0.5 leading-tight truncate">{desc}</p>
       </div>
     </Link>
   );
