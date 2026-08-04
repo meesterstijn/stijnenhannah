@@ -26,7 +26,7 @@ export function CocktailHero() {
         <h1 className="cb-heading font-serif text-5xl sm:text-7xl">
           Cocktail Bar
         </h1>
-        <p className="cb-muted text-base sm:text-lg">door Hannah&Stijn.</p>
+        <p className="cb-muted text-base sm:text-lg">door Hannah & Stijn.</p>
       </div>
     </section>
   );
