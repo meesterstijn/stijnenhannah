@@ -23,8 +23,10 @@ export function CocktailHero() {
           opacity: 1 - fadeProgress,
         }}
       >
-        <h1 className="cb-heading font-serif text-5xl sm:text-7xl">Cocktail Bar</h1>
-        <p className="cb-muted text-base sm:text-lg">Handcrafted cocktails for unforgettable evenings.</p>
+        <h1 className="cb-heading font-serif text-5xl sm:text-7xl">
+          Cocktail Bar
+        </h1>
+        <p className="cb-muted text-base sm:text-lg">door Hannah&Stijn.</p>
       </div>
     </section>
   );
