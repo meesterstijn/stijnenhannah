@@ -3,6 +3,7 @@ import type {
   Cocktail,
   CocktailFull,
   CocktailVariantFull,
+  CocktailVariantType,
 } from "@/features/cocktail-bar/types";
 
 const COCKTAIL_COLUMNS = "id, name, tagline, backstory, photo_storage_path, is_published, created_by, created_at, updated_at";
@@ -101,6 +102,92 @@ export async function fetchPublishedCocktailsFull(): Promise<CocktailFull[]> {
     .order("name", { ascending: true });
   if (error) throw error;
   return ((data ?? []) as unknown as RawCocktailFullRow[]).map(mapCocktailFullRow);
+}
+
+// ─── Beheer (owner-only, fase 4) ────────────────────────────────────────────
+
+export async function createCocktail(input: { name: string; tagline: string; backstory: string | null }): Promise<Cocktail> {
+  const { data, error } = await supabase
+    .from("cocktails")
+    .insert({ name: input.name, tagline: input.tagline, backstory: input.backstory, is_published: false })
+    .select(COCKTAIL_COLUMNS)
+    .single();
+  if (error) throw error;
+  return data as Cocktail;
+}
+
+export async function updateCocktail(
+  cocktailId: string,
+  patch: Partial<Pick<Cocktail, "name" | "tagline" | "backstory" | "photo_storage_path" | "is_published">>,
+): Promise<void> {
+  const { error } = await supabase.from("cocktails").update(patch).eq("id", cocktailId);
+  if (error) throw error;
+}
+
+export async function setCocktailPublished(cocktailId: string, isPublished: boolean): Promise<void> {
+  await updateCocktail(cocktailId, { is_published: isPublished });
+}
+
+// on delete restrict op cocktail_orders/cocktail_variants -> cocktails: een
+// cocktail die al ooit besteld is (of nog variants heeft) kan niet zomaar
+// verwijderd worden. De DB-foutmelding (23503) wordt hier omgezet naar een
+// leesbare tekst i.p.v. de rauwe Postgres-foutcode door te geven.
+export async function deleteCocktail(cocktailId: string): Promise<void> {
+  const { error } = await supabase.from("cocktails").delete().eq("id", cocktailId);
+  if (error) {
+    if (error.code === "23503") {
+      throw new Error("Deze cocktail is al besteld of heeft nog gekoppelde gegevens en kan niet verwijderd worden. Zet 'm op concept in plaats daarvan.");
+    }
+    throw error;
+  }
+}
+
+export type SaveCocktailVariantInput = {
+  cocktailId: string;
+  variantType: CocktailVariantType;
+  glassTypeId: string | null;
+  spiritId: string | null;
+  garnishId: string | null;
+  abvPercent: number;
+  preparationSteps: string;
+  photoStoragePath: string | null;
+  sweetScore: number;
+  sourScore: number;
+  bitterScore: number;
+  freshScore: number;
+  strongScore: number;
+  ingredients: { ingredientId: string; amount: number; unit: string; note: string | null; sortOrder: number }[];
+};
+
+// Wrapper om de save_cocktail_variant-RPC (atomair: variant + smaakprofiel +
+// volledige ingrediëntenlijst in één transactie, zie
+// 20260818030000_cocktail_bar_save_variant_rpc.sql) — de wizard stuurt
+// steeds de complete actuele ingrediëntenlijst mee.
+export async function saveCocktailVariant(input: SaveCocktailVariantInput): Promise<string> {
+  const { data, error } = await supabase.rpc("save_cocktail_variant", {
+    p_cocktail_id: input.cocktailId,
+    p_variant_type: input.variantType,
+    p_glass_type_id: input.glassTypeId,
+    p_spirit_id: input.spiritId,
+    p_garnish_id: input.garnishId,
+    p_abv_percent: input.abvPercent,
+    p_preparation_steps: input.preparationSteps,
+    p_photo_storage_path: input.photoStoragePath,
+    p_sweet_score: input.sweetScore,
+    p_sour_score: input.sourScore,
+    p_bitter_score: input.bitterScore,
+    p_fresh_score: input.freshScore,
+    p_strong_score: input.strongScore,
+    p_ingredients: input.ingredients.map((i) => ({
+      ingredient_id: i.ingredientId,
+      amount: i.amount,
+      unit: i.unit,
+      note: i.note,
+      sort_order: i.sortOrder,
+    })),
+  });
+  if (error) throw error;
+  return data as string;
 }
 
 // De "hoofd"-variant voor kaartweergave/filtering: de alcoholische variant

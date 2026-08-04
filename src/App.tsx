@@ -40,6 +40,8 @@ const RainbowSixSiegeController = lazy(() => import("@/pages/RainbowSixSiegeCont
 const CocktailBarLayout = lazy(() => import("@/pages/CocktailBarLayout"));
 const CocktailBar = lazy(() => import("@/pages/CocktailBar"));
 const CocktailBarAdmin = lazy(() => import("@/pages/CocktailBarAdmin"));
+const CocktailBarWizard = lazy(() => import("@/pages/CocktailBarWizard"));
+const CocktailBarTablet = lazy(() => import("@/pages/CocktailBarTablet"));
 const TuingidsLayout = lazy(() => import("@/pages/tuingids/TuingidsLayout"));
 const TuingidsDashboard = lazy(() => import("@/pages/tuingids/TuingidsDashboard"));
 const TuingidsEncyclopedia = lazy(() => import("@/pages/tuingids/TuingidsEncyclopedia"));
@@ -141,6 +143,8 @@ function AppRoutes() {
             <Route path="/cocktail-bar" element={<CocktailBarLayout />}>
               <Route index element={<CocktailBar />} />
               <Route path="beheren" element={<CocktailBarAdmin />} />
+              <Route path="beheren/nieuw" element={<CocktailBarWizard />} />
+              <Route path="beheren/:id" element={<CocktailBarWizard />} />
             </Route>
             <Route path="/tuingids" element={<TuingidsLayout />}>
               <Route index element={<TuingidsDashboard />} />
@@ -169,6 +173,12 @@ function AppRoutes() {
               staan als Big Screen: geen navbar/"Ons Huisje", alleen de
               controller zelf, fullscreen-geschikt. */}
           <Route path="/rainbow-six-siege/lan/:sessionId/controller" element={<RainbowSixSiegeController />} />
+          {/* Tabletmodus voor de gedeelde cocktail_guest-rol — geen SiteLayout
+              (geen navbar/"Ons Huisje"/beheer), exact het patroon van de R6
+              Big Screen/Controller-routes hierboven. RequireAppAccess stuurt
+              cocktail_guest hier altijd naar terug, dus dit pad moet exact
+              overeenkomen met COCKTAIL_GUEST_PATH_PREFIX daar. */}
+          <Route path="/cocktail-bar/tablet" element={<CocktailBarTablet />} />
         </Routes>
       </Suspense>
     </RequireAppAccess>

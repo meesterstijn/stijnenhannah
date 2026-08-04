@@ -4,15 +4,23 @@ import type { CocktailVariantIngredientWithName } from "@/features/cocktail-bar/
 // Cocktail Bar -> Boodschappen-integratie. Raakt src/lib/history.ts /
 // parseItem() bewust NIET aan (dat blijft de bestaande "<qty>x <naam>"-
 // notatie voor Boodschappen/Weekmenu) — dit is een eigen, feature-lokaal
-// formaat: "<hoeveelheid> <eenheid> <naam>" (bv. "240 ml Limoensap"). Alleen
-// bestaande regels die ZELF exact dit patroon volgen komen in aanmerking om
-// mee samengevoegd te worden; een handmatig getypte regel als "2x limoen"
-// wordt nooit geherinterpreteerd of overschreven.
-const COCKTAIL_LINE_PATTERN = /^([\d.,]+)\s+(\S+)\s+(.+)$/;
+// formaat: "<hoeveelheid><eenheid> <naam>", bv. "100ml Vodka" (GEEN spatie
+// tussen getal en eenheid). Dat is bewust: Boodschappen.tsx rendert élke
+// regel via parseItem() en toont het resultaat met een generieke +/1-
+// stapteller (ItemRow, ongeacht wat voor regel het is). Met een spatie
+// ("100 ml Vodka") herkent diens prefix-regex "100" als een los, telbaar
+// aantal en wordt "ml Vodka" de weergegeven naam — de hoeveelheid verdwijnt
+// dan uit beeld achter een onzinnige "100"-teller. Zonder spatie matcht
+// parseItem() niets (geen \s+ direct na het getal) en valt terug op
+// qty=1/naam=hele string, dus de regel blijft gewoon leesbare platte tekst.
+// Alleen bestaande regels die ZELF exact dit patroon volgen komen in
+// aanmerking om mee samengevoegd te worden; een handmatig getypte regel als
+// "2x limoen" wordt nooit geherinterpreteerd of overschreven.
+const COCKTAIL_LINE_PATTERN = /^([\d.,]+)(\S+)\s+(.+)$/;
 
 function formatCocktailGroceryLine(amount: number, unit: string, name: string): string {
   const amountLabel = Number.isInteger(amount) ? String(amount) : amount.toFixed(1).replace(".", ",");
-  return `${amountLabel} ${unit} ${name}`;
+  return `${amountLabel}${unit} ${name}`;
 }
 
 function parseCocktailGroceryLine(text: string): { amount: number; unit: string; name: string } | null {
