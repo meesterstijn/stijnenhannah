@@ -25,6 +25,11 @@ import { WizardStepPublish } from "@/features/cocktail-bar/components/wizard-ste
 import type { CocktailFull } from "@/features/cocktail-bar/types";
 
 export type IngredientRowDraft = {
+  // Alleen een lokale sleutel om te kunnen verslepen/herordenen (dnd-kit
+  // heeft een stabiele id per rij nodig) — heeft niets te maken met het
+  // opgeslagen ingredient_id, dat wordt pas bij opslaan via de naam
+  // opgezocht/aangemaakt (zie resolveIngredients hieronder).
+  id: string;
   name: string;
   amount: string;
   unit: string;
@@ -121,6 +126,7 @@ function variantFromCocktail(
     freshScore: v.flavour_profile?.fresh_score ?? 0,
     strongScore: v.flavour_profile?.strong_score ?? 0,
     ingredients: v.ingredients.map((i) => ({
+      id: crypto.randomUUID(),
       name: i.ingredient_name,
       amount: String(i.amount),
       unit: i.unit,
@@ -149,8 +155,11 @@ function stateFromCocktail(cocktail: CocktailFull): WizardState {
 // Eén ingredientnaam -> ingredient_id opzoeken/aanmaken (createIngredient
 // doet zelf al "maak aan, of geef de bestaande terug" bij een botsende CI-
 // unique naam, zie lib/reference.ts) en de rij omzetten naar het formaat dat
-// saveCocktailVariant/de RPC verwacht. Regels zonder naam of hoeveelheid
-// worden overgeslagen (leeg tussenrijtje tijdens het typen).
+// saveCocktailVariant/de RPC verwacht. Een helemaal leeg tussenrijtje (net
+// met "Ingrediënt toevoegen" aangemaakt, nog niks ingevuld) wordt stilzwijgend
+// overgeslagen — maar een rij mét naam en een hoeveelheid die niet als getal
+// leesbaar is (bv. "60/90" i.p.v. "60") gooit nu een duidelijke foutmelding
+// i.p.v. diezelfde rij stilzwijgend te laten verdwijnen bij het opslaan.
 async function resolveIngredients(rows: IngredientRowDraft[]) {
   const resolved: {
     ingredientId: string;
@@ -162,14 +171,29 @@ async function resolveIngredients(rows: IngredientRowDraft[]) {
   let sortOrder = 0;
   for (const row of rows) {
     const name = row.name.trim();
+    const unit = row.unit.trim();
+    if (!name && !row.amount.trim() && !unit) continue;
+
+    if (!name) {
+      throw new Error(
+        `Ingrediëntregel met hoeveelheid "${row.amount}" heeft geen naam.`,
+      );
+    }
     const amount = Number(row.amount.replace(",", "."));
-    if (!name || !Number.isFinite(amount) || amount <= 0 || !row.unit.trim())
-      continue;
-    const ingredient = await createIngredient(name, row.unit.trim());
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new Error(
+        `Ongeldige hoeveelheid bij "${name}": "${row.amount}". Gebruik een getal, bijvoorbeeld 60 of 12,5.`,
+      );
+    }
+    if (!unit) {
+      throw new Error(`Geen eenheid ingevuld bij "${name}".`);
+    }
+
+    const ingredient = await createIngredient(name, unit);
     resolved.push({
       ingredientId: ingredient.id,
       amount,
-      unit: row.unit.trim(),
+      unit,
       note: row.note.trim() || null,
       sortOrder: sortOrder++,
     });
