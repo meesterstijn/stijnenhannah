@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { optimizeGrowthPhoto } from "@/features/tuingids/lib/optimizeGrowthPhoto";
 import {
@@ -7,7 +8,10 @@ import {
   saveCocktailVariant,
   updateCocktail,
 } from "@/features/cocktail-bar/lib/cocktails";
-import { createGarnish, createIngredient } from "@/features/cocktail-bar/lib/reference";
+import {
+  createGarnish,
+  createIngredient,
+} from "@/features/cocktail-bar/lib/reference";
 import { uploadCocktailPhoto } from "@/features/cocktail-bar/lib/cocktailPhotoStorage";
 import { WizardStepBasicInfo } from "@/features/cocktail-bar/components/wizard-steps/WizardStepBasicInfo";
 import { WizardStepPhoto } from "@/features/cocktail-bar/components/wizard-steps/WizardStepPhoto";
@@ -20,7 +24,12 @@ import { WizardStepPreview } from "@/features/cocktail-bar/components/wizard-ste
 import { WizardStepPublish } from "@/features/cocktail-bar/components/wizard-steps/WizardStepPublish";
 import type { CocktailFull } from "@/features/cocktail-bar/types";
 
-export type IngredientRowDraft = { name: string; amount: string; unit: string; note: string };
+export type IngredientRowDraft = {
+  name: string;
+  amount: string;
+  unit: string;
+  note: string;
+};
 
 export type VariantDraft = {
   glassTypeId: string | null;
@@ -94,7 +103,10 @@ function emptyState(): WizardState {
   };
 }
 
-function variantFromCocktail(cocktail: CocktailFull, type: "alcoholic" | "alcohol_free"): VariantDraft {
+function variantFromCocktail(
+  cocktail: CocktailFull,
+  type: "alcoholic" | "alcohol_free",
+): VariantDraft {
   const v = cocktail.variants.find((variant) => variant.variant_type === type);
   if (!v) return emptyVariant();
   return {
@@ -126,7 +138,9 @@ function stateFromCocktail(cocktail: CocktailFull): WizardState {
     photoFile: null,
     existingPhotoPath: cocktail.photo_storage_path,
     alcoholic: variantFromCocktail(cocktail, "alcoholic"),
-    hasAlcoholFree: cocktail.variants.some((v) => v.variant_type === "alcohol_free"),
+    hasAlcoholFree: cocktail.variants.some(
+      (v) => v.variant_type === "alcohol_free",
+    ),
     alcoholFree: variantFromCocktail(cocktail, "alcohol_free"),
     isPublished: cocktail.is_published,
   };
@@ -138,14 +152,27 @@ function stateFromCocktail(cocktail: CocktailFull): WizardState {
 // saveCocktailVariant/de RPC verwacht. Regels zonder naam of hoeveelheid
 // worden overgeslagen (leeg tussenrijtje tijdens het typen).
 async function resolveIngredients(rows: IngredientRowDraft[]) {
-  const resolved: { ingredientId: string; amount: number; unit: string; note: string | null; sortOrder: number }[] = [];
+  const resolved: {
+    ingredientId: string;
+    amount: number;
+    unit: string;
+    note: string | null;
+    sortOrder: number;
+  }[] = [];
   let sortOrder = 0;
   for (const row of rows) {
     const name = row.name.trim();
     const amount = Number(row.amount.replace(",", "."));
-    if (!name || !Number.isFinite(amount) || amount <= 0 || !row.unit.trim()) continue;
+    if (!name || !Number.isFinite(amount) || amount <= 0 || !row.unit.trim())
+      continue;
     const ingredient = await createIngredient(name, row.unit.trim());
-    resolved.push({ ingredientId: ingredient.id, amount, unit: row.unit.trim(), note: row.note.trim() || null, sortOrder: sortOrder++ });
+    resolved.push({
+      ingredientId: ingredient.id,
+      amount,
+      unit: row.unit.trim(),
+      note: row.note.trim() || null,
+      sortOrder: sortOrder++,
+    });
   }
   return resolved;
 }
@@ -157,10 +184,17 @@ async function resolveIngredients(rows: IngredientRowDraft[]) {
  * wordt gedrukt). Nieuw ÉN bewerken lopen door dezelfde component: bij
  * bewerken wordt de state voorgevuld vanuit de al opgehaalde CocktailFull.
  */
-export function CocktailWizard({ existingCocktail }: { existingCocktail: CocktailFull | null }) {
+export function CocktailWizard({
+  existingCocktail,
+}: {
+  existingCocktail: CocktailFull | null;
+}) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [step, setStep] = useState(1);
-  const [state, setState] = useState<WizardState>(() => (existingCocktail ? stateFromCocktail(existingCocktail) : emptyState()));
+  const [state, setState] = useState<WizardState>(() =>
+    existingCocktail ? stateFromCocktail(existingCocktail) : emptyState(),
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -168,7 +202,10 @@ export function CocktailWizard({ existingCocktail }: { existingCocktail: Cocktai
     if (existingCocktail) setState(stateFromCocktail(existingCocktail));
   }, [existingCocktail]);
 
-  const canProceedFromBasicInfo = state.name.trim().length > 0 && state.tagline.trim().length > 0 && !!state.alcoholic.spiritId;
+  const canProceedFromBasicInfo =
+    state.name.trim().length > 0 &&
+    state.tagline.trim().length > 0 &&
+    !!state.alcoholic.spiritId;
 
   async function handleSave(publish: boolean) {
     setIsSaving(true);
@@ -183,7 +220,11 @@ export function CocktailWizard({ existingCocktail }: { existingCocktail: Cocktai
         // 20260818040000_cocktail_bar_photos_storage.sql, die het eerste
         // padsegment tegen een bestaande cocktails-rij controleert).
         if (!cocktailId) {
-          const created = await createCocktail({ name: state.name.trim(), tagline: state.tagline.trim(), backstory: state.backstory.trim() || null });
+          const created = await createCocktail({
+            name: state.name.trim(),
+            tagline: state.tagline.trim(),
+            backstory: state.backstory.trim() || null,
+          });
           cocktailId = created.id;
         }
         const optimized = await optimizeGrowthPhoto(state.photoFile);
@@ -192,7 +233,11 @@ export function CocktailWizard({ existingCocktail }: { existingCocktail: Cocktai
       }
 
       if (!cocktailId) {
-        const created = await createCocktail({ name: state.name.trim(), tagline: state.tagline.trim(), backstory: state.backstory.trim() || null });
+        const created = await createCocktail({
+          name: state.name.trim(),
+          tagline: state.tagline.trim(),
+          backstory: state.backstory.trim() || null,
+        });
         cocktailId = created.id;
       } else {
         await updateCocktail(cocktailId, {
@@ -203,8 +248,12 @@ export function CocktailWizard({ existingCocktail }: { existingCocktail: Cocktai
         });
       }
 
-      const alcoholicGarnish = state.alcoholic.garnishName.trim() ? await createGarnish(state.alcoholic.garnishName) : null;
-      const alcoholicIngredients = await resolveIngredients(state.alcoholic.ingredients);
+      const alcoholicGarnish = state.alcoholic.garnishName.trim()
+        ? await createGarnish(state.alcoholic.garnishName)
+        : null;
+      const alcoholicIngredients = await resolveIngredients(
+        state.alcoholic.ingredients,
+      );
       await saveCocktailVariant({
         cocktailId,
         variantType: "alcoholic",
@@ -223,8 +272,12 @@ export function CocktailWizard({ existingCocktail }: { existingCocktail: Cocktai
       });
 
       if (state.hasAlcoholFree) {
-        const alcoholFreeGarnish = state.alcoholFree.garnishName.trim() ? await createGarnish(state.alcoholFree.garnishName) : null;
-        const alcoholFreeIngredients = await resolveIngredients(state.alcoholFree.ingredients);
+        const alcoholFreeGarnish = state.alcoholFree.garnishName.trim()
+          ? await createGarnish(state.alcoholFree.garnishName)
+          : null;
+        const alcoholFreeIngredients = await resolveIngredients(
+          state.alcoholFree.ingredients,
+        );
         await saveCocktailVariant({
           cocktailId,
           variantType: "alcohol_free",
@@ -244,9 +297,29 @@ export function CocktailWizard({ existingCocktail }: { existingCocktail: Cocktai
       }
 
       await updateCocktail(cocktailId, { is_published: publish });
+
+      // Zonder dit blijven de Beheer-lijst, de showcase/Tabletmodus én dit
+      // cocktail-detail (bij opnieuw bewerken) de oude, gecachte waarden
+      // tonen totdat er toevallig ergens anders al een refetch gebeurt —
+      // andere mutaties in de app (bv. CocktailBarAdmin.tsx) invalideren wel
+      // altijd expliciet, dit deed het nog niet.
+      queryClient.invalidateQueries({
+        queryKey: ["cocktail_bar", "cocktails", "all"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["cocktail_bar", "cocktails", "published_full"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["cocktail_bar", "cocktail", cocktailId],
+      });
+
       navigate("/cocktail-bar/beheren");
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "Opslaan mislukt. Probeer het opnieuw.");
+      setSaveError(
+        err instanceof Error
+          ? err.message
+          : "Opslaan mislukt. Probeer het opnieuw.",
+      );
     } finally {
       setIsSaving(false);
     }
@@ -259,11 +332,26 @@ export function CocktailWizard({ existingCocktail }: { existingCocktail: Cocktai
       case 2:
         return <WizardStepPhoto state={state} setState={setState} />;
       case 3:
-        return <WizardStepFlavourProfile variant={state.alcoholic} onChange={(v) => setState((s) => ({ ...s, alcoholic: v }))} />;
+        return (
+          <WizardStepFlavourProfile
+            variant={state.alcoholic}
+            onChange={(v) => setState((s) => ({ ...s, alcoholic: v }))}
+          />
+        );
       case 4:
-        return <WizardStepIngredients variant={state.alcoholic} onChange={(v) => setState((s) => ({ ...s, alcoholic: v }))} />;
+        return (
+          <WizardStepIngredients
+            variant={state.alcoholic}
+            onChange={(v) => setState((s) => ({ ...s, alcoholic: v }))}
+          />
+        );
       case 5:
-        return <WizardStepPreparation variant={state.alcoholic} onChange={(v) => setState((s) => ({ ...s, alcoholic: v }))} />;
+        return (
+          <WizardStepPreparation
+            variant={state.alcoholic}
+            onChange={(v) => setState((s) => ({ ...s, alcoholic: v }))}
+          />
+        );
       case 6:
         return <WizardStepBackstory state={state} setState={setState} />;
       case 7:
@@ -283,7 +371,9 @@ export function CocktailWizard({ existingCocktail }: { existingCocktail: Cocktai
         <p className="cb-muted text-xs uppercase tracking-wide">
           Stap {step} van {TOTAL_STEPS} — {STEP_LABELS[step - 1]}
         </p>
-        <h1 className="cb-heading font-serif text-3xl">{existingCocktail ? "Cocktail bewerken" : "Nieuwe cocktail"}</h1>
+        <h1 className="cb-heading font-serif text-3xl">
+          {existingCocktail ? "Cocktail bewerken" : "Nieuwe cocktail"}
+        </h1>
       </div>
 
       {renderStep()}
@@ -317,7 +407,8 @@ export function CocktailWizard({ existingCocktail }: { existingCocktail: Cocktai
               disabled={isSaving}
               className="cb-button-ghost flex items-center gap-2 rounded-full px-4 py-2 text-sm"
             >
-              {isSaving && <Loader2 className="h-4 w-4 animate-spin" />} Concept opslaan
+              {isSaving && <Loader2 className="h-4 w-4 animate-spin" />} Concept
+              opslaan
             </button>
             <button
               type="button"
@@ -325,7 +416,8 @@ export function CocktailWizard({ existingCocktail }: { existingCocktail: Cocktai
               disabled={isSaving}
               className="cb-button flex items-center gap-2 rounded-full px-5 py-2 text-sm"
             >
-              {isSaving && <Loader2 className="h-4 w-4 animate-spin" />} Publiceren
+              {isSaving && <Loader2 className="h-4 w-4 animate-spin" />}{" "}
+              Publiceren
             </button>
           </div>
         )}
