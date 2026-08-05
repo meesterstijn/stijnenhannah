@@ -54,14 +54,14 @@ export function SiteLayout() {
         // "Ons Huisje" ongewijzigd in zijn normale, sitewide stijl — dat is
         // hier niet gevraagd.
         <div
-          className={`fixed left-3 top-3 z-50 flex items-center gap-2 ${isCocktailBar ? "cocktail-theme" : ""}`}
+          className={`fixed left-3 top-3 z-50 flex max-w-[calc(100vw-1.5rem)] items-center gap-2 overflow-x-auto ${isCocktailBar ? "cocktail-theme" : ""}`}
         >
           <Link
             to="/"
             className={
               isCocktailBar
-                ? "cb-button-ghost flex items-center gap-1.5 rounded-full px-3 py-1"
-                : "flex items-center gap-2 rounded-full bg-background/80 px-3 py-1.5 shadow-sm backdrop-blur-sm group"
+                ? "cb-button-ghost flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1"
+                : "flex shrink-0 items-center gap-2 rounded-full bg-background/80 px-3 py-1.5 shadow-sm backdrop-blur-sm group"
             }
           >
             <Home className={isCocktailBar ? "h-4 w-4" : "h-5 w-5"} />
@@ -76,14 +76,14 @@ export function SiteLayout() {
             </span>
           </Link>
           {isCocktailBar && (
-            <nav className="flex items-center gap-1.5">
+            <nav className="flex shrink-0 items-center gap-1.5">
               {cocktailBarNav.map((item) => {
                 const active = pathname === item.to;
                 return (
                   <Link
                     key={item.to}
                     to={item.to}
-                    className={`rounded-full px-3 py-1 text-xs whitespace-nowrap ${active ? "cb-button" : "cb-button-ghost"}`}
+                    className={`shrink-0 rounded-full px-3 py-1 text-xs whitespace-nowrap ${active ? "cb-button" : "cb-button-ghost"}`}
                   >
                     {item.label}
                   </Link>
