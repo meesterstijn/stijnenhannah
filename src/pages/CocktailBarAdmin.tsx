@@ -63,8 +63,12 @@ export default function CocktailBarAdmin() {
               <div className="min-w-0">
                 <p className="cb-heading font-serif text-xl">{cocktail.name}</p>
                 <p className="cb-muted truncate text-sm">{cocktail.tagline}</p>
-                <span className="cb-badge mt-1 inline-flex">
-                  {cocktail.is_published ? "Gepubliceerd" : "Concept"}
+                <span
+                  className={`cb-badge mt-1 inline-flex ${
+                    cocktail.is_published ? "cb-badge-live" : "cb-badge-draft"
+                  }`}
+                >
+                  {cocktail.is_published ? "Live" : "Niet live"}
                 </span>
               </div>
               <div className="flex shrink-0 items-center gap-1.5">
@@ -83,9 +87,11 @@ export default function CocktailBarAdmin() {
                     })
                   }
                   disabled={togglePublish.isPending}
-                  className="cb-button-ghost rounded-full px-3 py-1.5 text-sm"
+                  className={`cb-button-ghost rounded-full px-3 py-1.5 text-sm ${
+                    cocktail.is_published ? "cb-button-draft" : "cb-button-live"
+                  }`}
                 >
-                  {cocktail.is_published ? "Naar concept" : "Publiceren"}
+                  {cocktail.is_published ? "Niet live maken" : "Live zetten"}
                 </button>
                 <button
                   type="button"

@@ -757,6 +757,36 @@ body:has(.cocktail-theme) {
   background: oklch(0.75 0.15 60 / 0.08);
 }
 
+.cocktail-theme .cb-badge-live {
+  border-color: oklch(0.6 0.14 145 / 0.35);
+  background: oklch(0.6 0.14 145 / 0.14);
+  color: oklch(0.78 0.14 145);
+}
+
+.cocktail-theme .cb-badge-draft {
+  border-color: oklch(0.62 0.17 25 / 0.35);
+  background: oklch(0.62 0.17 25 / 0.14);
+  color: oklch(0.75 0.16 25);
+}
+
+.cocktail-theme .cb-button-live {
+  border-color: oklch(0.6 0.14 145 / 0.45) !important;
+  color: oklch(0.78 0.14 145) !important;
+}
+
+.cocktail-theme .cb-button-live:hover {
+  background: oklch(0.6 0.14 145 / 0.12);
+}
+
+.cocktail-theme .cb-button-draft {
+  border-color: oklch(0.62 0.17 25 / 0.45) !important;
+  color: oklch(0.75 0.16 25) !important;
+}
+
+.cocktail-theme .cb-button-draft:hover {
+  background: oklch(0.62 0.17 25 / 0.12);
+}
+
 .cocktail-theme input,
 .cocktail-theme textarea,
 .cocktail-theme select {
