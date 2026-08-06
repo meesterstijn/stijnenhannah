@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Snowflake } from "lucide-react";
 import {
   fetchCocktailGarnishes,
   fetchCocktailGlassTypes,
@@ -44,12 +45,15 @@ export function WizardStepPreparation({
               </option>
             ))}
           </select>
+          <label className="cb-muted flex items-center gap-1 text-xs">
+            <Snowflake className="h-3 w-3" /> IJs in dit glas
+          </label>
           <input
             value={variant.glassNote}
             onChange={(e) =>
               onChange({ ...variant, glassNote: e.target.value })
             }
-            placeholder="notitie (bijv. met crushed ice)"
+            placeholder="bijv. crushed ice / 3 grote ijsblokken / geen ijs"
             className="w-full rounded-lg px-3 py-1.5 text-xs"
           />
         </div>
@@ -71,12 +75,15 @@ export function WizardStepPreparation({
               </option>
             ))}
           </select>
+          <label className="cb-muted flex items-center gap-1 text-xs">
+            <Snowflake className="h-3 w-3" /> IJs in dit glas
+          </label>
           <input
             value={variant.glassNote2}
             onChange={(e) =>
               onChange({ ...variant, glassNote2: e.target.value })
             }
-            placeholder="notitie (bijv. zonder ijs)"
+            placeholder="bijv. crushed ice / 3 grote ijsblokken / geen ijs"
             className="w-full rounded-lg px-3 py-1.5 text-xs"
           />
         </div>
@@ -119,13 +126,18 @@ export function WizardStepPreparation({
         <label className="cb-muted text-xs uppercase tracking-wide">
           Bereidingswijze
         </label>
+        <p className="cb-muted text-xs">
+          Zet het ijs dat je tijdens het shaken/roeren gebruikt hier in de
+          bereiding — niet bij de ingrediënten. Het ijs waarmee je serveert
+          zet je bij "IJs in dit glas" hierboven.
+        </p>
         <textarea
           value={variant.preparationSteps}
           onChange={(e) =>
             onChange({ ...variant, preparationSteps: e.target.value })
           }
           rows={4}
-          placeholder="Beschrijf stap voor stap hoe de cocktail gemaakt wordt..."
+          placeholder="bijv. Shake alle ingrediënten met 6-8 ijsblokjes gedurende 15 seconden, zeef in het glas..."
           className="w-full resize-none rounded-lg px-3 py-2 text-sm"
         />
       </div>
