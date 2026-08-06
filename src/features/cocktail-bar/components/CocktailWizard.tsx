@@ -20,6 +20,7 @@ import { WizardStepIngredients } from "@/features/cocktail-bar/components/wizard
 import { WizardStepPreparation } from "@/features/cocktail-bar/components/wizard-steps/WizardStepPreparation";
 import { WizardStepBackstory } from "@/features/cocktail-bar/components/wizard-steps/WizardStepBackstory";
 import { WizardStepAlcoholFree } from "@/features/cocktail-bar/components/wizard-steps/WizardStepAlcoholFree";
+import { WizardStepVariant2 } from "@/features/cocktail-bar/components/wizard-steps/WizardStepVariant2";
 import { WizardStepPreview } from "@/features/cocktail-bar/components/wizard-steps/WizardStepPreview";
 import { WizardStepPublish } from "@/features/cocktail-bar/components/wizard-steps/WizardStepPublish";
 import type { CocktailFull } from "@/features/cocktail-bar/types";
@@ -38,6 +39,9 @@ export type IngredientRowDraft = {
 
 export type VariantDraft = {
   glassTypeId: string | null;
+  glassNote: string;
+  glassTypeId2: string | null;
+  glassNote2: string;
   spiritId: string | null;
   garnishName: string;
   abvPercent: string;
@@ -58,12 +62,14 @@ export type WizardState = {
   photoFile: File | null;
   existingPhotoPath: string | null;
   alcoholic: VariantDraft;
+  hasVariant2: boolean;
+  variant2: VariantDraft;
   hasAlcoholFree: boolean;
   alcoholFree: VariantDraft;
   isPublished: boolean;
 };
 
-export const TOTAL_STEPS = 9;
+export const TOTAL_STEPS = 10;
 
 const STEP_LABELS = [
   "Basisinformatie",
@@ -72,6 +78,7 @@ const STEP_LABELS = [
   "Ingrediënten",
   "Bereiding",
   "Achtergrondverhaal",
+  "2e variant",
   "Alcoholvrije variant",
   "Voorbeeld",
   "Publiceren",
@@ -80,6 +87,9 @@ const STEP_LABELS = [
 function emptyVariant(): VariantDraft {
   return {
     glassTypeId: null,
+    glassNote: "",
+    glassTypeId2: null,
+    glassNote2: "",
     spiritId: null,
     garnishName: "",
     abvPercent: "",
@@ -102,6 +112,8 @@ function emptyState(): WizardState {
     photoFile: null,
     existingPhotoPath: null,
     alcoholic: emptyVariant(),
+    hasVariant2: false,
+    variant2: emptyVariant(),
     hasAlcoholFree: false,
     alcoholFree: emptyVariant(),
     isPublished: false,
@@ -110,12 +122,15 @@ function emptyState(): WizardState {
 
 function variantFromCocktail(
   cocktail: CocktailFull,
-  type: "alcoholic" | "alcohol_free",
+  type: "alcoholic" | "alcohol_free" | "alcoholic_variant",
 ): VariantDraft {
   const v = cocktail.variants.find((variant) => variant.variant_type === type);
   if (!v) return emptyVariant();
   return {
     glassTypeId: v.glass_type_id,
+    glassNote: v.glass_note ?? "",
+    glassTypeId2: v.glass_type_id_2,
+    glassNote2: v.glass_note_2 ?? "",
     spiritId: v.spirit_id,
     garnishName: v.garnish?.name ?? "",
     abvPercent: String(v.abv_percent),
@@ -144,6 +159,10 @@ function stateFromCocktail(cocktail: CocktailFull): WizardState {
     photoFile: null,
     existingPhotoPath: cocktail.photo_storage_path,
     alcoholic: variantFromCocktail(cocktail, "alcoholic"),
+    hasVariant2: cocktail.variants.some(
+      (v) => v.variant_type === "alcoholic_variant",
+    ),
+    variant2: variantFromCocktail(cocktail, "alcoholic_variant"),
     hasAlcoholFree: cocktail.variants.some(
       (v) => v.variant_type === "alcohol_free",
     ),
@@ -283,6 +302,9 @@ export function CocktailWizard({
         cocktailId,
         variantType: "alcoholic",
         glassTypeId: state.alcoholic.glassTypeId,
+        glassNote: state.alcoholic.glassNote.trim() || null,
+        glassTypeId2: state.alcoholic.glassTypeId2,
+        glassNote2: state.alcoholic.glassNote2.trim() || null,
         spiritId: state.alcoholic.spiritId,
         garnishId: alcoholicGarnish?.id ?? null,
         abvPercent: Number(state.alcoholic.abvPercent.replace(",", ".")) || 0,
@@ -296,6 +318,34 @@ export function CocktailWizard({
         ingredients: alcoholicIngredients,
       });
 
+      if (state.hasVariant2) {
+        const variant2Garnish = state.variant2.garnishName.trim()
+          ? await createGarnish(state.variant2.garnishName)
+          : null;
+        const variant2Ingredients = await resolveIngredients(
+          state.variant2.ingredients,
+        );
+        await saveCocktailVariant({
+          cocktailId,
+          variantType: "alcoholic_variant",
+          glassTypeId: state.variant2.glassTypeId,
+          glassNote: state.variant2.glassNote.trim() || null,
+          glassTypeId2: state.variant2.glassTypeId2,
+          glassNote2: state.variant2.glassNote2.trim() || null,
+          spiritId: state.variant2.spiritId,
+          garnishId: variant2Garnish?.id ?? null,
+          abvPercent: Number(state.variant2.abvPercent.replace(",", ".")) || 0,
+          preparationSteps: state.variant2.preparationSteps.trim(),
+          photoStoragePath: state.variant2.existingPhotoPath,
+          sweetScore: state.variant2.sweetScore,
+          sourScore: state.variant2.sourScore,
+          bitterScore: state.variant2.bitterScore,
+          freshScore: state.variant2.freshScore,
+          strongScore: state.variant2.strongScore,
+          ingredients: variant2Ingredients,
+        });
+      }
+
       if (state.hasAlcoholFree) {
         const alcoholFreeGarnish = state.alcoholFree.garnishName.trim()
           ? await createGarnish(state.alcoholFree.garnishName)
@@ -307,6 +357,9 @@ export function CocktailWizard({
           cocktailId,
           variantType: "alcohol_free",
           glassTypeId: state.alcoholFree.glassTypeId,
+          glassNote: state.alcoholFree.glassNote.trim() || null,
+          glassTypeId2: state.alcoholFree.glassTypeId2,
+          glassNote2: state.alcoholFree.glassNote2.trim() || null,
           spiritId: null,
           garnishId: alcoholFreeGarnish?.id ?? null,
           abvPercent: 0,
@@ -380,10 +433,12 @@ export function CocktailWizard({
       case 6:
         return <WizardStepBackstory state={state} setState={setState} />;
       case 7:
-        return <WizardStepAlcoholFree state={state} setState={setState} />;
+        return <WizardStepVariant2 state={state} setState={setState} />;
       case 8:
-        return <WizardStepPreview state={state} />;
+        return <WizardStepAlcoholFree state={state} setState={setState} />;
       case 9:
+        return <WizardStepPreview state={state} />;
+      case 10:
         return <WizardStepPublish state={state} setState={setState} />;
       default:
         return null;

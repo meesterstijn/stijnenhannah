@@ -1,4 +1,10 @@
-export type CocktailVariantType = "alcoholic" | "alcohol_free";
+// alcoholic_variant is een optioneel DERDE, vast slot ("Variant" in het
+// detailvenster) — geen vrije/oneindige variantenlijst, zie
+// 20260823000000_cocktail_bar_variant_2.sql.
+export type CocktailVariantType =
+  | "alcoholic"
+  | "alcohol_free"
+  | "alcoholic_variant";
 export type CocktailOrderStatus =
   | "ordered"
   | "in_progress"
@@ -49,6 +55,12 @@ export type CocktailVariant = {
   cocktail_id: string;
   variant_type: CocktailVariantType;
   glass_type_id: string | null;
+  // Klein notitieveld per glas (bv. ijs-aanwijzingen: "met crushed ice").
+  // glass_type_id_2/glass_note_2 zijn een optioneel TWEEDE, vast glas-slot,
+  // geen variabele lijst — zie 20260822000000_cocktail_bar_second_glass.sql.
+  glass_note: string | null;
+  glass_type_id_2: string | null;
+  glass_note_2: string | null;
   spirit_id: string | null;
   garnish_id: string | null;
   abv_percent: number;
@@ -95,6 +107,7 @@ export type CocktailVariantFull = CocktailVariant & {
   ingredients: CocktailVariantIngredientWithName[];
   spirit: CocktailSpirit | null;
   glass_type: CocktailGlassType | null;
+  glass_type_2: CocktailGlassType | null;
   garnish: CocktailGarnish | null;
 };
 

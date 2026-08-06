@@ -13,10 +13,14 @@ const COCKTAIL_COLUMNS =
 // geëmbedde variants/ingrediënten voor cocktail_guest al vanzelf tot alleen
 // gepubliceerde cocktails (zie 20260818020000_cocktail_bar_core.sql), dus
 // deze functie hoeft daar zelf niets voor te doen.
+// glass_type/glass_type_2 verwijzen allebei naar cocktail_glass_types, dus
+// PostgREST kan de relatie niet meer automatisch raden zodra er twee FK's
+// naar dezelfde tabel zijn — vandaar de expliciete !constraint_name-hints.
 const COCKTAIL_FULL_COLUMNS = `
   ${COCKTAIL_COLUMNS},
   variants:cocktail_variants(
-    id, cocktail_id, variant_type, glass_type_id, spirit_id, garnish_id,
+    id, cocktail_id, variant_type, glass_type_id, glass_note, glass_type_id_2, glass_note_2,
+    spirit_id, garnish_id,
     abv_percent, preparation_steps, photo_storage_path, created_at, updated_at,
     flavour_profile:cocktail_flavour_profiles(variant_id, sweet_score, sour_score, bitter_score, fresh_score, strong_score, updated_at),
     ingredients:cocktail_variant_ingredients(
@@ -24,7 +28,8 @@ const COCKTAIL_FULL_COLUMNS = `
       ingredient:cocktail_ingredients(name)
     ),
     spirit:cocktail_spirits(id, name, sort_order, active),
-    glass_type:cocktail_glass_types(id, name, sort_order, active),
+    glass_type:cocktail_glass_types!cocktail_variants_glass_type_id_fkey(id, name, sort_order, active),
+    glass_type_2:cocktail_glass_types!cocktail_variants_glass_type_id_2_fkey(id, name, sort_order, active),
     garnish:cocktail_garnishes(id, name, created_at)
   )
 `;
@@ -35,7 +40,12 @@ const COCKTAIL_FULL_COLUMNS = `
 type RawCocktailFullRow = Cocktail & {
   variants: (Omit<
     CocktailVariantFull,
-    "flavour_profile" | "ingredients" | "spirit" | "glass_type" | "garnish"
+    | "flavour_profile"
+    | "ingredients"
+    | "spirit"
+    | "glass_type"
+    | "glass_type_2"
+    | "garnish"
   > & {
     flavour_profile: CocktailVariantFull["flavour_profile"] | null;
     ingredients: (Omit<
@@ -46,6 +56,7 @@ type RawCocktailFullRow = Cocktail & {
     })[];
     spirit: CocktailVariantFull["spirit"] | null;
     glass_type: CocktailVariantFull["glass_type"] | null;
+    glass_type_2: CocktailVariantFull["glass_type_2"] | null;
     garnish: CocktailVariantFull["garnish"] | null;
   })[];
 };
@@ -61,6 +72,7 @@ function mapCocktailFullRow(row: RawCocktailFullRow): CocktailFull {
         .sort((a, b) => a.sort_order - b.sort_order),
       spirit: v.spirit ?? null,
       glass_type: v.glass_type ?? null,
+      glass_type_2: v.glass_type_2 ?? null,
       garnish: v.garnish ?? null,
     })),
   };
@@ -182,6 +194,9 @@ export type SaveCocktailVariantInput = {
   cocktailId: string;
   variantType: CocktailVariantType;
   glassTypeId: string | null;
+  glassNote: string | null;
+  glassTypeId2: string | null;
+  glassNote2: string | null;
   spiritId: string | null;
   garnishId: string | null;
   abvPercent: number;
@@ -212,6 +227,9 @@ export async function saveCocktailVariant(
     p_cocktail_id: input.cocktailId,
     p_variant_type: input.variantType,
     p_glass_type_id: input.glassTypeId,
+    p_glass_note: input.glassNote,
+    p_glass_type_id_2: input.glassTypeId2,
+    p_glass_note_2: input.glassNote2,
     p_spirit_id: input.spiritId,
     p_garnish_id: input.garnishId,
     p_abv_percent: input.abvPercent,
@@ -235,15 +253,17 @@ export async function saveCocktailVariant(
 }
 
 // De "hoofd"-variant voor kaartweergave/filtering: de alcoholische variant
-// als die bestaat, anders de alcoholvrije (voor cocktails die uitsluitend
-// als mocktail zijn aangemaakt). Puur een keuze voor WELKE variant een kaart
-// toont als representatief — verandert niets aan de opslag, en de volledige
-// alcoholvrije variant blijft altijd los bekijkbaar in het detailvenster.
+// als die bestaat, anders de 2e variant, anders de alcoholvrije (voor
+// cocktails die uitsluitend als mocktail zijn aangemaakt). Puur een keuze
+// voor WELKE variant een kaart toont als representatief — verandert niets
+// aan de opslag, en alle varianten blijven altijd los bekijkbaar in het
+// detailvenster.
 export function getPrimaryVariant(
   cocktail: CocktailFull,
 ): CocktailVariantFull | null {
   return (
     cocktail.variants.find((v) => v.variant_type === "alcoholic") ??
+    cocktail.variants.find((v) => v.variant_type === "alcoholic_variant") ??
     cocktail.variants.find((v) => v.variant_type === "alcohol_free") ??
     null
   );

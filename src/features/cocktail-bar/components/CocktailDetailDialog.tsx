@@ -54,14 +54,31 @@ export function CocktailDetailDialog({
     setVariantType(initialVariantType ?? "alcoholic");
   }, [cocktail?.id, initialVariantType]);
 
-  const alcoholicVariant =
-    cocktail?.variants.find((v) => v.variant_type === "alcoholic") ?? null;
-  const alcoholFreeVariant =
-    cocktail?.variants.find((v) => v.variant_type === "alcohol_free") ?? null;
+  // Vaste volgorde/labels, elk optioneel — alcoholic_variant ("Variant") is
+  // een derde, optioneel slot naast Origineel/Alcoholvrij, zie
+  // 20260823000000_cocktail_bar_variant_2.sql.
+  const VARIANT_ORDER: { type: CocktailVariantType; label: string }[] = [
+    { type: "alcoholic", label: "Origineel" },
+    { type: "alcoholic_variant", label: "Variant" },
+    { type: "alcohol_free", label: "Alcoholvrije variant" },
+  ];
+  const availableVariants: {
+    type: CocktailVariantType;
+    label: string;
+    data: CocktailVariantFull;
+  }[] = cocktail
+    ? VARIANT_ORDER.flatMap((entry) => {
+        const data = cocktail.variants.find(
+          (v) => v.variant_type === entry.type,
+        );
+        return data ? [{ ...entry, data }] : [];
+      })
+    : [];
+
   const activeVariant: CocktailVariantFull | null =
-    (variantType === "alcoholic" ? alcoholicVariant : alcoholFreeVariant) ??
-    alcoholicVariant ??
-    alcoholFreeVariant;
+    availableVariants.find((v) => v.type === variantType)?.data ??
+    availableVariants[0]?.data ??
+    null;
 
   const photoPath =
     activeVariant?.photo_storage_path ?? cocktail?.photo_storage_path ?? null;
@@ -99,22 +116,18 @@ export function CocktailDetailDialog({
 
             <p className="cb-muted text-base">{cocktail.tagline}</p>
 
-            {alcoholicVariant && alcoholFreeVariant && (
-              <div className="flex gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setVariantType("alcoholic")}
-                  className={`rounded-full px-4 py-1.5 text-sm ${variantType === "alcoholic" ? "cb-button" : "cb-button-ghost"}`}
-                >
-                  Origineel
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setVariantType("alcohol_free")}
-                  className={`rounded-full px-4 py-1.5 text-sm ${variantType === "alcohol_free" ? "cb-button" : "cb-button-ghost"}`}
-                >
-                  Alcoholvrije variant
-                </button>
+            {availableVariants.length > 1 && (
+              <div className="flex flex-wrap gap-1.5">
+                {availableVariants.map((v) => (
+                  <button
+                    key={v.type}
+                    type="button"
+                    onClick={() => setVariantType(v.type)}
+                    className={`rounded-full px-4 py-1.5 text-sm ${variantType === v.type ? "cb-button" : "cb-button-ghost"}`}
+                  >
+                    {v.label}
+                  </button>
+                ))}
               </div>
             )}
 
@@ -138,7 +151,29 @@ export function CocktailDetailDialog({
                 {activeVariant.glass_type && (
                   <div className="flex items-center gap-2">
                     <GlassWater className="h-4 w-4 shrink-0 cb-muted" />
-                    <span>{activeVariant.glass_type.name}</span>
+                    <span>
+                      {activeVariant.glass_type.name}
+                      {activeVariant.glass_note && (
+                        <span className="cb-muted">
+                          {" "}
+                          ({activeVariant.glass_note})
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                )}
+                {activeVariant.glass_type_2 && (
+                  <div className="flex items-center gap-2">
+                    <GlassWater className="h-4 w-4 shrink-0 cb-muted" />
+                    <span>
+                      {activeVariant.glass_type_2.name}
+                      {activeVariant.glass_note_2 && (
+                        <span className="cb-muted">
+                          {" "}
+                          ({activeVariant.glass_note_2})
+                        </span>
+                      )}
+                    </span>
                   </div>
                 )}
                 {activeVariant.garnish && (

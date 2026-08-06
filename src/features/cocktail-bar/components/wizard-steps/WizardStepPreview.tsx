@@ -3,15 +3,23 @@ import { CocktailFlavourBadge } from "@/features/cocktail-bar/components/Cocktai
 import { CocktailFlavourProfileChart } from "@/features/cocktail-bar/components/CocktailFlavourProfileChart";
 import { CocktailIngredientList } from "@/features/cocktail-bar/components/CocktailIngredientList";
 import { deriveFlavourBadges } from "@/features/cocktail-bar/lib/flavourBadges";
-import type { VariantDraft, WizardState } from "@/features/cocktail-bar/components/CocktailWizard";
-import type { CocktailFlavourProfile, CocktailVariantIngredientWithName } from "@/features/cocktail-bar/types";
+import type {
+  VariantDraft,
+  WizardState,
+} from "@/features/cocktail-bar/components/CocktailWizard";
+import type {
+  CocktailFlavourProfile,
+  CocktailVariantIngredientWithName,
+} from "@/features/cocktail-bar/types";
 
 // Hergebruikt dezelfde weergavecomponenten als de showcase/het detailvenster
 // — geen aparte "preview-look" die uit de pas kan gaan lopen met hoe het er
 // straks écht uitziet. De draft-state wordt hiervoor omgezet naar dezelfde
 // vorm als de echte database-types verwachten (met wat placeholder-ID's,
 // puur omdat die componenten nu eenmaal die vorm typeren).
-function toPreviewFlavourProfile(variant: VariantDraft): CocktailFlavourProfile {
+function toPreviewFlavourProfile(
+  variant: VariantDraft,
+): CocktailFlavourProfile {
   return {
     variant_id: "preview",
     sweet_score: variant.sweetScore,
@@ -23,7 +31,9 @@ function toPreviewFlavourProfile(variant: VariantDraft): CocktailFlavourProfile 
   };
 }
 
-function toPreviewIngredients(variant: VariantDraft): CocktailVariantIngredientWithName[] {
+function toPreviewIngredients(
+  variant: VariantDraft,
+): CocktailVariantIngredientWithName[] {
   return variant.ingredients
     .filter((row) => row.name.trim() && row.amount.trim())
     .map((row, index) => ({
@@ -41,20 +51,33 @@ function toPreviewIngredients(variant: VariantDraft): CocktailVariantIngredientW
 export function WizardStepPreview({ state }: { state: WizardState }) {
   const profile = toPreviewFlavourProfile(state.alcoholic);
   const badges = deriveFlavourBadges(profile);
-  const previewUrl = state.photoFile ? URL.createObjectURL(state.photoFile) : null;
+  const previewUrl = state.photoFile
+    ? URL.createObjectURL(state.photoFile)
+    : null;
 
   return (
     <div className="cb-tile space-y-4 p-4">
       <div className="relative flex h-48 items-center justify-center rounded-2xl">
         {previewUrl ? (
-          <img src={previewUrl} alt={state.name} className="h-full w-full object-contain" />
+          <img
+            src={previewUrl}
+            alt={state.name}
+            className="h-full w-full object-contain"
+          />
         ) : (
-          <Martini className="h-16 w-16 text-[var(--cb-gold)] opacity-50" strokeWidth={1.2} />
+          <Martini
+            className="h-16 w-16 text-[var(--cb-gold)] opacity-50"
+            strokeWidth={1.2}
+          />
         )}
       </div>
 
-      <h3 className="cb-heading font-serif text-2xl">{state.name || "(nog geen naam)"}</h3>
-      <p className="cb-muted text-sm">{state.tagline || "(nog geen smaakomschrijving)"}</p>
+      <h3 className="cb-heading font-serif text-2xl">
+        {state.name || "(nog geen naam)"}
+      </h3>
+      <p className="cb-muted text-sm">
+        {state.tagline || "(nog geen smaakomschrijving)"}
+      </p>
 
       <div className="flex flex-wrap gap-1.5">
         {badges.map((b) => (
@@ -69,13 +92,17 @@ export function WizardStepPreview({ state }: { state: WizardState }) {
 
       <div>
         <h4 className="cb-heading mb-2 text-base">Ingrediënten</h4>
-        <CocktailIngredientList ingredients={toPreviewIngredients(state.alcoholic)} />
+        <CocktailIngredientList
+          ingredients={toPreviewIngredients(state.alcoholic)}
+        />
       </div>
 
       {state.alcoholic.preparationSteps && (
         <div>
           <h4 className="cb-heading mb-2 text-base">Bereiding</h4>
-          <p className="text-sm leading-relaxed">{state.alcoholic.preparationSteps}</p>
+          <p className="text-sm leading-relaxed">
+            {state.alcoholic.preparationSteps}
+          </p>
         </div>
       )}
 
@@ -86,7 +113,12 @@ export function WizardStepPreview({ state }: { state: WizardState }) {
         </div>
       )}
 
-      {state.hasAlcoholFree && <p className="cb-muted text-sm">✓ Heeft ook een alcoholvrije variant</p>}
+      {state.hasVariant2 && (
+        <p className="cb-muted text-sm">✓ Heeft ook een tweede variant</p>
+      )}
+      {state.hasAlcoholFree && (
+        <p className="cb-muted text-sm">✓ Heeft ook een alcoholvrije variant</p>
+      )}
     </div>
   );
 }
