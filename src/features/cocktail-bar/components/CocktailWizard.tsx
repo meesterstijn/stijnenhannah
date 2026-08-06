@@ -226,10 +226,11 @@ export function CocktailWizard({
     if (existingCocktail) setState(stateFromCocktail(existingCocktail));
   }, [existingCocktail]);
 
+  // Basisdrank is bewust optioneel: de owner kan een nieuwe cocktail
+  // aanmaken en de basisdrank later toevoegen (bv. als de gewenste drank nog
+  // niet in de catalogus staat) — zie 20260821000000_cocktail_bar_amaretto_and_optional_spirit.sql.
   const canProceedFromBasicInfo =
-    state.name.trim().length > 0 &&
-    state.tagline.trim().length > 0 &&
-    !!state.alcoholic.spiritId;
+    state.name.trim().length > 0 && state.tagline.trim().length > 0;
 
   async function handleSave(publish: boolean) {
     setIsSaving(true);

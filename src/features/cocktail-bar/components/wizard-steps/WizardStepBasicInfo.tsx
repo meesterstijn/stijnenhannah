@@ -9,7 +9,10 @@ export function WizardStepBasicInfo({
   state: WizardState;
   setState: React.Dispatch<React.SetStateAction<WizardState>>;
 }) {
-  const { data: spirits = [] } = useQuery({ queryKey: ["cocktail_bar", "spirits"], queryFn: fetchCocktailSpirits });
+  const { data: spirits = [] } = useQuery({
+    queryKey: ["cocktail_bar", "spirits"],
+    queryFn: fetchCocktailSpirits,
+  });
 
   return (
     <div className="space-y-4">
@@ -24,7 +27,9 @@ export function WizardStepBasicInfo({
       </div>
 
       <div className="space-y-1.5">
-        <label className="cb-muted text-xs uppercase tracking-wide">Korte smaakomschrijving</label>
+        <label className="cb-muted text-xs uppercase tracking-wide">
+          Korte smaakomschrijving
+        </label>
         <input
           value={state.tagline}
           onChange={(e) => setState((s) => ({ ...s, tagline: e.target.value }))}
@@ -34,13 +39,20 @@ export function WizardStepBasicInfo({
       </div>
 
       <div className="space-y-1.5">
-        <label className="cb-muted text-xs uppercase tracking-wide">Basisdrank</label>
+        <label className="cb-muted text-xs uppercase tracking-wide">
+          Basisdrank (optioneel)
+        </label>
         <select
           value={state.alcoholic.spiritId ?? ""}
-          onChange={(e) => setState((s) => ({ ...s, alcoholic: { ...s.alcoholic, spiritId: e.target.value || null } }))}
+          onChange={(e) =>
+            setState((s) => ({
+              ...s,
+              alcoholic: { ...s.alcoholic, spiritId: e.target.value || null },
+            }))
+          }
           className="w-full rounded-lg px-3 py-2 text-sm"
         >
-          <option value="">Kies een basisdrank...</option>
+          <option value="">Nog geen basisdrank — later toevoegen</option>
           {spirits.map((spirit) => (
             <option key={spirit.id} value={spirit.id}>
               {spirit.name}
