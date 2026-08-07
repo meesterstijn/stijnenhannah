@@ -134,17 +134,6 @@ export function WizardStepPreparation({
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
-              checked={variant.shakeWithIce}
-              onChange={(e) =>
-                onChange({ ...variant, shakeWithIce: e.target.checked })
-              }
-              className="h-4 w-4"
-            />
-            Shaken met ijs om te koelen
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
               checked={variant.dryShakeFirst}
               onChange={(e) =>
                 onChange({ ...variant, dryShakeFirst: e.target.checked })
@@ -152,6 +141,17 @@ export function WizardStepPreparation({
               className="h-4 w-4"
             />
             Dry shake eerst
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={variant.shakeWithIce}
+              onChange={(e) =>
+                onChange({ ...variant, shakeWithIce: e.target.checked })
+              }
+              className="h-4 w-4"
+            />
+            Shaken met ijs om te koelen
           </label>
           <label className="flex items-center gap-2 text-sm">
             <input
