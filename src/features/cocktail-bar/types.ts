@@ -61,6 +61,12 @@ export type CocktailVariant = {
   glass_note: string | null;
   glass_type_id_2: string | null;
   glass_note_2: string | null;
+  // Losse, onafhankelijke bouw-vinkjes (geen van alle verplicht) — puur ter
+  // ondersteuning van de bartender-workflow, niet in preparation_steps
+  // gedupliceerd. Zie 20260825000000_cocktail_bar_build_method.sql.
+  shake_with_ice: boolean;
+  dry_shake_first: boolean;
+  build_in_glass: boolean;
   spirit_id: string | null;
   garnish_id: string | null;
   abv_percent: number;

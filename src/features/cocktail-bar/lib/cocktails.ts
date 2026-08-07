@@ -20,6 +20,7 @@ const COCKTAIL_FULL_COLUMNS = `
   ${COCKTAIL_COLUMNS},
   variants:cocktail_variants(
     id, cocktail_id, variant_type, glass_type_id, glass_note, glass_type_id_2, glass_note_2,
+    shake_with_ice, dry_shake_first, build_in_glass,
     spirit_id, garnish_id,
     abv_percent, preparation_steps, photo_storage_path, created_at, updated_at,
     flavour_profile:cocktail_flavour_profiles(variant_id, sweet_score, sour_score, bitter_score, fresh_score, strong_score, updated_at),
@@ -197,6 +198,9 @@ export type SaveCocktailVariantInput = {
   glassNote: string | null;
   glassTypeId2: string | null;
   glassNote2: string | null;
+  shakeWithIce: boolean;
+  dryShakeFirst: boolean;
+  buildInGlass: boolean;
   spiritId: string | null;
   garnishId: string | null;
   abvPercent: number;
@@ -230,6 +234,9 @@ export async function saveCocktailVariant(
     p_glass_note: input.glassNote,
     p_glass_type_id_2: input.glassTypeId2,
     p_glass_note_2: input.glassNote2,
+    p_shake_with_ice: input.shakeWithIce,
+    p_dry_shake_first: input.dryShakeFirst,
+    p_build_in_glass: input.buildInGlass,
     p_spirit_id: input.spiritId,
     p_garnish_id: input.garnishId,
     p_abv_percent: input.abvPercent,

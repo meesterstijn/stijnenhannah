@@ -6,12 +6,6 @@ import {
 } from "@/features/cocktail-bar/lib/reference";
 import type { VariantDraft } from "@/features/cocktail-bar/components/CocktailWizard";
 
-// Vaste, herbruikbare bartender-instructie voor het koelen door te shaken met
-// ijs — via het vinkje hieronder in/uit de bereidingswijze te zetten, zodat
-// je 'm niet elke cocktail opnieuw hoeft te typen.
-const ICE_SHAKE_NOTE =
-  "IJs voor het koelen (shaken): vul de grote Boston beker voor ongeveer ¾ met ijs — liever te veel dan te weinig, zodat de cocktail snel genoeg afkoelt en de juiste verdunning krijgt. Shake krachtig gedurende de aangegeven tijd. Blijft er na het uitschenken nog ijs in de shaker over? Dat is normaal, en betekent juist dat de cocktail goed gekoeld is zonder te verwateren.";
-
 // Gedeeld tussen stap 5 (alcoholische variant) en stap 7 (alcoholvrije
 // variant) — glas, garnering, ABV% en bereidingswijze.
 export function WizardStepPreparation({
@@ -29,27 +23,6 @@ export function WizardStepPreparation({
     queryKey: ["cocktail_bar", "garnishes"],
     queryFn: fetchCocktailGarnishes,
   });
-
-  const hasIceShakeNote = variant.preparationSteps.includes(ICE_SHAKE_NOTE);
-
-  function toggleIceShakeNote(checked: boolean) {
-    if (checked) {
-      onChange({
-        ...variant,
-        preparationSteps: variant.preparationSteps
-          ? `${variant.preparationSteps}\n\n${ICE_SHAKE_NOTE}`
-          : ICE_SHAKE_NOTE,
-      });
-    } else {
-      onChange({
-        ...variant,
-        preparationSteps: variant.preparationSteps
-          .replace(`\n\n${ICE_SHAKE_NOTE}`, "")
-          .replace(ICE_SHAKE_NOTE, "")
-          .trim(),
-      });
-    }
-  }
 
   return (
     <div className="space-y-4">
@@ -151,21 +124,52 @@ export function WizardStepPreparation({
 
       <div className="space-y-1.5">
         <label className="cb-muted text-xs uppercase tracking-wide">
-          Bereidingswijze
+          Bouwmethode
         </label>
         <p className="cb-muted text-xs">
-          Ijs tijdens het shaken/roeren hoort hier bij de bereiding — niet bij
-          de ingrediënten. Het ijs waarmee je serveert zet je bij "IJs in dit
-          glas" hierboven.
+          Los van elkaar aan te zetten, allemaal optioneel — puur zodat je in
+          Bereiden meteen ziet hoe je de cocktail opbouwt.
         </p>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={hasIceShakeNote}
-            onChange={(e) => toggleIceShakeNote(e.target.checked)}
-            className="h-4 w-4"
-          />
-          Shaken met ijs om te koelen
+        <div className="flex flex-wrap gap-4">
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={variant.shakeWithIce}
+              onChange={(e) =>
+                onChange({ ...variant, shakeWithIce: e.target.checked })
+              }
+              className="h-4 w-4"
+            />
+            Shaken met ijs om te koelen
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={variant.dryShakeFirst}
+              onChange={(e) =>
+                onChange({ ...variant, dryShakeFirst: e.target.checked })
+              }
+              className="h-4 w-4"
+            />
+            Dry shake eerst
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={variant.buildInGlass}
+              onChange={(e) =>
+                onChange({ ...variant, buildInGlass: e.target.checked })
+              }
+              className="h-4 w-4"
+            />
+            Build
+          </label>
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="cb-muted text-xs uppercase tracking-wide">
+          Bereidingswijze
         </label>
         <textarea
           value={variant.preparationSteps}

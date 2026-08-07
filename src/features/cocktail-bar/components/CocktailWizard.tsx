@@ -42,6 +42,9 @@ export type VariantDraft = {
   glassNote: string;
   glassTypeId2: string | null;
   glassNote2: string;
+  shakeWithIce: boolean;
+  dryShakeFirst: boolean;
+  buildInGlass: boolean;
   spiritId: string | null;
   garnishName: string;
   abvPercent: string;
@@ -90,6 +93,9 @@ function emptyVariant(): VariantDraft {
     glassNote: "",
     glassTypeId2: null,
     glassNote2: "",
+    shakeWithIce: false,
+    dryShakeFirst: false,
+    buildInGlass: false,
     spiritId: null,
     garnishName: "",
     abvPercent: "",
@@ -131,6 +137,9 @@ function variantFromCocktail(
     glassNote: v.glass_note ?? "",
     glassTypeId2: v.glass_type_id_2,
     glassNote2: v.glass_note_2 ?? "",
+    shakeWithIce: v.shake_with_ice,
+    dryShakeFirst: v.dry_shake_first,
+    buildInGlass: v.build_in_glass,
     spiritId: v.spirit_id,
     garnishName: v.garnish?.name ?? "",
     abvPercent: String(v.abv_percent),
@@ -305,6 +314,9 @@ export function CocktailWizard({
         glassNote: state.alcoholic.glassNote.trim() || null,
         glassTypeId2: state.alcoholic.glassTypeId2,
         glassNote2: state.alcoholic.glassNote2.trim() || null,
+        shakeWithIce: state.alcoholic.shakeWithIce,
+        dryShakeFirst: state.alcoholic.dryShakeFirst,
+        buildInGlass: state.alcoholic.buildInGlass,
         spiritId: state.alcoholic.spiritId,
         garnishId: alcoholicGarnish?.id ?? null,
         abvPercent: Number(state.alcoholic.abvPercent.replace(",", ".")) || 0,
@@ -332,6 +344,9 @@ export function CocktailWizard({
           glassNote: state.variant2.glassNote.trim() || null,
           glassTypeId2: state.variant2.glassTypeId2,
           glassNote2: state.variant2.glassNote2.trim() || null,
+          shakeWithIce: state.variant2.shakeWithIce,
+          dryShakeFirst: state.variant2.dryShakeFirst,
+          buildInGlass: state.variant2.buildInGlass,
           spiritId: state.variant2.spiritId,
           garnishId: variant2Garnish?.id ?? null,
           abvPercent: Number(state.variant2.abvPercent.replace(",", ".")) || 0,
@@ -360,6 +375,9 @@ export function CocktailWizard({
           glassNote: state.alcoholFree.glassNote.trim() || null,
           glassTypeId2: state.alcoholFree.glassTypeId2,
           glassNote2: state.alcoholFree.glassNote2.trim() || null,
+          shakeWithIce: state.alcoholFree.shakeWithIce,
+          dryShakeFirst: state.alcoholFree.dryShakeFirst,
+          buildInGlass: state.alcoholFree.buildInGlass,
           spiritId: null,
           garnishId: alcoholFreeGarnish?.id ?? null,
           abvPercent: 0,
