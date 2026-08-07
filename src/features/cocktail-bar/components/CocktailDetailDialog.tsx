@@ -204,6 +204,22 @@ export function CocktailDetailDialog({
 
             {mode === "full" && (
               <>
+                {(activeVariant.shake_with_ice ||
+                  activeVariant.dry_shake_first ||
+                  activeVariant.build_in_glass) && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {activeVariant.dry_shake_first && (
+                      <span className="cb-badge">Dry shake eerst</span>
+                    )}
+                    {activeVariant.shake_with_ice && (
+                      <span className="cb-badge">Shaken met ijs om te koelen</span>
+                    )}
+                    {activeVariant.build_in_glass && (
+                      <span className="cb-badge">Build</span>
+                    )}
+                  </div>
+                )}
+
                 <div>
                   <h3 className="cb-heading mb-2 text-lg">Bereiding</h3>
                   <p className="text-sm leading-relaxed">
