@@ -10,7 +10,13 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Upload, History, Loader2, AlertTriangle } from "lucide-react";
+import {
+  Upload,
+  History,
+  Loader2,
+  AlertTriangle,
+  PackageSearch,
+} from "lucide-react";
 import {
   parseReceiptFileText,
   type ReceiptData,
@@ -23,6 +29,12 @@ import {
   saveReceipt,
   type ReceiptDuplicateMatch,
 } from "../lib/receiptsApi";
+import {
+  fetchUnmatchedReceiptItemCount,
+  applyExactStoreAliasMatches,
+} from "../lib/productMatching";
+import { resolveReceiptStore } from "../lib/stores";
+import { UnmatchedProductsSheet } from "./UnmatchedProductsSheet";
 
 function formatCurrency(amount: number | null, currency: string) {
   if (amount === null) return "onbekend";
@@ -67,6 +79,7 @@ export function ReceiptImportCard() {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [unmatchedOpen, setUnmatchedOpen] = useState(false);
 
   const { data: history = [], isLoading: historyLoading } = useQuery({
     queryKey: ["shopping_receipts", "history"],
@@ -74,20 +87,38 @@ export function ReceiptImportCard() {
     enabled: historyOpen,
   });
 
+  const { data: unmatchedCount = 0 } = useQuery({
+    queryKey: ["receipt_items", "unmatched", "count"],
+    queryFn: fetchUnmatchedReceiptItemCount,
+  });
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!preview) return;
-      await saveReceipt(
+      const receiptId = await saveReceipt(
         session?.user.id ?? null,
         preview.data,
         preview.fingerprint,
         preview.raw,
       );
+      // Matching is een losse, best-effort tweede stap — een falende
+      // store-resolutie/automatische match mag de al geslaagde import nooit
+      // ongedaan maken, vandaar hier expliciet afgevangen i.p.v. de mutatie
+      // te laten falen.
+      try {
+        await resolveReceiptStore(receiptId);
+        await applyExactStoreAliasMatches(receiptId);
+      } catch {
+        // Stil negeren — de bon zelf is al veilig opgeslagen.
+      }
     },
     onSuccess: () => {
       setPreview(null);
       setSuccessMsg("Kassabon geïmporteerd ✓");
       queryClient.invalidateQueries({ queryKey: ["shopping_receipts"] });
+      queryClient.invalidateQueries({
+        queryKey: ["receipt_items", "unmatched"],
+      });
     },
     onError: (err: Error) => setError(`Importeren mislukt: ${err.message}`),
   });
@@ -176,6 +207,17 @@ export function ReceiptImportCard() {
         className="hidden"
         onChange={handleFileChange}
       />
+
+      {unmatchedCount > 0 && (
+        <button
+          type="button"
+          onClick={() => setUnmatchedOpen(true)}
+          className="w-full rounded-xl border border-amber-200 bg-amber-50 hover:bg-amber-100 transition-colors p-3 flex items-center gap-2 text-left text-sm text-amber-800"
+        >
+          <PackageSearch className="h-4 w-4 shrink-0" />
+          Onbekende producten · {unmatchedCount}
+        </button>
+      )}
 
       {error && <p className="text-sm text-destructive">{error}</p>}
       {successMsg && <p className="text-sm text-foreground">{successMsg}</p>}
@@ -311,6 +353,11 @@ export function ReceiptImportCard() {
           )}
         </DialogContent>
       </Dialog>
+
+      <UnmatchedProductsSheet
+        open={unmatchedOpen}
+        onOpenChange={setUnmatchedOpen}
+      />
     </div>
   );
 }
