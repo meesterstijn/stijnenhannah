@@ -43,6 +43,10 @@ export function SiteLayout() {
   // thema en een zwevende terug-link i.p.v. de volle navbalk willen.
   const isCocktailBar = pathname.startsWith("/cocktail-bar");
   const isHome = pathname === "/";
+  // Boodschappen rendert zelf een "Ons Huisje"-terugknop op de plek van de
+  // paginatitel (zie Boodschappen.tsx) i.p.v. de gedeelde navbalk — dezelfde
+  // reden als bij isHome hierboven.
+  const isBoodschappen = pathname === "/boodschappen";
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -94,8 +98,9 @@ export function SiteLayout() {
       )}
       {/* De homepage bouwt haar eigen transparante, fullscreen header (zie
           Home.tsx) i.p.v. deze algemene navbalk — vandaar ook hier buiten
-          gesloten met !isHome, net als bij R6/Cocktail Bar hierboven. */}
-      {!isR6 && !isCocktailBar && !isHome && (
+          gesloten met !isHome, net als bij R6/Cocktail Bar hierboven.
+          Boodschappen sluit om dezelfde reden uit met !isBoodschappen. */}
+      {!isR6 && !isCocktailBar && !isHome && !isBoodschappen && (
         <header className="border-b border-border/60 backdrop-blur-sm bg-background/70 sticky top-0 z-40">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-4 md:grid md:grid-cols-[auto_1fr_auto]">
             <Link to="/" className="flex items-center gap-2 group">

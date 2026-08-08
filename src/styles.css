@@ -1168,3 +1168,54 @@ body:has(.cocktail-theme) {
     transition: none !important;
   }
 }
+
+/*
+ * .shopping-page — kassabon-geïnspireerde herstijling van de
+ * Boodschappenpagina (zie Boodschappen.tsx). Zelfde scoping-aanpak als
+ * .home-dashboard/.tuinieren-theme hierboven, maar de kleuren zelf zijn
+ * bewust NIET nieuw: de bestaande :root-tokens (--background, --card,
+ * --border, --foreground, --muted-foreground, zie bovenaan dit bestand) zijn
+ * al een warme, lichte "papieren" palette en worden hier via de gewone
+ * Tailwind-utilities (bg-background, border-border, text-muted-foreground,
+ * divide-dashed, ...) hergebruikt — dit blok bevat daarom vrijwel
+ * uitsluitend het kassabon-zigzagrand-effect, dat met geen enkele
+ * bestaande utility is uit te drukken.
+ *
+ * Techniek: een SVG-tegel van 24×12 met één driehoekige "tand" per tegel,
+ * herhaald via background-repeat: repeat-x — geen clip-path (zou de hele
+ * kaart inclusief inhoud clippen i.p.v. alleen een dunne randstrook) en geen
+ * background-attachment/transform-trucs nodig. De tand is puur wit (matcht
+ * de bg-white van de bonkaart zelf; het verschil met het --card-token is bij
+ * een lightness van 0.99 sowieso niet waarneembaar) op transparante
+ * ondergrond, zodat de paginakleur er gewoon doorheen schijnt tussen de
+ * tanden — vandaar geen aparte background-color nodig op de strook zelf.
+ */
+.shopping-page .receipt-zigzag {
+  height: 12px;
+  flex-shrink: 0;
+  background-repeat: repeat-x;
+  background-size: 24px 12px;
+}
+
+.shopping-page .receipt-zigzag--top {
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='24'%20height='12'%20viewBox='0%200%2024%2012'%3E%3Cpolygon%20points='0,12%2024,12%2024,0%2012,12%200,0'%20fill='white'/%3E%3C/svg%3E");
+}
+
+.shopping-page .receipt-zigzag--bottom {
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='24'%20height='12'%20viewBox='0%200%2024%2012'%3E%3Cpolygon%20points='0,0%2024,0%2024,12%2012,0%200,12'%20fill='white'/%3E%3C/svg%3E");
+}
+
+.shopping-page .receipt-row {
+  transition:
+    background-color 150ms ease,
+    opacity 150ms ease;
+}
+
+.shopping-page button,
+.shopping-page a {
+  transition: all 150ms ease;
+}
+
+.shopping-page button:active {
+  transform: scale(0.97);
+}
