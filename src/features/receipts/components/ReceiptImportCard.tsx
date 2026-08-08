@@ -10,14 +10,27 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Upload, History, Loader2 } from "lucide-react";
-import { parseReceiptFileText, type ReceiptInput } from "../lib/parseReceiptFile";
-import { fetchReceiptHistory, saveReceipt } from "../lib/receiptsApi";
+import { Upload, History, Loader2, AlertTriangle } from "lucide-react";
+import {
+  parseReceiptFileText,
+  type ReceiptData,
+  type ParseWarning,
+} from "../lib/parseReceiptFile";
+import { computeReceiptFingerprint } from "../lib/receiptFingerprint";
+import {
+  fetchReceiptHistory,
+  findReceiptDuplicate,
+  saveReceipt,
+  type ReceiptDuplicateMatch,
+} from "../lib/receiptsApi";
 
 function formatCurrency(amount: number | null, currency: string) {
   if (amount === null) return "onbekend";
   try {
-    return new Intl.NumberFormat("nl-NL", { style: "currency", currency }).format(amount);
+    return new Intl.NumberFormat("nl-NL", {
+      style: "currency",
+      currency,
+    }).format(amount);
   } catch {
     return `${amount.toFixed(2)} ${currency}`;
   }
@@ -26,21 +39,33 @@ function formatCurrency(amount: number | null, currency: string) {
 function formatDate(iso: string) {
   const d = new Date(`${iso}T00:00:00`);
   if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString("nl-NL", { day: "numeric", month: "long", year: "numeric" });
+  return d.toLocaleDateString("nl-NL", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
 }
 
+type Preview = {
+  data: ReceiptData;
+  warnings: ParseWarning[];
+  raw: unknown;
+  fingerprint: string;
+  duplicate: ReceiptDuplicateMatch | null;
+};
+
 // Eerste basis voor kassabon-import (zie opdracht "Boodschappen bijhouden").
-// Bewust nog geen prijsinzichten/dashboards — alleen betrouwbaar verzamelen:
-// bestand kiezen -> client-side parsen/valideren -> preview -> expliciete
-// bevestiging -> opslaan. Scopebaar via het page-root .shopping-page
-// (Boodschappen.tsx) voor een latere eigen kassabon-stijl.
+// Bewust nog geen prijsinzichten/dashboards/productmatching — alleen
+// betrouwbaar verzamelen: bestand kiezen -> client-side parsen/valideren
+// (schema_version 1.0) -> duplicaatcheck -> preview met eventuele
+// waarschuwingen -> expliciete bevestiging -> atomisch opslaan.
 export function ReceiptImportCard() {
   const { session } = useAuth();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [preview, setPreview] = useState<{ data: ReceiptInput; raw: unknown } | null>(null);
+  const [preview, setPreview] = useState<Preview | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
 
   const { data: history = [], isLoading: historyLoading } = useQuery({
@@ -52,7 +77,12 @@ export function ReceiptImportCard() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!preview) return;
-      await saveReceipt(session?.user.id ?? null, preview.data, preview.raw);
+      await saveReceipt(
+        session?.user.id ?? null,
+        preview.data,
+        preview.fingerprint,
+        preview.raw,
+      );
     },
     onSuccess: () => {
       setPreview(null);
@@ -78,7 +108,21 @@ export function ReceiptImportCard() {
       setError(result.error);
       return;
     }
-    setPreview({ data: result.data, raw: result.raw });
+    const fingerprint = computeReceiptFingerprint(result.data);
+    let duplicate: ReceiptDuplicateMatch | null = null;
+    try {
+      duplicate = await findReceiptDuplicate(fingerprint);
+    } catch {
+      // Duplicaatcheck is puur een hint — als die zelf faalt, blokkeert dat
+      // het importeren niet.
+    }
+    setPreview({
+      data: result.data,
+      warnings: result.warnings,
+      raw: result.raw,
+      fingerprint,
+      duplicate,
+    });
   }
 
   return (
@@ -137,7 +181,10 @@ export function ReceiptImportCard() {
       {successMsg && <p className="text-sm text-foreground">{successMsg}</p>}
 
       {/* Preview + expliciete bevestiging vóór opslaan */}
-      <Dialog open={!!preview} onOpenChange={(open) => !open && setPreview(null)}>
+      <Dialog
+        open={!!preview}
+        onOpenChange={(open) => !open && setPreview(null)}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Kassabon importeren?</DialogTitle>
@@ -146,16 +193,57 @@ export function ReceiptImportCard() {
             </DialogDescription>
           </DialogHeader>
           {preview && (
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-              <dt className="text-muted-foreground">Winkel</dt>
-              <dd className="font-medium">{preview.data.store}</dd>
-              <dt className="text-muted-foreground">Datum</dt>
-              <dd className="font-medium">{formatDate(preview.data.purchase_date)}</dd>
-              <dt className="text-muted-foreground">Totaalbedrag</dt>
-              <dd className="font-medium">{formatCurrency(preview.data.total, preview.data.currency)}</dd>
-              <dt className="text-muted-foreground">Aantal regels</dt>
-              <dd className="font-medium">{preview.data.items.length}</dd>
-            </dl>
+            <div className="space-y-3">
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                <dt className="text-muted-foreground">Winkel</dt>
+                <dd className="font-medium">{preview.data.store_name}</dd>
+                {preview.data.branch_name && (
+                  <>
+                    <dt className="text-muted-foreground">Filiaal</dt>
+                    <dd className="font-medium">{preview.data.branch_name}</dd>
+                  </>
+                )}
+                <dt className="text-muted-foreground">Datum</dt>
+                <dd className="font-medium">
+                  {formatDate(preview.data.purchase_date)}
+                  {preview.data.purchase_time
+                    ? ` · ${preview.data.purchase_time}`
+                    : ""}
+                </dd>
+                <dt className="text-muted-foreground">Totaalbedrag</dt>
+                <dd className="font-medium">
+                  {formatCurrency(
+                    preview.data.total_paid,
+                    preview.data.currency,
+                  )}
+                </dd>
+                <dt className="text-muted-foreground">Aantal regels</dt>
+                <dd className="font-medium">{preview.data.items.length}</dd>
+              </dl>
+
+              {preview.duplicate && (
+                <p className="flex items-start gap-2 text-sm text-amber-700 bg-amber-50 rounded-lg p-2.5">
+                  <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                  Deze kassabon lijkt al eerder geïmporteerd (zelfde winkel,
+                  datum en totaal). Je kunt 'm alsnog importeren als het toch om
+                  een andere aankoop gaat.
+                </p>
+              )}
+
+              {preview.warnings.length > 0 && (
+                <ul className="space-y-1.5">
+                  {preview.warnings.map((w) => (
+                    <li
+                      key={w.code}
+                      className="flex items-start gap-2 text-sm text-amber-700 bg-amber-50 rounded-lg p-2.5"
+                    >
+                      <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                      {w.message}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           )}
           <DialogFooter>
             <Button
@@ -172,7 +260,9 @@ export function ReceiptImportCard() {
               disabled={saveMutation.isPending}
               className="gap-2 bg-foreground text-background hover:bg-foreground/90 shadow-none"
             >
-              {saveMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+              {saveMutation.isPending && (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              )}
               Importeren
             </Button>
           </DialogFooter>
@@ -184,7 +274,9 @@ export function ReceiptImportCard() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Importgeschiedenis</DialogTitle>
-            <DialogDescription>Eerder geïmporteerde kassabonnen.</DialogDescription>
+            <DialogDescription>
+              Eerder geïmporteerde kassabonnen.
+            </DialogDescription>
           </DialogHeader>
           {historyLoading && (
             <div className="py-6 flex justify-center text-muted-foreground">
@@ -199,11 +291,15 @@ export function ReceiptImportCard() {
           {!historyLoading && history.length > 0 && (
             <ul className="divide-y divide-border/50 max-h-80 overflow-y-auto -mx-6 px-6">
               {history.map((r) => (
-                <li key={r.id} className="py-3 flex items-center justify-between gap-3 text-sm">
+                <li
+                  key={r.id}
+                  className="py-3 flex items-center justify-between gap-3 text-sm"
+                >
                   <div className="min-w-0">
                     <p className="font-medium truncate">{r.store}</p>
                     <p className="text-xs text-muted-foreground">
-                      {formatDate(r.purchase_date)} · {r.item_count} {r.item_count === 1 ? "regel" : "regels"}
+                      {formatDate(r.purchase_date)} · {r.item_count}{" "}
+                      {r.item_count === 1 ? "regel" : "regels"}
                     </p>
                   </div>
                   <span className="text-sm font-medium shrink-0">
