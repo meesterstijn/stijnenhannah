@@ -850,3 +850,321 @@ body:has(.cocktail-theme) {
     animation: none !important;
   }
 }
+
+/*
+ * .home-dashboard — de fullscreen fotodashboard-homepage (Home.tsx).
+ * Zelfde scoping-aanpak als .tuinieren-theme/.r6-theme/.cocktail-theme
+ * hierboven: alle homepage-specifieke stijl leeft achter deze ene klasse,
+ * zodat andere pagina's (die nog steeds .tuinieren-theme/de standaard
+ * SiteLayout-navbalk gebruiken) volledig onaangeroerd blijven.
+ *
+ * De achtergrondfoto zelf staat niet vast via `background-attachment: fixed`
+ * op een scrollende container (bekend onbetrouwbaar op iOS Safari), maar als
+ * een los `position: fixed` element achter de content — dat geeft hetzelfde
+ * "de foto blijft staan"-effect zonder de mobiele bugs, zolang geen enkele
+ * ouder van .home-bg een CSS transform/filter zet (dat zou een nieuw
+ * containing block voor `fixed` creëren). SiteLayout/App doen dat niet.
+ */
+.home-dashboard {
+  position: relative;
+  min-height: 100dvh;
+  color: #fff;
+  font-family: "Inter", var(--font-sans), sans-serif;
+  overflow-x: hidden;
+}
+
+/* `background-color` is altijd de onderste laag onder de background-image-
+   lagen van HETZELFDE element (geen aparte ::before met z-index nodig, dat
+   painte — door de stacking-regels van een negative z-index binnen deze
+   eigen stacking context — juist BOVEN de background-image-laag i.p.v.
+   eronder). Zo blijft er een warme, donkere fallbackkleur zichtbaar zolang
+   home-hero.jpg (nog) niet bestaat of nog laadt, zonder de foto te
+   verbergen zodra die er wel is. */
+.home-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background-color: #1c1712;
+  background-image:
+    linear-gradient(to bottom, rgba(10, 10, 10, 0.2) 0%, rgba(10, 10, 10, 0.38) 55%, rgba(10, 10, 10, 0.72) 100%),
+    url("/home-hero.jpg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.home-header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  background: rgba(10, 10, 10, 0.12);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.home-header a,
+.home-header button {
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.home-content {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 1.25rem 1rem calc(6rem + env(safe-area-inset-bottom));
+}
+
+.home-greeting {
+  font-size: 1.7rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+@media (min-width: 400px) {
+  .home-greeting {
+    font-size: 1.85rem;
+  }
+}
+
+.home-date {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.7);
+  margin-top: 0.2rem;
+}
+
+.home-weather {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.9rem;
+  margin-top: 1.1rem;
+  transition: opacity 180ms ease;
+}
+
+.home-weather:active {
+  opacity: 0.8;
+}
+
+.home-weather-temp {
+  font-size: 3rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+@media (min-width: 400px) {
+  .home-weather-temp {
+    font-size: 3.25rem;
+  }
+}
+
+.home-weather-desc {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.home-weather-city {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+/* Kaarten — 2x2 hoofdgrid + brede Weekmenu/Tuin-kaarten delen dezelfde
+   glassmorphism-basis; alleen breedte/binnenlayout verschilt. */
+.home-card,
+.home-wide-card {
+  background: rgba(20, 20, 20, 0.38);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 18px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+  color: #fff;
+  transition:
+    transform 180ms ease,
+    background-color 180ms ease;
+  display: block;
+}
+
+.home-card:active,
+.home-wide-card:active {
+  transform: scale(0.98);
+}
+
+@media (hover: hover) {
+  .home-card:hover,
+  .home-wide-card:hover {
+    background: rgba(30, 30, 30, 0.46);
+  }
+}
+
+.home-card {
+  padding: 1rem;
+}
+
+.home-card-icon {
+  color: rgba(255, 255, 255, 0.92);
+  margin-bottom: 0.6rem;
+}
+
+.home-card-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+  line-height: 1.2;
+}
+
+.home-card-desc {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.68);
+  margin-top: 0.2rem;
+  line-height: 1.3;
+}
+
+.home-wide-card {
+  padding: 1.1rem 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.home-wide-card-title {
+  font-weight: 600;
+  font-size: 0.98rem;
+}
+
+.home-wide-card-desc {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.68);
+  margin-top: 0.1rem;
+}
+
+.home-section-heading {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.55);
+  margin-bottom: 0.1rem;
+}
+
+/*
+ * .home-glass-scope — herstijlt de bestaande sv-panel/sv-heading/sv-icon-slot/
+ * sv-muted klassen (die de Stardew-widgets in de "Meer"-sectie al gebruiken:
+ * SpotifyWidget, VerjaarDagWidget, SchoonmaakWidget, VakantieWidget,
+ * WifiWidget) naar dezelfde moderne glasstijl, ZONDER die widgetbestanden
+ * zelf aan te passen. Bewust geen .tuinieren-theme hier — dat zou ook alle
+ * overige pixel-regels (achtergrond, fonts, inputs, dialogs) meetrekken die
+ * op de homepage juist niet gewenst zijn.
+ */
+.home-glass-scope .sv-panel {
+  background: rgba(20, 20, 20, 0.38);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 18px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+  color: #fff;
+  transition:
+    transform 180ms ease,
+    background-color 180ms ease;
+}
+
+.home-glass-scope .sv-panel:active {
+  transform: scale(0.98);
+}
+
+@media (hover: hover) {
+  .home-glass-scope .sv-panel:hover {
+    background: rgba(30, 30, 30, 0.46);
+  }
+}
+
+/* Losstaande widgets (Spotify/Verjaardagen/Schoonmaak/Vakantie/Wifi) zijn
+   geschreven voor de oude, grotere sv-panel-tegel en zetten hun titel dus op
+   text-2xl — hier gedwongen naar dezelfde grootte als de HomeTile-titels
+   (text-sm) zodat alle tegels in "Meer" gelijk ogen, ongeacht welke
+   Tailwind-tekstgrootte de widget zelf gebruikt. */
+.home-glass-scope .sv-heading {
+  font-family: "Inter", var(--font-sans), sans-serif;
+  font-size: 0.875rem;
+  line-height: 1.25;
+  font-weight: 600;
+  color: #fff;
+  letter-spacing: normal;
+}
+
+.home-glass-scope .sv-icon-slot {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.92);
+  box-shadow: none;
+}
+
+.home-glass-scope .sv-muted {
+  color: rgba(255, 255, 255, 0.7);
+  opacity: 1;
+}
+
+.home-bottom-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  background: rgba(15, 15, 15, 0.55);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0.5rem 0.5rem calc(0.5rem + env(safe-area-inset-bottom));
+}
+
+.home-bottom-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.35rem 0.6rem;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 0.68rem;
+  transition: color 180ms ease;
+  border: none;
+  background: transparent;
+}
+
+.home-bottom-nav-item.active {
+  color: #fff;
+}
+
+.home-bottom-nav-item.active .home-bottom-nav-dot {
+  opacity: 1;
+}
+
+.home-bottom-nav-dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 999px;
+  background: #fff;
+  opacity: 0;
+  margin-top: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-card,
+  .home-wide-card,
+  .home-glass-scope .sv-panel,
+  .home-weather,
+  .home-bottom-nav-item {
+    transition: none !important;
+  }
+}
