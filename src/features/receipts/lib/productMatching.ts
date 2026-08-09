@@ -193,3 +193,34 @@ export async function applyExactStoreAliasMatches(
   if (error) throw error;
   return (data as number) ?? 0;
 }
+
+// Retroactieve matching — beide functies herleiden store/tekst/koppeling
+// server-side uit het net bevestigde receipt_item_id, nooit uit een lijst
+// regel-id's die de client zou moeten meesturen (zie migratiebestand voor de
+// volledige redenering). find(...) telt alleen; apply(...) past pas iets toe
+// na expliciete "Ook koppelen"-bevestiging door de gebruiker.
+export async function findHistoricalAliasMatchCount(
+  receiptItemId: string,
+): Promise<number> {
+  const { data, error } = await supabase.rpc(
+    "find_historical_alias_match_count_v1",
+    {
+      p_receipt_item_id: receiptItemId,
+    },
+  );
+  if (error) throw error;
+  return (data as number) ?? 0;
+}
+
+export async function applyHistoricalAliasMatches(
+  receiptItemId: string,
+): Promise<number> {
+  const { data, error } = await supabase.rpc(
+    "apply_historical_alias_matches_v1",
+    {
+      p_receipt_item_id: receiptItemId,
+    },
+  );
+  if (error) throw error;
+  return (data as number) ?? 0;
+}

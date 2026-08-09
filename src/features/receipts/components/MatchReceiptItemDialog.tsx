@@ -18,6 +18,8 @@ import {
   createProductVariant,
   fetchProducts,
   confirmReceiptItemMatch,
+  findHistoricalAliasMatchCount,
+  applyHistoricalAliasMatches,
   type ComparisonUnit,
   type MatchMethod,
 } from "../lib/productMatching";
@@ -58,6 +60,8 @@ export function MatchReceiptItemDialog({
   const [variantPackageSize, setVariantPackageSize] = useState("");
   const [variantPackageUnit, setVariantPackageUnit] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [historicalCount, setHistoricalCount] = useState<number | null>(null);
+  const [confirmedProductName, setConfirmedProductName] = useState("");
 
   const { data: products = [] } = useQuery({
     queryKey: ["products"],
@@ -80,6 +84,8 @@ export function MatchReceiptItemDialog({
   const confirmMutation = useMutation({
     mutationFn: async () => {
       let productId = selectedProductId;
+      let productName =
+        products.find((p) => p.id === selectedProductId)?.canonical_name ?? "";
       let matchMethod: MatchMethod = "manual";
 
       if (mode === "new") {
@@ -91,6 +97,7 @@ export function MatchReceiptItemDialog({
           comparisonUnit: newProductComparisonUnit,
         });
         productId = product.id;
+        productName = product.canonical_name;
         matchMethod = "new_product";
       } else if (!productId) {
         throw new Error("Kies een bestaand product.");
@@ -118,7 +125,30 @@ export function MatchReceiptItemDialog({
         productVariantId,
         matchMethod,
       });
+
+      return { productName };
     },
+    onSuccess: async (result) => {
+      queryClient.invalidateQueries({
+        queryKey: ["receipt_items", "unmatched"],
+      });
+      setConfirmedProductName(result.productName);
+      try {
+        const count = await findHistoricalAliasMatchCount(item.id);
+        if (count > 0) {
+          setHistoricalCount(count);
+          return;
+        }
+      } catch {
+        // Best-effort — als tellen zelf faalt, gewoon normaal sluiten.
+      }
+      onOpenChange(false);
+    },
+    onError: (err: Error) => setError(err.message),
+  });
+
+  const applyHistoricalMutation = useMutation({
+    mutationFn: () => applyHistoricalAliasMatches(item.id),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["receipt_items", "unmatched"],
@@ -138,206 +168,254 @@ export function MatchReceiptItemDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {storeMissing && (
-          <p className="text-sm text-amber-700 bg-amber-50 rounded-lg p-2.5">
-            De winkel van deze kassabon is nog niet gekoppeld — koppel eerst de
-            winkel (zie boven in de lijst) voordat je deze regel kunt koppelen.
-          </p>
-        )}
-
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            variant={mode === "existing" ? "default" : "outline"}
-            className="flex-1"
-            onClick={() => setMode("existing")}
-          >
-            Bestaand product
-          </Button>
-          <Button
-            type="button"
-            variant={mode === "new" ? "default" : "outline"}
-            className="flex-1"
-            onClick={() => setMode("new")}
-          >
-            Nieuw product
-          </Button>
-        </div>
-
-        {mode === "existing" ? (
-          <div className="space-y-1.5">
-            <label className="text-xs text-muted-foreground">Product</label>
-            <select
-              className={selectClassName}
-              value={selectedProductId}
-              onChange={(e) => setSelectedProductId(e.target.value)}
-            >
-              <option value="">Kies een product...</option>
-              {products.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.canonical_name}
-                </option>
-              ))}
-            </select>
-          </div>
+        {historicalCount !== null ? (
+          <>
+            <div className="space-y-2 text-sm">
+              <p>
+                <span className="font-medium">{item.raw_name}</span> →{" "}
+                {confirmedProductName}
+              </p>
+              <p className="text-muted-foreground">{item.receipt_store_name}</p>
+              <p className="rounded-lg bg-amber-50 p-2.5 text-amber-800">
+                Deze bonomschrijving komt nog op {historicalCount}{" "}
+                {historicalCount === 1
+                  ? "andere kassabonregel"
+                  : "andere kassabonregels"}{" "}
+                van {item.receipt_store_name} voor. Ook koppelen?
+              </p>
+              {error && <p className="text-sm text-destructive">{error}</p>}
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+              >
+                Niet nu
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  setError(null);
+                  applyHistoricalMutation.mutate();
+                }}
+                disabled={applyHistoricalMutation.isPending}
+                className="gap-2"
+              >
+                {applyHistoricalMutation.isPending && (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                )}
+                Ook koppelen
+              </Button>
+            </DialogFooter>
+          </>
         ) : (
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <label className="text-xs text-muted-foreground">Naam</label>
-              <Input
-                value={newProductName}
-                onChange={(e) => setNewProductName(e.target.value)}
-                placeholder="bijv. Bimi"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground">
-                  Categorie (optioneel)
-                </label>
-                <select
-                  className={selectClassName}
-                  value={newProductCategoryId}
-                  onChange={(e) => setNewProductCategoryId(e.target.value)}
-                >
-                  <option value="">Geen categorie</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground">
-                  Vergelijkeenheid
-                </label>
-                <select
-                  className={selectClassName}
-                  value={newProductComparisonUnit}
-                  onChange={(e) =>
-                    setNewProductComparisonUnit(
-                      e.target.value as ComparisonUnit,
-                    )
-                  }
-                >
-                  {COMPARISON_UNITS.map((u) => (
-                    <option key={u} value={u}>
-                      {u}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={wantVariant}
-            onChange={(e) => setWantVariant(e.target.checked)}
-            className="h-4 w-4"
-          />
-          Ook een specifieke variant vastleggen (optioneel)
-        </label>
-
-        {wantVariant && (
-          <div className="space-y-3 border-t border-border/50 pt-3">
-            <div className="space-y-1.5">
-              <label className="text-xs text-muted-foreground">
-                Variantnaam
-              </label>
-              <Input
-                value={variantName}
-                onChange={(e) => setVariantName(e.target.value)}
-                placeholder="bijv. AH Bimi 200 g"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground">
-                  Merk (optioneel)
-                </label>
-                <Input
-                  value={variantBrand}
-                  onChange={(e) => setVariantBrand(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground">
-                  Huismerk van winkel (optioneel)
-                </label>
-                <select
-                  className={selectClassName}
-                  value={variantStoreId}
-                  onChange={(e) => setVariantStoreId(e.target.value)}
-                >
-                  <option value="">Geen (generiek merk)</option>
-                  {stores.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.canonical_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground">
-                  Verpakkingsgrootte (optioneel — alleen als echt bekend)
-                </label>
-                <Input
-                  type="number"
-                  step="any"
-                  value={variantPackageSize}
-                  onChange={(e) => setVariantPackageSize(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs text-muted-foreground">Eenheid</label>
-                <select
-                  className={selectClassName}
-                  value={variantPackageUnit}
-                  onChange={(e) => setVariantPackageUnit(e.target.value)}
-                >
-                  <option value="">—</option>
-                  <option value="kg">kg</option>
-                  <option value="g">g</option>
-                  <option value="l">l</option>
-                  <option value="ml">ml</option>
-                  <option value="piece">piece</option>
-                </select>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {error && <p className="text-sm text-destructive">{error}</p>}
-
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-          >
-            Annuleer
-          </Button>
-          <Button
-            type="button"
-            onClick={() => {
-              setError(null);
-              confirmMutation.mutate();
-            }}
-            disabled={confirmMutation.isPending || storeMissing}
-            className="gap-2"
-          >
-            {confirmMutation.isPending && (
-              <Loader2 className="h-4 w-4 animate-spin" />
+          <>
+            {storeMissing && (
+              <p className="text-sm text-amber-700 bg-amber-50 rounded-lg p-2.5">
+                De winkel van deze kassabon is nog niet gekoppeld — koppel eerst
+                de winkel (zie boven in de lijst) voordat je deze regel kunt
+                koppelen.
+              </p>
             )}
-            Bevestigen
-          </Button>
-        </DialogFooter>
+
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={mode === "existing" ? "default" : "outline"}
+                className="flex-1"
+                onClick={() => setMode("existing")}
+              >
+                Bestaand product
+              </Button>
+              <Button
+                type="button"
+                variant={mode === "new" ? "default" : "outline"}
+                className="flex-1"
+                onClick={() => setMode("new")}
+              >
+                Nieuw product
+              </Button>
+            </div>
+
+            {mode === "existing" ? (
+              <div className="space-y-1.5">
+                <label className="text-xs text-muted-foreground">Product</label>
+                <select
+                  className={selectClassName}
+                  value={selectedProductId}
+                  onChange={(e) => setSelectedProductId(e.target.value)}
+                >
+                  <option value="">Kies een product...</option>
+                  {products.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.canonical_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground">Naam</label>
+                  <Input
+                    value={newProductName}
+                    onChange={(e) => setNewProductName(e.target.value)}
+                    placeholder="bijv. Bimi"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-muted-foreground">
+                      Categorie (optioneel)
+                    </label>
+                    <select
+                      className={selectClassName}
+                      value={newProductCategoryId}
+                      onChange={(e) => setNewProductCategoryId(e.target.value)}
+                    >
+                      <option value="">Geen categorie</option>
+                      {categories.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-muted-foreground">
+                      Vergelijkeenheid
+                    </label>
+                    <select
+                      className={selectClassName}
+                      value={newProductComparisonUnit}
+                      onChange={(e) =>
+                        setNewProductComparisonUnit(
+                          e.target.value as ComparisonUnit,
+                        )
+                      }
+                    >
+                      {COMPARISON_UNITS.map((u) => (
+                        <option key={u} value={u}>
+                          {u}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={wantVariant}
+                onChange={(e) => setWantVariant(e.target.checked)}
+                className="h-4 w-4"
+              />
+              Ook een specifieke variant vastleggen (optioneel)
+            </label>
+
+            {wantVariant && (
+              <div className="space-y-3 border-t border-border/50 pt-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground">
+                    Variantnaam
+                  </label>
+                  <Input
+                    value={variantName}
+                    onChange={(e) => setVariantName(e.target.value)}
+                    placeholder="bijv. AH Bimi 200 g"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-muted-foreground">
+                      Merk (optioneel)
+                    </label>
+                    <Input
+                      value={variantBrand}
+                      onChange={(e) => setVariantBrand(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-muted-foreground">
+                      Huismerk van winkel (optioneel)
+                    </label>
+                    <select
+                      className={selectClassName}
+                      value={variantStoreId}
+                      onChange={(e) => setVariantStoreId(e.target.value)}
+                    >
+                      <option value="">Geen (generiek merk)</option>
+                      {stores.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.canonical_name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-muted-foreground">
+                      Verpakkingsgrootte (optioneel — alleen als echt bekend)
+                    </label>
+                    <Input
+                      type="number"
+                      step="any"
+                      value={variantPackageSize}
+                      onChange={(e) => setVariantPackageSize(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-muted-foreground">
+                      Eenheid
+                    </label>
+                    <select
+                      className={selectClassName}
+                      value={variantPackageUnit}
+                      onChange={(e) => setVariantPackageUnit(e.target.value)}
+                    >
+                      <option value="">—</option>
+                      <option value="kg">kg</option>
+                      <option value="g">g</option>
+                      <option value="l">l</option>
+                      <option value="ml">ml</option>
+                      <option value="piece">piece</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {error && <p className="text-sm text-destructive">{error}</p>}
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+              >
+                Annuleer
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  setError(null);
+                  confirmMutation.mutate();
+                }}
+                disabled={confirmMutation.isPending || storeMissing}
+                className="gap-2"
+              >
+                {confirmMutation.isPending && (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                )}
+                Bevestigen
+              </Button>
+            </DialogFooter>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );
