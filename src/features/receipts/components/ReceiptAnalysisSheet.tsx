@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
+import { ProductDetailSheet } from "./ProductDetailSheet";
 import {
   fetchSpendingSummary,
   fetchItemPrices,
@@ -97,6 +98,15 @@ export function ReceiptAnalysisSheet({
   onOpenChange: (open: boolean) => void;
 }) {
   const [period, setPeriod] = useState<Period>("this_month");
+  // Productdetail gebruikt in v1 ALLE waarnemingen, niet de periode-
+  // gefilterde subset — dus krijgt itemPricesQuery.data direct als prop,
+  // zonder eigen query (geen N+1). product_id is de technische sleutel;
+  // productName is alleen een presentatie-fallback voor de titel terwijl
+  // detail.productName (uit dezelfde dataset) nog niet is afgeleid.
+  const [selectedProduct, setSelectedProduct] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
   const summaryQuery = useQuery({
     queryKey: ["receipt_spending_summary", "all"],
@@ -274,20 +284,31 @@ export function ReceiptAnalysisSheet({
                 ) : (
                   <ul className="divide-y divide-border/50 rounded-xl border border-border/70 bg-white">
                     {recentPrices.map((p) => (
-                      <li key={p.receipt_item_id} className="px-3 py-2.5">
-                        <p className="text-sm font-medium text-foreground truncate">
-                          {p.product_name}
-                        </p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {p.store_name ?? "Onbekende winkel"} ·{" "}
-                          {formatDateShort(p.purchase_date)}
-                        </p>
-                        <p className="text-sm text-foreground mt-0.5">
-                          {formatComparisonPrice(
-                            p.comparison_paid_price,
-                            p.comparison_price_unit,
-                          )}
-                        </p>
+                      <li key={p.receipt_item_id}>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSelectedProduct({
+                              id: p.product_id,
+                              name: p.product_name,
+                            })
+                          }
+                          className="w-full text-left px-3 py-2.5 hover:bg-muted/40 transition-colors"
+                        >
+                          <p className="text-sm font-medium text-foreground truncate">
+                            {p.product_name}
+                          </p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {p.store_name ?? "Onbekende winkel"} ·{" "}
+                            {formatDateShort(p.purchase_date)}
+                          </p>
+                          <p className="text-sm text-foreground mt-0.5">
+                            {formatComparisonPrice(
+                              p.comparison_paid_price,
+                              p.comparison_price_unit,
+                            )}
+                          </p>
+                        </button>
                       </li>
                     ))}
                   </ul>
@@ -297,6 +318,16 @@ export function ReceiptAnalysisSheet({
           )}
         </div>
       </SheetContent>
+
+      <ProductDetailSheet
+        open={selectedProduct !== null}
+        onOpenChange={(next) => {
+          if (!next) setSelectedProduct(null);
+        }}
+        productId={selectedProduct?.id ?? null}
+        productName={selectedProduct?.name ?? null}
+        itemPrices={itemPricesQuery.data ?? []}
+      />
     </Sheet>
   );
 }

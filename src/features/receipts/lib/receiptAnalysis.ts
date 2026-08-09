@@ -42,7 +42,10 @@ export type ItemPriceRow = {
   variant_name: string | null;
   store_id: string | null;
   store_name: string | null;
+  branch_id: string | null;
+  branch_name: string | null;
   purchase_date: string;
+  purchase_time: string | null;
   comparison_unit: string;
   comparison_paid_price: number | null;
   comparison_price_unit: string | null;
@@ -52,7 +55,7 @@ export async function fetchItemPrices(): Promise<ItemPriceRow[]> {
   const { data, error } = await supabase
     .from("receipt_item_prices")
     .select(
-      "receipt_item_id, product_id, product_name, product_variant_id, variant_name, store_id, store_name, purchase_date, comparison_unit, comparison_paid_price, comparison_price_unit",
+      "receipt_item_id, product_id, product_name, product_variant_id, variant_name, store_id, store_name, branch_id, branch_name, purchase_date, purchase_time, comparison_unit, comparison_paid_price, comparison_price_unit",
     )
     .order("purchase_date", { ascending: false });
   if (error) throw error;
@@ -212,4 +215,166 @@ export function recentItemPrices(
           : 0,
     )
     .slice(0, limit);
+}
+
+// --- Productdetail & prijsgeschiedenis v1 -----------------------------
+//
+// Werkt uitsluitend op de al opgehaalde, ongefilterde item-prices-dataset
+// (dezelfde react-query-cache als hierboven) — geen eigen query per product,
+// dus geen N+1-gedrag. Aggregatie gebeurt strikt op product_id (technische
+// sleutel); product_name/variant_name zijn puur presentatie.
+//
+// comparison_price_unit ("EUR/kg", "EUR/piece", ...) is de enige currency-
+// aanduiding die de view exposeert (een losse `currency`-kolom bestaat niet
+// in receipt_item_prices) — maar omdat comparison_price_unit exact non-null
+// is wanneer comparison_paid_price non-null is (zelfde CASE-voorwaarden in
+// 20260831000000_receipt_item_prices_view.sql), is de exacte stringwaarde
+// ervan een volledig betrouwbare currency+eenheid-sleutel om nooit
+// verschillende valuta/eenheden bij elkaar op te tellen.
+
+// Een prijswaarneming is alleen "geldig" (bruikbaar voor kerncijfers/
+// geschiedenis) als er een comparison_paid_price ÉN dus (zie boven) een
+// comparison_price_unit is — NULL wordt hier nergens als 0 behandeld.
+export type ValidPriceObservation = ItemPriceRow & {
+  comparison_paid_price: number;
+  comparison_price_unit: string;
+};
+
+function isValidPriceObservation(
+  row: ItemPriceRow,
+): row is ValidPriceObservation {
+  return (
+    row.comparison_paid_price !== null && row.comparison_price_unit !== null
+  );
+}
+
+// Sorteert nieuw -> oud: purchase_date, dan purchase_time als tiebreaker,
+// dan receipt_item_id als laatste, stabiele fallback (nooit onbepaalde
+// volgorde bij identieke datum+tijd). Ontbrekende purchase_time wordt als
+// "vroegst op die dag" behandeld — een bewuste, onschadelijke keuze voor de
+// zeldzame gevallen zonder bontijd.
+export function sortObservationsNewestFirst(
+  rows: ValidPriceObservation[],
+): ValidPriceObservation[] {
+  return [...rows].sort((a, b) => {
+    if (a.purchase_date !== b.purchase_date) {
+      return a.purchase_date < b.purchase_date ? 1 : -1;
+    }
+    const aTime = a.purchase_time ?? "";
+    const bTime = b.purchase_time ?? "";
+    if (aTime !== bTime) {
+      return aTime < bTime ? 1 : -1;
+    }
+    if (a.receipt_item_id !== b.receipt_item_id) {
+      return a.receipt_item_id < b.receipt_item_id ? 1 : -1;
+    }
+    return 0;
+  });
+}
+
+export type ProductPriceDetail = {
+  // comparison_unit (kg/liter/piece/none) is een producteigenschap, dus
+  // gelijk voor élke rij van dit product_id — ook rijen zonder geldige prijs.
+  // Gebruikt voor het header-label ("Prijs per kg"), onafhankelijk van of er
+  // al geldige waarnemingen zijn.
+  comparisonUnit: string | null;
+  productName: string | null;
+  // De getoonde, currency/eenheid-consistente groep: de groep van de meest
+  // recente geldige waarneming. Nieuw -> oud gesorteerd.
+  observations: ValidPriceObservation[];
+  primaryPriceUnit: string | null;
+  // Aantal geldige waarnemingen van datzelfde product die een ANDER
+  // comparison_price_unit hadden (bv. een andere valuta) en daarom bewust
+  // buiten de kerncijfers/geschiedenis zijn gehouden — nooit stilzwijgend
+  // gecombineerd, wel transparant gemeld.
+  excludedOtherUnitCount: number;
+};
+
+// Kiest, wanneer een product (zelden) meerdere currency/eenheid-combinaties
+// heeft, de eenvoudigste betrouwbare oplossing (optie 2 uit de spec): toon
+// statistieken/geschiedenis alleen voor de groep van de nieuwste waarneming,
+// en meld expliciet hoeveel oudere waarnemingen met een afwijkende
+// valuta/eenheid daardoor niet zijn meegenomen — in plaats van twee losse
+// groepen-UI's te bouwen voor een geval dat in de praktijk (vast NL-
+// huishouden, vrijwel altijd EUR) nauwelijks voorkomt.
+export function buildProductPriceDetail(
+  itemPrices: ItemPriceRow[],
+  productId: string,
+): ProductPriceDetail {
+  const productRows = itemPrices.filter((r) => r.product_id === productId);
+  const comparisonUnit = productRows[0]?.comparison_unit ?? null;
+  const productName = productRows[0]?.product_name ?? null;
+
+  const valid = productRows.filter(isValidPriceObservation);
+  if (valid.length === 0) {
+    return {
+      comparisonUnit,
+      productName,
+      observations: [],
+      primaryPriceUnit: null,
+      excludedOtherUnitCount: 0,
+    };
+  }
+
+  const sorted = sortObservationsNewestFirst(valid);
+  const primaryPriceUnit = sorted[0].comparison_price_unit;
+  const observations = sorted.filter(
+    (o) => o.comparison_price_unit === primaryPriceUnit,
+  );
+  return {
+    comparisonUnit,
+    productName,
+    observations,
+    primaryPriceUnit,
+    excludedOtherUnitCount: sorted.length - observations.length,
+  };
+}
+
+export type ProductPriceStats = {
+  latest: ValidPriceObservation;
+  previous: ValidPriceObservation | null;
+  average: number;
+  lowest: number;
+  highest: number;
+  count: number;
+  // null wanneer er nog geen vorige waarneming is (dan geen vergelijking) of
+  // wanneer de vorige prijs 0 was (deling door 0 vermeden, dus geen %).
+  diffAbsolute: number | null;
+  diffPercent: number | null;
+};
+
+// Alle berekeningen op de volle, ongeronde database-waarden — afronding
+// gebeurt uitsluitend bij weergave (formatComparisonPrice/formatPriceDiff),
+// nooit hier.
+export function computeProductPriceStats(
+  observations: ValidPriceObservation[],
+): ProductPriceStats | null {
+  if (observations.length === 0) return null;
+  const latest = observations[0];
+  const previous = observations.length > 1 ? observations[1] : null;
+  const prices = observations.map((o) => o.comparison_paid_price);
+  const average = prices.reduce((sum, p) => sum + p, 0) / prices.length;
+  const lowest = Math.min(...prices);
+  const highest = Math.max(...prices);
+
+  let diffAbsolute: number | null = null;
+  let diffPercent: number | null = null;
+  if (previous) {
+    diffAbsolute =
+      latest.comparison_paid_price - previous.comparison_paid_price;
+    if (previous.comparison_paid_price > 0) {
+      diffPercent = (diffAbsolute / previous.comparison_paid_price) * 100;
+    }
+  }
+
+  return {
+    latest,
+    previous,
+    average,
+    lowest,
+    highest,
+    count: observations.length,
+    diffAbsolute,
+    diffPercent,
+  };
 }
