@@ -7,9 +7,12 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import {
+  aggregateProductPricesByStore,
   buildProductPriceDetail,
   computeProductPriceStats,
+  determineHistoricallyCheapestStore,
   type ItemPriceRow,
+  type StorePriceStats,
   type ValidPriceObservation,
 } from "../lib/receiptAnalysis";
 import {
@@ -32,6 +35,84 @@ function StatCard({ label, value }: { label: string; value: string }) {
       <p className="text-lg font-semibold text-foreground leading-tight">
         {value}
       </p>
+    </div>
+  );
+}
+
+function StoreStatRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between text-sm">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-medium text-foreground">{value}</span>
+    </div>
+  );
+}
+
+// "Historisch goedkoopst" is uitsluitend een terugblik op jouw eigen
+// aankopen, geen actuele marktprijs of garantie — daarom nooit de kortere,
+// stelliger claim ("Deze winkel is het goedkoopst") gebruiken, en de badge
+// alleen tonen naast een winkel met een betrouwbare store_id (zie
+// determineHistoricallyCheapestStore in receiptAnalysis.ts).
+function StoreCard({
+  store,
+  unit,
+  isCheapest,
+  cheapestAverage,
+}: {
+  store: StorePriceStats;
+  unit: string;
+  isCheapest: boolean;
+  cheapestAverage: number | null;
+}) {
+  const showDiff =
+    cheapestAverage !== null && !isCheapest && store.storeId !== null;
+  return (
+    <div className="rounded-xl border border-border/70 bg-white p-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm font-medium text-foreground truncate">
+          {store.storeName}
+        </p>
+        {isCheapest && (
+          <span className="shrink-0 rounded-full bg-muted/70 px-2 py-0.5 text-[11px] font-medium text-foreground/80">
+            Historisch goedkoopst
+          </span>
+        )}
+      </div>
+      <p className="text-xs text-muted-foreground mb-1.5">
+        {store.observationCount}{" "}
+        {store.observationCount === 1 ? "prijswaarneming" : "prijswaarnemingen"}
+        {store.hasMultipleVariants
+          ? " · gebaseerd op verschillende verpakkingen"
+          : ""}
+      </p>
+      <div className="space-y-0.5">
+        <StoreStatRow
+          label="Laatste"
+          value={`${formatComparisonPrice(store.latestPrice, unit)} · ${formatDateShortWithYear(store.latestDate)}`}
+        />
+        <StoreStatRow
+          label="Gemiddeld"
+          value={formatComparisonPrice(store.averagePrice, unit)}
+        />
+        <StoreStatRow
+          label="Laagste"
+          value={formatComparisonPrice(store.lowestPrice, unit)}
+        />
+        <StoreStatRow
+          label="Hoogste"
+          value={formatComparisonPrice(store.highestPrice, unit)}
+        />
+      </div>
+      {showDiff && (
+        <p className="text-[11px] text-muted-foreground mt-1.5">
+          {formatPriceDiff(
+            store.averagePrice - (cheapestAverage as number),
+            unit,
+            null,
+          )}{" "}
+          t.o.v. historisch goedkoopste
+        </p>
+      )}
     </div>
   );
 }
@@ -73,6 +154,20 @@ export function ProductDetailSheet({
     if (!detail) return null;
     return computeProductPriceStats(detail.observations);
   }, [detail]);
+
+  // Hergebruikt exact detail.observations — dezelfde, al bepaalde actieve
+  // comparison_price_unit-groep als de rest van het productdetail. Geen
+  // aparte selectie, geen nieuwe query.
+  const storeStats = useMemo(() => {
+    if (!detail) return [];
+    return aggregateProductPricesByStore(detail.observations);
+  }, [detail]);
+  const cheapestStoreId = useMemo(
+    () => determineHistoricallyCheapestStore(storeStats),
+    [storeStats],
+  );
+  const cheapestAverage =
+    storeStats.find((s) => s.storeId === cheapestStoreId)?.averagePrice ?? null;
 
   const unitLabel = detail?.comparisonUnit
     ? formatComparisonUnitLabel(detail.comparisonUnit)
@@ -185,6 +280,37 @@ export function ProductDetailSheet({
                   {storeLabel(stats.latest)} ·{" "}
                   {formatDateLong(stats.latest.purchase_date)}
                 </p>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-semibold text-foreground mb-2">
+                  Per winkel
+                </h3>
+                {storeStats.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-3 text-center">
+                    Nog geen winkelgegevens beschikbaar.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {storeStats.map((s) => (
+                      <StoreCard
+                        key={s.storeId ?? "onbekend"}
+                        store={s}
+                        unit={detail.primaryPriceUnit ?? ""}
+                        isCheapest={
+                          cheapestStoreId !== null &&
+                          s.storeId === cheapestStoreId
+                        }
+                        cheapestAverage={cheapestAverage}
+                      />
+                    ))}
+                    {cheapestStoreId === null && (
+                      <p className="text-[11px] text-muted-foreground">
+                        Nog geen andere winkel om mee te vergelijken.
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div>

@@ -378,3 +378,97 @@ export function computeProductPriceStats(
     diffPercent,
   };
 }
+
+// --- Goedkoopste winkel & prijsvergelijking per product v1 -----------
+//
+// Werkt uitsluitend op de al gefilterde/gegroepeerde observations van
+// buildProductPriceDetail() (dezelfde comparison_price_unit-groep als de
+// rest van het productdetail) — geen eigen currency/unit-selectie, geen
+// nieuwe query.
+//
+// store_id op shopping_receipts is nullable (`references public.stores(id)
+// on delete set null`, geverifieerd in 20260827000000) en save_receipt_v1
+// vult 'm bij import nooit in (blijft null totdat stores.ts een match
+// vindt) — een geldige, gematchte prijswaarneming kan dus wél een
+// betrouwbare product-match hebben terwijl de winkel zelf nog niet aan een
+// canonieke store gekoppeld is. Zulke waarnemingen worden hier samen
+// getoond onder "Onbekende winkel" (eenvoudigste implementatie), maar zijn
+// nooit een geldige kandidaat voor "historisch goedkoopst" — zie
+// determineHistoricallyCheapestStore.
+export type StorePriceStats = {
+  storeId: string | null;
+  storeName: string;
+  observationCount: number;
+  latestPrice: number;
+  latestDate: string;
+  averagePrice: number;
+  lowestPrice: number;
+  highestPrice: number;
+  // true wanneer binnen deze winkelgroep meerdere verschillende, bekende
+  // product_variant_id's voorkomen (bv. Ricotta 250g én 500g) — puur
+  // contextuele waarschuwing, verandert niets aan de berekening zelf.
+  hasMultipleVariants: boolean;
+};
+
+function sortStorePriceStats(stats: StorePriceStats[]): StorePriceStats[] {
+  return [...stats].sort((a, b) => {
+    if (a.averagePrice !== b.averagePrice)
+      return a.averagePrice - b.averagePrice;
+    if (a.latestPrice !== b.latestPrice) return a.latestPrice - b.latestPrice;
+    return a.storeName.localeCompare(b.storeName, "nl");
+  });
+}
+
+export function aggregateProductPricesByStore(
+  observations: ValidPriceObservation[],
+): StorePriceStats[] {
+  const byStore = new Map<string, ValidPriceObservation[]>();
+  for (const o of observations) {
+    const key = o.store_id ?? "__unknown__";
+    const list = byStore.get(key) ?? [];
+    list.push(o);
+    byStore.set(key, list);
+  }
+
+  const result: StorePriceStats[] = [];
+  for (const obs of byStore.values()) {
+    // Zelfde sorteerlogica als de productgeschiedenis (purchase_date desc,
+    // purchase_time desc, receipt_item_id tie-breaker) — de eerste rij is
+    // dus de meest recente waarneming binnen deze winkel.
+    const sorted = sortObservationsNewestFirst(obs);
+    const prices = sorted.map((o) => o.comparison_paid_price);
+    const variantIds = new Set(
+      sorted
+        .filter((o) => o.product_variant_id !== null)
+        .map((o) => o.product_variant_id),
+    );
+    result.push({
+      storeId: sorted[0].store_id,
+      storeName: sorted[0].store_name ?? "Onbekende winkel",
+      observationCount: sorted.length,
+      latestPrice: sorted[0].comparison_paid_price,
+      latestDate: sorted[0].purchase_date,
+      averagePrice: prices.reduce((sum, p) => sum + p, 0) / prices.length,
+      lowestPrice: Math.min(...prices),
+      highestPrice: Math.max(...prices),
+      hasMultipleVariants: variantIds.size >= 2,
+    });
+  }
+
+  return sortStorePriceStats(result);
+}
+
+// Alleen winkels met een betrouwbare store_id komen in aanmerking voor de
+// "Historisch goedkoopst"-aanduiding — de "Onbekende winkel"-groep kan in
+// werkelijkheid meerdere, niet van elkaar te onderscheiden winkels bevatten,
+// dus die als "de goedkoopste winkel" aanmerken zou een claim zijn die de
+// data niet dekt. Vereist minimaal 2 betrouwbare winkels; stats is al
+// oplopend gesorteerd op averagePrice, dus de eerste betrouwbare rij is de
+// goedkoopste.
+export function determineHistoricallyCheapestStore(
+  stats: StorePriceStats[],
+): string | null {
+  const reliable = stats.filter((s) => s.storeId !== null);
+  if (reliable.length < 2) return null;
+  return reliable[0].storeId;
+}
