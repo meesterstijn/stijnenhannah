@@ -16,6 +16,7 @@ import {
   Loader2,
   AlertTriangle,
   PackageSearch,
+  TrendingUp,
 } from "lucide-react";
 import {
   parseReceiptFileText,
@@ -35,6 +36,7 @@ import {
 } from "../lib/productMatching";
 import { resolveReceiptStore } from "../lib/stores";
 import { UnmatchedProductsSheet } from "./UnmatchedProductsSheet";
+import { ReceiptAnalysisSheet } from "./ReceiptAnalysisSheet";
 
 function formatCurrency(amount: number | null, currency: string) {
   if (amount === null) return "onbekend";
@@ -80,6 +82,7 @@ export function ReceiptImportCard() {
   const [preview, setPreview] = useState<Preview | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [unmatchedOpen, setUnmatchedOpen] = useState(false);
+  const [analysisOpen, setAnalysisOpen] = useState(false);
 
   const { data: history = [], isLoading: historyLoading } = useQuery({
     queryKey: ["shopping_receipts", "history"],
@@ -160,14 +163,13 @@ export function ReceiptImportCard() {
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">
         Bewaar kassabonnen en bouw inzicht op in prijzen en weekboodschappen.
-        Prijsinzichten volgen in een latere update.
       </p>
 
-      {/* Twee gelijkwaardige outline-tegels i.p.v. één primaire + één
-          secundaire knop — zo blijft de knoptekst zelf ("Kassabon JSON
-          uploaden") ondubbelzinnig los van de actieve boodschappenlijst,
-          zonder dat de ene actie zwaarder oogt dan de andere. */}
-      <div className="grid grid-cols-2 gap-2">
+      {/* Drie gelijkwaardige outline-tegels i.p.v. knoppen met verschillend
+          gewicht — zo blijft elke knoptekst ondubbelzinnig los van de
+          actieve boodschappenlijst, zonder dat de ene actie zwaarder oogt
+          dan de andere. */}
+      <div className="grid grid-cols-3 gap-2">
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
@@ -180,6 +182,21 @@ export function ReceiptImportCard() {
             </span>
             <span className="block text-xs text-muted-foreground mt-0.5 leading-tight">
               Importeer gegevens van een kassabon
+            </span>
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setAnalysisOpen(true)}
+          className="rounded-xl border border-border/70 bg-white hover:bg-muted/30 transition-colors p-3.5 flex flex-col items-start gap-2 text-left"
+        >
+          <TrendingUp className="h-4 w-4 text-foreground" strokeWidth={1.8} />
+          <span>
+            <span className="block text-sm font-semibold text-foreground leading-tight">
+              Analyse
+            </span>
+            <span className="block text-xs text-muted-foreground mt-0.5 leading-tight">
+              Uitgaven en prijzen
             </span>
           </span>
         </button>
@@ -357,6 +374,10 @@ export function ReceiptImportCard() {
       <UnmatchedProductsSheet
         open={unmatchedOpen}
         onOpenChange={setUnmatchedOpen}
+      />
+      <ReceiptAnalysisSheet
+        open={analysisOpen}
+        onOpenChange={setAnalysisOpen}
       />
     </div>
   );
