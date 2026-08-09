@@ -77,8 +77,19 @@ function UnresolvedStoreBanner({
   );
 }
 
-function UnmatchedItemRow({ item }: { item: UnmatchedReceiptItem }) {
-  const [matchOpen, setMatchOpen] = useState(false);
+// Puur presentationeel — geen eigen dialog-state meer. De koppel-dialog
+// leeft op het niveau van UnmatchedProductsSheet zelf (zie selectedItem
+// hieronder), NIET hier per rij: zodra een regel gekoppeld wordt, verdwijnt
+// hij uit de (opnieuw opgehaalde) items-lijst — een rij-lokale dialog zou
+// dus halverwege de bevestigingsflow (of de daaropvolgende retroactieve-
+// match-check) ongewild mee unmounten, precies de "flash en verdwijnt"-bug.
+function UnmatchedItemRow({
+  item,
+  onSelect,
+}: {
+  item: UnmatchedReceiptItem;
+  onSelect: (item: UnmatchedReceiptItem) => void;
+}) {
   return (
     <li className="py-3 flex items-center justify-between gap-3">
       <div className="min-w-0">
@@ -97,18 +108,11 @@ function UnmatchedItemRow({ item }: { item: UnmatchedReceiptItem }) {
         type="button"
         size="sm"
         variant="outline"
-        onClick={() => setMatchOpen(true)}
+        onClick={() => onSelect(item)}
         className="shrink-0"
       >
         Koppelen
       </Button>
-      {matchOpen && (
-        <MatchReceiptItemDialog
-          item={item}
-          open={matchOpen}
-          onOpenChange={setMatchOpen}
-        />
-      )}
     </li>
   );
 }
@@ -128,6 +132,13 @@ export function UnmatchedProductsSheet({
     queryFn: fetchUnmatchedReceiptItems,
     enabled: open,
   });
+
+  // Losstaand van `items` — een klik legt een vaste snapshot van dit item
+  // vast, die niet verandert als de lijst zelf (door invalidatie na een
+  // bevestiging) opnieuw wordt opgehaald en dit item er niet meer in staat.
+  const [selectedItem, setSelectedItem] = useState<UnmatchedReceiptItem | null>(
+    null,
+  );
 
   const unresolvedStores = new Map<string, string[]>();
   for (const item of items) {
@@ -173,12 +184,29 @@ export function UnmatchedProductsSheet({
           {!isLoading && items.length > 0 && (
             <ul className="divide-y divide-border/50">
               {items.map((item) => (
-                <UnmatchedItemRow key={item.id} item={item} />
+                <UnmatchedItemRow
+                  key={item.id}
+                  item={item}
+                  onSelect={setSelectedItem}
+                />
               ))}
             </ul>
           )}
         </div>
       </SheetContent>
+
+      {selectedItem && (
+        // key={selectedItem.id} dwingt een verse mount per gekozen regel af
+        // — zonder key zou React dezelfde componentinstantie (en dus stale
+        // useState-waarden zoals historicalCount/error/mode) hergebruiken
+        // als je na de eerste regel meteen een volgende opent.
+        <MatchReceiptItemDialog
+          key={selectedItem.id}
+          item={selectedItem}
+          open={!!selectedItem}
+          onOpenChange={(itemOpen) => !itemOpen && setSelectedItem(null)}
+        />
+      )}
     </Sheet>
   );
 }
