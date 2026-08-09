@@ -169,18 +169,18 @@ export function ReceiptImportCard() {
           gewicht — zo blijft elke knoptekst ondubbelzinnig los van de
           actieve boodschappenlijst, zonder dat de ene actie zwaarder oogt
           dan de andere. */}
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          className="rounded-xl border border-border/70 bg-white hover:bg-muted/30 transition-colors p-3.5 flex flex-col items-start gap-2 text-left"
+          className="min-w-0 rounded-xl border border-border/70 bg-white hover:bg-muted/30 transition-colors p-3.5 flex flex-col items-start gap-2 text-left"
         >
           <Upload className="h-4 w-4 text-foreground" strokeWidth={1.8} />
-          <span>
-            <span className="block text-sm font-semibold text-foreground leading-tight">
+          <span className="min-w-0 block">
+            <span className="block break-words text-sm font-semibold text-foreground leading-tight">
               Kassabon JSON uploaden
             </span>
-            <span className="block text-xs text-muted-foreground mt-0.5 leading-tight">
+            <span className="block break-words text-xs text-muted-foreground mt-0.5 leading-tight">
               Importeer gegevens van een kassabon
             </span>
           </span>
@@ -188,14 +188,14 @@ export function ReceiptImportCard() {
         <button
           type="button"
           onClick={() => setAnalysisOpen(true)}
-          className="rounded-xl border border-border/70 bg-white hover:bg-muted/30 transition-colors p-3.5 flex flex-col items-start gap-2 text-left"
+          className="min-w-0 rounded-xl border border-border/70 bg-white hover:bg-muted/30 transition-colors p-3.5 flex flex-col items-start gap-2 text-left"
         >
           <TrendingUp className="h-4 w-4 text-foreground" strokeWidth={1.8} />
-          <span>
-            <span className="block text-sm font-semibold text-foreground leading-tight">
+          <span className="min-w-0 block">
+            <span className="block break-words text-sm font-semibold text-foreground leading-tight">
               Analyse
             </span>
-            <span className="block text-xs text-muted-foreground mt-0.5 leading-tight">
+            <span className="block break-words text-xs text-muted-foreground mt-0.5 leading-tight">
               Uitgaven en prijzen
             </span>
           </span>
@@ -203,14 +203,14 @@ export function ReceiptImportCard() {
         <button
           type="button"
           onClick={() => setHistoryOpen(true)}
-          className="rounded-xl border border-border/70 bg-white hover:bg-muted/30 transition-colors p-3.5 flex flex-col items-start gap-2 text-left"
+          className="min-w-0 rounded-xl border border-border/70 bg-white hover:bg-muted/30 transition-colors p-3.5 flex flex-col items-start gap-2 text-left"
         >
           <History className="h-4 w-4 text-foreground" strokeWidth={1.8} />
-          <span>
-            <span className="block text-sm font-semibold text-foreground leading-tight">
+          <span className="min-w-0 block">
+            <span className="block break-words text-sm font-semibold text-foreground leading-tight">
               Importgeschiedenis
             </span>
-            <span className="block text-xs text-muted-foreground mt-0.5 leading-tight">
+            <span className="block break-words text-xs text-muted-foreground mt-0.5 leading-tight">
               Bekijk opgeslagen kassabonnen
             </span>
           </span>
