@@ -38,6 +38,7 @@ import { resolveReceiptStore } from "../lib/stores";
 import { UnmatchedProductsSheet } from "./UnmatchedProductsSheet";
 import { ReceiptAnalysisSheet } from "./ReceiptAnalysisSheet";
 import { ReceiptDetailSheet } from "./ReceiptDetailSheet";
+import { AliasManagementSheet } from "./AliasManagementSheet";
 
 function formatCurrency(amount: number | null, currency: string) {
   if (amount === null) return "onbekend";
@@ -87,6 +88,7 @@ export function ReceiptImportCard() {
   const [selectedReceiptId, setSelectedReceiptId] = useState<string | null>(
     null,
   );
+  const [aliasManagementOpen, setAliasManagementOpen] = useState(false);
 
   const { data: history = [], isLoading: historyLoading } = useQuery({
     queryKey: ["shopping_receipts", "history"],
@@ -240,6 +242,14 @@ export function ReceiptImportCard() {
         </button>
       )}
 
+      <button
+        type="button"
+        onClick={() => setAliasManagementOpen(true)}
+        className="text-[11px] text-muted-foreground hover:text-foreground hover:underline"
+      >
+        Automatische herkenning beheren
+      </button>
+
       {error && <p className="text-sm text-destructive">{error}</p>}
       {successMsg && <p className="text-sm text-foreground">{successMsg}</p>}
 
@@ -392,6 +402,10 @@ export function ReceiptImportCard() {
         onOpenChange={(next) => {
           if (!next) setSelectedReceiptId(null);
         }}
+      />
+      <AliasManagementSheet
+        open={aliasManagementOpen}
+        onOpenChange={setAliasManagementOpen}
       />
     </div>
   );

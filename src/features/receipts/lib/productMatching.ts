@@ -367,3 +367,137 @@ export async function editReceiptItemMatch(input: {
   });
   if (error) throw error;
 }
+
+// --- Aliasbeheer v2 (automatische herkenning) -------------------------
+//
+// ALIAS (product_aliases) is de automatische herkenningsregel voor
+// TOEKOMSTIGE kassabonnen. RECEIPT ITEM MATCH (shopping_receipt_items.
+// product_id/product_variant_id) is wat een specifieke, al opgeslagen
+// aankoop daadwerkelijk was. Deze twee mogen bewust van elkaar afwijken
+// (zie EditReceiptItemMatchDialog's "alleen deze aankoop"-keuze) — geen van
+// de functies hieronder raakt ooit shopping_receipt_items.
+//
+// Schema (geverifieerd tegen 20260827000000_receipt_price_analysis_
+// foundation.sql, niet aangenomen):
+//   product_aliases(id, raw_alias not null, normalized_alias not null,
+//     product_id not null references products(id) on delete restrict,
+//     product_variant_id references product_variants(id) on delete set
+//     null, store_id references stores(id) on delete set null,
+//     source, usage_count, last_used_at, created_at)
+// Unieke sleutel: (normalized_alias, store_id) als store_id NOT NULL
+// (partial unique index product_aliases_store_scoped_key), en
+// (normalized_alias) alleen als store_id IS NULL (partial unique index
+// product_aliases_global_key) — het schema ONDERSTEUNT dus expliciet
+// winkel-loze/globale aliases, al ontstaan die in de praktijk nooit via de
+// huidige matchingflows (confirm_receipt_item_match_v1 vereist altijd een
+// bekende store_id). raw_alias bestaat wél apart van normalized_alias, dus
+// de leesbare oorspronkelijke bontekst is gewoon beschikbaar — geen
+// noodgreep op normalized_alias nodig.
+//
+// RLS: "product_aliases: owner only" (for all to authenticated using/with
+// check is_owner()) dekt UPDATE/DELETE al — geen RPC nodig voor een
+// enkelvoudige update van twee kolommen op één rij. De bestaande trigger
+// trg_product_aliases_variant_matches_product (before insert OR UPDATE)
+// bewaakt op databaseniveau dat product_variant_id altijd bij product_id
+// hoort, ook bij deze updates — een extra migratie voor die integriteit is
+// dus niet nodig, wel een client-side voorcheck voor een nette UI-fout
+// i.p.v. een rauwe Postgres-exception.
+export type ProductAlias = {
+  id: string;
+  raw_alias: string;
+  normalized_alias: string;
+  product_id: string;
+  product_variant_id: string | null;
+  store_id: string | null;
+  usage_count: number;
+  last_used_at: string | null;
+  product_name: string;
+  variant_name: string | null;
+  store_name: string | null;
+};
+
+type RawProductAliasRow = {
+  id: string;
+  raw_alias: string;
+  normalized_alias: string;
+  product_id: string;
+  product_variant_id: string | null;
+  store_id: string | null;
+  usage_count: number;
+  last_used_at: string | null;
+  products: { canonical_name: string } | null;
+  product_variants: { variant_name: string } | null;
+  stores: { canonical_name: string } | null;
+};
+
+// Eén request met embeds voor product/variant/winkelnaam — geen aparte
+// query per alias.
+export async function fetchProductAliases(): Promise<ProductAlias[]> {
+  const { data, error } = await supabase
+    .from("product_aliases")
+    .select(
+      "id, raw_alias, normalized_alias, product_id, product_variant_id, store_id, usage_count, last_used_at, products(canonical_name), product_variants(variant_name), stores(canonical_name)",
+    );
+  if (error) throw error;
+  return ((data ?? []) as unknown as RawProductAliasRow[]).map((row) => ({
+    id: row.id,
+    raw_alias: row.raw_alias,
+    normalized_alias: row.normalized_alias,
+    product_id: row.product_id,
+    product_variant_id: row.product_variant_id,
+    store_id: row.store_id,
+    usage_count: row.usage_count,
+    last_used_at: row.last_used_at,
+    product_name: row.products?.canonical_name ?? "Onbekend product",
+    variant_name: row.product_variants?.variant_name ?? null,
+    store_name: row.stores?.canonical_name ?? null,
+  }));
+}
+
+// Deterministisch: winkelnaam, dan aliastekst, dan id als laatste,
+// stabiele fallback.
+export function sortProductAliases(aliases: ProductAlias[]): ProductAlias[] {
+  return [...aliases].sort((a, b) => {
+    const storeA = a.store_name ?? "Onbekende winkel";
+    const storeB = b.store_name ?? "Onbekende winkel";
+    const storeCompare = storeA.localeCompare(storeB, "nl");
+    if (storeCompare !== 0) return storeCompare;
+    const aliasCompare = a.raw_alias.localeCompare(b.raw_alias, "nl");
+    if (aliasCompare !== 0) return aliasCompare;
+    return a.id.localeCompare(b.id);
+  });
+}
+
+// Wijzigt uitsluitend product_id/product_variant_id — normalized_alias en
+// store_id komen hier bewust niet in de update-payload voor, dus kunnen ook
+// nooit per ongeluk wijzigen (en dus nooit de unieke (normalized_alias,
+// store_id)-sleutel raken). usage_count/last_used_at blijven ongewijzigd
+// (niet in de payload = niet aangeraakt).
+export async function updateProductAliasTarget(input: {
+  aliasId: string;
+  productId: string;
+  productVariantId: string | null;
+}): Promise<void> {
+  const { error } = await supabase
+    .from("product_aliases")
+    .update({
+      product_id: input.productId,
+      product_variant_id: input.productVariantId,
+    })
+    .eq("id", input.aliasId);
+  if (error) throw error;
+}
+
+// Verwijdert alleen de aliasrij zelf — geen enkele shopping_receipt_items-
+// rij wordt aangeraakt (er is geen FK vanuit shopping_receipt_items naar
+// product_aliases). Toekomstige identieke kassabontekst matcht simpelweg
+// niet meer automatisch via apply_exact_store_alias_matches_v1, die
+// product_aliases live leest en dus zonder wijziging al correct reageert
+// op zowel een gewijzigde target als een verwijderde alias.
+export async function deleteProductAlias(aliasId: string): Promise<void> {
+  const { error } = await supabase
+    .from("product_aliases")
+    .delete()
+    .eq("id", aliasId);
+  if (error) throw error;
+}

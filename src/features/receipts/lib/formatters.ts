@@ -60,6 +60,22 @@ export function formatDateShortWithYear(iso: string): string {
   });
 }
 
+// "10 aug 2026" — voor volledige timestamptz-waarden (bv. product_aliases.
+// last_used_at). In tegenstelling tot formatDateShort/formatDateShortWith
+// Year/formatDateLong hierboven (die een losse DATE-kolom verwachten en
+// daarom bewust "T00:00:00" toevoegen om een consistente lokale
+// kalenderdag te forceren) is hier al een volledig ISO-tijdstip aanwezig,
+// dat wordt dus rechtstreeks geparsed.
+export function formatTimestampShort(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("nl-NL", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 // "7 augustus 2026" — voor de "Laatst geregistreerd"-regel in productdetail.
 export function formatDateLong(iso: string): string {
   const d = new Date(`${iso}T00:00:00`);
