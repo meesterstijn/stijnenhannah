@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   Sheet,
   SheetContent,
@@ -6,10 +6,14 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
+import { EditReceiptItemMatchDialog } from "./EditReceiptItemMatchDialog";
+import { ProductComparisonUnitDialog } from "./ProductComparisonUnitDialog";
+import type { ComparisonUnit } from "../lib/productMatching";
 import {
   aggregateProductPricesByStore,
   buildProductPriceDetail,
   computeProductPriceStats,
+  detectPackageUnitHints,
   determineHistoricallyCheapestStore,
   type ItemPriceRow,
   type StorePriceStats,
@@ -21,6 +25,7 @@ import {
   formatDateLong,
   formatDateShortWithYear,
   formatPriceDiff,
+  formatVariantLabel,
 } from "../lib/formatters";
 
 function storeLabel(o: ValidPriceObservation): string {
@@ -174,6 +179,28 @@ export function ProductDetailSheet({
     : null;
   const title = detail?.productName ?? productName ?? "Product";
 
+  // Bestaande koppeling corrigeren voor precies één receipt_item_id (zie
+  // EditReceiptItemMatchDialog). Wijzigt product_id -> de regel kan na het
+  // invalideren van receipt_item_prices uit dit productdetail verdwijnen —
+  // dat is correct en vereist hier geen speciale afhandeling: detail/stats
+  // hierboven zijn al memo's op itemPrices/productId, dus ze rekenen
+  // automatisch opnieuw op de vernieuwde data.
+  const [editingReceiptItemId, setEditingReceiptItemId] = useState<
+    string | null
+  >(null);
+
+  // Comparison unit van het canonieke product bewerken v1 — puur
+  // informatieve hint op basis van AL geladen package_unit-waarden, geen
+  // nieuwe query.
+  const [unitDialogOpen, setUnitDialogOpen] = useState(false);
+  const packageUnitHints = useMemo(
+    () =>
+      productId
+        ? detectPackageUnitHints(itemPrices, productId)
+        : { hasWeightInfo: false, hasVolumeInfo: false },
+    [itemPrices, productId],
+  );
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
@@ -189,6 +216,16 @@ export function ProductDetailSheet({
             Prijsgeschiedenis op basis van al je geïmporteerde kassabonnen.
           </SheetDescription>
         </SheetHeader>
+
+        {productId && detail?.comparisonUnit && (
+          <button
+            type="button"
+            onClick={() => setUnitDialogOpen(true)}
+            className="mt-1 text-[11px] text-muted-foreground hover:text-foreground hover:underline"
+          >
+            Vergelijkeenheid wijzigen
+          </button>
+        )}
 
         <div className="mt-4 space-y-5">
           {!stats && (
@@ -331,10 +368,27 @@ export function ProductDetailSheet({
                           )}
                         </span>
                       </div>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {storeLabel(o)}
-                        {o.variant_name ? ` · ${o.variant_name}` : ""}
-                      </p>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs text-muted-foreground break-words">
+                          {storeLabel(o)}
+                          {o.variant_name
+                            ? ` · ${formatVariantLabel({
+                                variant_name: o.variant_name,
+                                package_size: o.package_size,
+                                package_unit: o.package_unit,
+                              })}`
+                            : ""}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setEditingReceiptItemId(o.receipt_item_id)
+                          }
+                          className="shrink-0 px-1 text-[11px] text-muted-foreground hover:text-foreground hover:underline"
+                        >
+                          Bewerken
+                        </button>
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -343,6 +397,26 @@ export function ProductDetailSheet({
           )}
         </div>
       </SheetContent>
+
+      <EditReceiptItemMatchDialog
+        receiptItemId={editingReceiptItemId}
+        open={editingReceiptItemId !== null}
+        onOpenChange={(next) => {
+          if (!next) setEditingReceiptItemId(null);
+        }}
+      />
+
+      {productId && detail?.comparisonUnit && (
+        <ProductComparisonUnitDialog
+          productId={productId}
+          productName={title}
+          currentComparisonUnit={detail.comparisonUnit as ComparisonUnit}
+          hasWeightInfo={packageUnitHints.hasWeightInfo}
+          hasVolumeInfo={packageUnitHints.hasVolumeInfo}
+          open={unitDialogOpen}
+          onOpenChange={setUnitDialogOpen}
+        />
+      )}
     </Sheet>
   );
 }

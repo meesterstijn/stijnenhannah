@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { ProductDetailSheet } from "./ProductDetailSheet";
+import { AllProductPricesSheet } from "./AllProductPricesSheet";
 import {
   fetchSpendingSummary,
   fetchItemPrices,
@@ -107,6 +108,7 @@ export function ReceiptAnalysisSheet({
     id: string;
     name: string;
   } | null>(null);
+  const [allProductsOpen, setAllProductsOpen] = useState(false);
 
   const summaryQuery = useQuery({
     queryKey: ["receipt_spending_summary", "all"],
@@ -274,9 +276,18 @@ export function ReceiptAnalysisSheet({
               </div>
 
               <div>
-                <h3 className="text-sm font-semibold text-foreground mb-2">
-                  Recente productprijzen
-                </h3>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-semibold text-foreground">
+                    Recente productprijzen
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setAllProductsOpen(true)}
+                    className="text-[11px] text-muted-foreground hover:text-foreground hover:underline"
+                  >
+                    Alle productprijzen bekijken
+                  </button>
+                </div>
                 {recentPrices.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-3 text-center">
                     Nog geen gekoppelde productprijzen in deze periode.
@@ -318,6 +329,13 @@ export function ReceiptAnalysisSheet({
           )}
         </div>
       </SheetContent>
+
+      <AllProductPricesSheet
+        open={allProductsOpen}
+        onOpenChange={setAllProductsOpen}
+        itemPrices={itemPricesQuery.data ?? []}
+        onSelectProduct={(id, name) => setSelectedProduct({ id, name })}
+      />
 
       <ProductDetailSheet
         open={selectedProduct !== null}

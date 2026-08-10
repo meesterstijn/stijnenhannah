@@ -40,6 +40,8 @@ export type ItemPriceRow = {
   product_name: string;
   product_variant_id: string | null;
   variant_name: string | null;
+  package_size: number | null;
+  package_unit: string | null;
   store_id: string | null;
   store_name: string | null;
   branch_id: string | null;
@@ -55,7 +57,7 @@ export async function fetchItemPrices(): Promise<ItemPriceRow[]> {
   const { data, error } = await supabase
     .from("receipt_item_prices")
     .select(
-      "receipt_item_id, product_id, product_name, product_variant_id, variant_name, store_id, store_name, branch_id, branch_name, purchase_date, purchase_time, comparison_unit, comparison_paid_price, comparison_price_unit",
+      "receipt_item_id, product_id, product_name, product_variant_id, variant_name, package_size, package_unit, store_id, store_name, branch_id, branch_name, purchase_date, purchase_time, comparison_unit, comparison_paid_price, comparison_price_unit",
     )
     .order("purchase_date", { ascending: false });
   if (error) throw error;
@@ -471,4 +473,68 @@ export function determineHistoricallyCheapestStore(
   const reliable = stats.filter((s) => s.storeId !== null);
   if (reliable.length < 2) return null;
   return reliable[0].storeId;
+}
+
+// --- Alle productprijzen v1 -------------------------------------------
+//
+// "Recente productprijzen" (recentItemPrices hierboven) is een compacte,
+// datum-gesorteerde dashboardsamenvatting met een CLIENT-SIDE slice(0,
+// limit) — fetchItemPrices() haalt altijd de volledige, ongefilterde view
+// op (geen .limit() in de query). Deze functie hergebruikt exact dezelfde
+// al opgehaalde dataset, dedupliceert op product_id (nooit op naam) en
+// geeft per canoniek product alleen de meest recente GELDIGE waarneming
+// terug voor een korte preview-regel — geen nieuwe prijsberekening, alleen
+// hergebruik van isValidPriceObservation/sortObservationsNewestFirst.
+export type AllProductsSummaryRow = {
+  productId: string;
+  productName: string;
+  latestObservation: ValidPriceObservation | null;
+};
+
+export function buildAllProductsSummary(
+  itemPrices: ItemPriceRow[],
+): AllProductsSummaryRow[] {
+  const byProduct = new Map<string, ItemPriceRow[]>();
+  for (const row of itemPrices) {
+    const list = byProduct.get(row.product_id) ?? [];
+    list.push(row);
+    byProduct.set(row.product_id, list);
+  }
+
+  const result: AllProductsSummaryRow[] = [];
+  for (const rows of byProduct.values()) {
+    const valid = rows.filter(isValidPriceObservation);
+    const latestObservation =
+      valid.length > 0 ? sortObservationsNewestFirst(valid)[0] : null;
+    result.push({
+      productId: rows[0].product_id,
+      productName: rows[0].product_name,
+      latestObservation,
+    });
+  }
+
+  return result.sort((a, b) =>
+    a.productName.localeCompare(b.productName, "nl"),
+  );
+}
+
+// Puur informatief — voedt de hint in de "vergelijkeenheid wijzigen"-dialoog
+// ("Er zijn varianten met gewichtsinformatie beschikbaar."). Kijkt naar
+// ALLE rijen van dit product (niet alleen de al-geldige/primaire-eenheid-
+// groep), want package_unit kan ook bekend zijn op rijen die momenteel geen
+// comparison_paid_price hebben — bewust geen harde blokkade, geen
+// automatische correctie, alleen een signaal.
+export function detectPackageUnitHints(
+  itemPrices: ItemPriceRow[],
+  productId: string,
+): { hasWeightInfo: boolean; hasVolumeInfo: boolean } {
+  const units = new Set(
+    itemPrices
+      .filter((r) => r.product_id === productId && r.package_unit !== null)
+      .map((r) => r.package_unit),
+  );
+  return {
+    hasWeightInfo: units.has("kg") || units.has("g"),
+    hasVolumeInfo: units.has("l") || units.has("ml"),
+  };
 }

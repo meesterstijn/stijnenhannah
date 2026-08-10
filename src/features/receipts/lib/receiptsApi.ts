@@ -35,6 +35,133 @@ export async function fetchReceiptHistory(): Promise<ShoppingReceiptSummary[]> {
   }));
 }
 
+// Importgeschiedenis-detail v1 — bewust GEEN gebruik van receipt_item_prices
+// (die view filtert op line_type = 'product' AND matching_status IN
+// ('matched_auto','matched_confirmed'), dus laat unmatched/discount/deposit-
+// regels en gekoppelde regels zonder geldige comparison_paid_price weg).
+// Deze detailweergave moet juist ALLE oorspronkelijke bonregels tonen, dus
+// leest rechtstreeks van shopping_receipts/shopping_receipt_items, met
+// product/variant-namen als PostgREST-embeds erbij (nullable FK's ->
+// automatisch null als er nog geen koppeling is). Eén genest select-request
+// voor de hele bon + regels + namen — geen aparte query per regel.
+export type ReceiptDetailItemVariant = {
+  variant_name: string;
+  package_size: number | null;
+  package_unit: string | null;
+  store_name: string | null;
+};
+
+export type ReceiptDetailItem = {
+  id: string;
+  raw_name: string;
+  raw_brand: string | null;
+  line_type: string;
+  quantity: number | null;
+  weight: number | null;
+  weight_unit: string | null;
+  paid_line_total: number | null;
+  product_id: string | null;
+  product_variant_id: string | null;
+  matching_status: string;
+  product_name: string | null;
+  variant: ReceiptDetailItemVariant | null;
+};
+
+export type ReceiptDetail = {
+  id: string;
+  store_name: string | null;
+  branch_name: string | null;
+  purchase_date: string;
+  purchase_time: string | null;
+  total_paid: number | null;
+  currency: string;
+  items: ReceiptDetailItem[];
+};
+
+type RawReceiptDetailRow = {
+  id: string;
+  purchase_date: string;
+  purchase_time: string | null;
+  total_paid: number | null;
+  currency: string;
+  stores: { canonical_name: string } | null;
+  store_branches: { branch_name: string | null } | null;
+  shopping_receipt_items: {
+    id: string;
+    raw_name: string;
+    raw_brand: string | null;
+    line_type: string;
+    quantity: number | null;
+    weight: number | null;
+    weight_unit: string | null;
+    paid_line_total: number | null;
+    product_id: string | null;
+    product_variant_id: string | null;
+    matching_status: string;
+    products: { canonical_name: string } | null;
+    product_variants: {
+      variant_name: string;
+      package_size: number | null;
+      package_unit: string | null;
+      stores: { canonical_name: string } | null;
+    } | null;
+  }[];
+};
+
+// Geen expliciete ORDER BY op de geneste regels: het bestaande schema heeft
+// geen line_number/sort_order-kolom (alleen created_at, dat voor alle regels
+// van dezelfde bon identiek is — save_receipt_v1 is één transactie, en
+// now() is binnen één transactie constant — dus dat zou geen betrouwbare
+// sortering opleveren, en id is een willekeurige uuid). We laten de
+// natuurlijke, door PostgREST/Postgres teruggegeven volgorde staan, wat in
+// de praktijk voor een net-geïmporteerde, ongewijzigde tabel doorgaans de
+// oorspronkelijke insert-/bonvolgorde benadert — maar dit is geen harde
+// garantie. Zie opleverrapport.
+export async function fetchReceiptDetail(
+  receiptId: string,
+): Promise<ReceiptDetail> {
+  const { data, error } = await supabase
+    .from("shopping_receipts")
+    .select(
+      "id, purchase_date, purchase_time, total_paid, currency, stores(canonical_name), store_branches(branch_name), shopping_receipt_items(id, raw_name, raw_brand, line_type, quantity, weight, weight_unit, paid_line_total, product_id, product_variant_id, matching_status, products(canonical_name), product_variants(variant_name, package_size, package_unit, stores(canonical_name)))",
+    )
+    .eq("id", receiptId)
+    .single();
+  if (error) throw error;
+  const row = data as unknown as RawReceiptDetailRow;
+  return {
+    id: row.id,
+    store_name: row.stores?.canonical_name ?? null,
+    branch_name: row.store_branches?.branch_name ?? null,
+    purchase_date: row.purchase_date,
+    purchase_time: row.purchase_time,
+    total_paid: row.total_paid,
+    currency: row.currency,
+    items: (row.shopping_receipt_items ?? []).map((item) => ({
+      id: item.id,
+      raw_name: item.raw_name,
+      raw_brand: item.raw_brand,
+      line_type: item.line_type,
+      quantity: item.quantity,
+      weight: item.weight,
+      weight_unit: item.weight_unit,
+      paid_line_total: item.paid_line_total,
+      product_id: item.product_id,
+      product_variant_id: item.product_variant_id,
+      matching_status: item.matching_status,
+      product_name: item.products?.canonical_name ?? null,
+      variant: item.product_variants
+        ? {
+            variant_name: item.product_variants.variant_name,
+            package_size: item.product_variants.package_size,
+            package_unit: item.product_variants.package_unit,
+            store_name: item.product_variants.stores?.canonical_name ?? null,
+          }
+        : null,
+    })),
+  };
+}
+
 export type ReceiptDuplicateMatch = {
   id: string;
   raw_store_name: string | null;

@@ -87,6 +87,37 @@ export function formatComparisonUnitLabel(unit: string): string | null {
   }
 }
 
+// Gedeelde variantlabel-logica — voorheen inline gedupliceerd in
+// EditReceiptItemMatchDialog (varianten-dropdown). variant_name is en blijft
+// de identiteit van de variant; package_size/package_unit/winkelbinding zijn
+// losse technische velden op product_variants die hier UITSLUITEND voor
+// presentatie worden samengevoegd — niets hiervan wordt in variant_name zelf
+// opgeslagen of gedupliceerd. storeName is bewust een los, optioneel
+// parameter (i.p.v. een store_id die deze functie zelf zou moeten opzoeken):
+// verschillende databronnen kunnen een winkelnaam op verschillende manieren
+// resolven (of soms helemaal niet, zie receipt_item_prices die geen
+// variant-winkelbinding exposeert) — ontbreekt storeName, dan laat deze
+// functie dat deel van het label gewoon weg (geen placeholder als
+// "Generiek"; dat is, waar een aanroeper dat nuttig vindt, diens eigen
+// keuze, zie de dropdown in EditReceiptItemMatchDialog).
+export function formatVariantLabel(
+  variant: {
+    variant_name: string;
+    package_size: number | null;
+    package_unit: string | null;
+  },
+  storeName?: string | null,
+): string {
+  let label = variant.variant_name;
+  if (variant.package_size !== null && variant.package_unit !== null) {
+    label += ` (${variant.package_size} ${variant.package_unit})`;
+  }
+  if (storeName) {
+    label += ` · ${storeName}`;
+  }
+  return label;
+}
+
 // "+€0,19 (+9,0%)" / "-€0,20 (-8,0%)" / "€0,00 (0,0%)" bij een exact gelijke
 // prijs (geen misleidend "+"/"-" tonen als er niets veranderd is). unit is
 // het comparison_price_unit-formaat ("EUR/kg") — alleen de currency ervan

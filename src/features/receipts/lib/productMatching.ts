@@ -52,6 +52,24 @@ export async function createProduct(input: {
   return data;
 }
 
+// Comparison unit van een bestaand canoniek product bewerken v1 — een
+// gewone update op products, binnen de bestaande owner-only RLS-policy
+// ("products: owner only", for all to authenticated using/with check
+// is_owner(), zie 20260827000000). Geen RPC nodig: dit is een simpele,
+// enkelvoudige kolomwijziging op één rij, geen meerdere tabellen/geen
+// afhankelijke schrijfacties die atomair samen moeten slagen — precies het
+// soort wijziging waarvoor de bestaande RLS al voldoende is.
+export async function updateProductComparisonUnit(
+  productId: string,
+  comparisonUnit: ComparisonUnit,
+): Promise<void> {
+  const { error } = await supabase
+    .from("products")
+    .update({ comparison_unit: comparisonUnit })
+    .eq("id", productId);
+  if (error) throw error;
+}
+
 export async function createProductVariant(input: {
   productId: string;
   variantName: string;
@@ -76,6 +94,23 @@ export async function createProductVariant(input: {
     .single();
   if (error) throw error;
   return data;
+}
+
+// Bestaande varianten van één product — gebruikt door de bewerkflow om
+// "bestaande variant kiezen" aan te bieden i.p.v. altijd een nieuwe variant
+// te moeten aanmaken (zie EditReceiptItemMatchDialog).
+export async function fetchProductVariants(
+  productId: string,
+): Promise<ProductVariant[]> {
+  const { data, error } = await supabase
+    .from("product_variants")
+    .select(
+      "id, product_id, brand, variant_name, store_id, package_size, package_unit",
+    )
+    .eq("product_id", productId)
+    .order("variant_name", { ascending: true });
+  if (error) throw error;
+  return data ?? [];
 }
 
 export type UnmatchedReceiptItem = {
@@ -223,4 +258,112 @@ export async function applyHistoricalAliasMatches(
   );
   if (error) throw error;
   return (data as number) ?? 0;
+}
+
+// --- Bestaande productkoppeling bewerken v1 ---------------------------
+//
+// receipt_item_prices (de view achter Productdetail) bevat bewust geen
+// raw_*-velden (dat is een prijsanalyse-view, geen edit-databron) — de
+// bewerkflow haalt de nodige read-only boncontext daarom hier apart en
+// alleen op het moment dat de gebruiker "Bewerken" klikt (1 gerichte query
+// per open, geen achtergrond-N+1 over een lijst).
+export type ReceiptItemEditContext = {
+  id: string;
+  raw_name: string;
+  raw_brand: string | null;
+  quantity: number | null;
+  weight: number | null;
+  weight_unit: string | null;
+  paid_line_total: number | null;
+  product_id: string | null;
+  product_variant_id: string | null;
+  matching_status: string;
+  store_id: string | null;
+  store_name: string | null;
+  purchase_date: string;
+  currency: string;
+};
+
+type RawReceiptItemEditRow = {
+  id: string;
+  raw_name: string;
+  raw_brand: string | null;
+  quantity: number | null;
+  weight: number | null;
+  weight_unit: string | null;
+  paid_line_total: number | null;
+  product_id: string | null;
+  product_variant_id: string | null;
+  matching_status: string;
+  shopping_receipts: {
+    store_id: string | null;
+    purchase_date: string;
+    currency: string;
+    stores: { canonical_name: string } | null;
+  } | null;
+};
+
+export async function fetchReceiptItemEditContext(
+  receiptItemId: string,
+): Promise<ReceiptItemEditContext> {
+  const { data, error } = await supabase
+    .from("shopping_receipt_items")
+    .select(
+      "id, raw_name, raw_brand, quantity, weight, weight_unit, paid_line_total, product_id, product_variant_id, matching_status, shopping_receipts(store_id, purchase_date, currency, stores(canonical_name))",
+    )
+    .eq("id", receiptItemId)
+    .single();
+  if (error) throw error;
+  const row = data as unknown as RawReceiptItemEditRow;
+  return {
+    id: row.id,
+    raw_name: row.raw_name,
+    raw_brand: row.raw_brand,
+    quantity: row.quantity,
+    weight: row.weight,
+    weight_unit: row.weight_unit,
+    paid_line_total: row.paid_line_total,
+    product_id: row.product_id,
+    product_variant_id: row.product_variant_id,
+    matching_status: row.matching_status,
+    store_id: row.shopping_receipts?.store_id ?? null,
+    store_name: row.shopping_receipts?.stores?.canonical_name ?? null,
+    purchase_date: row.shopping_receipts?.purchase_date ?? "",
+    currency: row.shopping_receipts?.currency ?? "EUR",
+  };
+}
+
+// Puur lezend — bepaalt of er voor deze regel (raw_name + store) al een
+// winkel-specifieke alias bestaat, zodat de UI de alias-keuzestap alleen
+// toont als die daadwerkelijk relevant is. Zelfde tweetraps-patroon als
+// findHistoricalAliasMatchCount hierboven.
+export async function findExistingAliasForReceiptItem(
+  receiptItemId: string,
+): Promise<boolean> {
+  const { data, error } = await supabase.rpc(
+    "find_existing_alias_for_receipt_item_v1",
+    { p_receipt_item_id: receiptItemId },
+  );
+  if (error) throw error;
+  return (data as boolean) ?? false;
+}
+
+// Atomisch: werkt de kassabonregel altijd bij (koppeling + matching-
+// metadata), en de bestaande alias alleen als updateAlias = true — maakt
+// zelf nooit een nieuwe alias aan. Zie migratie
+// 20260902000000_edit_receipt_item_match_v1_rpc.sql voor de volledige
+// redenering waarom dit een eigen RPC is i.p.v. confirmReceiptItemMatch.
+export async function editReceiptItemMatch(input: {
+  receiptItemId: string;
+  productId: string;
+  productVariantId: string | null;
+  updateAlias: boolean;
+}): Promise<void> {
+  const { error } = await supabase.rpc("edit_receipt_item_match_v1", {
+    p_receipt_item_id: input.receiptItemId,
+    p_product_id: input.productId,
+    p_product_variant_id: input.productVariantId,
+    p_update_alias: input.updateAlias,
+  });
+  if (error) throw error;
 }

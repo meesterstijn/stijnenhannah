@@ -37,6 +37,7 @@ import {
 import { resolveReceiptStore } from "../lib/stores";
 import { UnmatchedProductsSheet } from "./UnmatchedProductsSheet";
 import { ReceiptAnalysisSheet } from "./ReceiptAnalysisSheet";
+import { ReceiptDetailSheet } from "./ReceiptDetailSheet";
 
 function formatCurrency(amount: number | null, currency: string) {
   if (amount === null) return "onbekend";
@@ -83,6 +84,9 @@ export function ReceiptImportCard() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [unmatchedOpen, setUnmatchedOpen] = useState(false);
   const [analysisOpen, setAnalysisOpen] = useState(false);
+  const [selectedReceiptId, setSelectedReceiptId] = useState<string | null>(
+    null,
+  );
 
   const { data: history = [], isLoading: historyLoading } = useQuery({
     queryKey: ["shopping_receipts", "history"],
@@ -350,20 +354,23 @@ export function ReceiptImportCard() {
           {!historyLoading && history.length > 0 && (
             <ul className="divide-y divide-border/50 max-h-80 overflow-y-auto -mx-6 px-6">
               {history.map((r) => (
-                <li
-                  key={r.id}
-                  className="py-3 flex items-center justify-between gap-3 text-sm"
-                >
-                  <div className="min-w-0">
-                    <p className="font-medium truncate">{r.store}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatDate(r.purchase_date)} · {r.item_count}{" "}
-                      {r.item_count === 1 ? "regel" : "regels"}
-                    </p>
-                  </div>
-                  <span className="text-sm font-medium shrink-0">
-                    {formatCurrency(r.total, r.currency)}
-                  </span>
+                <li key={r.id}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedReceiptId(r.id)}
+                    className="w-full py-3 flex items-center justify-between gap-3 text-sm text-left hover:bg-muted/30 transition-colors -mx-1 px-1 rounded-md"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{r.store}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDate(r.purchase_date)} · {r.item_count}{" "}
+                        {r.item_count === 1 ? "regel" : "regels"}
+                      </p>
+                    </div>
+                    <span className="text-sm font-medium shrink-0">
+                      {formatCurrency(r.total, r.currency)}
+                    </span>
+                  </button>
                 </li>
               ))}
             </ul>
@@ -378,6 +385,13 @@ export function ReceiptImportCard() {
       <ReceiptAnalysisSheet
         open={analysisOpen}
         onOpenChange={setAnalysisOpen}
+      />
+      <ReceiptDetailSheet
+        receiptId={selectedReceiptId}
+        open={selectedReceiptId !== null}
+        onOpenChange={(next) => {
+          if (!next) setSelectedReceiptId(null);
+        }}
       />
     </div>
   );
