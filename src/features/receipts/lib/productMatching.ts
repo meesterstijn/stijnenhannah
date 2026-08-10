@@ -8,6 +8,17 @@ import { supabase } from "@/lib/supabase";
 export const COMPARISON_UNITS = ["kg", "liter", "piece", "none"] as const;
 export type ComparisonUnit = (typeof COMPARISON_UNITS)[number];
 
+// Centrale, gedeelde Nederlandse labels voor ComparisonUnit — gebruikt door
+// ProductComparisonUnitDialog én de Productcatalogus (ProductCatalogSheet/
+// ProductCatalogDetailSheet), zodat er nooit twee afwijkende labelsets
+// voor dezelfde vier waarden ontstaan.
+export const COMPARISON_UNIT_LABELS: Record<ComparisonUnit, string> = {
+  kg: "per kilogram",
+  liter: "per liter",
+  piece: "per stuk/verpakking",
+  none: "geen vergelijkprijs",
+};
+
 export type Product = {
   id: string;
   canonical_name: string;
@@ -499,5 +510,233 @@ export async function deleteProductAlias(aliasId: string): Promise<void> {
     .from("product_aliases")
     .delete()
     .eq("id", aliasId);
+  if (error) throw error;
+}
+
+// --- Product- & variantbeheer v1 (Productcatalogus) --------------------
+//
+// Geverifieerd tegen 20260827000000_receipt_price_analysis_foundation.sql
+// (niet aangenomen): products heeft geen andere kolommen dan id/
+// canonical_name/category_id/comparison_unit/created_at; product_variants
+// heeft daarnaast brand/variant_name/store_id/package_size/package_unit/
+// barcode/active/created_at. GEEN unique constraint op variant_name (alleen
+// products.canonical_name heeft een lower-case unieke index) — dubbele
+// variantnamen zijn dus schema-technisch mogelijk, precies zoals de
+// praktijk (Volle kwark/Magere kwark) al liet zien. RLS "products: owner
+// only"/"product_variants: owner only" (for all to authenticated using/
+// with check is_owner()) dekt UPDATE al — geen RPC nodig voor deze
+// enkelvoudige rij-updates.
+export type ProductCatalogEntry = {
+  id: string;
+  canonical_name: string;
+  category_id: string | null;
+  category_name: string | null;
+  comparison_unit: ComparisonUnit;
+  variantCount: number;
+  receiptItemCount: number;
+};
+
+type RawProductCatalogRow = {
+  id: string;
+  canonical_name: string;
+  category_id: string | null;
+  comparison_unit: ComparisonUnit;
+  product_categories: { name: string } | null;
+};
+
+// Drie bulk-queries TOTAAL (producten, variant-tellingen, receipt-item-
+// tellingen) — niet per product — dus geen N+1 ongeacht catalogusgrootte.
+// Tellingen gebeuren client-side op de al opgehaalde, kleine kolomselecties
+// (alleen product_id, geen volledige rijen).
+export async function fetchProductCatalog(): Promise<ProductCatalogEntry[]> {
+  const [productsRes, variantsRes, itemsRes] = await Promise.all([
+    supabase
+      .from("products")
+      .select(
+        "id, canonical_name, category_id, comparison_unit, product_categories(name)",
+      ),
+    supabase.from("product_variants").select("product_id"),
+    supabase
+      .from("shopping_receipt_items")
+      .select("product_id")
+      .eq("line_type", "product")
+      .not("product_id", "is", null),
+  ]);
+  if (productsRes.error) throw productsRes.error;
+  if (variantsRes.error) throw variantsRes.error;
+  if (itemsRes.error) throw itemsRes.error;
+
+  const variantCountByProduct = new Map<string, number>();
+  for (const v of variantsRes.data ?? []) {
+    variantCountByProduct.set(
+      v.product_id,
+      (variantCountByProduct.get(v.product_id) ?? 0) + 1,
+    );
+  }
+  const itemCountByProduct = new Map<string, number>();
+  for (const item of itemsRes.data ?? []) {
+    if (!item.product_id) continue;
+    itemCountByProduct.set(
+      item.product_id,
+      (itemCountByProduct.get(item.product_id) ?? 0) + 1,
+    );
+  }
+
+  return ((productsRes.data ?? []) as unknown as RawProductCatalogRow[]).map(
+    (p) => ({
+      id: p.id,
+      canonical_name: p.canonical_name,
+      category_id: p.category_id,
+      category_name: p.product_categories?.name ?? null,
+      comparison_unit: p.comparison_unit,
+      variantCount: variantCountByProduct.get(p.id) ?? 0,
+      receiptItemCount: itemCountByProduct.get(p.id) ?? 0,
+    }),
+  );
+}
+
+export type ProductCatalogVariantDetail = {
+  id: string;
+  variant_name: string;
+  brand: string | null;
+  store_id: string | null;
+  store_name: string | null;
+  package_size: number | null;
+  package_unit: string | null;
+  receiptItemCount: number;
+  aliasCount: number;
+};
+
+export type ProductCatalogDetail = {
+  id: string;
+  canonical_name: string;
+  category_id: string | null;
+  comparison_unit: ComparisonUnit;
+  receiptItemCount: number;
+  aliasCount: number;
+  variants: ProductCatalogVariantDetail[];
+};
+
+type RawCatalogVariantRow = {
+  id: string;
+  variant_name: string;
+  brand: string | null;
+  store_id: string | null;
+  package_size: number | null;
+  package_unit: string | null;
+  stores: { canonical_name: string } | null;
+};
+
+// Vier bulk-queries TOTAAL, onafhankelijk van het aantal varianten van dit
+// product — geen aparte query per variant. Receipt-item-/aliastellingen per
+// variant (en de productbrede totalen) worden client-side geaggregeerd op
+// product_variant_id.
+export async function fetchProductCatalogDetail(
+  productId: string,
+): Promise<ProductCatalogDetail> {
+  const [productRes, variantsRes, itemsRes, aliasesRes] = await Promise.all([
+    supabase
+      .from("products")
+      .select("id, canonical_name, category_id, comparison_unit")
+      .eq("id", productId)
+      .single(),
+    supabase
+      .from("product_variants")
+      .select(
+        "id, variant_name, brand, store_id, package_size, package_unit, stores(canonical_name)",
+      )
+      .eq("product_id", productId)
+      .order("variant_name", { ascending: true }),
+    supabase
+      .from("shopping_receipt_items")
+      .select("product_variant_id")
+      .eq("product_id", productId)
+      .eq("line_type", "product"),
+    supabase
+      .from("product_aliases")
+      .select("product_variant_id")
+      .eq("product_id", productId),
+  ]);
+  if (productRes.error) throw productRes.error;
+  if (variantsRes.error) throw variantsRes.error;
+  if (itemsRes.error) throw itemsRes.error;
+  if (aliasesRes.error) throw aliasesRes.error;
+
+  const itemCountByVariant = new Map<string | null, number>();
+  for (const item of itemsRes.data ?? []) {
+    const key = item.product_variant_id;
+    itemCountByVariant.set(key, (itemCountByVariant.get(key) ?? 0) + 1);
+  }
+  const aliasCountByVariant = new Map<string | null, number>();
+  for (const a of aliasesRes.data ?? []) {
+    const key = a.product_variant_id;
+    aliasCountByVariant.set(key, (aliasCountByVariant.get(key) ?? 0) + 1);
+  }
+
+  const variants = (
+    (variantsRes.data ?? []) as unknown as RawCatalogVariantRow[]
+  ).map((v) => ({
+    id: v.id,
+    variant_name: v.variant_name,
+    brand: v.brand,
+    store_id: v.store_id,
+    store_name: v.stores?.canonical_name ?? null,
+    package_size: v.package_size,
+    package_unit: v.package_unit,
+    receiptItemCount: itemCountByVariant.get(v.id) ?? 0,
+    aliasCount: aliasCountByVariant.get(v.id) ?? 0,
+  }));
+
+  return {
+    id: productRes.data.id,
+    canonical_name: productRes.data.canonical_name,
+    category_id: productRes.data.category_id,
+    comparison_unit: productRes.data.comparison_unit as ComparisonUnit,
+    receiptItemCount: itemsRes.data?.length ?? 0,
+    aliasCount: aliasesRes.data?.length ?? 0,
+    variants,
+  };
+}
+
+// Wijzigt uitsluitend canonical_name/category_id — comparison_unit heeft
+// zijn eigen, al bestaande updateProductComparisonUnit()/
+// ProductComparisonUnitDialog (bewust niet hier gedupliceerd).
+export async function updateProductMetadata(input: {
+  productId: string;
+  canonicalName: string;
+  categoryId: string | null;
+}): Promise<void> {
+  const { error } = await supabase
+    .from("products")
+    .update({
+      canonical_name: input.canonicalName.trim(),
+      category_id: input.categoryId,
+    })
+    .eq("id", input.productId);
+  if (error) throw error;
+}
+
+// Wijzigt variant_name/brand/store_id/package_size/package_unit — bewust
+// GEEN product_id in de payload, dus een variant kan hiermee nooit naar een
+// ander canoniek product verplaatst worden (dat is expliciet buiten scope
+// van v1).
+export async function updateProductVariant(input: {
+  variantId: string;
+  variantName: string;
+  brand: string | null;
+  storeId: string | null;
+  packageSize: number | null;
+  packageUnit: string | null;
+}): Promise<void> {
+  const { error } = await supabase
+    .from("product_variants")
+    .update({
+      variant_name: input.variantName.trim(),
+      brand: input.brand,
+      store_id: input.storeId,
+      package_size: input.packageSize,
+      package_unit: input.packageUnit,
+    })
+    .eq("id", input.variantId);
   if (error) throw error;
 }

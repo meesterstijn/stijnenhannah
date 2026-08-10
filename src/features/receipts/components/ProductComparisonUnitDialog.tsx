@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import {
   COMPARISON_UNITS,
+  COMPARISON_UNIT_LABELS as UNIT_LABELS,
   updateProductComparisonUnit,
   type ComparisonUnit,
 } from "../lib/productMatching";
@@ -19,19 +20,13 @@ import {
 const selectClassName =
   "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
 
-// Nederlandse labels voor deze specifieke instellingendialoog — bewust een
-// eigen, losse mapping i.p.v. formatComparisonUnitLabel() uit formatters.ts
-// hergebruiken: die bestaande formatter is een terse header-subtitel
-// ("Prijs per kg") die voor 'none' expres null teruggeeft (geen subtitel).
-// Hier is 'none' juist een volwaardige, zichtbare keuzeoptie in een
-// dropdown, met een andere, uitlegerige formulering — geen duplicatie van
-// dezelfde functie, maar een andere presentatiebehoefte.
-const UNIT_LABELS: Record<ComparisonUnit, string> = {
-  kg: "per kilogram",
-  liter: "per liter",
-  piece: "per stuk/verpakking",
-  none: "geen vergelijkprijs",
-};
+// Nederlandse labels: COMPARISON_UNIT_LABELS uit productMatching.ts (bewust
+// niet formatComparisonUnitLabel() uit formatters.ts — die is een terse
+// header-subtitel die voor 'none' expres null teruggeeft; hier is 'none'
+// juist een volwaardige, zichtbare keuzeoptie met een andere, uitlegerige
+// formulering). Centraal gedefinieerd zodat de Productcatalogus
+// (ProductCatalogSheet/ProductCatalogDetailSheet) exact dezelfde labels
+// toont zonder een tweede, mogelijk afwijkende mapping.
 
 // Comparison unit van een bestaand canoniek product bewerken v1 — raakt
 // UITSLUITEND products.comparison_unit (gewone Supabase-update, binnen de
@@ -80,6 +75,9 @@ export function ProductComparisonUnitDialog({
       // berekent dus automatisch opnieuw zodra deze query wordt herhaald.
       queryClient.invalidateQueries({ queryKey: ["receipt_item_prices"] });
       queryClient.invalidateQueries({ queryKey: ["products"] });
+      // Sinds deze dialoog ook vanuit de Productcatalogus bereikbaar is:
+      // dezelfde comparison_unit is daar ook zichtbaar.
+      queryClient.invalidateQueries({ queryKey: ["product_catalog"] });
       onOpenChange(false);
     },
     onError: (err: Error) => setError(err.message),
