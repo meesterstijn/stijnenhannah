@@ -1113,15 +1113,15 @@ body:has(.cocktail-theme) {
   opacity: 1;
 }
 
-/* Basiswaarde (mobile-first) bewust ondoorzichtiger dan de oorspronkelijke
-   0.55: backdrop-filter over twee gestapelde position: fixed-lagen (deze
-   balk boven .home-bg) rendert op mobiele Safari minder consistent dan op
-   desktop-browsers, waardoor exact dezelfde rgba-waarde er op telefoon
-   doorzichtiger uitziet. Een effener/donkerder achtergrondkleur is minder
-   afhankelijk van hoe de blur precies rendert. De @media (hover: hover)
-   hieronder (zelfde techniek als hierboven bij .home-card/.home-glass-scope)
-   zet 'm op apparaten met een echte muis/pointer terug naar de originele,
-   al goedgekeurde desktopwaarde. */
+/* Volledig ondoorzichtig (alpha 1) i.p.v. een translucente waarde: de balk
+   mag nog steeds dezelfde donkere tint als de rest van .home-dashboard
+   hebben, maar er mag nooit gescrolde pagina-inhoud doorheen te zien zijn —
+   dat kan een translucente rgba-waarde per definitie niet garanderen, hoe
+   hoog de alpha ook is. Geen mobiel/desktop-onderscheid meer nodig (geen
+   @media (hover: hover) hier meer): dit geldt nu overal gelijk.
+   backdrop-filter blijft staan als onschadelijke fallback, maar heeft
+   feitelijk geen visueel effect meer zodra background zelf al 100% dekkend
+   is. */
 .home-bottom-nav {
   position: fixed;
   left: 0;
@@ -1131,17 +1131,11 @@ body:has(.cocktail-theme) {
   display: flex;
   align-items: center;
   justify-content: space-around;
-  background: rgba(15, 15, 15, 0.75);
+  background: rgb(15, 15, 15);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   padding: 0.5rem 0.5rem calc(0.5rem + env(safe-area-inset-bottom));
-}
-
-@media (hover: hover) {
-  .home-bottom-nav {
-    background: rgba(15, 15, 15, 0.55);
-  }
 }
 
 .home-bottom-nav-item {
