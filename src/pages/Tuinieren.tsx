@@ -54,6 +54,7 @@ import {
   ChevronRight,
   Lightbulb,
   ClipboardCheck,
+  ClipboardCopy,
   Ruler,
   Euro,
   Scissors,
@@ -104,18 +105,21 @@ import {
   hasActiveInstancesForSpecies,
 } from "@/features/tuingids/lib/plantInstances";
 import { usePlantInstances } from "@/features/tuingids/hooks/usePlantInstances";
-
-const SUN_OPTIONS = ["Volle zon", "Halfvolle zon", "Half schaduw", "Schaduw"] as const;
-
-const GREENHOUSE_PREF_OPTIONS = ["Kas liefhebber", "Kas of buiten", "Alleen buiten"] as const;
-
-const PLANT_CATEGORY_OPTIONS = [
-  "🍅 Moestuin",
-  "🍓 Fruit",
-  "🌿 Kruiden",
-  "🌸 Sierplanten",
-  "🌳 Bomen & Mediterrane planten",
-] as const;
+import {
+  SUN_OPTIONS,
+  GREENHOUSE_PREF_OPTIONS,
+  PLANT_CATEGORY_OPTIONS,
+  LIFECYCLE_OPTIONS,
+  GROWING_METHOD_OPTIONS,
+  GROWTH_HABIT_OPTIONS,
+  WATERING_METHOD_OPTIONS,
+  HEALTH_STATUS_OPTIONS,
+  POT_MATERIAL_OPTIONS,
+  WINTER_HARDINESS_OPTIONS,
+  PROPAGATION_OPTIONS,
+  validatePlantImportEntry,
+} from "@/features/tuingids/lib/plantImportSchema";
+import { buildPlantImportChatGptPrompt } from "@/features/tuingids/lib/plantImportPrompt";
 
 function parseGreenhouseNotes(raw: string | null): { pref: string; notes: string } {
   if (!raw) return { pref: "", notes: "" };
@@ -125,46 +129,6 @@ function parseGreenhouseNotes(raw: string | null): { pref: string; notes: string
   }
   return { pref: "", notes: raw };
 }
-
-const LIFECYCLE_OPTIONS = ["Eenjarig", "Meerjarig"] as const;
-
-const GROWING_METHOD_OPTIONS = ["Volle grond", "Pot"] as const;
-
-const GROWTH_HABIT_OPTIONS = [
-  "Omhoog",
-  "Steun nodig",
-  "Langs de grond",
-  "Bosvormend",
-] as const;
-
-const WATERING_METHOD_OPTIONS = [
-  "Onder de voet (weken)",
-  "Over de plant (bladbesproeiing)",
-  "Op de bodem bij de wortels",
-] as const;
-
-const HEALTH_STATUS_OPTIONS = [
-  "Zaailing",
-  "Net geplant",
-  "Gezond",
-  "In bloei",
-  "Vruchten",
-  "Stress",
-  "Ziek",
-  "Afgestorven",
-] as const;
-
-const POT_MATERIAL_OPTIONS = [
-  "Terracotta",
-  "Kunststof",
-  "Keramiek",
-  "Metaal",
-  "Hout",
-  "Textiel",
-  "Steen",
-  "Biologisch afbreekbaar",
-  "Anders",
-] as const;
 
 const PRUNING_TYPE_OPTIONS = [
   "Vormsnoei",
@@ -185,21 +149,6 @@ function formatEuro(amount: number | null): string | null {
   }).format(amount);
 }
 
-const WINTER_HARDINESS_OPTIONS = [
-  "Winterhard",
-  "Beperkt winterhard",
-  "Niet winterhard",
-] as const;
-
-const PROPAGATION_OPTIONS = [
-  "Stekken",
-  "Zaad",
-  "Scheuren / delen",
-  "Uitlopers",
-  "Bladstek",
-  "Knollen / bollen",
-] as const;
-
 function toggleInArray(arr: string[], value: string): string[] {
   return arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value];
 }
@@ -214,114 +163,6 @@ function monthChipClass(active: boolean): string {
 
 function warnChipClass(active: boolean): string {
   return `sv-chip px-3 py-1.5 text-sm font-medium${active ? " active warn" : ""}`;
-}
-
-type PlantImportValidationResult =
-  | { ok: true; data: PlantImportData }
-  | { ok: false; errors: string[] };
-
-function validatePlantImportEntry(value: unknown): PlantImportValidationResult {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    return { ok: false, errors: ["Geen geldig plantobject (verwacht een JSON-object)."] };
-  }
-
-  const p = value as Record<string, unknown>;
-  const errors: string[] = [];
-
-  // ── Verplicht ────────────────────────────────────────────────────────────
-  if (typeof p.name !== "string" || !p.name.trim()) {
-    errors.push("Plant mist een geldige naam (name is verplicht en mag niet leeg zijn).");
-  }
-
-  // ── Enum: scalaire velden ─────────────────────────────────────────────────
-  const enumChecks: [string, readonly string[]][] = [
-    ["category",         PLANT_CATEGORY_OPTIONS],
-    ["lifecycle",        LIFECYCLE_OPTIONS],
-    ["greenhouse_pref",  GREENHOUSE_PREF_OPTIONS],
-    ["winter_hardiness", WINTER_HARDINESS_OPTIONS],
-  ];
-  for (const [field, allowed] of enumChecks) {
-    const v = p[field];
-    if (v !== undefined && v !== null && !(allowed as readonly string[]).includes(v as string)) {
-      errors.push(`Ongeldige waarde voor ${field}: "${v}". Toegestaan: ${allowed.join(" | ")}.`);
-    }
-  }
-
-  // ── Enum: arraywaarden ────────────────────────────────────────────────────
-  // sun_needs mag ook een enkele string zijn (legacy export)
-  if (p.sun_needs !== undefined && p.sun_needs !== null) {
-    const items = Array.isArray(p.sun_needs) ? p.sun_needs : [p.sun_needs];
-    for (const v of items) {
-      if (!(SUN_OPTIONS as readonly string[]).includes(v as string)) {
-        errors.push(`sun_needs bevat een onbekende waarde: "${v}". Toegestaan: ${SUN_OPTIONS.join(" | ")}.`);
-      }
-    }
-  }
-
-  const arrayEnumChecks: [string, readonly string[]][] = [
-    ["growth_habit",        GROWTH_HABIT_OPTIONS],
-    ["watering_method",     WATERING_METHOD_OPTIONS],
-    ["propagation_methods", PROPAGATION_OPTIONS],
-  ];
-  for (const [field, allowed] of arrayEnumChecks) {
-    const v = p[field];
-    if (v !== undefined && v !== null) {
-      if (!Array.isArray(v)) {
-        errors.push(`${field} moet een array zijn.`);
-      } else {
-        for (const item of v) {
-          if (!(allowed as readonly string[]).includes(item as string)) {
-            errors.push(`${field} bevat een onbekende waarde: "${item}". Toegestaan: ${allowed.join(" | ")}.`);
-          }
-        }
-      }
-    }
-  }
-
-  // ── Maandarrays ───────────────────────────────────────────────────────────
-  const monthArrayFields = ["feeding_months", "sow_months", "bloom_months", "harvest_months"] as const;
-  for (const field of monthArrayFields) {
-    const v = p[field];
-    if (v !== undefined && v !== null) {
-      if (!Array.isArray(v)) {
-        errors.push(`${field} moet een array zijn.`);
-      } else {
-        for (const item of v) {
-          if (!(MONTH_OPTIONS as readonly string[]).includes(item as string)) {
-            errors.push(`${field} bevat een ongeldige maand: "${item}". Gebruik volledige Nederlandse namen.`);
-          }
-        }
-      }
-    }
-  }
-
-  // ── Numerieke velden ──────────────────────────────────────────────────────
-  const numericFields = [
-    "size_cm", "spacing_cm", "pot_min_liters", "pot_recommended_liters",
-    "pot_min_depth_cm", "pot_recommended_depth_cm",
-    "feeding_interval_days", "water_interval_days", "pot_water_interval_days",
-    "soil_ph_min", "soil_ph_max", "watering_soak_minutes", "pot_size_liters", "price",
-  ] as const;
-  for (const field of numericFields) {
-    const v = p[field];
-    if (v !== undefined && v !== null) {
-      if (typeof v === "string" && v.trim() !== "" && isNaN(Number(v))) {
-        errors.push(`${field} is geen geldig getal: "${v}".`);
-      } else if (typeof v !== "number" && typeof v !== "string") {
-        errors.push(`${field} moet een getal zijn, maar is: ${typeof v}.`);
-      }
-    }
-  }
-
-  // ── Booleanvelden ─────────────────────────────────────────────────────────
-  for (const field of ["toxic_to_humans", "toxic_to_cats"] as const) {
-    if (p[field] !== undefined && typeof p[field] !== "boolean") {
-      errors.push(`${field} moet true of false zijn (gevonden: "${p[field]}").`);
-    }
-  }
-
-  if (errors.length > 0) return { ok: false, errors };
-  return { ok: true, data: p as PlantImportData };
 }
 
 function SectionHeading({ children }: { children: string }) {
@@ -5293,6 +5134,21 @@ export default function Tuinieren() {
     return () => clearTimeout(t);
   }, [importMsg]);
 
+  // "JSON ophalen" — kopieert de actuele ChatGPT-importprompt naar het
+  // klembord. De prompt zelf komt volledig uit buildPlantImportChatGptPrompt()
+  // (plantImportPrompt.ts), die op zijn beurt PLANT_IMPORT_FIELDS
+  // (plantImportSchema.ts) leest — dezelfde bron als validatePlantImportEntry
+  // hieronder. Er wordt hier dus nooit een los, verouderbaar schema getoond.
+  async function handleCopyImportPrompt() {
+    try {
+      const prompt = buildPlantImportChatGptPrompt();
+      await navigator.clipboard.writeText(prompt);
+      toast.success("JSON-prompt gekopieerd");
+    } catch {
+      toast.error("JSON-prompt kopiëren mislukt");
+    }
+  }
+
   async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -5763,6 +5619,8 @@ export default function Tuinieren() {
       growing_method: p.growing_method,
       pot_min_liters: p.pot_min_liters,
       pot_recommended_liters: p.pot_recommended_liters,
+      pot_min_depth_cm: p.pot_min_depth_cm,
+      pot_recommended_depth_cm: p.pot_recommended_depth_cm,
       pot_water_notes: p.pot_water_notes,
       water_interval_days: p.water_interval_days,
       pot_water_interval_days: p.pot_water_interval_days,
@@ -6096,6 +5954,12 @@ export default function Tuinieren() {
           className="hidden"
           onChange={handleImport}
         />
+        <Button
+          className="sv-button text-2xl h-11 px-3 sm:px-6"
+          onClick={handleCopyImportPrompt}
+        >
+          <ClipboardCopy className="h-4 w-4" /><span className="hidden sm:inline">JSON ophalen</span>
+        </Button>
         <Button
           className="sv-button text-2xl h-11 px-3 sm:px-6"
           onClick={handleExportGardenBackup}
