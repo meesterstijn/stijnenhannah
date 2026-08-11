@@ -740,3 +740,75 @@ export async function updateProductVariant(input: {
     .eq("id", input.variantId);
   if (error) throw error;
 }
+
+// --- Veilig product- & variantverwijderen v1 --------------------------
+//
+// Bewust GEEN rechtstreekse `.delete()` op products/product_variants: de
+// foreign keys vanuit shopping_receipt_items (en, voor varianten, ook
+// product_aliases) staan op `on delete set null`, niet `on delete restrict`
+// — een kale delete zou dus historische kassabonregels stil van hun
+// product-/variantkoppeling kunnen ontkoppelen in plaats van de delete te
+// blokkeren. De RPC's hieronder (20260903000000_delete_unused_product_
+// catalog_v1.sql) herberekenen het gebruik altijd zelf, in één atomair
+// SQL-statement, en blokkeren bij het minste gebruik i.p.v. te cascaden.
+export type DeleteVariantResult = {
+  deleted: boolean;
+  receiptItemCount: number;
+  aliasCount: number;
+};
+
+type RawDeleteVariantRow = {
+  deleted: boolean;
+  receipt_item_count: number;
+  alias_count: number;
+};
+
+export async function deleteUnusedProductVariant(
+  variantId: string,
+): Promise<DeleteVariantResult> {
+  const { data, error } = await supabase.rpc(
+    "delete_unused_product_variant_v1",
+    { p_variant_id: variantId },
+  );
+  if (error) throw error;
+  const row = (Array.isArray(data) ? data[0] : data) as
+    | RawDeleteVariantRow
+    | undefined;
+  return {
+    deleted: row?.deleted ?? false,
+    receiptItemCount: row?.receipt_item_count ?? 0,
+    aliasCount: row?.alias_count ?? 0,
+  };
+}
+
+export type DeleteProductResult = {
+  deleted: boolean;
+  receiptItemCount: number;
+  aliasCount: number;
+  variantCount: number;
+};
+
+type RawDeleteProductRow = {
+  deleted: boolean;
+  receipt_item_count: number;
+  alias_count: number;
+  variant_count: number;
+};
+
+export async function deleteUnusedProduct(
+  productId: string,
+): Promise<DeleteProductResult> {
+  const { data, error } = await supabase.rpc("delete_unused_product_v1", {
+    p_product_id: productId,
+  });
+  if (error) throw error;
+  const row = (Array.isArray(data) ? data[0] : data) as
+    | RawDeleteProductRow
+    | undefined;
+  return {
+    deleted: row?.deleted ?? false,
+    receiptItemCount: row?.receipt_item_count ?? 0,
+    aliasCount: row?.alias_count ?? 0,
+    variantCount: row?.variant_count ?? 0,
+  };
+}
