@@ -10,7 +10,20 @@ import {
 } from "@/components/reminder-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Circle, CheckCircle2, Trash2, Loader2, Bell } from "lucide-react";
+import { ModernPageHeader } from "@/components/modern-page-header";
+import {
+  ModernSection,
+  ModernEmptyState,
+  cardSurface,
+} from "@/components/modern-surfaces";
+import {
+  Circle,
+  CheckCircle2,
+  ListChecks,
+  Trash2,
+  Loader2,
+  Bell,
+} from "lucide-react";
 
 type Todo = {
   id: string;
@@ -148,33 +161,34 @@ export default function Todo() {
   const done = todos.filter((t) => t.done);
 
   return (
-    <div className="space-y-6 max-w-xl mx-auto">
-      <div className="flex items-end justify-between gap-4">
-        <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-            Overzicht
-          </p>
-          <h1 className="font-serif text-3xl font-semibold mt-1">To-do</h1>
-        </div>
-        {done.length > 0 && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="rounded-xl text-xs text-muted-foreground mb-1"
-            onClick={() => clearDone.mutate()}
-            disabled={clearDone.isPending}
-          >
-            {clearDone.isPending ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
-            ) : (
-              `Wis ${done.length} gedaan`
-            )}
-          </Button>
-        )}
-      </div>
+    <div className="space-y-8 max-w-xl mx-auto">
+      <ModernPageHeader
+        icon={ListChecks}
+        eyebrow="Overzicht"
+        title="To-do"
+        actions={
+          done.length > 0 ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="rounded-xl text-xs text-muted-foreground"
+              onClick={() => clearDone.mutate()}
+              disabled={clearDone.isPending}
+            >
+              {clearDone.isPending ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                `Wis ${done.length} gedaan`
+              )}
+            </Button>
+          ) : undefined
+        }
+      />
 
       {pushState !== "granted" && pushState !== "unsupported" && (
-        <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-card px-4 py-3">
+        <div
+          className={`flex items-center gap-3 ${cardSurface({ padding: "sm" })}`}
+        >
           <Bell className="h-4 w-4 text-muted-foreground shrink-0" />
           <p className="flex-1 text-sm text-muted-foreground">
             Zet meldingen aan om herinneringen op je telefoon te ontvangen.
@@ -200,91 +214,100 @@ export default function Todo() {
         </p>
       )}
 
-      {/* Input */}
-      <form onSubmit={handleSubmit} className="flex gap-2">
-        <Input
-          ref={inputRef}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Nieuwe taak..."
-          className="bg-card"
-          autoComplete="off"
-        />
-        <Button
-          type="submit"
-          className="rounded-xl shrink-0"
-          disabled={!text.trim() || addTodo.isPending}
+      <ModernSection title="Nieuwe taak">
+        <form
+          onSubmit={handleSubmit}
+          className={`flex gap-2 ${cardSurface({ padding: "sm" })}`}
         >
-          {addTodo.isPending ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            "Voeg toe"
-          )}
-        </Button>
-      </form>
+          <Input
+            ref={inputRef}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Nieuwe taak..."
+            className="bg-background/60 border-border/70 focus-visible:ring-primary/30"
+            autoComplete="off"
+          />
+          <Button
+            type="submit"
+            className="rounded-xl shrink-0"
+            disabled={!text.trim() || addTodo.isPending}
+          >
+            {addTodo.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              "Voeg toe"
+            )}
+          </Button>
+        </form>
+      </ModernSection>
 
-      {/* List */}
-      {isLoading && (
-        <div className="flex justify-center py-12 text-muted-foreground">
-          <Loader2 className="h-5 w-5 animate-spin" />
-        </div>
-      )}
+      <ModernSection title="Taken">
+        {isLoading && (
+          <div className="flex justify-center py-12 text-muted-foreground">
+            <Loader2 className="h-5 w-5 animate-spin" />
+          </div>
+        )}
 
-      {!isLoading && todos.length === 0 && (
-        <p className="text-sm text-muted-foreground text-center py-12">
-          Geen taken — voeg er een toe.
-        </p>
-      )}
+        {!isLoading && todos.length === 0 && (
+          <ModernEmptyState
+            icon={ListChecks}
+            title="Geen taken"
+            description="Voeg hierboven je eerste taak toe."
+          />
+        )}
 
-      {(open.length > 0 || done.length > 0) && (
-        <div className="rounded-2xl border border-border/60 bg-card overflow-hidden divide-y divide-border/50">
-          {open.map((todo) => (
-            <TodoRow
-              key={todo.id}
-              todo={todo}
-              expanded={expandedId === todo.id}
-              onToggleExpand={() =>
-                setExpandedId((prev) => (prev === todo.id ? null : todo.id))
-              }
-              onReminderChange={(value) =>
-                updateReminder.mutate({
-                  id: todo.id,
-                  remindAt: fromDatetimeLocal(value),
-                  previousRemindAt: todo.remind_at,
-                })
-              }
-              onToggle={() => toggleTodo.mutate({ id: todo.id, done: true })}
-              onDelete={() => deleteTodo.mutate(todo.id)}
-            />
-          ))}
+        {(open.length > 0 || done.length > 0) && (
+          <div
+            className={`${cardSurface({ padding: "none" })} overflow-hidden divide-y divide-border/50`}
+          >
+            {open.map((todo) => (
+              <TodoRow
+                key={todo.id}
+                todo={todo}
+                expanded={expandedId === todo.id}
+                onToggleExpand={() =>
+                  setExpandedId((prev) => (prev === todo.id ? null : todo.id))
+                }
+                onReminderChange={(value) =>
+                  updateReminder.mutate({
+                    id: todo.id,
+                    remindAt: fromDatetimeLocal(value),
+                    previousRemindAt: todo.remind_at,
+                  })
+                }
+                onToggle={() => toggleTodo.mutate({ id: todo.id, done: true })}
+                onDelete={() => deleteTodo.mutate(todo.id)}
+              />
+            ))}
 
-          {done.length > 0 && open.length > 0 && (
-            <div className="px-4 py-1.5 text-xs font-medium text-muted-foreground bg-muted/30">
-              Gedaan
-            </div>
-          )}
+            {done.length > 0 && open.length > 0 && (
+              <div className="px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground bg-muted/40">
+                Gedaan
+              </div>
+            )}
 
-          {done.map((todo) => (
-            <TodoRow
-              key={todo.id}
-              todo={todo}
-              expanded={expandedId === todo.id}
-              onToggleExpand={() =>
-                setExpandedId((prev) => (prev === todo.id ? null : todo.id))
-              }
-              onReminderChange={(value) =>
-                updateReminder.mutate({
-                  id: todo.id,
-                  remindAt: fromDatetimeLocal(value),
-                  previousRemindAt: todo.remind_at,
-                })
-              }
-              onToggle={() => toggleTodo.mutate({ id: todo.id, done: false })}
-              onDelete={() => deleteTodo.mutate(todo.id)}
-            />
-          ))}
-        </div>
-      )}
+            {done.map((todo) => (
+              <TodoRow
+                key={todo.id}
+                todo={todo}
+                expanded={expandedId === todo.id}
+                onToggleExpand={() =>
+                  setExpandedId((prev) => (prev === todo.id ? null : todo.id))
+                }
+                onReminderChange={(value) =>
+                  updateReminder.mutate({
+                    id: todo.id,
+                    remindAt: fromDatetimeLocal(value),
+                    previousRemindAt: todo.remind_at,
+                  })
+                }
+                onToggle={() => toggleTodo.mutate({ id: todo.id, done: false })}
+                onDelete={() => deleteTodo.mutate(todo.id)}
+              />
+            ))}
+          </div>
+        )}
+      </ModernSection>
     </div>
   );
 }
@@ -306,12 +329,12 @@ function TodoRow({
 }) {
   const active = hasActiveReminder(todo);
   return (
-    <div className="group hover:bg-accent/30 transition-colors">
-      <div className="flex items-center gap-3 px-4 py-3">
+    <div className="group hover:bg-accent/20 transition-colors">
+      <div className="flex items-center gap-3 px-4 py-3.5">
         <button
           type="button"
           onClick={onToggle}
-          className="shrink-0 text-muted-foreground hover:text-primary transition-colors"
+          className="shrink-0 rounded-lg p-0.5 -m-0.5 text-muted-foreground/70 hover:text-primary transition-colors"
           aria-label={todo.done ? "Markeer als open" : "Markeer als gedaan"}
         >
           {todo.done ? (
@@ -321,14 +344,14 @@ function TodoRow({
           )}
         </button>
         <span
-          className={`flex-1 text-sm ${todo.done ? "line-through text-muted-foreground" : ""}`}
+          className={`flex-1 text-sm ${todo.done ? "line-through text-muted-foreground/70" : "text-foreground"}`}
         >
           {todo.text}
         </span>
         <button
           type="button"
           onClick={onToggleExpand}
-          className={`shrink-0 transition-all ${
+          className={`shrink-0 rounded-lg p-1.5 -m-1.5 transition-all ${
             active
               ? "text-primary"
               : "text-muted-foreground/50 hover:text-foreground opacity-0 group-hover:opacity-100"
@@ -340,7 +363,7 @@ function TodoRow({
         <button
           type="button"
           onClick={onDelete}
-          className="shrink-0 opacity-0 group-hover:opacity-100 text-muted-foreground/50 hover:text-destructive transition-all"
+          className="shrink-0 rounded-lg p-1.5 -m-1.5 opacity-0 group-hover:opacity-100 text-muted-foreground/50 hover:text-destructive transition-all"
           aria-label="Verwijder"
         >
           <Trash2 className="h-4 w-4" />

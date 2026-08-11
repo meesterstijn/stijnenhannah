@@ -14,7 +14,9 @@ import {
 } from "@/components/reminder-picker";
 import { Sheet, SheetContent, SheetClose } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Loader2, X, Bell } from "lucide-react";
+import { ModernPageHeader } from "@/components/modern-page-header";
+import { ModernEmptyState, cardSurface } from "@/components/modern-surfaces";
+import { NotebookPen, Plus, Trash2, Loader2, X, Bell } from "lucide-react";
 
 type Note = {
   id: string;
@@ -184,13 +186,12 @@ export default function Notities() {
   const isEditing = !!activeNote || isNew;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-          Persoonlijk
-        </p>
-        <h1 className="font-serif text-3xl font-semibold mt-1">Notities</h1>
-      </div>
+    <div className="space-y-8">
+      <ModernPageHeader
+        icon={NotebookPen}
+        eyebrow="Persoonlijk"
+        title="Notities"
+      />
 
       {fetchError && (
         <p className="text-sm text-destructive bg-destructive/10 rounded-xl px-4 py-3">
@@ -199,7 +200,9 @@ export default function Notities() {
       )}
 
       {pushState !== "granted" && pushState !== "unsupported" && (
-        <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-card px-4 py-3">
+        <div
+          className={`flex items-center gap-3 ${cardSurface({ padding: "sm" })}`}
+        >
           <Bell className="h-4 w-4 text-muted-foreground shrink-0" />
           <p className="flex-1 text-sm text-muted-foreground">
             Zet meldingen aan om herinneringen op je telefoon te ontvangen.
@@ -234,12 +237,15 @@ export default function Notities() {
 
       {/* ── Desktop: two-panel ── */}
       <div
-        className="hidden lg:flex rounded-2xl border border-border/60 bg-card overflow-hidden"
+        className={`hidden lg:flex ${cardSurface({ padding: "none" })} overflow-hidden`}
         style={{ minHeight: 520 }}
       >
         {/* Left: list */}
-        <div className="w-[260px] shrink-0 border-r border-border/60 flex flex-col">
-          <div className="px-4 h-14 flex items-center justify-end border-b border-border/40 shrink-0">
+        <div className="w-[270px] shrink-0 border-r border-border/60 flex flex-col bg-background/40">
+          <div className="px-4 h-14 flex items-center justify-between border-b border-border/40 shrink-0">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Overzicht
+            </p>
             <Button
               size="sm"
               onClick={startNewDesktop}
@@ -249,9 +255,9 @@ export default function Notities() {
               Nieuw
             </Button>
           </div>
-          <div className="flex-1 overflow-y-auto divide-y divide-border/40">
+          <div className="flex-1 overflow-y-auto p-2 space-y-1">
             {!isLoading && notes.length === 0 && (
-              <p className="px-4 py-6 text-sm text-muted-foreground">
+              <p className="px-3 py-6 text-sm text-muted-foreground">
                 Nog geen notities.
               </p>
             )}
@@ -259,8 +265,10 @@ export default function Notities() {
               <button
                 key={note.id}
                 onClick={() => selectNoteDesktop(note)}
-                className={`w-full text-left px-4 py-3 hover:bg-accent/40 transition-colors ${
-                  activeNote?.id === note.id ? "bg-accent/60" : ""
+                className={`w-full text-left rounded-xl px-3 py-2.5 transition-colors ${
+                  activeNote?.id === note.id
+                    ? "bg-primary/10"
+                    : "hover:bg-accent/40"
                 }`}
               >
                 <p className="font-semibold text-sm leading-tight truncate flex items-center gap-1.5">
@@ -282,7 +290,7 @@ export default function Notities() {
         </div>
 
         {/* Right: editor */}
-        <div className="flex-1 min-w-0 flex flex-col">
+        <div className="flex-1 min-w-0 flex flex-col bg-card">
           {isEditing ? (
             <>
               <div className="flex items-center gap-2 px-5 h-14 border-b border-border/40 shrink-0">
@@ -370,7 +378,7 @@ export default function Notities() {
       </div>
 
       {/* ── Mobile: list ── */}
-      <div className="lg:hidden space-y-3">
+      <div className="lg:hidden space-y-4">
         <Button onClick={startNewMobile} className="rounded-xl gap-2 w-full">
           <Plus className="h-4 w-4" />
           Nieuwe notitie
@@ -381,16 +389,18 @@ export default function Notities() {
           </div>
         )}
         {!isLoading && notes.length === 0 && (
-          <p className="text-center py-12 text-sm text-muted-foreground">
-            Nog geen notities.
-          </p>
+          <ModernEmptyState
+            icon={NotebookPen}
+            title="Nog geen notities"
+            description="Tik op 'Nieuwe notitie' om te beginnen."
+          />
         )}
         <div className="space-y-3">
           {notes.map((note) => (
             <button
               key={note.id}
               onClick={() => selectNoteMobile(note)}
-              className="w-full text-left rounded-2xl border border-border/60 bg-card p-5 hover:border-border transition-all space-y-1"
+              className={`w-full text-left ${cardSurface({ interactive: true })} space-y-1`}
             >
               <p className="font-semibold text-base leading-tight flex items-center gap-1.5">
                 {hasActiveReminder(note) && (

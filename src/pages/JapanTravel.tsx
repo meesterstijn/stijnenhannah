@@ -4,8 +4,13 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetClose } from "@/components/ui/sheet";
-import { ArrowLeft, Plus, Trash2, Pencil, X, Loader2, Languages, Volume2 } from "lucide-react";
+import { Plus, Trash2, Pencil, X, Loader2, Languages, Volume2 } from "lucide-react";
 import { toRomaji } from "wanakana";
+import { ModernPageHeader } from "@/components/modern-page-header";
+import {
+  ModernEmptyState,
+  cardSurface,
+} from "@/components/modern-surfaces";
 
 type TravelPhrase = {
   id: string;
@@ -175,19 +180,21 @@ export function JapanTravel({ onBack }: { onBack: () => void }) {
   }
 
   return (
-    <div className="max-w-lg mx-auto space-y-6">
-      <div className="flex items-center gap-3">
-        <button onClick={onBack} className="text-muted-foreground hover:text-foreground transition-colors">
-          <ArrowLeft className="h-5 w-5" />
-        </button>
-        <h1 className="font-serif text-2xl font-semibold flex-1">Japan</h1>
-        {tab === "zinnen" && (
-          <Button size="sm" className="rounded-xl gap-1.5" onClick={openNew}>
-            <Plus className="h-4 w-4" />
-            Zin
-          </Button>
-        )}
-      </div>
+    <div className="max-w-lg mx-auto space-y-8">
+      <ModernPageHeader
+        icon={Languages}
+        eyebrow="Vakantie"
+        title="Japan"
+        back={{ onClick: onBack }}
+        actions={
+          tab === "zinnen" ? (
+            <Button size="sm" className="rounded-xl gap-1.5" onClick={openNew}>
+              <Plus className="h-4 w-4" />
+              Zin
+            </Button>
+          ) : undefined
+        }
+      />
 
       {/* Tabs */}
       <div className="flex gap-1 p-1 rounded-xl bg-muted w-fit">
@@ -218,13 +225,19 @@ export function JapanTravel({ onBack }: { onBack: () => void }) {
               const catPhrases = phrases.filter((p) => p.category === cat);
               if (catPhrases.length === 0) return null;
               return (
-                <div key={cat} className="rounded-2xl bg-card border border-border/60 shadow-sm overflow-hidden">
+                <div
+                  key={cat}
+                  className={`${cardSurface({ padding: "none" })} overflow-hidden`}
+                >
                   <div className="px-5 py-2.5 bg-muted/30 border-b border-border/40">
                     <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{cat}</p>
                   </div>
                   <div className="divide-y divide-border/40">
                     {catPhrases.map((phrase) => (
-                      <div key={phrase.id} className="group flex items-start gap-3 px-5 py-4">
+                      <div
+                        key={phrase.id}
+                        className="group flex items-start gap-3 px-5 py-4 transition-colors hover:bg-accent/20"
+                      >
                         <button
                           onClick={() => {
                             setSpeaking(phrase.id);
@@ -242,7 +255,7 @@ export function JapanTravel({ onBack }: { onBack: () => void }) {
                               ? doSpeak()
                               : (window.speechSynthesis.onvoiceschanged = doSpeak);
                           }}
-                          className={`shrink-0 mt-1 transition-colors ${speaking === phrase.id ? "text-primary" : "text-muted-foreground/50 hover:text-primary"}`}
+                          className={`shrink-0 mt-1 rounded-lg p-1 -m-1 transition-colors ${speaking === phrase.id ? "text-primary" : "text-muted-foreground/50 hover:text-primary"}`}
                         >
                           <Volume2 className="h-4 w-4" />
                         </button>
@@ -252,10 +265,10 @@ export function JapanTravel({ onBack }: { onBack: () => void }) {
                           <p className="text-xs text-muted-foreground/70 italic mt-1">{phrase.phrase_romaji}</p>
                         </button>
                         <div className="flex flex-col gap-1.5 opacity-0 group-hover:opacity-100 transition-all shrink-0 mt-1">
-                          <button onClick={() => openEdit(phrase)} className="text-muted-foreground/50 hover:text-primary transition-colors">
+                          <button onClick={() => openEdit(phrase)} className="rounded-lg p-1 -m-1 text-muted-foreground/50 hover:text-primary transition-colors">
                             <Pencil className="h-3.5 w-3.5" />
                           </button>
-                          <button onClick={() => deletePhrase.mutate(phrase.id)} className="text-muted-foreground/50 hover:text-destructive transition-colors">
+                          <button onClick={() => deletePhrase.mutate(phrase.id)} className="rounded-lg p-1 -m-1 text-muted-foreground/50 hover:text-destructive transition-colors">
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
@@ -266,9 +279,11 @@ export function JapanTravel({ onBack }: { onBack: () => void }) {
               );
             })}
             {phrases.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-12">
-                Nog geen zinnen — voeg er een toe.
-              </p>
+              <ModernEmptyState
+                icon={Languages}
+                title="Nog geen zinnen"
+                description="Voeg er een toe via de knop hierboven."
+              />
             )}
           </div>
         )
@@ -314,7 +329,7 @@ export function JapanTravel({ onBack }: { onBack: () => void }) {
           {transError && <p className="text-sm text-destructive">{transError}</p>}
 
           {result && (
-            <div className="rounded-2xl bg-card border border-border/60 p-5 space-y-3">
+            <div className={`${cardSurface()} space-y-3`}>
               <div className="flex items-start gap-3">
                 <p className="text-2xl font-medium leading-relaxed flex-1">{result.text}</p>
                 {langPair.to === "JA" && (
@@ -333,7 +348,7 @@ export function JapanTravel({ onBack }: { onBack: () => void }) {
           )}
 
           {usage && (
-            <div className="space-y-1.5">
+            <div className={`${cardSurface({ padding: "sm" })} space-y-1.5`}>
               <div className="flex justify-between text-xs text-muted-foreground">
                 <span>DeepL tekens</span>
                 <span>{usage.character_count.toLocaleString("nl")} / {usage.character_limit.toLocaleString("nl")}</span>

@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { ArrowLeft, Cloud, CloudRain, Sun, CloudSnow, CloudLightning, Wind, Droplets, Thermometer, LocateFixed, Loader2 } from "lucide-react";
+import { Cloud, CloudRain, CloudSun, Sun, CloudSnow, CloudLightning, Wind, Droplets, Thermometer, LocateFixed, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ModernPageHeader } from "@/components/modern-page-header";
+import {
+  ModernSection,
+  cardSurface,
+  MODERN_CARD_SHADOW_CLASS,
+} from "@/components/modern-surfaces";
 
 const DEFAULT = { lat: 51.7722, lon: 4.6156, city: "'s-Gravendeel" };
 
@@ -145,33 +150,33 @@ export default function Weer() {
 
   return (
     <div className="space-y-8 max-w-2xl mx-auto">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <Link to="/" className="text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
-          <h1 className="font-serif text-3xl font-semibold">Weer</h1>
-        </div>
-        <div className="flex items-center gap-2">
-          {usingCustom && (
-            <span className="text-xs text-muted-foreground">Jouw locatie</span>
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            className="rounded-xl gap-2 text-xs"
-            onClick={useMyLocation}
-            disabled={locating}
-          >
-            {locating ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <LocateFixed className="h-3.5 w-3.5" />
+      <ModernPageHeader
+        icon={CloudSun}
+        eyebrow="Actuele omstandigheden"
+        title="Weer"
+        back={{ to: "/" }}
+        actions={
+          <>
+            {usingCustom && (
+              <span className="text-xs text-muted-foreground">Jouw locatie</span>
             )}
-            {locating ? "Zoeken…" : "Mijn locatie"}
-          </Button>
-        </div>
-      </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl gap-2 text-xs"
+              onClick={useMyLocation}
+              disabled={locating}
+            >
+              {locating ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <LocateFixed className="h-3.5 w-3.5" />
+              )}
+              {locating ? "Zoeken…" : "Mijn locatie"}
+            </Button>
+          </>
+        }
+      />
 
       {locError && (
         <p className="text-sm text-destructive">{locError}</p>
@@ -183,87 +188,129 @@ export default function Weer() {
 
       {!data && !error && (
         <div className="space-y-4 animate-pulse">
-          <div className="rounded-2xl bg-card border border-border/60 p-6 h-40" />
-          <div className="rounded-2xl bg-card border border-border/60 p-6 h-32" />
-          <div className="rounded-2xl bg-card border border-border/60 p-6 h-64" />
+          <div className={`${cardSurface({ padding: "none" })} h-40`} />
+          <div className={`${cardSurface({ padding: "none" })} h-32`} />
+          <div className={`${cardSurface({ padding: "none" })} h-64`} />
         </div>
       )}
 
       {data && (
         <>
           {/* Current */}
-          <div className="rounded-2xl bg-gradient-to-br from-accent/40 to-secondary/60 border border-border/50 p-6">
-            <p className="text-xs uppercase tracking-widest text-muted-foreground mb-4">{data.city}</p>
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="font-serif text-7xl font-semibold leading-none">{data.current.temp}°</p>
-                <p className="text-lg text-muted-foreground mt-2">{descFor(data.current.code)}</p>
+          <ModernSection title="Huidige situatie">
+            <div
+              className={`rounded-2xl bg-gradient-to-br from-accent/40 to-secondary/60 border border-border/50 ${MODERN_CARD_SHADOW_CLASS} p-6 sm:p-7`}
+            >
+              <p className="text-xs uppercase tracking-widest text-muted-foreground mb-4">
+                {data.city}
+              </p>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="font-serif text-7xl font-semibold leading-none">
+                    {data.current.temp}°
+                  </p>
+                  <p className="text-lg text-muted-foreground mt-2">
+                    {descFor(data.current.code)}
+                  </p>
+                </div>
+                <CurrentIcon
+                  className="h-20 w-20 text-primary opacity-80"
+                  strokeWidth={1.2}
+                />
               </div>
-              <CurrentIcon className="h-20 w-20 text-primary opacity-80" strokeWidth={1.2} />
+              <div className="grid grid-cols-3 gap-3 mt-6 pt-5 border-t border-border/40">
+                <div className="flex flex-col items-center gap-1 text-center rounded-xl bg-background/40 py-3">
+                  <Thermometer className="h-4 w-4 text-muted-foreground" />
+                  <p className="text-sm font-semibold">
+                    {data.current.feels_like}°
+                  </p>
+                  <p className="text-xs text-muted-foreground">Voelt als</p>
+                </div>
+                <div className="flex flex-col items-center gap-1 text-center rounded-xl bg-background/40 py-3">
+                  <Droplets className="h-4 w-4 text-muted-foreground" />
+                  <p className="text-sm font-semibold">
+                    {data.current.humidity}%
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Luchtvochtigheid
+                  </p>
+                </div>
+                <div className="flex flex-col items-center gap-1 text-center rounded-xl bg-background/40 py-3">
+                  <Wind className="h-4 w-4 text-muted-foreground" />
+                  <p className="text-sm font-semibold">
+                    {data.current.wind_speed} km/u
+                  </p>
+                  <p className="text-xs text-muted-foreground">Wind</p>
+                </div>
+              </div>
             </div>
-            <div className="grid grid-cols-3 gap-4 mt-6 pt-4 border-t border-border/40">
-              <div className="flex flex-col items-center gap-1 text-center">
-                <Thermometer className="h-4 w-4 text-muted-foreground" />
-                <p className="text-sm font-medium">{data.current.feels_like}°</p>
-                <p className="text-xs text-muted-foreground">Voelt als</p>
-              </div>
-              <div className="flex flex-col items-center gap-1 text-center">
-                <Droplets className="h-4 w-4 text-muted-foreground" />
-                <p className="text-sm font-medium">{data.current.humidity}%</p>
-                <p className="text-xs text-muted-foreground">Luchtvochtigheid</p>
-              </div>
-              <div className="flex flex-col items-center gap-1 text-center">
-                <Wind className="h-4 w-4 text-muted-foreground" />
-                <p className="text-sm font-medium">{data.current.wind_speed} km/u</p>
-                <p className="text-xs text-muted-foreground">Wind</p>
-              </div>
-            </div>
-          </div>
+          </ModernSection>
 
           {/* Hourly */}
-          <div className="rounded-2xl bg-card border border-border/60 p-5">
-            <p className="text-xs uppercase tracking-widest text-muted-foreground mb-4">Per uur</p>
-            <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-none">
-              {data.hourly.map((h, i) => {
-                const HIcon = iconFor(h.code);
-                return (
-                  <div key={i} className="flex flex-col items-center gap-1.5 shrink-0 w-14">
-                    <p className="text-xs text-muted-foreground">{i === 0 ? "Nu" : formatHour(h.time)}</p>
-                    <HIcon className="h-5 w-5 text-primary/80" strokeWidth={1.5} />
-                    <p className="text-sm font-medium">{h.temp}°</p>
-                    {h.precip_prob > 0 && (
-                      <p className="text-xs text-blue-500">{h.precip_prob}%</p>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Daily */}
-          <div className="rounded-2xl bg-card border border-border/60 overflow-hidden">
-            <p className="text-xs uppercase tracking-widest text-muted-foreground px-5 pt-5 pb-3">16-daagse voorspelling</p>
-            <div className="divide-y divide-border/50">
-              {data.daily.map((d, i) => {
-                const DIcon = iconFor(d.code);
-                return (
-                  <div key={d.date} className="flex items-center gap-4 px-5 py-3">
-                    <p className="text-sm w-20 capitalize">{formatDay(d.date, i)}</p>
-                    <DIcon className="h-5 w-5 text-primary/80 shrink-0" strokeWidth={1.5} />
-                    <div className="flex-1 flex items-center gap-2">
-                      {d.precip_prob > 0 && (
-                        <span className="text-xs text-blue-500">{d.precip_prob}%</span>
+          <ModernSection title="Per uur">
+            <div className={cardSurface()}>
+              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+                {data.hourly.map((h, i) => {
+                  const HIcon = iconFor(h.code);
+                  return (
+                    <div
+                      key={i}
+                      className={`flex flex-col items-center gap-1.5 shrink-0 w-16 rounded-xl py-2.5 ${
+                        i === 0 ? "bg-primary/10" : ""
+                      }`}
+                    >
+                      <p className="text-xs text-muted-foreground">
+                        {i === 0 ? "Nu" : formatHour(h.time)}
+                      </p>
+                      <HIcon className="h-5 w-5 text-primary/80" strokeWidth={1.5} />
+                      <p className="text-sm font-semibold">{h.temp}°</p>
+                      {h.precip_prob > 0 && (
+                        <p className="text-xs text-blue-500">{h.precip_prob}%</p>
                       )}
                     </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="font-medium">{d.max}°</span>
-                      <span className="text-muted-foreground">{d.min}°</span>
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          </ModernSection>
+
+          {/* Daily */}
+          <ModernSection title="16-daagse voorspelling">
+            <div className={`${cardSurface({ padding: "none" })} overflow-hidden`}>
+              <div className="divide-y divide-border/50">
+                {data.daily.map((d, i) => {
+                  const DIcon = iconFor(d.code);
+                  return (
+                    <div
+                      key={d.date}
+                      className={`flex items-center gap-4 px-5 py-3.5 ${
+                        i === 0 ? "bg-primary/5" : ""
+                      }`}
+                    >
+                      <p className="text-sm w-20 capitalize font-medium">
+                        {formatDay(d.date, i)}
+                      </p>
+                      <DIcon
+                        className="h-5 w-5 text-primary/80 shrink-0"
+                        strokeWidth={1.5}
+                      />
+                      <div className="flex-1 flex items-center gap-2">
+                        {d.precip_prob > 0 && (
+                          <span className="text-xs text-blue-500">
+                            {d.precip_prob}%
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="font-semibold">{d.max}°</span>
+                        <span className="text-muted-foreground">{d.min}°</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </ModernSection>
         </>
       )}
     </div>

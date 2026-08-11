@@ -2,21 +2,25 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Minus, Plus, ShoppingBasket } from "lucide-react";
 import { addCocktailIngredientsToGroceryList } from "@/features/cocktail-bar/lib/groceryIntegration";
+import { CocktailIngredientSelectionDialog } from "@/features/cocktail-bar/components/CocktailIngredientSelectionDialog";
 import type { CocktailVariantIngredientWithName } from "@/features/cocktail-bar/types";
 
 export function CocktailAddToGroceryListButton({ ingredients }: { ingredients: CocktailVariantIngredientWithName[] }) {
   const [count, setCount] = useState(1);
   const [justAdded, setJustAdded] = useState(false);
+  const [selectionOpen, setSelectionOpen] = useState(false);
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: () => addCocktailIngredientsToGroceryList(ingredients, count),
+    mutationFn: (selectedIngredients: CocktailVariantIngredientWithName[]) =>
+      addCocktailIngredientsToGroceryList(selectedIngredients, count),
     onSuccess: () => {
       // ["groceries"] is dezelfde querykey als Boodschappen.tsx zelf
       // gebruikt — inclusief het aantal-widgetje op de homepage
       // (["groceries","home-count"]), want React Query invalideert op
       // key-prefix.
       queryClient.invalidateQueries({ queryKey: ["groceries"] });
+      setSelectionOpen(false);
       setJustAdded(true);
       setTimeout(() => setJustAdded(false), 2500);
     },
@@ -47,7 +51,7 @@ export function CocktailAddToGroceryListButton({ ingredients }: { ingredients: C
       </div>
       <button
         type="button"
-        onClick={() => mutation.mutate()}
+        onClick={() => setSelectionOpen(true)}
         disabled={mutation.isPending}
         className="cb-button flex items-center gap-2 rounded-full px-4 py-2 text-sm"
       >
@@ -58,6 +62,14 @@ export function CocktailAddToGroceryListButton({ ingredients }: { ingredients: C
         )}
         {justAdded ? "Toegevoegd!" : "Toevoegen aan boodschappenlijst"}
       </button>
+
+      <CocktailIngredientSelectionDialog
+        open={selectionOpen}
+        onOpenChange={setSelectionOpen}
+        ingredients={ingredients}
+        onConfirm={(selected) => mutation.mutate(selected)}
+        isPending={mutation.isPending}
+      />
     </div>
   );
 }

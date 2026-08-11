@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import QRCodeStyling from "qr-code-styling";
 import { Wifi, X, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { cardSurface } from "@/components/modern-surfaces";
 
 async function fetchWifiSettings(): Promise<{ ssid: string; password: string }> {
   const { data, error } = await supabase
@@ -61,32 +62,46 @@ export function WifiWidget() {
 
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
           onClick={() => setOpen(false)}
         >
           <div
-            className="tuinieren-theme sv-panel p-8 flex flex-col items-center gap-5 mx-4"
+            className={`${cardSurface({ padding: "lg" })} w-full max-w-sm flex flex-col items-center gap-5`}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between w-full">
-              <div>
-                <p className="sv-heading text-3xl">{data?.ssid ?? "Wifi"}</p>
-                <p className="text-sm sv-muted mt-0.5">Scan om te verbinden</p>
+            <div className="flex items-center justify-between w-full gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                  <Wifi className="h-5 w-5" strokeWidth={1.7} />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-serif text-xl font-semibold truncate">
+                    {data?.ssid ?? "Wifi"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Scan om te verbinden
+                  </p>
+                </div>
               </div>
               <button
                 onClick={() => setOpen(false)}
-                className="sv-icon-slot h-8 w-8 flex items-center justify-center transition-colors"
+                className="shrink-0 h-8 w-8 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent/40 transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
             {isLoading ? (
-              <Loader2 className="h-8 w-8 animate-spin sv-muted" />
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             ) : (
               <>
-                <div ref={qrRef} />
-                <p className="text-xs sv-muted">{data?.password}</p>
+                <div
+                  ref={qrRef}
+                  className="rounded-2xl border border-border/60 bg-white p-3"
+                />
+                <p className="text-xs text-muted-foreground tracking-wide">
+                  {data?.password}
+                </p>
               </>
             )}
           </div>

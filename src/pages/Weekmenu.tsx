@@ -5,7 +5,9 @@ import { textToIngredients } from "@/lib/ingredients";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2, ShoppingBasket, Check, ChefHat, Download } from "lucide-react";
+import { ModernPageHeader } from "@/components/modern-page-header";
+import { ModernSection, cardSurface } from "@/components/modern-surfaces";
+import { CalendarDays, Loader2, ShoppingBasket, Check, ChefHat, Download } from "lucide-react";
 
 const days = [
   { key: "ma", label: "Maandag" },
@@ -163,168 +165,167 @@ export default function Weekmenu() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-8">
-      <header className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-            Wat eten we deze week?
-          </p>
-          <h1 className="font-serif text-4xl font-semibold mt-2">Weekmenu</h1>
-          <p className="text-muted-foreground mt-2">
-            Vul per dag in wat jullie eten, of koppel een opgeslagen recept.
-            Wijzigingen worden meteen opgeslagen.
-          </p>
-        </div>
-        <Button variant="outline" size="sm" onClick={handleExport} disabled={Object.keys(plan).length === 0} className="rounded-xl gap-2 shrink-0 mt-1">
-          <Download className="h-4 w-4" />
-          <span className="hidden sm:inline">Exporteer</span>
-        </Button>
-        <div className="flex items-center gap-2 mt-4 flex-wrap">
-          <p className="text-xs text-muted-foreground">Week begint op</p>
-          <div className="flex gap-2">
-            {START_DAY_OPTIONS.map((opt) => (
-              <button
-                key={opt.key}
-                type="button"
-                onClick={() => setStartDay(opt.key)}
-                className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
-                  startDay === opt.key
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-card text-muted-foreground border-border hover:text-foreground"
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </header>
-
-      <div className="rounded-2xl border border-border/60 bg-card p-4 sm:p-5 space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-          <div className="flex-1">
-            <p className="font-serif text-lg font-semibold">
-              Boodschappenlijst voor de week
-            </p>
-            <p className="text-sm text-muted-foreground mt-1">
-              {linkedRecipeIds.length > 0
-                ? `${linkedRecipeIds.length} ${linkedRecipeIds.length === 1 ? "recept" : "recepten"} gekoppeld deze week.`
-                : "Koppel eerst een recept aan een dag hieronder."}
-            </p>
-          </div>
-          <Button
-            onClick={generateShoppingList}
-            disabled={linkedRecipeIds.length === 0 || generating}
-            className="rounded-xl shrink-0"
-          >
-            {generating ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <>
-                <ShoppingBasket className="h-4 w-4" /> Genereer lijst
-              </>
-            )}
+      <ModernPageHeader
+        icon={CalendarDays}
+        eyebrow="Wat eten we deze week?"
+        title="Weekmenu"
+        description="Vul per dag in wat jullie eten, of koppel een opgeslagen recept. Wijzigingen worden meteen opgeslagen."
+        actions={
+          <Button variant="outline" size="sm" onClick={handleExport} disabled={Object.keys(plan).length === 0} className="rounded-xl gap-2">
+            <Download className="h-4 w-4" />
+            <span className="hidden sm:inline">Exporteer</span>
           </Button>
+        }
+      />
+
+      <div className="flex items-center gap-2 flex-wrap">
+        <p className="text-xs text-muted-foreground">Week begint op</p>
+        <div className="flex gap-2">
+          {START_DAY_OPTIONS.map((opt) => (
+            <button
+              key={opt.key}
+              type="button"
+              onClick={() => setStartDay(opt.key)}
+              className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                startDay === opt.key
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-card text-muted-foreground border-border hover:text-foreground"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
         </div>
-        {generatedCount !== null && (
-          <p className="text-sm text-primary flex items-center gap-1.5">
-            <Check className="h-4 w-4" />
-            {generatedCount > 0
-              ? `${generatedCount} ${generatedCount === 1 ? "product" : "producten"} toegevoegd aan je boodschappenlijst.`
-              : "Geen ingrediënten gevonden bij de gekoppelde recepten."}
-          </p>
-        )}
-        {generateError && (
-          <p className="text-sm text-destructive">{generateError}</p>
-        )}
       </div>
 
-      {isLoading ? (
-        <div className="flex justify-center text-muted-foreground py-12">
-          <Loader2 className="h-5 w-5 animate-spin" />
+      <ModernSection title="Boodschappenlijst">
+        <div className={`${cardSurface()} space-y-3`}>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex-1">
+              <p className="font-serif text-lg font-semibold">
+                Boodschappenlijst voor de week
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {linkedRecipeIds.length > 0
+                  ? `${linkedRecipeIds.length} ${linkedRecipeIds.length === 1 ? "recept" : "recepten"} gekoppeld deze week.`
+                  : "Koppel eerst een recept aan een dag hieronder."}
+              </p>
+            </div>
+            <Button
+              onClick={generateShoppingList}
+              disabled={linkedRecipeIds.length === 0 || generating}
+              className="rounded-xl shrink-0"
+            >
+              {generating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  <ShoppingBasket className="h-4 w-4" /> Genereer lijst
+                </>
+              )}
+            </Button>
+          </div>
+          {generatedCount !== null && (
+            <p className="text-sm text-primary flex items-center gap-1.5">
+              <Check className="h-4 w-4" />
+              {generatedCount > 0
+                ? `${generatedCount} ${generatedCount === 1 ? "product" : "producten"} toegevoegd aan je boodschappenlijst.`
+                : "Geen ingrediënten gevonden bij de gekoppelde recepten."}
+            </p>
+          )}
+          {generateError && (
+            <p className="text-sm text-destructive">{generateError}</p>
+          )}
         </div>
-      ) : (
-        <div className="grid gap-3">
-          {orderedDays.map((d) => {
-            const isToday = d.key === todayKey;
-            const dayPlan = plan[d.key] ?? { meal: "", recipe_id: null };
-            return (
-              <div
-                key={d.key}
-                className={`rounded-2xl border p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-3 transition-colors ${
-                  isToday
-                    ? "bg-accent/30 border-accent/60"
-                    : "bg-card border-border/60"
-                }`}
-              >
-                <div className="sm:w-28 shrink-0 flex items-center gap-2">
-                  <div>
-                    <p
-                      className={`font-serif text-lg font-semibold ${isToday ? "text-primary" : ""}`}
-                    >
-                      {d.label}
-                    </p>
-                    {isToday && (
-                      <p className="text-[10px] uppercase tracking-widest text-primary/80">
-                        Vandaag
+      </ModernSection>
+
+      <ModernSection title="Dagoverzicht">
+        {isLoading ? (
+          <div className="flex justify-center text-muted-foreground py-12">
+            <Loader2 className="h-5 w-5 animate-spin" />
+          </div>
+        ) : (
+          <div className="grid gap-3">
+            {orderedDays.map((d) => {
+              const isToday = d.key === todayKey;
+              const dayPlan = plan[d.key] ?? { meal: "", recipe_id: null };
+              return (
+                <div
+                  key={d.key}
+                  className={`${cardSurface({ padding: "none" })} ${
+                    isToday ? "!border-primary/30 !bg-primary/5" : ""
+                  } p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-3 transition-colors`}
+                >
+                  <div className="sm:w-28 shrink-0 flex items-center gap-2">
+                    <div>
+                      <p
+                        className={`font-serif text-lg font-semibold ${isToday ? "text-primary" : ""}`}
+                      >
+                        {d.label}
                       </p>
+                      {isToday && (
+                        <p className="text-[10px] uppercase tracking-widest text-primary/80">
+                          Vandaag
+                        </p>
+                      )}
+                    </div>
+                    {dayPlan.recipe_id && (
+                      <span className="inline-flex items-center gap-1 text-[10px] text-primary shrink-0">
+                        <ChefHat className="h-3 w-3" />
+                      </span>
                     )}
                   </div>
-                  {dayPlan.recipe_id && (
-                    <span className="inline-flex items-center gap-1 text-[10px] text-primary shrink-0">
-                      <ChefHat className="h-3 w-3" />
-                    </span>
-                  )}
-                </div>
-                <div className="flex-1 flex flex-col sm:flex-row gap-2">
-                  <Input
-                    key={`${d.key}:${dayPlan.meal}:${dayPlan.recipe_id ?? ""}`}
-                    defaultValue={dayPlan.meal}
-                    onBlur={(e) => {
-                      const value = e.target.value;
-                      if (value === dayPlan.meal) return;
-                      saveDay.mutate({
-                        day: d.key,
-                        meal: value,
-                        recipe_id: null,
-                      });
-                    }}
-                    placeholder="Bijv. pasta pesto met kip"
-                    className="bg-background/60 border-border/40 flex-1"
-                  />
-                  <select
-                    value=""
-                    onChange={(e) => {
-                      const id = e.target.value;
-                      const recipe = recipeOptions.find((r) => r.id === id);
-                      if (recipe)
+                  <div className="flex-1 flex flex-col sm:flex-row gap-2">
+                    <Input
+                      key={`${d.key}:${dayPlan.meal}:${dayPlan.recipe_id ?? ""}`}
+                      defaultValue={dayPlan.meal}
+                      onBlur={(e) => {
+                        const value = e.target.value;
+                        if (value === dayPlan.meal) return;
                         saveDay.mutate({
                           day: d.key,
-                          meal: recipe.title,
-                          recipe_id: recipe.id,
+                          meal: value,
+                          recipe_id: null,
                         });
-                    }}
-                    className="text-xs bg-background/60 border border-border/40 rounded-md px-2 py-2 text-muted-foreground focus:outline-none sm:w-44 shrink-0"
-                  >
-                    <option value="">Koppel recept…</option>
-                    {recipeOptions.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.title}
-                      </option>
-                    ))}
-                  </select>
+                      }}
+                      placeholder="Bijv. pasta pesto met kip"
+                      className="bg-background/60 border-border/50 rounded-xl flex-1"
+                    />
+                    <select
+                      value=""
+                      onChange={(e) => {
+                        const id = e.target.value;
+                        const recipe = recipeOptions.find((r) => r.id === id);
+                        if (recipe)
+                          saveDay.mutate({
+                            day: d.key,
+                            meal: recipe.title,
+                            recipe_id: recipe.id,
+                          });
+                      }}
+                      className="text-xs bg-background/60 border border-border/50 rounded-xl px-3 py-2 text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 sm:w-44 shrink-0"
+                    >
+                      <option value="">Koppel recept…</option>
+                      {recipeOptions.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.title}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+              );
+            })}
+          </div>
+        )}
 
-      <button
-        onClick={() => clearWeek.mutate()}
-        className="text-xs text-muted-foreground hover:text-destructive transition-colors"
-      >
-        Wis hele week
-      </button>
+        <button
+          onClick={() => clearWeek.mutate()}
+          className="text-xs text-muted-foreground hover:text-destructive transition-colors"
+        >
+          Wis hele week
+        </button>
+      </ModernSection>
     </div>
   );
 }

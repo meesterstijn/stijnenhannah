@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { Link } from "react-router-dom";
-import { ArrowLeft, Check, Loader2, Pencil } from "lucide-react";
+import { Check, Loader2, Pencil, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ModernPageHeader } from "@/components/modern-page-header";
+import { ModernEmptyState, cardSurface } from "@/components/modern-surfaces";
 
 type CleaningTask = {
   id: string;
@@ -88,25 +89,31 @@ export default function Schoonmaak() {
   });
 
   return (
-    <div className="max-w-lg mx-auto space-y-6">
-      <div className="flex items-center gap-3">
-        <Link to="/" className="text-muted-foreground hover:text-foreground transition-colors">
-          <ArrowLeft className="h-5 w-5" />
-        </Link>
-        <h1 className="font-serif text-2xl font-semibold flex-1">Schoonmaak</h1>
-        <button
-          onClick={() => setEditMode((v) => !v)}
-          className={`flex items-center gap-1.5 text-sm transition-colors ${
-            editMode ? "text-primary font-medium" : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <Pencil className="h-3.5 w-3.5" />
-          {editMode ? "Klaar" : "Bewerken"}
-        </button>
-      </div>
+    <div className="max-w-lg mx-auto space-y-8">
+      <ModernPageHeader
+        icon={Sparkles}
+        eyebrow="Overzicht"
+        title="Schoonmaak"
+        back={{ to: "/" }}
+        actions={
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setEditMode((v) => !v)}
+            className={`rounded-xl gap-1.5 text-sm ${editMode ? "text-primary font-medium" : "text-muted-foreground"}`}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            {editMode ? "Klaar" : "Bewerken"}
+          </Button>
+        }
+      />
 
       {!editMode && (
-        <div className="flex gap-4 text-xs text-muted-foreground">
+        <div
+          className={`flex flex-wrap gap-4 text-xs text-muted-foreground ${cardSurface(
+            { padding: "sm" },
+          )}`}
+        >
           <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-green-500 inline-block" />Gedaan</span>
           <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-amber-400 inline-block" />Bijna tijd</span>
           <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-red-500 inline-block" />Te doen</span>
@@ -117,12 +124,23 @@ export default function Schoonmaak() {
         <div className="flex justify-center py-12">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         </div>
+      ) : sorted.length === 0 ? (
+        <ModernEmptyState
+          icon={Sparkles}
+          title="Nog geen schoonmaaktaken"
+          description="Taken verschijnen hier zodra ze zijn toegevoegd."
+        />
       ) : (
-        <div className="rounded-2xl bg-card border border-border/60 shadow-sm divide-y divide-border/40">
+        <div
+          className={`${cardSurface({ padding: "none" })} divide-y divide-border/40`}
+        >
           {sorted.map((task) => {
             const days = daysSince(task.last_done_at);
             return (
-              <div key={task.id} className="flex items-center gap-4 px-5 py-4">
+              <div
+                key={task.id}
+                className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-accent/20"
+              >
                 {!editMode && (
                   <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${statusDot(days, task.interval_days)}`} />
                 )}
@@ -145,7 +163,7 @@ export default function Schoonmaak() {
                     onChange={(e) =>
                       updateInterval.mutate({ id: task.id, interval_days: Number(e.target.value) })
                     }
-                    className="text-xs rounded-lg border border-border bg-background px-2 py-1.5 shrink-0 focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="text-xs rounded-xl border border-border/70 bg-background/60 px-3 py-2 shrink-0 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                   >
                     {INTERVAL_OPTIONS.map((o) => (
                       <option key={o.value} value={o.value}>{o.label}</option>

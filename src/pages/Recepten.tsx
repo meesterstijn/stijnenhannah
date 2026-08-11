@@ -17,6 +17,12 @@ import {
   textToIngredients,
   ingredientDisplayLine,
 } from "@/lib/ingredients";
+import { ModernPageHeader } from "@/components/modern-page-header";
+import {
+  ModernSection,
+  ModernEmptyState,
+  cardSurface,
+} from "@/components/modern-surfaces";
 import {
   Plus, Clock, Users, Trash2, ChefHat, Loader2, X, Check, ShoppingBasket, Pencil, Download,
 } from "lucide-react";
@@ -133,24 +139,27 @@ function IngredientsEditor({
         </p>
       )}
 
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         {ingredients.map((ing, i) => (
-          <div key={i} className="flex gap-2 items-center">
+          <div
+            key={i}
+            className="flex gap-2 items-center rounded-xl border border-border/50 bg-background/40 px-2.5 py-1.5"
+          >
             <Input
               value={ing.amount}
               onChange={(e) => updateIngredient(i, "amount", e.target.value)}
               placeholder="200g / 2x / 1L"
-              className="w-28 shrink-0 text-sm"
+              className="w-28 shrink-0 text-sm bg-card"
             />
             <Input
               value={ing.name}
               onChange={(e) => updateIngredient(i, "name", e.target.value)}
               placeholder="product"
-              className="flex-1 text-sm"
+              className="flex-1 text-sm bg-card"
             />
             <button
               onClick={() => removeIngredient(i)}
-              className="text-muted-foreground hover:text-destructive transition-colors"
+              className="shrink-0 rounded-lg p-1 text-muted-foreground hover:text-destructive transition-colors"
             >
               <X className="h-4 w-4" />
             </button>
@@ -329,150 +338,177 @@ export default function Recepten() {
 
   return (
     <div className="space-y-8">
-      <header className="flex items-end justify-between gap-4 flex-wrap">
-        <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Onze keuken</p>
-          <h1 className="font-serif text-4xl font-semibold mt-2">Recepten</h1>
-          <p className="text-muted-foreground mt-2">
-            Bewaar gerechten die jullie graag samen maken.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleExport} disabled={recipes.length === 0} className="rounded-xl gap-2">
-            <Download className="h-4 w-4" />
-            <span className="hidden sm:inline">Exporteer</span>
-          </Button>
-        <Dialog open={open} onOpenChange={handleOpenDialog}>
-          <DialogTrigger asChild>
-            <Button size="lg" className="rounded-xl">
-              <Plus className="h-4 w-4" /> Nieuw recept
+      <ModernPageHeader
+        icon={ChefHat}
+        eyebrow="Onze keuken"
+        title="Recepten"
+        description="Bewaar gerechten die jullie graag samen maken."
+        actions={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExport}
+              disabled={recipes.length === 0}
+              className="rounded-xl gap-2"
+            >
+              <Download className="h-4 w-4" />
+              <span className="hidden sm:inline">Exporteer</span>
             </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="font-serif text-2xl">Nieuw recept</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <Input
-                placeholder="Naam van het gerecht"
-                value={draft.title}
-                onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-              />
-              <CategoryPicker
-                value={draft.category}
-                onChange={(cat) => setDraft({ ...draft, category: cat })}
-              />
-              <div className="grid grid-cols-2 gap-3">
-                <Input
-                  placeholder="Tijd (bv. 30 min)"
-                  value={draft.time}
-                  onChange={(e) => setDraft({ ...draft, time: e.target.value })}
-                />
-                <Input
-                  placeholder="Personen (bv. 2)"
-                  value={draft.servings}
-                  onChange={(e) => setDraft({ ...draft, servings: e.target.value })}
-                />
-              </div>
+            <Dialog open={open} onOpenChange={handleOpenDialog}>
+              <DialogTrigger asChild>
+                <Button size="lg" className="rounded-xl">
+                  <Plus className="h-4 w-4" /> Nieuw recept
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle className="font-serif text-2xl">
+                    Nieuw recept
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <Input
+                    placeholder="Naam van het gerecht"
+                    value={draft.title}
+                    onChange={(e) =>
+                      setDraft({ ...draft, title: e.target.value })
+                    }
+                  />
+                  <CategoryPicker
+                    value={draft.category}
+                    onChange={(cat) => setDraft({ ...draft, category: cat })}
+                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    <Input
+                      placeholder="Tijd (bv. 30 min)"
+                      value={draft.time}
+                      onChange={(e) =>
+                        setDraft({ ...draft, time: e.target.value })
+                      }
+                    />
+                    <Input
+                      placeholder="Personen (bv. 2)"
+                      value={draft.servings}
+                      onChange={(e) =>
+                        setDraft({ ...draft, servings: e.target.value })
+                      }
+                    />
+                  </div>
 
-              <IngredientsEditor
-                ingredients={ingredientList}
-                setIngredients={setIngredientList}
-                onPickFromHistory={() => openPicker("add")}
-              />
+                  <IngredientsEditor
+                    ingredients={ingredientList}
+                    setIngredients={setIngredientList}
+                    onPickFromHistory={() => openPicker("add")}
+                  />
 
-              <Textarea
-                placeholder="Bereiding"
-                rows={5}
-                value={draft.steps}
-                onChange={(e) => setDraft({ ...draft, steps: e.target.value })}
-              />
-            </div>
-            {saveError && (
-              <p className="text-sm text-destructive">{saveError}</p>
-            )}
-            <DialogFooter>
-              <Button
-                onClick={handleSave}
-                disabled={!draft.title.trim() || addRecipe.isPending}
-                className="rounded-xl"
-              >
-                {addRecipe.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Opslaan"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-        </div>
-      </header>
-
-      <div className="grid grid-cols-3 gap-2 sm:gap-4">
-        <KitchenTimer defaultLabel="Timer 1" storageKey="kitchen-timer-label-1" />
-        <KitchenTimer defaultLabel="Timer 2" storageKey="kitchen-timer-label-2" />
-        <KitchenTimer defaultLabel="Timer 3" storageKey="kitchen-timer-label-3" />
-      </div>
-
-      {!isLoading && recipes.length > 0 && (
-        <div className="flex gap-2 overflow-x-auto scrollbar-none">
-          {(["Alles", ...RECIPE_CATEGORIES] as const).map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setActiveCategory(cat)}
-              className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-medium border transition-colors ${
-                activeCategory === cat
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-card text-muted-foreground border-border hover:text-foreground"
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {isLoading ? (
-        <div className="flex justify-center text-muted-foreground py-12">
-          <Loader2 className="h-5 w-5 animate-spin" />
-        </div>
-      ) : recipes.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border/70 p-12 text-center">
-          <ChefHat className="h-10 w-10 mx-auto text-muted-foreground" strokeWidth={1.4} />
-          <p className="font-serif text-xl mt-4">Nog geen recepten</p>
-          <p className="text-sm text-muted-foreground mt-1">
-            Voeg jullie eerste favoriete gerecht toe.
-          </p>
-        </div>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {recipes
-            .filter((r) => activeCategory === "Alles" || r.category === activeCategory)
-            .map((r) => (
-            <button
-              key={r.id}
-              onClick={() => setView(r)}
-              className="text-left rounded-2xl bg-card border border-border/60 p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all flex flex-col gap-3"
-            >
-              <p className="font-serif text-xl font-semibold leading-snug">{r.title}</p>
-              <div className="flex items-center justify-between gap-2 mt-auto">
-                <div className="flex gap-3 text-xs text-muted-foreground">
-                  {r.time && (
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3.5 w-3.5" /> {r.time}
-                    </span>
-                  )}
-                  {r.servings && (
-                    <span className="flex items-center gap-1">
-                      <Users className="h-3.5 w-3.5" /> {r.servings}
-                    </span>
-                  )}
+                  <Textarea
+                    placeholder="Bereiding"
+                    rows={5}
+                    value={draft.steps}
+                    onChange={(e) =>
+                      setDraft({ ...draft, steps: e.target.value })
+                    }
+                  />
                 </div>
-                {r.category && activeCategory === "Alles" && (
-                  <span className="text-xs text-muted-foreground/70">{r.category}</span>
+                {saveError && (
+                  <p className="text-sm text-destructive">{saveError}</p>
                 )}
-              </div>
-            </button>
-          ))}
+                <DialogFooter>
+                  <Button
+                    onClick={handleSave}
+                    disabled={!draft.title.trim() || addRecipe.isPending}
+                    className="rounded-xl"
+                  >
+                    {addRecipe.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      "Opslaan"
+                    )}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </>
+        }
+      />
+
+      <ModernSection title="Keukentimers">
+        <div className="grid grid-cols-3 gap-2 sm:gap-4">
+          <KitchenTimer defaultLabel="Timer 1" storageKey="kitchen-timer-label-1" />
+          <KitchenTimer defaultLabel="Timer 2" storageKey="kitchen-timer-label-2" />
+          <KitchenTimer defaultLabel="Timer 3" storageKey="kitchen-timer-label-3" />
         </div>
-      )}
+      </ModernSection>
+
+      <ModernSection title="Recepten">
+        {!isLoading && recipes.length > 0 && (
+          <div className="flex gap-2 overflow-x-auto scrollbar-none pb-1">
+            {(["Alles", ...RECIPE_CATEGORIES] as const).map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+                  activeCategory === cat
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-card text-muted-foreground border-border hover:text-foreground"
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {isLoading ? (
+          <div className="flex justify-center text-muted-foreground py-12">
+            <Loader2 className="h-5 w-5 animate-spin" />
+          </div>
+        ) : recipes.length === 0 ? (
+          <ModernEmptyState
+            icon={ChefHat}
+            title="Nog geen recepten"
+            description="Voeg jullie eerste favoriete gerecht toe."
+          />
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {recipes
+              .filter(
+                (r) => activeCategory === "Alles" || r.category === activeCategory,
+              )
+              .map((r) => (
+                <button
+                  key={r.id}
+                  onClick={() => setView(r)}
+                  className={`text-left ${cardSurface({ interactive: true })} flex flex-col gap-3`}
+                >
+                  <p className="font-serif text-xl font-semibold leading-snug">
+                    {r.title}
+                  </p>
+                  <div className="flex items-center justify-between gap-2 mt-auto">
+                    <div className="flex gap-3 text-xs text-muted-foreground">
+                      {r.time && (
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3.5 w-3.5" /> {r.time}
+                        </span>
+                      )}
+                      {r.servings && (
+                        <span className="flex items-center gap-1">
+                          <Users className="h-3.5 w-3.5" /> {r.servings}
+                        </span>
+                      )}
+                    </div>
+                    {r.category && activeCategory === "Alles" && (
+                      <span className="text-xs text-muted-foreground/70">
+                        {r.category}
+                      </span>
+                    )}
+                  </div>
+                </button>
+              ))}
+          </div>
+        )}
+      </ModernSection>
 
       <Dialog open={!!view} onOpenChange={(o) => { if (!o) { setView(null); setConfirmDelete(false); setEditMode(false); } }}>
         <DialogContent className="w-full max-w-2xl max-h-[90vh] overflow-y-auto scrollbar-none sm:rounded-2xl">
@@ -594,7 +630,9 @@ export default function Recepten() {
                     )}
                   </Button>
                   <h3 className="font-serif text-lg font-semibold">Ingrediënten</h3>
-                  <ul className="space-y-1 text-sm">
+                  <ul
+                    className={`${cardSurface({ padding: "sm" })} space-y-1.5 text-sm`}
+                  >
                     {view.ingredients.split("\n").filter(Boolean).map((line, i) => (
                       <li key={i} className="flex gap-2">
                         <span className="text-primary">·</span> {ingredientDisplayLine(line)}
@@ -606,7 +644,11 @@ export default function Recepten() {
               {view.steps && (
                 <div>
                   <h3 className="font-serif text-lg font-semibold mb-2">Bereiding</h3>
-                  <p className="text-sm whitespace-pre-wrap leading-relaxed">{view.steps}</p>
+                  <p
+                    className={`${cardSurface({ padding: "sm" })} text-sm whitespace-pre-wrap leading-relaxed`}
+                  >
+                    {view.steps}
+                  </p>
                 </div>
               )}
               <DialogFooter>

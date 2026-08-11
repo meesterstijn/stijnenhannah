@@ -5,6 +5,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Sheet, SheetContent, SheetClose } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ModernPageHeader } from "@/components/modern-page-header";
+import {
+  ModernSection,
+  ModernEmptyState,
+  cardSurface,
+} from "@/components/modern-surfaces";
 import { Plus, Trash2, Loader2, X, Cake, Heart, Flower2, Download } from "lucide-react";
 
 type EntryType = "verjaardag" | "trouwdag" | "sterfdag";
@@ -194,23 +200,24 @@ export default function Verjaardagen() {
   const currentConfig = TYPE_CONFIG[type];
 
   return (
-    <div className="space-y-6 max-w-xl mx-auto">
-      <div className="flex items-end justify-between gap-4">
-        <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Overzicht</p>
-          <h1 className="font-serif text-3xl font-semibold mt-1">Kalender</h1>
-        </div>
-        <div className="flex items-center gap-2 mb-1">
-          <Button variant="outline" size="sm" onClick={handleExport} disabled={birthdays.length === 0} className="rounded-xl gap-2">
-            <Download className="h-4 w-4" />
-            <span className="hidden sm:inline">Exporteer</span>
-          </Button>
-          <Button onClick={openNew} className="rounded-xl gap-2">
-            <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">Toevoegen</span>
-          </Button>
-        </div>
-      </div>
+    <div className="space-y-8 max-w-xl mx-auto">
+      <ModernPageHeader
+        icon={Cake}
+        eyebrow="Overzicht"
+        title="Kalender"
+        actions={
+          <>
+            <Button variant="outline" size="sm" onClick={handleExport} disabled={birthdays.length === 0} className="rounded-xl gap-2">
+              <Download className="h-4 w-4" />
+              <span className="hidden sm:inline">Exporteer</span>
+            </Button>
+            <Button onClick={openNew} className="rounded-xl gap-2">
+              <Plus className="h-4 w-4" />
+              <span className="hidden sm:inline">Toevoegen</span>
+            </Button>
+          </>
+        }
+      />
 
       {isLoading && (
         <div className="flex justify-center py-12 text-muted-foreground">
@@ -219,48 +226,105 @@ export default function Verjaardagen() {
       )}
 
       {!isLoading && birthdays.length === 0 && (
-        <p className="text-sm text-muted-foreground text-center py-12">
-          Nog geen items — voeg er een toe.
-        </p>
+        <ModernEmptyState
+          icon={Cake}
+          title="Nog geen items"
+          description="Voeg de eerste verjaardag, trouwdag of sterfdag toe."
+        />
       )}
 
       {sorted.length > 0 && (
-        <div className="rounded-2xl border border-border/60 bg-card overflow-hidden divide-y divide-border/50">
-          {sorted.map((b) => {
-            const entryType = (b.type ?? "verjaardag") as EntryType;
-            const config = TYPE_CONFIG[entryType];
-            const Icon = config.icon;
-            const { text, highlight } = daysLabel(b.daysUntil, entryType);
-            const age = b.year ? (b.next.getFullYear() - b.year) : null;
-            return (
-              <button
-                key={b.id}
-                onClick={() => openEdit(b)}
-                className={`w-full flex items-center gap-4 px-4 py-3.5 text-left hover:bg-accent/30 transition-colors ${
-                  b.daysUntil === 0 ? "bg-primary/5" : ""
-                }`}
-              >
-                <div className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center ${
-                  b.daysUntil === 0 ? "bg-primary/10" : "bg-muted"
-                }`}>
-                  <Icon className={`h-[18px] w-[18px] ${b.daysUntil === 0 ? "text-primary" : config.iconColor}`} strokeWidth={1.6} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="font-semibold text-sm leading-tight">{b.name}</p>
-                    <span className="text-xs text-muted-foreground/60 font-normal">{config.label}</span>
+        <ModernSection title="Binnenkort">
+          <div className="grid gap-3 sm:grid-cols-3">
+            {sorted.slice(0, 3).map((b) => {
+              const entryType = (b.type ?? "verjaardag") as EntryType;
+              const config = TYPE_CONFIG[entryType];
+              const Icon = config.icon;
+              const { text, highlight } = daysLabel(b.daysUntil, entryType);
+              return (
+                <button
+                  key={b.id}
+                  onClick={() => openEdit(b)}
+                  className={`text-left ${cardSurface({ interactive: true })} flex flex-col gap-2`}
+                >
+                  <div
+                    className={`h-10 w-10 rounded-2xl flex items-center justify-center ${
+                      highlight ? "bg-primary/10" : "bg-muted"
+                    }`}
+                  >
+                    <Icon
+                      className={`h-[18px] w-[18px] ${highlight ? "text-primary" : config.iconColor}`}
+                      strokeWidth={1.6}
+                    />
                   </div>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {b.day} {MONTHS[b.month - 1]}{age ? ` · ${config.ageLabel(age)}` : ""}
+                  <p className="font-semibold text-sm leading-tight truncate">
+                    {b.name}
                   </p>
-                </div>
-                <span className={`text-xs shrink-0 font-medium ${highlight ? "text-primary" : "text-muted-foreground"}`}>
-                  {text}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+                  <p
+                    className={`text-sm font-semibold ${highlight ? "text-primary" : "text-muted-foreground"}`}
+                  >
+                    {text}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+        </ModernSection>
+      )}
+
+      {sorted.length > 0 && (
+        <ModernSection title="Alle data">
+          <div
+            className={`${cardSurface({ padding: "none" })} overflow-hidden divide-y divide-border/50`}
+          >
+            {sorted.map((b) => {
+              const entryType = (b.type ?? "verjaardag") as EntryType;
+              const config = TYPE_CONFIG[entryType];
+              const Icon = config.icon;
+              const { text, highlight } = daysLabel(b.daysUntil, entryType);
+              const age = b.year ? b.next.getFullYear() - b.year : null;
+              return (
+                <button
+                  key={b.id}
+                  onClick={() => openEdit(b)}
+                  className={`w-full flex items-center gap-4 px-4 py-3.5 text-left hover:bg-accent/30 transition-colors ${
+                    b.daysUntil === 0 ? "bg-primary/5" : ""
+                  }`}
+                >
+                  <div
+                    className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center ${
+                      b.daysUntil === 0 ? "bg-primary/10" : "bg-muted"
+                    }`}
+                  >
+                    <Icon
+                      className={`h-[18px] w-[18px] ${b.daysUntil === 0 ? "text-primary" : config.iconColor}`}
+                      strokeWidth={1.6}
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-sm leading-tight">
+                        {b.name}
+                      </p>
+                      <span className="text-xs text-muted-foreground/60 font-normal">
+                        {config.label}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {b.day} {MONTHS[b.month - 1]}
+                      {age ? ` · ${config.ageLabel(age)}` : ""}
+                    </p>
+                  </div>
+                  <span
+                    className={`text-xs shrink-0 font-medium ${highlight ? "text-primary" : "text-muted-foreground"}`}
+                  >
+                    {text}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </ModernSection>
       )}
 
       <Sheet open={sheetOpen} onOpenChange={(v) => { setSheetOpen(v); setConfirmDelete(false); }}>

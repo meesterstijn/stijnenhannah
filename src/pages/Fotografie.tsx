@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { Sun, Camera } from "lucide-react";
+import { Sun, Camera, Aperture } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ModernPageHeader } from "@/components/modern-page-header";
+import { ModernSection, cardSurface } from "@/components/modern-surfaces";
 
 const conditions = [
   { emoji: "☀️", label: "Felle zon", f200: "f/22", f40: "f/45" },
@@ -17,34 +19,49 @@ export default function Fotografie() {
 
   return (
     <div className="space-y-8">
-      <header>
-        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Onze beelden</p>
-        <h1 className="font-serif text-4xl font-semibold mt-2">Fotografie</h1>
-        <p className="text-muted-foreground mt-2">Tips, regels en inspiratie voor mooie foto's.</p>
-      </header>
+      <ModernPageHeader
+        icon={Aperture}
+        eyebrow="Onze beelden"
+        title="Fotografie"
+        description="Tips, regels en inspiratie voor mooie foto's."
+      />
 
-      <div className="space-y-4">
-        {/* Sunny 16 tegel */}
-        <div className="rounded-2xl bg-card border border-border/60 p-6 shadow-sm space-y-5">
+      <ModernSection title="Sunny 16 regel">
+        <div className={`${cardSurface({ padding: "lg" })} space-y-5`}>
           <div className="flex items-center gap-3">
-            <Sun className="h-6 w-6 text-primary" strokeWidth={1.6} />
-            <p className="font-serif text-xl font-semibold">Sunny 16 regel</p>
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <Sun className="h-5 w-5" strokeWidth={1.6} />
+            </div>
+            <div>
+              <p className="font-serif text-xl font-semibold">Sunny 16 regel</p>
+              <p className="text-xs text-muted-foreground">
+                Sluitertijd = <strong className="text-foreground">1/ISO</strong>
+              </p>
+            </div>
           </div>
           <p className="text-sm text-muted-foreground">
-            Sluitertijd = <strong className="text-foreground">1/ISO</strong>. Pas alleen de f-stop aan op het weer.
+            Pas alleen de f-stop aan op het weer.
           </p>
-          <div className="grid grid-cols-6 gap-2 pt-2 border-t border-border/40">
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 pt-4 border-t border-border/40">
             {conditions.map((c) => (
-              <div key={c.label} className="flex flex-col items-center text-center gap-1">
+              <div
+                key={c.label}
+                className="flex flex-col items-center text-center gap-1 rounded-xl bg-background/50 py-2.5"
+              >
                 <span className="text-2xl">{c.emoji}</span>
-                <p className="text-[10px] text-muted-foreground leading-tight">{c.label}</p>
-                <p className="font-serif text-lg font-semibold text-primary">{c.f200}</p>
+                <p className="text-[10px] text-muted-foreground leading-tight px-1">
+                  {c.label}
+                </p>
+                <p className="font-serif text-lg font-semibold text-primary">
+                  {c.f200}
+                </p>
               </div>
             ))}
           </div>
         </div>
+      </ModernSection>
 
-        {/* Analoge camera knop */}
+      <ModernSection title="Analoge camera">
         <Button
           variant={showCamera ? "default" : "outline"}
           className="rounded-xl gap-2"
@@ -54,14 +71,17 @@ export default function Fotografie() {
           Analoge camera
         </Button>
 
-        {/* Analoge camera tegel */}
         {showCamera && (
-          <div className="rounded-2xl bg-card border border-border/60 p-6 shadow-sm space-y-5">
+          <div className={`${cardSurface({ padding: "lg" })} space-y-5`}>
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div className="flex items-center gap-3">
-                <Camera className="h-6 w-6 text-primary" strokeWidth={1.6} />
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                  <Camera className="h-5 w-5" strokeWidth={1.6} />
+                </div>
                 <div>
-                  <p className="font-serif text-xl font-semibold">Analoge camera</p>
+                  <p className="font-serif text-xl font-semibold">
+                    Analoge camera
+                  </p>
                   <p className="text-xs text-muted-foreground">ISO 200</p>
                 </div>
               </div>
@@ -90,11 +110,16 @@ export default function Fotografie() {
               </div>
             </div>
 
-            <div className="grid grid-cols-6 gap-2 pt-2 border-t border-border/40">
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 pt-4 border-t border-border/40">
               {conditions.map((c) => (
-                <div key={c.label} className="flex flex-col items-center text-center gap-1">
+                <div
+                  key={c.label}
+                  className="flex flex-col items-center text-center gap-1 rounded-xl bg-background/50 py-2.5"
+                >
                   <span className="text-2xl">{c.emoji}</span>
-                  <p className="text-[10px] text-muted-foreground leading-tight">{c.label}</p>
+                  <p className="text-[10px] text-muted-foreground leading-tight px-1">
+                    {c.label}
+                  </p>
                   <p className="font-serif text-lg font-semibold text-primary">
                     {shutter === "1/200" ? c.f200 : c.f40}
                   </p>
@@ -109,7 +134,7 @@ export default function Fotografie() {
             </p>
           </div>
         )}
-      </div>
+      </ModernSection>
     </div>
   );
 }

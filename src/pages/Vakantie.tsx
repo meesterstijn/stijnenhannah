@@ -1,10 +1,15 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { Link } from "react-router-dom";
-import { ArrowLeft, Check, Loader2, Plus, RotateCcw, Trash2, Luggage, Globe } from "lucide-react";
+import { Check, Loader2, Plus, RotateCcw, Trash2, Luggage, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ModernPageHeader } from "@/components/modern-page-header";
+import {
+  ModernSection,
+  ModernEmptyState,
+  cardSurface,
+} from "@/components/modern-surfaces";
 import { JapanTravel } from "./JapanTravel";
 
 type View = "home" | "paklijst" | "japan";
@@ -34,41 +39,47 @@ export default function Vakantie() {
   if (view === "japan") return <JapanTravel onBack={() => setView("home")} />;
 
   return (
-    <div className="max-w-lg mx-auto space-y-6">
-      <div className="flex items-center gap-3">
-        <Link to="/" className="text-muted-foreground hover:text-foreground transition-colors">
-          <ArrowLeft className="h-5 w-5" />
-        </Link>
-        <h1 className="font-serif text-2xl font-semibold flex-1">Vakantie</h1>
-      </div>
+    <div className="max-w-lg mx-auto space-y-8">
+      <ModernPageHeader
+        icon={Luggage}
+        eyebrow="Overzicht"
+        title="Vakantie"
+        back={{ to: "/" }}
+      />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <button
-          onClick={() => setView("paklijst")}
-          className="rounded-2xl bg-card border border-border/60 p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all flex items-center gap-4 text-left"
-        >
-          <div className="h-10 w-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
-            <Luggage className="h-5 w-5 text-primary" strokeWidth={1.6} />
-          </div>
-          <div className="min-w-0">
-            <p className="font-serif text-base font-semibold">Paklijst</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Inpakken voor de reis</p>
-          </div>
-        </button>
+      <ModernSection title="Onderdelen">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <button
+            onClick={() => setView("paklijst")}
+            className={`${cardSurface({ interactive: true })} flex items-center gap-4 text-left`}
+          >
+            <div className="h-11 w-11 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
+              <Luggage className="h-5 w-5 text-primary" strokeWidth={1.6} />
+            </div>
+            <div className="min-w-0">
+              <p className="font-serif text-base font-semibold">Paklijst</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Inpakken voor de reis
+              </p>
+            </div>
+          </button>
 
-        <button
-          onClick={() => setView("japan")}
-          className="rounded-2xl bg-card border border-border/60 p-5 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all flex items-center gap-4 text-left"
-        >
-          <div className="h-10 w-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
-            <Globe className="h-5 w-5 text-primary" strokeWidth={1.6} />
-          </div>
-          <div className="min-w-0">
-            <p className="font-serif text-base font-semibold">Japan</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Zinnen &amp; vertaler</p>
-          </div>
-        </button>
-      </div>
+          <button
+            onClick={() => setView("japan")}
+            className={`${cardSurface({ interactive: true })} flex items-center gap-4 text-left`}
+          >
+            <div className="h-11 w-11 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
+              <Globe className="h-5 w-5 text-primary" strokeWidth={1.6} />
+            </div>
+            <div className="min-w-0">
+              <p className="font-serif text-base font-semibold">Japan</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Zinnen &amp; vertaler
+              </p>
+            </div>
+          </button>
+        </div>
+      </ModernSection>
     </div>
   );
 }
@@ -156,135 +167,151 @@ function PackingListView({ onBack }: { onBack: () => void }) {
   const checked = items.filter((i) => i[checkedKey]).length;
 
   return (
-    <div className="max-w-lg mx-auto space-y-6">
-      <div className="flex items-center gap-3">
-        <button
-          onClick={onBack}
-          className="text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </button>
-        <h1 className="font-serif text-2xl font-semibold flex-1">Paklijst</h1>
-        {checked > 0 && (
-          <button
-            onClick={() => resetAll.mutate()}
-            disabled={resetAll.isPending}
-            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
-            Uitvinken
-          </button>
+    <div className="max-w-lg mx-auto space-y-8">
+      <ModernPageHeader
+        icon={Luggage}
+        eyebrow="Vakantie"
+        title="Paklijst"
+        back={{ onClick: onBack }}
+        actions={
+          checked > 0 ? (
+            <button
+              onClick={() => resetAll.mutate()}
+              disabled={resetAll.isPending}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Uitvinken
+            </button>
+          ) : undefined
+        }
+      />
+
+      <div className={`${cardSurface({ padding: "sm" })} space-y-4`}>
+        <div className="flex gap-1 p-1 rounded-xl bg-muted w-fit">
+          {PERSONS.map((p) => (
+            <button
+              key={p.key}
+              onClick={() => setPerson(p.key)}
+              className={`px-5 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                person === p.key
+                  ? "bg-background shadow-sm text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+
+        {total > 0 && (
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full bg-primary rounded-full transition-all"
+                style={{ width: `${(checked / total) * 100}%` }}
+              />
+            </div>
+            <span className="text-xs text-muted-foreground shrink-0">
+              {checked === total ? "Alles ingepakt!" : `${checked} van ${total}`}
+            </span>
+          </div>
         )}
       </div>
 
-      <div className="flex gap-1 p-1 rounded-xl bg-muted w-fit">
-        {PERSONS.map((p) => (
-          <button
-            key={p.key}
-            onClick={() => setPerson(p.key)}
-            className={`px-5 py-1.5 rounded-lg text-sm font-medium transition-all ${
-              person === p.key
-                ? "bg-background shadow-sm text-foreground"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
+      <ModernSection title="Items">
+        {isLoading ? (
+          <div className="flex justify-center py-12">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : total === 0 ? (
+          <ModernEmptyState
+            icon={Luggage}
+            title="Nog geen items"
+            description="Voeg hieronder je eerste paklijst-item toe."
+          />
+        ) : (
+          <div className="space-y-4">
+            {CATEGORIES.map((cat) => {
+              const catItems = items.filter((i) => i.category === cat);
+              if (catItems.length === 0) return null;
+              return (
+                <div
+                  key={cat}
+                  className={`${cardSurface({ padding: "none" })} overflow-hidden`}
+                >
+                  <div className="px-5 py-2.5 bg-muted/30 border-b border-border/40">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{cat}</p>
+                  </div>
+                  <div className="divide-y divide-border/40">
+                    {catItems.map((item) => {
+                      const isChecked = item[checkedKey];
+                      return (
+                        <div
+                          key={item.id}
+                          className="flex items-center gap-3 px-5 py-3 group transition-colors hover:bg-accent/20"
+                        >
+                          <button
+                            onClick={() => toggle.mutate({ id: item.id, checked: !isChecked })}
+                            className={`h-5 w-5 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors ${
+                              isChecked
+                                ? "bg-primary border-primary"
+                                : "border-border hover:border-primary"
+                            }`}
+                          >
+                            {isChecked && <Check className="h-3 w-3 text-primary-foreground" />}
+                          </button>
+                          <span className={`flex-1 text-sm ${isChecked ? "line-through text-muted-foreground" : ""}`}>
+                            {item.text}
+                          </span>
+                          <button
+                            onClick={() => deleteItem.mutate(item.id)}
+                            className="rounded-lg p-1 -m-1 opacity-0 group-hover:opacity-100 text-muted-foreground/50 hover:text-destructive transition-all shrink-0"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </ModernSection>
 
-      {total > 0 && (
-        <div className="flex items-center gap-3">
-          <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-            <div
-              className="h-full bg-primary rounded-full transition-all"
-              style={{ width: `${(checked / total) * 100}%` }}
+      <ModernSection title="Nieuw item">
+        <div className={`${cardSurface()} space-y-3`}>
+          <div className="flex gap-2">
+            <select
+              value={newCategory}
+              onChange={(e) => setNewCategory(e.target.value)}
+              className="text-xs rounded-xl border border-border/70 bg-background/60 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/30 shrink-0"
+            >
+              {CATEGORIES.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+            <Input
+              value={newText}
+              onChange={(e) => setNewText(e.target.value)}
+              placeholder="Item toevoegen…"
+              className="flex-1 bg-background/60 border-border/50 rounded-xl"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && newText.trim()) addItem.mutate();
+              }}
             />
           </div>
-          <span className="text-xs text-muted-foreground shrink-0">
-            {checked === total ? "Alles ingepakt!" : `${checked} van ${total}`}
-          </span>
-        </div>
-      )}
-
-      {isLoading ? (
-        <div className="flex justify-center py-12">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {CATEGORIES.map((cat) => {
-            const catItems = items.filter((i) => i.category === cat);
-            if (catItems.length === 0) return null;
-            return (
-              <div key={cat} className="rounded-2xl bg-card border border-border/60 shadow-sm overflow-hidden">
-                <div className="px-5 py-2.5 bg-muted/30 border-b border-border/40">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{cat}</p>
-                </div>
-                <div className="divide-y divide-border/40">
-                  {catItems.map((item) => {
-                    const isChecked = item[checkedKey];
-                    return (
-                      <div key={item.id} className="flex items-center gap-3 px-5 py-3 group">
-                        <button
-                          onClick={() => toggle.mutate({ id: item.id, checked: !isChecked })}
-                          className={`h-5 w-5 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors ${
-                            isChecked
-                              ? "bg-primary border-primary"
-                              : "border-border hover:border-primary"
-                          }`}
-                        >
-                          {isChecked && <Check className="h-3 w-3 text-primary-foreground" />}
-                        </button>
-                        <span className={`flex-1 text-sm ${isChecked ? "line-through text-muted-foreground" : ""}`}>
-                          {item.text}
-                        </span>
-                        <button
-                          onClick={() => deleteItem.mutate(item.id)}
-                          className="opacity-0 group-hover:opacity-100 text-muted-foreground/50 hover:text-destructive transition-all shrink-0"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      <div className="rounded-2xl bg-card border border-border/60 shadow-sm p-5 space-y-3">
-        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Nieuw item</p>
-        <div className="flex gap-2">
-          <select
-            value={newCategory}
-            onChange={(e) => setNewCategory(e.target.value)}
-            className="text-xs rounded-xl border border-border bg-background px-3 py-2 focus:outline-none focus:ring-1 focus:ring-primary shrink-0"
+          <Button
+            className="w-full rounded-xl gap-1"
+            disabled={!newText.trim() || addItem.isPending}
+            onClick={() => addItem.mutate()}
           >
-            {CATEGORIES.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-          <Input
-            value={newText}
-            onChange={(e) => setNewText(e.target.value)}
-            placeholder="Item toevoegen…"
-            className="flex-1 bg-background"
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && newText.trim()) addItem.mutate();
-            }}
-          />
+            {addItem.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Plus className="h-4 w-4" />Toevoegen</>}
+          </Button>
         </div>
-        <Button
-          className="w-full rounded-xl gap-1"
-          disabled={!newText.trim() || addItem.isPending}
-          onClick={() => addItem.mutate()}
-        >
-          {addItem.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Plus className="h-4 w-4" />Toevoegen</>}
-        </Button>
-      </div>
+      </ModernSection>
     </div>
   );
 }
