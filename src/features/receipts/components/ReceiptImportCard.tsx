@@ -130,6 +130,12 @@ export function ReceiptImportCard() {
       queryClient.invalidateQueries({
         queryKey: ["receipt_items", "unmatched"],
       });
+      // Prefix-invalidatie (geen nieuwe key): ververst zowel
+      // ["receipt_item_prices","all"] (ReceiptAnalysisSheet) als de
+      // boodschappenlijst-prijscontext (Boodschappen.tsx), die dezelfde key
+      // hergebruikt — zonder deze regel bleef die pas verversen na een
+      // latere matchcorrectie of handmatige paginarefresh.
+      queryClient.invalidateQueries({ queryKey: ["receipt_item_prices"] });
     },
     onError: (err: Error) => setError(`Importeren mislukt: ${err.message}`),
   });

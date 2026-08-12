@@ -3,7 +3,17 @@ import { Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase, type GroceryItem } from "@/lib/supabase";
 import { parseItem, getHistory, saveToHistory } from "@/lib/history";
-import { getCategories, getAssignments } from "@/lib/categories";
+import {
+  getCategories,
+  getAssignments,
+  fetchProductAssignmentCatalogLinks,
+} from "@/lib/categories";
+import {
+  fetchItemPrices,
+  buildLatestPaidPriceByProduct,
+  type PaidPriceObservation,
+} from "@/features/receipts/lib/receiptAnalysis";
+import { formatGroceryPriceLine } from "@/lib/groceryPriceContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -79,6 +89,34 @@ function GroceryList({
     queryKey: ["product_assignments"],
     queryFn: getAssignments,
   });
+
+  // Boodschappenproduct -> canoniek product (product_assignments.
+  // canonical_product_id, V1 gebouwd in de vorige stap) + de bestaande
+  // kassabon-prijsanalyse (["receipt_item_prices","all"], exact dezelfde
+  // querykey/helper als ReceiptAnalysisSheet — gedeelde cache, en elke
+  // bestaande invalidatie van die key (matchcorrectie, comparison_unit-
+  // wijziging, variant-editie) ververst deze prijscontext automatisch mee).
+  // Beide zijn bulk-fetches, dus geen query per boodschappenregel.
+  const { data: catalogLinks = [] } = useQuery({
+    queryKey: ["product_assignment_catalog_links"],
+    queryFn: fetchProductAssignmentCatalogLinks,
+  });
+  const { data: itemPrices = [] } = useQuery({
+    queryKey: ["receipt_item_prices", "all"],
+    queryFn: fetchItemPrices,
+  });
+
+  const canonicalProductIdByProduct = useMemo(
+    () =>
+      new Map(
+        catalogLinks.map((link) => [link.product, link.canonicalProductId]),
+      ),
+    [catalogLinks],
+  );
+  const latestPaidPriceByProductId = useMemo(
+    () => buildLatestPaidPriceByProduct(itemPrices),
+    [itemPrices],
+  );
 
   const grouped = useMemo(() => {
     const assigned = new Set<string>();
@@ -377,12 +415,19 @@ function GroceryList({
             <div className="divide-y divide-dashed divide-border/70">
               {group.items.map((i) => {
                 const { name, qty } = parseItem(i.text);
+                const canonicalProductId =
+                  canonicalProductIdByProduct.get(name.toLowerCase()) ?? null;
+                const priceObservation = canonicalProductId
+                  ? latestPaidPriceByProductId.get(canonicalProductId)
+                  : undefined;
                 return (
                   <ItemRow
                     key={i.id}
                     item={i}
                     parsedName={name}
                     parsedQty={qty}
+                    canonicalProductId={canonicalProductId}
+                    priceObservation={priceObservation}
                     deleteMode={deleteMode}
                     onToggleDone={() =>
                       toggleDone.mutate({ id: i.id, done: !i.done })
@@ -503,6 +548,8 @@ function ItemRow({
   item,
   parsedName,
   parsedQty,
+  canonicalProductId,
+  priceObservation,
   deleteMode,
   onToggleDone,
   onDelete,
@@ -511,6 +558,9 @@ function ItemRow({
   item: GroceryItem;
   parsedName: string;
   parsedQty: number;
+  // null = geen betrouwbare cataloguskoppeling -> geen prijsregel tonen.
+  canonicalProductId: string | null;
+  priceObservation: PaidPriceObservation | undefined;
   deleteMode: boolean;
   onToggleDone: () => void;
   onDelete: () => void;
@@ -532,13 +582,25 @@ function ItemRow({
         {item.done && <Check className="h-3 w-3 text-background" strokeWidth={3} />}
       </span>
 
-      <span
-        className={`flex-1 min-w-0 text-[15px] ${
-          item.done ? "line-through text-muted-foreground" : "text-foreground"
-        }`}
-      >
-        {parsedName}
-      </span>
+      <div className="flex-1 min-w-0">
+        <span
+          className={`text-[15px] ${
+            item.done ? "line-through text-muted-foreground" : "text-foreground"
+          }`}
+        >
+          {parsedName}
+        </span>
+        {/* Puur secundaire context uit de bestaande kassabon-prijsanalyse —
+            geen eigen click handler, dus tikken hier vinkt de regel gewoon
+            af/door via de onClick op de buitenste row hierboven. Alleen
+            zichtbaar bij een betrouwbare canonieke koppeling (V1: nooit een
+            gegokte prijs op naam). */}
+        {canonicalProductId && (
+          <p className="text-xs text-muted-foreground/70 mt-0.5">
+            {formatGroceryPriceLine(priceObservation)}
+          </p>
+        )}
+      </div>
 
       <div
         className="flex items-center gap-1 flex-shrink-0"

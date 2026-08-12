@@ -49,6 +49,13 @@ export type ItemPriceRow = {
   purchase_date: string;
   purchase_time: string | null;
   comparison_unit: string;
+  // Daadwerkelijk betaald bedrag voor DEZE regel (al netto van een op die
+  // regel gedrukte korting — zie 20260831000000_receipt_item_prices_view.sql)
+  // — toegevoegd t.b.v. de boodschappenlijst-prijscontext (V1), die de
+  // "betaalde prijs"-definitie nodig heeft naast de al bestaande
+  // vergelijkprijs hieronder. Puur een extra kolom uit de al bestaande view;
+  // geen nieuwe berekening.
+  paid_line_total: number | null;
   comparison_paid_price: number | null;
   comparison_price_unit: string | null;
 };
@@ -57,7 +64,7 @@ export async function fetchItemPrices(): Promise<ItemPriceRow[]> {
   const { data, error } = await supabase
     .from("receipt_item_prices")
     .select(
-      "receipt_item_id, product_id, product_name, product_variant_id, variant_name, package_size, package_unit, store_id, store_name, branch_id, branch_name, purchase_date, purchase_time, comparison_unit, comparison_paid_price, comparison_price_unit",
+      "receipt_item_id, product_id, product_name, product_variant_id, variant_name, package_size, package_unit, store_id, store_name, branch_id, branch_name, purchase_date, purchase_time, comparison_unit, paid_line_total, comparison_paid_price, comparison_price_unit",
     )
     .order("purchase_date", { ascending: false });
   if (error) throw error;
@@ -255,9 +262,20 @@ function isValidPriceObservation(
 // volgorde bij identieke datum+tijd). Ontbrekende purchase_time wordt als
 // "vroegst op die dag" behandeld — een bewuste, onschadelijke keuze voor de
 // zeldzame gevallen zonder bontijd.
-export function sortObservationsNewestFirst(
-  rows: ValidPriceObservation[],
-): ValidPriceObservation[] {
+// Generiek over elke rijvorm die minstens purchase_date/purchase_time/
+// receipt_item_id heeft — de comparator raakt nooit comparison_paid_price/
+// comparison_price_unit, dus deze functie kan zonder gedragswijziging breder
+// dan alleen ValidPriceObservation gebruikt worden (zie
+// buildLatestPaidPriceByProduct hieronder, die op paid_line_total selecteert
+// i.p.v. op een geldige vergelijkprijs). Bestaande aanroepen die
+// ValidPriceObservation[] doorgeven blijven exact hetzelfde typed/gedrag
+// behouden (T wordt daar automatisch op ValidPriceObservation geïnfereerd).
+export function sortObservationsNewestFirst<
+  T extends Pick<
+    ItemPriceRow,
+    "purchase_date" | "purchase_time" | "receipt_item_id"
+  >,
+>(rows: T[]): T[] {
   return [...rows].sort((a, b) => {
     if (a.purchase_date !== b.purchase_date) {
       return a.purchase_date < b.purchase_date ? 1 : -1;
@@ -516,6 +534,39 @@ export function buildAllProductsSummary(
   return result.sort((a, b) =>
     a.productName.localeCompare(b.productName, "nl"),
   );
+}
+
+// --- Boodschappenlijst-prijscontext v1 ---------------------------------
+//
+// Voedt de compacte "Laatst €1,19 bij Albert Heijn · €79,33/kg"-regel op de
+// boodschappenlijst (Boodschappen.tsx). Zelfde bron/aanpak als
+// buildAllProductsSummary hierboven, maar met een andere geldigheidseis: een
+// boodschappenregel wil de betaalde prijs tonen ZODRA die er is, ook als er
+// (nog) geen vergelijkprijs beschikbaar is — dus filteren op paid_line_total
+// i.p.v. op isValidPriceObservation. Werkt op dezelfde al opgehaalde
+// fetchItemPrices()-dataset; geen aparte query, dus geen N+1.
+export type PaidPriceObservation = ItemPriceRow & { paid_line_total: number };
+
+function hasPaidLineTotal(row: ItemPriceRow): row is PaidPriceObservation {
+  return row.paid_line_total !== null;
+}
+
+export function buildLatestPaidPriceByProduct(
+  itemPrices: ItemPriceRow[],
+): Map<string, PaidPriceObservation> {
+  const byProduct = new Map<string, PaidPriceObservation[]>();
+  for (const row of itemPrices) {
+    if (!hasPaidLineTotal(row)) continue;
+    const list = byProduct.get(row.product_id) ?? [];
+    list.push(row);
+    byProduct.set(row.product_id, list);
+  }
+
+  const result = new Map<string, PaidPriceObservation>();
+  for (const [productId, rows] of byProduct) {
+    result.set(productId, sortObservationsNewestFirst(rows)[0]);
+  }
+  return result;
 }
 
 // Puur informatief — voedt de hint in de "vergelijkeenheid wijzigen"-dialoog
