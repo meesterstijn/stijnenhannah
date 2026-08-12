@@ -412,9 +412,10 @@ export function computeProductPriceStats(
 // vindt) — een geldige, gematchte prijswaarneming kan dus wél een
 // betrouwbare product-match hebben terwijl de winkel zelf nog niet aan een
 // canonieke store gekoppeld is. Zulke waarnemingen worden hier samen
-// getoond onder "Onbekende winkel" (eenvoudigste implementatie), maar zijn
-// nooit een geldige kandidaat voor "historisch goedkoopst" — zie
-// determineHistoricallyCheapestStore.
+// getoond onder "Onbekende winkel" (eenvoudigste implementatie) — de
+// gecombineerde winkelvergelijking (buildCombinedStoreComparison hieronder)
+// sluit deze groep zelf weer uit, want die vertrekt vanuit
+// buildLatestPriceByStore(), dat store_id = null al niet meeneemt.
 export type StorePriceStats = {
   storeId: string | null;
   storeName: string;
@@ -478,19 +479,139 @@ export function aggregateProductPricesByStore(
   return sortStorePriceStats(result);
 }
 
-// Alleen winkels met een betrouwbare store_id komen in aanmerking voor de
-// "Historisch goedkoopst"-aanduiding — de "Onbekende winkel"-groep kan in
-// werkelijkheid meerdere, niet van elkaar te onderscheiden winkels bevatten,
-// dus die als "de goedkoopste winkel" aanmerken zou een claim zijn die de
-// data niet dekt. Vereist minimaal 2 betrouwbare winkels; stats is al
-// oplopend gesorteerd op averagePrice, dus de eerste betrouwbare rij is de
-// goedkoopste.
-export function determineHistoricallyCheapestStore(
-  stats: StorePriceStats[],
+// --- Prijsvergelijking per winkel v1 (meest recente prijs) -------------
+//
+// Bewust een APARTE aanpak naast aggregateProductPricesByStore hierboven,
+// die op averagePrice werkt. Deze helper vergelijkt uitsluitend de MEEST
+// RECENTE geldige waarneming per winkel — een tijdelijke aanbieding/oude
+// prijs kan een gemiddelde vertekenen, maar telt hier niet extra mee. De UI
+// (ProductDetailSheet) combineert beide datasets tot één "Winkelvergelijking"
+// -sectie, zie buildCombinedStoreComparison() onderaan dit blok — de
+// voormalige, losse averagePrice-gebaseerde "Historisch goedkoopst"-badge is
+// daarbij vervallen; determineHistoricallyCheapestStore() (die uitsluitend
+// die badge voedde en nergens anders werd gebruikt) is om die reden als
+// dode code verwijderd. aggregateProductPricesByStore()/StorePriceStats
+// zelf blijven onveranderd bestaan — de historische gemiddelde/laagste/
+// hoogste/aantal-statistieken blijven zichtbaar in de gecombineerde kaart.
+//
+// Werkt op dezelfde al bepaalde observations van buildProductPriceDetail()
+// (dus al gefilterd op product_id + consistente comparison_price_unit-groep
+// — geen aparte product-/eenheidselectie, geen nieuwe query). Winkels zonder
+// betrouwbare store_id worden hier volledig UITGESLOTEN (in tegenstelling
+// tot aggregateProductPricesByStore, dat ze samenvoegt onder "Onbekende
+// winkel") — voor een winkel-op-winkel-vergelijking heeft een onbekende
+// winkel geen vergelijkbare identiteit.
+export type LatestStorePrice = {
+  storeId: string;
+  storeName: string;
+  comparisonPaidPrice: number;
+  comparisonPriceUnit: string;
+  purchaseDate: string;
+};
+
+export function buildLatestPriceByStore(
+  observations: ValidPriceObservation[],
+): LatestStorePrice[] {
+  const byStore = new Map<string, ValidPriceObservation[]>();
+  for (const o of observations) {
+    if (o.store_id === null) continue;
+    const list = byStore.get(o.store_id) ?? [];
+    list.push(o);
+    byStore.set(o.store_id, list);
+  }
+
+  const result: LatestStorePrice[] = [];
+  for (const [storeId, obs] of byStore) {
+    // Zelfde sorteerlogica (purchase_date desc, purchase_time desc,
+    // receipt_item_id-tiebreaker) als overal elders in dit bestand — de
+    // eerste rij is de nieuwste geldige waarneming binnen deze winkel.
+    const newest = sortObservationsNewestFirst(obs)[0];
+    result.push({
+      storeId,
+      storeName: newest.store_name ?? "Onbekende winkel",
+      comparisonPaidPrice: newest.comparison_paid_price,
+      comparisonPriceUnit: newest.comparison_price_unit,
+      purchaseDate: newest.purchase_date,
+    });
+  }
+
+  // Laagste nieuwste vergelijkprijs eerst; bij gelijke prijs alfabetisch op
+  // winkelnaam (stabiele, voorspelbare volgorde bij een exact gelijke prijs).
+  return result.sort((a, b) => {
+    if (a.comparisonPaidPrice !== b.comparisonPaidPrice) {
+      return a.comparisonPaidPrice - b.comparisonPaidPrice;
+    }
+    return a.storeName.localeCompare(b.storeName, "nl");
+  });
+}
+
+// Vereist minimaal 2 winkels met een betrouwbare, recente vergelijkprijs —
+// bij 0 of 1 winkel is er niets om te vergelijken, dus geen "voordeligst"-
+// claim. `stores` is al oplopend gesorteerd (buildLatestPriceByStore), dus
+// de eerste rij is de laagste nieuwste prijs.
+export function determineHistoricallyBestValueStore(
+  stores: LatestStorePrice[],
 ): string | null {
-  const reliable = stats.filter((s) => s.storeId !== null);
-  if (reliable.length < 2) return null;
-  return reliable[0].storeId;
+  if (stores.length < 2) return null;
+  return stores[0].storeId;
+}
+
+// Combineert de twee bestaande, onafhankelijke winkelaggregaties tot ÉÉN
+// rij per store_id voor de gecombineerde "Winkelvergelijking"-sectie —
+// GEEN nieuwe berekening: elk veld komt 1-op-1 van een van beide bestaande
+// datasets. Vertrekt bewust vanuit `latestByStore` (buildLatestPriceByStore,
+// sluit store_id = null al uit en is al gesorteerd op laagste-nieuwste-prijs
+// -eerst) en zoekt daar de bijpassende historische rij bij op `storeId` —
+// nooit op winkelnaam (twee winkels kunnen toevallig dezelfde weergavenaam
+// hebben; store_id is de enige betrouwbare sleutel). Elke rij uit
+// `latestByStore` heeft in de praktijk altijd een bijpassende rij in
+// `historicalByStore`, omdat beide op dezelfde `observations`-set werken
+// (zie ProductDetailSheet) — de `continue` hieronder is dus puur een
+// defensieve, nooit-verwachte fallback, geen normaal pad.
+export type CombinedStoreComparison = {
+  storeId: string;
+  storeName: string;
+  latestComparisonPaidPrice: number;
+  latestComparisonPriceUnit: string;
+  latestPurchaseDate: string;
+  averagePrice: number;
+  lowestPrice: number;
+  highestPrice: number;
+  observationCount: number;
+  hasMultipleVariants: boolean;
+};
+
+export function buildCombinedStoreComparison(
+  latestByStore: LatestStorePrice[],
+  historicalByStore: StorePriceStats[],
+): CombinedStoreComparison[] {
+  const historicalByStoreId = new Map(
+    historicalByStore
+      .filter((s) => s.storeId !== null)
+      .map((s) => [s.storeId as string, s]),
+  );
+
+  const result: CombinedStoreComparison[] = [];
+  for (const latest of latestByStore) {
+    const historical = historicalByStoreId.get(latest.storeId);
+    if (!historical) continue;
+    result.push({
+      storeId: latest.storeId,
+      storeName: latest.storeName,
+      latestComparisonPaidPrice: latest.comparisonPaidPrice,
+      latestComparisonPriceUnit: latest.comparisonPriceUnit,
+      latestPurchaseDate: latest.purchaseDate,
+      averagePrice: historical.averagePrice,
+      lowestPrice: historical.lowestPrice,
+      highestPrice: historical.highestPrice,
+      observationCount: historical.observationCount,
+      hasMultipleVariants: historical.hasMultipleVariants,
+    });
+  }
+  // latestByStore is al gesorteerd (laagste laatste-vergelijkprijs eerst,
+  // dan winkelnaam alfabetisch) — die volgorde blijft hier behouden, geen
+  // tweede sortering op historisch gemiddelde.
+  return result;
 }
 
 // --- Alle productprijzen v1 -------------------------------------------
