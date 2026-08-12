@@ -1,8 +1,12 @@
-import type { PaidPriceObservation } from "@/features/receipts/lib/receiptAnalysis";
+import type {
+  GroceryBestStore,
+  PaidPriceObservation,
+} from "@/features/receipts/lib/receiptAnalysis";
 import {
   formatCurrencyAmount,
   formatComparisonPrice,
 } from "@/features/receipts/lib/formatters";
+import { parseItem } from "@/lib/history";
 
 // Zuivere Dutch-copy-opmaak voor de boodschappenlijst-prijscontext — geen
 // eigen prijsberekening, alleen samenvoegen van al bestaande, al berekende
@@ -39,4 +43,84 @@ export function formatGroceryPriceLine(
   }
 
   return line;
+}
+
+// Compacte winkeltip — alleen relevant wanneer buildBestValueStoreByProduct()
+// al bepaald heeft dat er minimaal 2 winkels met een geldige, recente
+// vergelijkprijs zijn (zie receiptAnalysis.ts); hier puur presentatie, geen
+// nieuwe vergelijkingslogica. Expliciet historische taal ("laatste
+// aankopen"), nooit een actuele claim als "goedkoopste winkel".
+export function formatGroceryBestStoreLine(
+  bestStore: GroceryBestStore,
+): string {
+  return `Voordeligst o.b.v. laatste aankopen: ${bestStore.storeName} · ${formatComparisonPrice(
+    bestStore.comparisonPaidPrice,
+    bestStore.comparisonPriceUnit,
+  )}`;
+}
+
+// Geschatte boodschappenprijs v1 — telt voor elke ACTIEVE boodschappenregel
+// (de aanroeper filtert al op done === false, zie Boodschappen.tsx) de
+// meest recente daadwerkelijk betaalde regelprijs (paid_line_total) op, via
+// exact de bestaande koppeling/lookup:
+//   regel -> parseItem().name -> product_assignments.canonical_product_id
+//   -> buildLatestPaidPriceByProduct()-Map (receiptAnalysis.ts).
+// Bewust GEEN nieuw newest-algoritme, GEEN comparison_paid_price (dat is een
+// prijs PER kg/liter/stuk, geen regelbedrag — optellen daarvan zou geen
+// zinnig totaal opleveren), GEEN quantity-vermenigvuldiging: een boodschappen
+// -regel-"qty" (bv. "2x Melk") is vrije-tekst-parsing van de GEWENSTE
+// hoeveelheid op de huidige boodschappentrip, en heeft geen betrouwbare 1-
+// op-1-relatie met de hoeveelheid die op de historische kassabonregel stond
+// (die kan zelf ook al >1 stuk vertegenwoordigen) — dus elke unieke actieve
+// regel telt hier als 1, ongeacht de geparste qty (zie opleverrapport).
+export type GroceryEstimatedTotal = {
+  estimatedTotal: number;
+  pricedItemCount: number;
+  totalItemCount: number;
+  missingPriceCount: number;
+};
+
+export function buildGroceryEstimatedTotal(
+  activeItems: { text: string }[],
+  canonicalProductIdByProduct: Map<string, string | null>,
+  latestPaidPriceByProductId: Map<string, PaidPriceObservation>,
+): GroceryEstimatedTotal {
+  let estimatedTotal = 0;
+  let pricedItemCount = 0;
+
+  for (const item of activeItems) {
+    const { name } = parseItem(item.text);
+    const canonicalProductId =
+      canonicalProductIdByProduct.get(name.toLowerCase()) ?? null;
+    if (!canonicalProductId) continue;
+    const observation = latestPaidPriceByProductId.get(canonicalProductId);
+    if (!observation) continue;
+    estimatedTotal += observation.paid_line_total;
+    pricedItemCount += 1;
+  }
+
+  return {
+    estimatedTotal,
+    pricedItemCount,
+    totalItemCount: activeItems.length,
+    missingPriceCount: activeItems.length - pricedItemCount,
+  };
+}
+
+// "Nog onvoldoende prijsgegevens" i.p.v. €0,00 wanneer geen enkel actief
+// product prijsdata heeft — €0,00 zou anders een echte, zekere nulprijs
+// suggereren.
+export function formatGroceryEstimatedTotalLine(
+  total: GroceryEstimatedTotal,
+): string {
+  return formatCurrencyAmount(total.estimatedTotal, "EUR");
+}
+
+export function formatGroceryEstimatedTotalCoverage(
+  total: GroceryEstimatedTotal,
+): string {
+  const base = `Prijsdata voor ${total.pricedItemCount} van ${total.totalItemCount} producten`;
+  return total.missingPriceCount > 0
+    ? `${base} · ${total.missingPriceCount} zonder prijs`
+    : base;
 }

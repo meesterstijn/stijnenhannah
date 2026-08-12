@@ -690,6 +690,50 @@ export function buildLatestPaidPriceByProduct(
   return result;
 }
 
+// Boodschappenlijst-winkelhint v1 — GEEN tweede vergelijkingsalgoritme:
+// hergebruikt exact dezelfde helpers/semantiek als de ProductDetail-
+// winkelvergelijking (buildLatestPriceByStore/determineHistoricallyBest
+// ValueStore hierboven — laagste MEEST RECENTE geldige comparison_paid_price
+// per winkel, nooit gemiddelde/laagste-ooit/reguliere prijs). Groepeert de
+// al opgehaalde fetchItemPrices()-dataset in ÉÉN pass per product_id (geen
+// N+1, geen aparte query per boodschappenregel) en levert alleen een entry
+// op wanneer er minimaal 2 winkels met een geldige, recente vergelijkprijs
+// zijn — bij 0 of 1 winkel is er niets te vergelijken (zie
+// determineHistoricallyBestValueStore), dus geen entry in de Map.
+export type GroceryBestStore = {
+  storeName: string;
+  comparisonPaidPrice: number;
+  comparisonPriceUnit: string;
+};
+
+export function buildBestValueStoreByProduct(
+  itemPrices: ItemPriceRow[],
+): Map<string, GroceryBestStore> {
+  const byProduct = new Map<string, ItemPriceRow[]>();
+  for (const row of itemPrices) {
+    const list = byProduct.get(row.product_id) ?? [];
+    list.push(row);
+    byProduct.set(row.product_id, list);
+  }
+
+  const result = new Map<string, GroceryBestStore>();
+  for (const [productId, rows] of byProduct) {
+    const valid = rows.filter(isValidPriceObservation);
+    if (valid.length === 0) continue;
+    const latestByStore = buildLatestPriceByStore(valid);
+    const bestStoreId = determineHistoricallyBestValueStore(latestByStore);
+    if (!bestStoreId) continue;
+    const best = latestByStore.find((s) => s.storeId === bestStoreId);
+    if (!best) continue;
+    result.set(productId, {
+      storeName: best.storeName,
+      comparisonPaidPrice: best.comparisonPaidPrice,
+      comparisonPriceUnit: best.comparisonPriceUnit,
+    });
+  }
+  return result;
+}
+
 // Puur informatief — voedt de hint in de "vergelijkeenheid wijzigen"-dialoog
 // ("Er zijn varianten met gewichtsinformatie beschikbaar."). Kijkt naar
 // ALLE rijen van dit product (niet alleen de al-geldige/primaire-eenheid-

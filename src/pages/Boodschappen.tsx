@@ -11,11 +11,21 @@ import {
 import {
   fetchItemPrices,
   buildLatestPaidPriceByProduct,
+  buildBestValueStoreByProduct,
   type PaidPriceObservation,
+  type GroceryBestStore,
 } from "@/features/receipts/lib/receiptAnalysis";
-import { formatGroceryPriceLine } from "@/lib/groceryPriceContext";
+import {
+  formatGroceryPriceLine,
+  formatGroceryBestStoreLine,
+  buildGroceryEstimatedTotal,
+  formatGroceryEstimatedTotalLine,
+  formatGroceryEstimatedTotalCoverage,
+} from "@/lib/groceryPriceContext";
+import { useLocalStorage } from "@/hooks/use-local-storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -53,10 +63,16 @@ function GroceryList({
   tableName,
   title,
   historyTable = "product_history",
+  showPriceContext,
+  showEstimatedTotal = false,
 }: {
   tableName: string;
   title?: string;
   historyTable?: string;
+  showPriceContext: boolean;
+  // Alleen voor "Mijn boodschappen" (V1) — Upfront is een aparte lijst en
+  // mag niet stilletjes bij dit totaal worden opgeteld.
+  showEstimatedTotal?: boolean;
 }) {
   const queryClient = useQueryClient();
   const [text, setText] = useState("");
@@ -116,6 +132,27 @@ function GroceryList({
   const latestPaidPriceByProductId = useMemo(
     () => buildLatestPaidPriceByProduct(itemPrices),
     [itemPrices],
+  );
+  // Zelfde bron, hergebruikt de ProductDetail-winkelvergelijkingshelpers
+  // (zie buildBestValueStoreByProduct in receiptAnalysis.ts) — geen tweede
+  // vergelijkingsalgoritme, geen aparte query.
+  const bestStoreByProductId = useMemo(
+    () => buildBestValueStoreByProduct(itemPrices),
+    [itemPrices],
+  );
+
+  // Geschatte boodschappenprijs v1 — uitsluitend actieve (done === false)
+  // regels, exact dezelfde canonical-koppeling/latest-price-Map als de
+  // prijsregel per product hierboven. Eén lineaire pass, geen aparte query.
+  const activeItems = useMemo(() => items.filter((i) => !i.done), [items]);
+  const estimatedTotal = useMemo(
+    () =>
+      buildGroceryEstimatedTotal(
+        activeItems,
+        canonicalProductIdByProduct,
+        latestPaidPriceByProductId,
+      ),
+    [activeItems, canonicalProductIdByProduct, latestPaidPriceByProductId],
   );
 
   const grouped = useMemo(() => {
@@ -390,6 +427,39 @@ function GroceryList({
         )}
       </div>
 
+      {showPriceContext &&
+        showEstimatedTotal &&
+        estimatedTotal.totalItemCount > 0 && (
+          <div className="rounded-2xl border border-border/70 bg-white p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Geschatte boodschappenprijs
+            </p>
+            {estimatedTotal.pricedItemCount === 0 ? (
+              <>
+                <p className="text-base font-semibold text-foreground mt-1">
+                  Nog onvoldoende prijsgegevens
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Nog geen historische prijzen beschikbaar voor deze
+                  boodschappen.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-2xl font-semibold text-foreground mt-1 tabular-nums">
+                  {formatGroceryEstimatedTotalLine(estimatedTotal)}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Gebaseerd op laatste aankopen
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {formatGroceryEstimatedTotalCoverage(estimatedTotal)}
+                </p>
+              </>
+            )}
+          </div>
+        )}
+
       <div>
         {isLoading && (
           <div className="p-8 flex justify-center text-muted-foreground">
@@ -420,6 +490,9 @@ function GroceryList({
                 const priceObservation = canonicalProductId
                   ? latestPaidPriceByProductId.get(canonicalProductId)
                   : undefined;
+                const bestStore = canonicalProductId
+                  ? bestStoreByProductId.get(canonicalProductId)
+                  : undefined;
                 return (
                   <ItemRow
                     key={i.id}
@@ -428,6 +501,8 @@ function GroceryList({
                     parsedQty={qty}
                     canonicalProductId={canonicalProductId}
                     priceObservation={priceObservation}
+                    bestStore={bestStore}
+                    showPriceContext={showPriceContext}
                     deleteMode={deleteMode}
                     onToggleDone={() =>
                       toggleDone.mutate({ id: i.id, done: !i.done })
@@ -459,6 +534,13 @@ function GroceryList({
 }
 
 export default function Boodschappen() {
+  // Eén globale voorkeur voor beide lijsten (Mijn boodschappen + Upfront) —
+  // puur presentatie, geen Supabase-veld nodig. Default AAN, zie opdracht.
+  const [showPriceContext, setShowPriceContext] = useLocalStorage(
+    "grocery-show-price-context",
+    true,
+  );
+
   return (
     // .shopping-page: scope-root voor de kassabon-herstijling van deze
     // pagina (zie styles.css) — andere pagina's gebruiken deze klasse niet
@@ -476,10 +558,29 @@ export default function Boodschappen() {
         Ons Huisje
       </Link>
 
+      <div className="rounded-2xl border border-border/70 bg-white px-4 py-3 flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-foreground">Prijsinformatie</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Toon historische prijzen en winkelvergelijking
+          </p>
+        </div>
+        <Switch
+          checked={showPriceContext}
+          onCheckedChange={setShowPriceContext}
+          aria-label="Prijsinformatie tonen"
+          className="shrink-0"
+        />
+      </div>
+
       <div>
         <div className="receipt-zigzag receipt-zigzag--top" aria-hidden />
         <div className="bg-white px-4 sm:px-5 py-5">
-          <GroceryList tableName="groceries" />
+          <GroceryList
+            tableName="groceries"
+            showPriceContext={showPriceContext}
+            showEstimatedTotal
+          />
         </div>
         <div className="receipt-zigzag receipt-zigzag--bottom" aria-hidden />
       </div>
@@ -498,6 +599,7 @@ export default function Boodschappen() {
           tableName="groceries_upfront"
           title="Upfront"
           historyTable="product_history_upfront"
+          showPriceContext={showPriceContext}
         />
       </div>
     </div>
@@ -550,6 +652,8 @@ function ItemRow({
   parsedQty,
   canonicalProductId,
   priceObservation,
+  bestStore,
+  showPriceContext,
   deleteMode,
   onToggleDone,
   onDelete,
@@ -561,6 +665,9 @@ function ItemRow({
   // null = geen betrouwbare cataloguskoppeling -> geen prijsregel tonen.
   canonicalProductId: string | null;
   priceObservation: PaidPriceObservation | undefined;
+  // undefined = geen minimaal 2 winkels met geldige recente vergelijkprijs.
+  bestStore: GroceryBestStore | undefined;
+  showPriceContext: boolean;
   deleteMode: boolean;
   onToggleDone: () => void;
   onDelete: () => void;
@@ -594,11 +701,19 @@ function ItemRow({
             geen eigen click handler, dus tikken hier vinkt de regel gewoon
             af/door via de onClick op de buitenste row hierboven. Alleen
             zichtbaar bij een betrouwbare canonieke koppeling (V1: nooit een
-            gegokte prijs op naam). */}
-        {canonicalProductId && (
-          <p className="text-xs text-muted-foreground/70 mt-0.5">
-            {formatGroceryPriceLine(priceObservation)}
-          </p>
+            gegokte prijs op naam) én zolang de "Prijsinformatie"-toggle aan
+            staat. */}
+        {canonicalProductId && showPriceContext && (
+          <>
+            <p className="text-xs text-muted-foreground/70 mt-0.5">
+              {formatGroceryPriceLine(priceObservation)}
+            </p>
+            {bestStore && (
+              <p className="text-xs text-muted-foreground/70">
+                {formatGroceryBestStoreLine(bestStore)}
+              </p>
+            )}
+          </>
         )}
       </div>
 
