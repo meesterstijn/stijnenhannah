@@ -95,3 +95,56 @@ export async function getCategoryForProduct(
     .single();
   return data?.category_id ?? null;
 }
+
+// Boodschappenproduct <-> canoniek product (V1). De koppeling leeft op
+// product_assignments (het blijvende boodschappenproduct-record) en NIET op
+// de tijdelijke groceries-regels — zie het onderzoek dat hieraan voorafging.
+// Eén bulkquery met een embed naar products (via de nieuwe
+// canonical_product_id-FK) i.p.v. een aparte query per product: geen N+1.
+export type ProductAssignmentCatalogLink = {
+  product: string;
+  canonicalProductId: string | null;
+  canonicalProductName: string | null;
+};
+
+export async function fetchProductAssignmentCatalogLinks(): Promise<
+  ProductAssignmentCatalogLink[]
+> {
+  const { data, error } = await supabase
+    .from("product_assignments")
+    .select(
+      "product, canonical_product_id, catalog_product:products(canonical_name)",
+    );
+  if (error) throw error;
+  return (data ?? []).map((row) => {
+    // Supabase's gegenereerde typing voor een geëmbedde relatie zonder
+    // Database-schema-type gaat uit van een array, ook al levert PostgREST
+    // hier altijd een los object (of null) terug voor deze many-to-one-
+    // relatie (product_assignments.canonical_product_id -> products.id) —
+    // vandaar deze defensieve normalisatie i.p.v. rechtstreeks .canonical_name.
+    const catalogProduct = Array.isArray(row.catalog_product)
+      ? row.catalog_product[0]
+      : row.catalog_product;
+    return {
+      product: row.product,
+      canonicalProductId: row.canonical_product_id,
+      canonicalProductName: catalogProduct?.canonical_name ?? null,
+    };
+  });
+}
+
+// Wijzigt uitsluitend product_assignments.canonical_product_id van een al
+// bestaande rij (een product zonder categorie heeft nog geen
+// product_assignments-rij en dus ook geen catalogusknop in de UI — zie
+// opleverrapport). canonicalProductId = null maakt de koppeling ongedaan
+// zonder de assignment/categorie zelf aan te raken.
+export async function updateProductAssignmentCanonicalProduct(
+  product: string,
+  canonicalProductId: string | null,
+): Promise<void> {
+  const { error } = await supabase
+    .from("product_assignments")
+    .update({ canonical_product_id: canonicalProductId })
+    .eq("product", product.toLowerCase());
+  if (error) throw error;
+}

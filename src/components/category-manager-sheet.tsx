@@ -15,7 +15,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ArrowLeft, GripVertical, Pencil, Plus, X } from "lucide-react";
+import { ArrowLeft, GripVertical, Link2, Pencil, Plus, X } from "lucide-react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { getHistory, saveToHistory } from "@/lib/history";
 import {
@@ -24,8 +24,11 @@ import {
   getAssignments,
   assignCategory,
   removeAssignmentsForCategory,
+  fetchProductAssignmentCatalogLinks,
   type Category,
+  type ProductAssignmentCatalogLink,
 } from "@/lib/categories";
+import { ProductCatalogLinkDialog } from "@/components/product-catalog-link-dialog";
 
 type Props = {
   open: boolean;
@@ -60,8 +63,17 @@ export function CategoryManagerSheet({ open, onOpenChange, historyTable = "produ
     queryFn: getAssignments,
     enabled: open,
   });
+  const { data: catalogLinks = [] } = useQuery({
+    queryKey: ["product_assignment_catalog_links"],
+    queryFn: fetchProductAssignmentCatalogLinks,
+    enabled: open,
+  });
+  const catalogLinkByProduct = new Map<string, ProductAssignmentCatalogLink>(
+    catalogLinks.map((link) => [link.product, link]),
+  );
 
   const [newCatName, setNewCatName] = useState("");
+  const [linkingProduct, setLinkingProduct] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [addingProductTo, setAddingProductTo] = useState<string | null>(null);
@@ -221,6 +233,8 @@ export function CategoryManagerSheet({ open, onOpenChange, historyTable = "produ
                           }}
                           onCancelAddProduct={() => setAddingProductTo(null)}
                           onSubmitAddProduct={() => addProduct(cat.id)}
+                          catalogLinkByProduct={catalogLinkByProduct}
+                          onLinkProduct={setLinkingProduct}
                         />
                       ))}
                     </div>
@@ -277,6 +291,20 @@ export function CategoryManagerSheet({ open, onOpenChange, historyTable = "produ
           </div>
         </div>
       </SheetContent>
+
+      <ProductCatalogLinkDialog
+        open={linkingProduct !== null}
+        onOpenChange={(v) => {
+          if (!v) setLinkingProduct(null);
+        }}
+        product={linkingProduct ?? ""}
+        currentCanonicalProductId={
+          linkingProduct
+            ? (catalogLinkByProduct.get(linkingProduct.toLowerCase())
+                ?.canonicalProductId ?? null)
+            : null
+        }
+      />
     </Sheet>
   );
 }
@@ -298,6 +326,8 @@ function CategoryRow({
   onStartAddProduct,
   onCancelAddProduct,
   onSubmitAddProduct,
+  catalogLinkByProduct,
+  onLinkProduct,
 }: {
   category: Category;
   products: string[];
@@ -313,6 +343,8 @@ function CategoryRow({
   newProductName: string;
   onNewProductNameChange: (v: string) => void;
   onStartAddProduct: () => void;
+  catalogLinkByProduct: Map<string, ProductAssignmentCatalogLink>;
+  onLinkProduct: (product: string) => void;
   onCancelAddProduct: () => void;
   onSubmitAddProduct: () => void;
 }) {
@@ -385,19 +417,42 @@ function CategoryRow({
         {products.length === 0 && !isAddingProduct && (
           <p className="text-xs text-muted-foreground/70 py-1">Nog geen producten.</p>
         )}
-        {products.map((product) => (
-          <div key={product} className="flex items-center justify-between gap-2 py-1 text-sm">
-            <span className="text-foreground truncate">{product}</span>
-            <button
-              type="button"
-              onClick={() => onUnassignProduct(product)}
-              aria-label={`${product} uit ${category.name} halen`}
-              className="shrink-0 h-6 w-6 flex items-center justify-center text-muted-foreground/40 hover:text-destructive transition-colors"
-            >
-              <X className="h-3 w-3" />
-            </button>
-          </div>
-        ))}
+        {products.map((product) => {
+          const link = catalogLinkByProduct.get(product.toLowerCase());
+          const canonicalName = link?.canonicalProductName ?? null;
+          return (
+            <div key={product} className="py-1">
+              <div className="flex items-center justify-between gap-2 text-sm">
+                <span className="text-foreground truncate">{product}</span>
+                <button
+                  type="button"
+                  onClick={() => onUnassignProduct(product)}
+                  aria-label={`${product} uit ${category.name} halen`}
+                  className="shrink-0 h-6 w-6 flex items-center justify-center text-muted-foreground/40 hover:text-destructive transition-colors"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => onLinkProduct(product)}
+                className="mt-0.5 inline-flex items-center gap-1 text-xs text-muted-foreground/70 hover:text-foreground transition-colors"
+              >
+                <Link2 className="h-3 w-3 shrink-0" />
+                {canonicalName ? (
+                  <>
+                    Productcatalogus:{" "}
+                    <span className="font-medium text-muted-foreground">
+                      {canonicalName}
+                    </span>
+                  </>
+                ) : (
+                  "Productcatalogus: niet gekoppeld"
+                )}
+              </button>
+            </div>
+          );
+        })}
 
         {isAddingProduct ? (
           <form
