@@ -2,6 +2,7 @@ import type {
   GroceryBestStore,
   PaidPriceObservation,
 } from "@/features/receipts/lib/receiptAnalysis";
+import { effectivePaidUnitPrice } from "@/features/receipts/lib/receiptAnalysis";
 import {
   formatCurrencyAmount,
   formatComparisonPrice,
@@ -61,18 +62,22 @@ export function formatGroceryBestStoreLine(
 
 // Geschatte boodschappenprijs v1 — telt voor elke ACTIEVE boodschappenregel
 // (de aanroeper filtert al op done === false, zie Boodschappen.tsx) de
-// meest recente daadwerkelijk betaalde regelprijs (paid_line_total) op, via
-// exact de bestaande koppeling/lookup:
+// gewenste boodschappenhoeveelheid (parseItem().qty — exact dezelfde
+// bestaande parser als de +/- stepper in ItemRow gebruikt) vermenigvuldigd
+// met de effectief betaalde historische prijs per gekochte eenheid
+// (effectivePaidUnitPrice(), receiptAnalysis.ts — de ENE centrale definitie
+// hiervan, ook herbruikbaar voor toekomstige prijsfeatures). Koppeling
+// exact zoals voorheen:
 //   regel -> parseItem().name -> product_assignments.canonical_product_id
 //   -> buildLatestPaidPriceByProduct()-Map (receiptAnalysis.ts).
 // Bewust GEEN nieuw newest-algoritme, GEEN comparison_paid_price (dat is een
 // prijs PER kg/liter/stuk, geen regelbedrag — optellen daarvan zou geen
-// zinnig totaal opleveren), GEEN quantity-vermenigvuldiging: een boodschappen
-// -regel-"qty" (bv. "2x Melk") is vrije-tekst-parsing van de GEWENSTE
-// hoeveelheid op de huidige boodschappentrip, en heeft geen betrouwbare 1-
-// op-1-relatie met de hoeveelheid die op de historische kassabonregel stond
-// (die kan zelf ook al >1 stuk vertegenwoordigen) — dus elke unieke actieve
-// regel telt hier als 1, ongeacht de geparste qty (zie opleverrapport).
+// zinnig totaal opleveren). De bestaande "Laatst €1,19 bij Albert Heijn ·
+// €79,33/kg"-regel (formatGroceryPriceLine hierboven) blijft bewust
+// ONGEWIJZIGD — die beschrijft een historisch feit over ÉÉN aankoop, niet de
+// gewenste hoeveelheid op de huidige boodschappentrip, en wordt hier niet
+// hergebruikt voor de vermenigvuldiging (die gebruikt uitsluitend
+// effectivePaidUnitPrice(), zie de STOP-analyse in het opleverrapport).
 export type GroceryEstimatedTotal = {
   estimatedTotal: number;
   pricedItemCount: number;
@@ -89,13 +94,13 @@ export function buildGroceryEstimatedTotal(
   let pricedItemCount = 0;
 
   for (const item of activeItems) {
-    const { name } = parseItem(item.text);
+    const { name, qty } = parseItem(item.text);
     const canonicalProductId =
       canonicalProductIdByProduct.get(name.toLowerCase()) ?? null;
     if (!canonicalProductId) continue;
     const observation = latestPaidPriceByProductId.get(canonicalProductId);
     if (!observation) continue;
-    estimatedTotal += observation.paid_line_total;
+    estimatedTotal += qty * effectivePaidUnitPrice(observation);
     pricedItemCount += 1;
   }
 

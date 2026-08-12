@@ -56,6 +56,15 @@ export type ItemPriceRow = {
   // vergelijkprijs hieronder. Puur een extra kolom uit de al bestaande view;
   // geen nieuwe berekening.
   paid_line_total: number | null;
+  // paid_line_total / quantity — UITSLUITEND aanwezig voor getelde
+  // (quantity > 0) regels, altijd null voor gewichtsregels (zie de view: "
+  // Gewichtsproducten hebben hier bewust altijd NULL — hun vergelijkbare
+  // prijs leeft in comparison_paid_price, niet hier"). Dit is de al
+  // bestaande, in de view zelf gedefinieerde "effectief betaalde prijs per
+  // getelde eenheid na korting" — toegevoegd t.b.v. de quantity-aware
+  // geschatte boodschappenprijs (zie effectivePaidUnitPrice hieronder).
+  // Geen nieuwe berekening, alleen een extra kolom uit de al bestaande view.
+  paid_unit_price: number | null;
   comparison_paid_price: number | null;
   comparison_price_unit: string | null;
 };
@@ -64,7 +73,7 @@ export async function fetchItemPrices(): Promise<ItemPriceRow[]> {
   const { data, error } = await supabase
     .from("receipt_item_prices")
     .select(
-      "receipt_item_id, product_id, product_name, product_variant_id, variant_name, package_size, package_unit, store_id, store_name, branch_id, branch_name, purchase_date, purchase_time, comparison_unit, paid_line_total, comparison_paid_price, comparison_price_unit",
+      "receipt_item_id, product_id, product_name, product_variant_id, variant_name, package_size, package_unit, store_id, store_name, branch_id, branch_name, purchase_date, purchase_time, comparison_unit, paid_line_total, paid_unit_price, comparison_paid_price, comparison_price_unit",
     )
     .order("purchase_date", { ascending: false });
   if (error) throw error;
@@ -688,6 +697,24 @@ export function buildLatestPaidPriceByProduct(
     result.set(productId, sortObservationsNewestFirst(rows)[0]);
   }
   return result;
+}
+
+// ÉÉN centrale definitie van "effectief betaalde historische prijs per
+// gekochte eenheid/verpakking" — de enige plek die dit begrip mag bepalen
+// (zie opdracht "één bron van waarheid"). Gebruikt bij voorkeur het al
+// bestaande, in de view zelf berekende paid_unit_price (paid_line_total /
+// quantity, dus al netto van een regelgebonden korting — zie
+// 20260831000000_receipt_item_prices_view.sql) wanneer de historische
+// aankoop een getelde (quantity > 0) regel was. Is dat niet bekend (bv. een
+// gewichtsregel, of een oudere/onvolledige import zonder quantity), dan valt
+// dit terug op paid_line_total zelf — exact het gedrag dat de boodschappen-
+// prijscontext al vóór deze uitbreiding had, dus nooit een gok die de
+// bestaande, al geaccepteerde aanname verslechtert: bij een onbekende
+// historische hoeveelheid wordt de laatste regel behandeld als "1 eenheid".
+export function effectivePaidUnitPrice(
+  observation: PaidPriceObservation,
+): number {
+  return observation.paid_unit_price ?? observation.paid_line_total;
 }
 
 // Boodschappenlijst-winkelhint v1 — GEEN tweede vergelijkingsalgoritme:
