@@ -84,11 +84,11 @@ import { uploadGrowthPhoto } from "@/features/tuingids/lib/growthPhotoStorage";
 import { GrowthPhotoInput } from "@/features/tuingids/components/GrowthPhotoInput";
 import { GrowthPhotoTimeline } from "@/features/tuingids/components/GrowthPhotoTimeline";
 import { QuickGrowthPhotoDialog } from "@/features/tuingids/components/QuickGrowthPhotoDialog";
+import { QuickGrowthPhotoCapture } from "@/features/tuingids/components/QuickGrowthPhotoCapture";
 import { useQrLabels } from "@/features/tuingids/hooks/useQrLabels";
 import { QrScanner } from "@/features/tuingids/components/QrScanner";
 import { QrScanAndLinkControl } from "@/features/tuingids/components/QrScanAndLinkControl";
 import { QrLabelsManagerDialog } from "@/features/tuingids/components/QrLabelsManagerDialog";
-import { parseQrScanText } from "@/features/tuingids/lib/qrCode";
 import {
   fetchPlants,
   fetchHarvestLogs,
@@ -4518,6 +4518,7 @@ function PlantInstanceDetailDialog({
   const [repotOpen, setRepotOpen] = useState(false);
   const [inspectionOpen, setInspectionOpen] = useState(false);
   const [groeifotosOpen, setGroeifotosOpen] = useState(false);
+  const [quickPhotoCaptureOpen, setQuickPhotoCaptureOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const name = plantInstanceDisplayName(instance, species);
   const { patchInstance } = usePlantInstances();
@@ -4908,6 +4909,31 @@ function PlantInstanceDetailDialog({
                 onDelete={(id) => deleteInspectionLog.mutate(id)}
                 isSaving={addInspectionLog.isPending}
               />
+            )}
+          </div>
+
+          <div className="space-y-3">
+            {quickPhotoCaptureOpen ? (
+              <div className="sv-inset p-4 rounded-xl">
+                <QuickGrowthPhotoCapture
+                  instance={instance}
+                  species={species}
+                  growingSeasonId={activeSeason?.id ?? null}
+                  onSaved={() => {
+                    setQuickPhotoCaptureOpen(false);
+                    setGroeifotosOpen(true);
+                  }}
+                />
+              </div>
+            ) : (
+              <Button
+                type="button"
+                size="sm"
+                className="sv-button w-full"
+                onClick={() => setQuickPhotoCaptureOpen(true)}
+              >
+                <Camera className="h-4 w-4" /> Groeifoto maken
+              </Button>
             )}
           </div>
 
@@ -5789,33 +5815,42 @@ export default function Tuinieren() {
   });
 
   // ── QR: scannen → direct het bijbehorende exemplaar openen (Deel E) ──────
+  // Bewust "dom" gehouden: QrScanner geeft alleen ruwe teksdata terug,
+  // resolveQrScan (useQrLabels — de gedeelde resolver-laag) vertaalt dat naar
+  // een concrete plant_instance, en DEZE flow bepaalt zelf dat het resultaat
+  // "open het detailvenster" betekent. Geen cameraflow, geen extra keuze —
+  // dat blijft voorbehouden aan de aparte groeifoto-QR-flow in
+  // QuickGrowthPhotoDialog, die dezelfde resolver gebruikt maar er iets
+  // anders mee doet.
   const [qrScannerOpen, setQrScannerOpen] = useState(false);
   const [qrLabelsManagerOpen, setQrLabelsManagerOpen] = useState(false);
   const [qrOpenInstanceId, setQrOpenInstanceId] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
-  const { getLabelByCode, getActiveAssignmentForLabel, isLoadingLabels, isLoadingAssignments } = useQrLabels();
+  const { isLoadingLabels, isLoadingAssignments, resolveQrScan } = useQrLabels();
   const speciesByIdTop = useMemo(() => new Map(plants.map((p) => [p.id, p])), [plants]);
   const instancesByIdTop = useMemo(() => new Map(allPlantInstances.map((i) => [i.id, i])), [allPlantInstances]);
 
-  function resolveAndOpenQrScan(rawText: string) {
-    const code = parseQrScanText(rawText);
-    if (!code) {
-      toast.error("Kon geen QR-code lezen. Probeer opnieuw.");
-      return;
+  async function resolveAndOpenQrScan(rawText: string) {
+    const result = await resolveQrScan(rawText, instancesByIdTop);
+    switch (result.status) {
+      case "invalid":
+        toast.error("Geen geldige Tuingids QR-code");
+        return;
+      case "deleted":
+        toast.error("Dit QR-label is verwijderd en niet meer in gebruik.");
+        return;
+      case "unlinked":
+        toast(
+          `Deze QR-code is nog niet gekoppeld${result.label.note ? ` (${result.label.note})` : ""}. Koppel 'm bij het aanmaken of bewerken van een exemplaar.`,
+        );
+        return;
+      case "inactive":
+        toast.error(`Deze QR-code hoort bij een niet-actieve registratie (${INSTANCE_STATUS_LABELS[result.instance.status]}).`);
+        return;
+      case "resolved":
+        setQrOpenInstanceId(result.instance.id);
+        return;
     }
-    const label = getLabelByCode(code);
-    if (!label) {
-      toast.error("Onbekende QR-code — dit is geen Tuingids-label.");
-      return;
-    }
-    const assignment = getActiveAssignmentForLabel(label.id);
-    if (!assignment) {
-      toast(
-        `Deze QR-code is nog niet gekoppeld${label.note ? ` (${label.note})` : ""}. Koppel 'm bij het aanmaken of bewerken van een exemplaar.`,
-      );
-      return;
-    }
-    setQrOpenInstanceId(assignment.plant_instance_id);
   }
 
   // Deeplink: een QR-sticker gescand met de gewone telefooncamera (buiten de
@@ -5834,7 +5869,7 @@ export default function Tuinieren() {
     const code = searchParams.get("qr");
     if (!code) return;
     qrDeeplinkHandledRef.current = true;
-    resolveAndOpenQrScan(code);
+    void resolveAndOpenQrScan(code);
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev);
@@ -6291,6 +6326,9 @@ export default function Tuinieren() {
       // intussen al aan iets anders hangt. Labels overleven een restore dus
       // gewoon, gekoppeld zijn ze daarna niet meer — dat koppel je bewust
       // opnieuw, exact zoals bij een gewone hergebruikte sticker.
+      // `select("*")`/`insert(label)` hieronder nemen deleted_at automatisch
+      // mee (zie 20260907000000_qr_label_management.sql) — een label dat
+      // vóór de back-up al verwijderd was, komt dat na herstel ook weer.
       supabase.from("qr_labels").select("*"),
     ]);
     const speciesById = new Map(plants.map((p) => [p.id, p.name]));
@@ -6650,36 +6688,36 @@ export default function Tuinieren() {
           </button>
         </div>
         {pageViewMode === "instances" && (
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-stretch gap-2 flex-wrap">
             <button
               type="button"
               onClick={() => setInstanceFormOpen(true)}
-              className="sv-button flex items-center gap-2 px-4 py-2.5 text-sm"
+              className="sv-button flex items-center gap-2 px-4 py-2.5 text-base"
             >
               <Plus className="h-4 w-4" /> Nieuw exemplaar planten
             </button>
             <button
               type="button"
               onClick={() => setQuickPhotoOpen(true)}
-              className="sv-button sv-button-thin-border flex items-center gap-2 px-4 py-2.5 text-sm"
+              className="sv-button flex items-center gap-2 px-4 py-2.5 text-base"
             >
               <Camera className="h-4 w-4" /> Groeifoto maken
             </button>
             <button
               type="button"
               onClick={() => setQrScannerOpen(true)}
-              className="sv-button sv-button-thin-border flex items-center gap-2 px-4 py-2.5 text-sm"
+              className="sv-button flex items-center gap-2 px-4 py-2.5 text-base"
             >
               <QrCode className="h-4 w-4" /> QR scannen
             </button>
             <button
               type="button"
               onClick={() => setQrLabelsManagerOpen(true)}
-              className="sv-button sv-button-thin-border flex items-center gap-2 px-3 py-2.5 text-sm"
+              className="sv-button flex items-center justify-center w-14 py-2.5 text-base"
               aria-label="QR-labels beheren"
               title="QR-labels beheren"
             >
-              <QrCode className="h-4 w-4" strokeWidth={1.4} />
+              <QrCode className="h-4 w-4" />
             </button>
           </div>
         )}
@@ -6708,7 +6746,7 @@ export default function Tuinieren() {
           onClose={() => setQrScannerOpen(false)}
           onDetected={(text) => {
             setQrScannerOpen(false);
-            resolveAndOpenQrScan(text);
+            void resolveAndOpenQrScan(text);
           }}
           title="QR-code scannen"
           description="Richt de camera op het QR-label om direct de plant of batch te openen."

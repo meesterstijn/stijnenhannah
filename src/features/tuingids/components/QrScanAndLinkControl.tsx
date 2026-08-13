@@ -53,6 +53,10 @@ export function QrScanAndLinkControl({
       setError("Onbekende QR-code — dit is geen Tuingids-label.");
       return;
     }
+    if (foundLabel.deleted_at) {
+      setError("Dit QR-label is verwijderd en niet meer in gebruik.");
+      return;
+    }
     const assignment = getActiveAssignmentForLabel(foundLabel.id);
     if (assignment && assignment.plant_instance_id !== ignoreLinkedToInstanceId) {
       const linkedInstance = instancesById.get(assignment.plant_instance_id);

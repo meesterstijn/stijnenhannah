@@ -1,38 +1,22 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Camera, ChevronDown, Loader2, QrCode, Sprout } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
+import { ChevronDown, Loader2, QrCode, Sprout } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogAction,
-  AlertDialogCancel,
-} from "@/components/ui/alert-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandInput, CommandList, CommandEmpty, CommandItem } from "@/components/ui/command";
 import type { Plant, PlantInstance } from "@/lib/supabase";
-import { useGrowthLog } from "@/features/tuingids/hooks/useGrowthLog";
-import { useGrowthPhotos } from "@/features/tuingids/hooks/useGrowthPhotos";
-import { optimizeGrowthPhoto } from "@/features/tuingids/lib/optimizeGrowthPhoto";
-import { uploadGrowthPhoto } from "@/features/tuingids/lib/growthPhotoStorage";
 import { fetchActivePlantInstances, fetchAllGrowingSeasons, plantInstanceDisplayName } from "@/features/tuingids/lib/plantInstances";
-import { HEALTH_STATUS_EMOJI, compactBatchLabel } from "@/features/tuingids/lib/plantInstanceStatus";
-import { GrowthPhotoInput } from "@/features/tuingids/components/GrowthPhotoInput";
+import { HEALTH_STATUS_EMOJI, compactBatchLabel, INSTANCE_STATUS_LABELS } from "@/features/tuingids/lib/plantInstanceStatus";
 import { QrScanner } from "@/features/tuingids/components/QrScanner";
+import { QuickGrowthPhotoCapture } from "@/features/tuingids/components/QuickGrowthPhotoCapture";
 import { useQrLabels } from "@/features/tuingids/hooks/useQrLabels";
-import { parseQrScanText } from "@/features/tuingids/lib/qrCode";
 
 // Searchable exemplaar-picker — zelfde Popover+cmdk-Command-opbouw als
 // SpeciesCombobox in Tuinieren.tsx (niet geëxporteerd vanuit die pagina om
@@ -132,24 +116,23 @@ function InstanceCombobox({
   );
 }
 
-type SavedConfirmation = { instanceName: string };
+type Phase = "scanning" | "resolving" | "manual" | "capture";
 
 /**
- * Snelle groeifoto-workflow vanaf "Mijn geplante exemplaren": exemplaar
- * kiezen, foto maken/kiezen, optioneel meetgegevens invullen, opslaan — en
- * direct door naar het volgende exemplaar, zonder eerst het losse
- * plantdetailvenster te hoeven openen. Hergebruikt bewust exact dezelfde
- * opslagroute als PlantLogboek (in Tuinieren.tsx, de "Notitie toevoegen"-
- * flow in het detailvenster): useGrowthLog().addEntryAsync voor de
- * growth_log_entry, daarna optimizeGrowthPhoto + uploadGrowthPhoto +
- * useGrowthPhotos().addPhoto voor de foto zelf. Geen tweede
- * upload-/compressie-/opslagpad.
+ * Snelle groeifoto-workflow vanaf "Mijn geplante exemplaren". Twee ingangen
+ * naar hetzelfde eindpunt (QuickGrowthPhotoCapture, de gedeelde foto-laag):
  *
- * Instances/seizoenen worden opgehaald met DEZELFDE React Query-keys als
- * MyPlantInstances (["plant_instances","active"] / ["growing_seasons","all"])
- * — deze dialoog is alleen bereikbaar terwijl "Mijn geplante exemplaren"
- * al gemount is en die query dus al in de cache zit, dus dit veroorzaakt
- * geen extra netwerkverzoek.
+ *  - QR scannen (standaard bij openen): QrScanner (camera/decodering) →
+ *    useQrLabels().resolveQrScan (resolver-laag: code → plant_instance) →
+ *    exemplaar bekend, camera-capture opent automatisch.
+ *  - "Of kies handmatig" (altijd bereikbaar, ook als scannen niet lukt/geen
+ *    toestemming heeft/de sticker beschadigd is): dezelfde combobox als
+ *    voorheen, resultaat gaat naar dezelfde capture-stap.
+ *
+ * QrScanner zelf blijft alleen verantwoordelijk voor camera + decoderen —
+ * deze dialoog (de "caller") bepaalt wat er met een geslaagde scan gebeurt.
+ * De algemene "QR scannen"-knop in Tuinieren.tsx gebruikt dezelfde resolver
+ * maar doet er iets anders mee (detailvenster openen i.p.v. camera).
  */
 export function QuickGrowthPhotoDialog({
   speciesList,
@@ -170,9 +153,7 @@ export function QuickGrowthPhotoDialog({
     queryFn: fetchAllGrowingSeasons,
     enabled: open,
   });
-  const { addEntryAsync, deleteEntry } = useGrowthLog();
-  const { addPhoto } = useGrowthPhotos();
-  const { getLabelByCode, getActiveAssignmentForLabel } = useQrLabels();
+  const { resolveQrScan } = useQrLabels();
 
   const speciesById = useMemo(() => new Map(speciesList.map((s) => [s.id, s])), [speciesList]);
   const activeSeasonIdByInstance = useMemo(() => {
@@ -181,283 +162,126 @@ export function QuickGrowthPhotoDialog({
     return map;
   }, [seasons]);
 
-  const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null);
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [selectedPhotos, setSelectedPhotos] = useState<File[]>([]);
-  const [isSaving, setIsSaving] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [savedConfirmation, setSavedConfirmation] = useState<SavedConfirmation | null>(null);
-  const [confirmDiscardOpen, setConfirmDiscardOpen] = useState(false);
-  const [qrScannerOpen, setQrScannerOpen] = useState(false);
-  const [qrMessage, setQrMessage] = useState<string | null>(null);
-  const [qrAutoSelected, setQrAutoSelected] = useState(false);
-  const isSavingRef = useRef(false);
+  const [phase, setPhase] = useState<Phase>("scanning");
+  const [resolvedInstance, setResolvedInstance] = useState<PlantInstance | null>(null);
+  const [resolvedViaQr, setResolvedViaQr] = useState(false);
 
-  const selectedInstance = instances.find((i) => i.id === selectedInstanceId) ?? null;
-  const selectedSpecies = selectedInstance ? speciesById.get(selectedInstance.species_id) : undefined;
-  const selectedName = selectedInstance ? plantInstanceDisplayName(selectedInstance, selectedSpecies) : null;
-
-  const hasUnsavedInput = !savedConfirmation && (!!selectedInstanceId || selectedPhotos.length > 0);
-
-  function resetAll() {
-    setSelectedInstanceId(null);
-    setDate(new Date().toISOString().slice(0, 10));
-    setSelectedPhotos([]);
-    setFormError(null);
-    setSavedConfirmation(null);
-    setQrMessage(null);
-    setQrAutoSelected(false);
-    isSavingRef.current = false;
-    setIsSaving(false);
+  // Terug naar de scanstap: gebruikt na een geslaagde opslag — de toast
+  // ("Groeifoto opgeslagen", zie QuickGrowthPhotoCapture) blijft even
+  // zichtbaar terwijl de scanner alweer klaarstaat voor de volgende plant,
+  // zodat een rondje door de tuin zonder enige extra tik meerdere
+  // exemplaren achter elkaar kan fotograferen.
+  function resetToScanning() {
+    setPhase("scanning");
+    setResolvedInstance(null);
+    setResolvedViaQr(false);
   }
 
-  // Snelle QR-flow (Deel F): scan → exemplaar/batch direct geselecteerd →
-  // gebruiker tikt alleen nog "Foto maken" hieronder (GrowthPhotoInput) om
-  // de OS-camera te openen. Geen los "instance_id"-veld in deze flow — de
-  // gescande code IS de selectie. Werkt identiek voor tracking_mode
-  // "individual" en "batch": in beide gevallen wordt precies één
-  // growth_log_entry (met precies één foto) aangemaakt voor de gescande
-  // instance, ongeacht quantity — een batch-QR maakt nooit meerdere
-  // logregels per plant in de batch.
-  function handleQrDetected(rawText: string) {
-    setQrScannerOpen(false);
-    const code = parseQrScanText(rawText);
-    if (!code) {
-      setQrMessage("Kon geen QR-code lezen. Probeer opnieuw, of kies hieronder handmatig een exemplaar.");
-      return;
-    }
-    const label = getLabelByCode(code);
-    if (!label) {
-      setQrMessage("Onbekende QR-code — dit is geen Tuingids-label. Kies hieronder handmatig een exemplaar.");
-      return;
-    }
-    const assignment = getActiveAssignmentForLabel(label.id);
-    if (!assignment) {
-      setQrMessage(
-        `Deze QR-code is nog niet gekoppeld${label.note ? ` (${label.note})` : ""}. Koppel 'm eerst aan een exemplaar via "Nieuw exemplaar planten" of het detailvenster.`,
-      );
-      return;
-    }
-    const found = instances.find((i) => i.id === assignment.plant_instance_id);
-    if (!found) {
-      setQrMessage("Gekoppeld exemplaar is niet (meer) actief. Kies hieronder handmatig een exemplaar.");
-      return;
-    }
-    setQrMessage(null);
-    setQrAutoSelected(true);
-    setSelectedInstanceId(found.id);
-  }
-
-  function requestClose() {
-    if (isSavingRef.current) return;
-    if (hasUnsavedInput) {
-      setConfirmDiscardOpen(true);
-      return;
-    }
-    resetAll();
+  // Sluiten (kruisje, Escape, buiten de dialoog klikken — allemaal via
+  // Radix' onOpenChange) reset meteen naar de scanstap, zodat de volgende
+  // keer dat de dialoog opengaat er al een schone staat klaarstaat i.p.v.
+  // pas ná het openen te moeten resetten (dat zou de vorige sessie's
+  // capture-scherm nog héél even laten opflitsen — test 30 dekt dit).
+  function handleClose() {
+    resetToScanning();
     onClose();
   }
 
-  function confirmDiscardAndClose() {
-    setConfirmDiscardOpen(false);
-    resetAll();
-    onClose();
-  }
-
-  // "Volgende foto": alles wissen behalve dat de dialoog openblijft, terug
-  // naar de exemplaarselectie — zodat een rondje door de tuin snel
-  // meerdere exemplaren achter elkaar gefotografeerd kan worden.
-  function startNextPhoto() {
-    resetAll();
-  }
-
-  async function handleSave() {
-    if (isSavingRef.current) return;
-    setFormError(null);
-
-    if (!selectedInstanceId || !selectedInstance) {
-      setFormError("Kies eerst een exemplaar.");
-      return;
-    }
-    if (selectedPhotos.length === 0) {
-      setFormError("Voeg een foto toe.");
-      return;
-    }
-    isSavingRef.current = true;
-    setIsSaving(true);
-
-    const instanceName = plantInstanceDisplayName(selectedInstance, selectedSpecies);
-    let newEntry: { id: string } | undefined;
-    try {
-      newEntry = await addEntryAsync({
-        plant_id: null,
-        plant_name: instanceName,
-        plant_instance_id: selectedInstanceId,
-        growing_season_id: activeSeasonIdByInstance.get(selectedInstanceId) ?? null,
-        date,
-        notes: "",
-        height_cm: null,
-        flower_count: null,
-        fruit_count: null,
-        fruit_length_cm: null,
-        fruit_width_cm: null,
-        quantity: null,
-        watered: false,
-        fertilized: false,
-        photo_url: "",
-      });
-    } catch (err) {
-      setFormError(`Opslaan mislukt: ${err instanceof Error ? err.message : "Onbekende fout"}`);
-      isSavingRef.current = false;
-      setIsSaving(false);
-      return;
-    }
-
-    // Anders dan de bestaande "Notitie"-flow in PlantLogboek (waar een
-    // meting zonder foto ook een geldig, bewaarbaar resultaat is) is een
-    // foto hier een harde vereiste — deze snelle workflow bestaat juist om
-    // foto's vast te leggen. Een entry zonder foto zou dat contract
-    // schenden, dus bij een mislukte upload ruimen we de net aangemaakte
-    // entry weer op (voorkomt half opgeslagen data) i.p.v. 'm te laten
-    // staan zoals PlantLogboek dat bewust wél doet.
-    for (const photo of selectedPhotos) {
-      try {
-        const optimized = await optimizeGrowthPhoto(photo);
-        const { storagePath, publicUrl } = await uploadGrowthPhoto(selectedInstanceId, newEntry.id, optimized);
-        await addPhoto({
-          growth_log_entry_id: newEntry.id,
-          plant_instance_id: selectedInstanceId,
-          storage_path: storagePath,
-          photo_url: publicUrl,
-          original_filename: optimized.originalFilename,
-          mime_type: optimized.mimeType,
-          file_size_bytes: optimized.fileSizeBytes,
-        });
-      } catch (photoErr) {
-        deleteEntry(newEntry.id);
-        setFormError(
-          `Foto uploaden mislukt: ${photoErr instanceof Error ? photoErr.message : "Onbekende fout"}. Probeer het opnieuw.`,
-        );
-        isSavingRef.current = false;
-        setIsSaving(false);
+  async function handleQrDetected(rawText: string) {
+    setPhase("resolving");
+    const result = await resolveQrScan(rawText, instances);
+    switch (result.status) {
+      case "invalid":
+        toast.error("Geen geldige Tuingids QR-code");
+        setPhase("scanning");
         return;
-      }
+      case "deleted":
+        toast.error("Dit QR-label is verwijderd en niet meer in gebruik.");
+        setPhase("scanning");
+        return;
+      case "unlinked":
+        toast(`Deze QR-code is nog niet gekoppeld${result.label.note ? ` (${result.label.note})` : ""}.`);
+        setPhase("scanning");
+        return;
+      case "inactive":
+        toast.error(
+          `Deze QR-code hoort bij een niet-actieve registratie (${INSTANCE_STATUS_LABELS[result.instance.status]}).`,
+        );
+        setPhase("scanning");
+        return;
+      case "resolved":
+        setResolvedInstance(result.instance);
+        setResolvedViaQr(true);
+        setPhase("capture");
+        return;
     }
-
-    isSavingRef.current = false;
-    setIsSaving(false);
-    setSavedConfirmation({ instanceName });
   }
+
+  function handleManualSelect(instance: PlantInstance) {
+    setResolvedInstance(instance);
+    setResolvedViaQr(false);
+    setPhase("capture");
+  }
+
+  const resolvedSpecies = resolvedInstance ? speciesById.get(resolvedInstance.species_id) : undefined;
 
   return (
     <>
-      <Dialog open={open} onOpenChange={(o) => !o && requestClose()}>
+      <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
         <DialogContent className="tuinieren-theme sv-dialog w-full max-w-lg max-h-[90vh]">
           <DialogHeader>
             <DialogTitle className="sv-heading text-3xl">Groeifoto maken</DialogTitle>
           </DialogHeader>
 
-          {savedConfirmation ? (
-            <div className="space-y-4">
-              <div className="sv-badge-ok rounded-xl p-4 text-sm font-medium">
-                Groeifoto opgeslagen voor {savedConfirmation.instanceName}
-              </div>
-              <div className="flex gap-2">
-                <Button className="sv-button" onClick={startNextPhoto}>
-                  <Camera className="h-4 w-4" /> Volgende foto
-                </Button>
-                <Button
-                  className="sv-button sv-button-ghost"
-                  onClick={() => {
-                    resetAll();
-                    onClose();
-                  }}
-                >
-                  Klaar
-                </Button>
-              </div>
+          {phase === "resolving" ? (
+            <div className="py-10 flex flex-col items-center gap-2 text-sm sv-muted">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Plant zoeken…
             </div>
-          ) : (
+          ) : phase === "manual" ? (
             <div className="space-y-4">
-              <div className="space-y-1.5">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="sv-button sv-button-thin-border w-full"
-                  onClick={() => {
-                    setQrMessage(null);
-                    setQrScannerOpen(true);
-                  }}
-                >
-                  <QrCode className="h-4 w-4" /> QR-code scannen
-                </Button>
-                {qrMessage && <p className="text-xs sv-muted">{qrMessage}</p>}
-              </div>
-
               <div className="space-y-1.5">
                 <p className="text-xs sv-muted font-medium uppercase tracking-wide">Exemplaar</p>
-                <InstanceCombobox
-                  instances={instances}
-                  speciesById={speciesById}
-                  value={selectedInstanceId}
-                  onSelect={(i) => {
-                    setQrAutoSelected(false);
-                    setSelectedInstanceId(i.id);
-                  }}
-                />
-                {selectedInstance && (
-                  <p className="text-xs sv-muted">
-                    {qrAutoSelected ? "✅ Via QR-code gevonden — foto" : "Foto"} wordt toegevoegd aan{" "}
-                    <span className="font-medium">{selectedName}</span>
-                    {selectedSpecies && selectedSpecies.name !== selectedName ? ` (${selectedSpecies.name})` : ""}.
-                  </p>
-                )}
+                <InstanceCombobox instances={instances} speciesById={speciesById} value={null} onSelect={handleManualSelect} />
               </div>
-
-              <div className="space-y-1.5">
-                <p className="text-xs sv-muted font-medium uppercase tracking-wide">Foto</p>
-                <GrowthPhotoInput files={selectedPhotos} onFilesChange={setSelectedPhotos} disabled={isSaving} />
-              </div>
-
-              <div>
-                <label className="text-xs sv-muted block mb-1">Datum</label>
-                <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="text-sm" />
-              </div>
-
-              {formError && <p className="text-xs sv-destructive-text">{formError}</p>}
-
-              <DialogFooter>
-                <Button className="sv-button" onClick={handleSave} disabled={isSaving}>
-                  {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Groeifoto opslaan"}
-                </Button>
-              </DialogFooter>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="sv-button sv-button-thin-border w-full"
+                onClick={() => setPhase("scanning")}
+              >
+                <QrCode className="h-4 w-4" /> QR-code scannen
+              </Button>
             </div>
+          ) : phase === "capture" && resolvedInstance ? (
+            <QuickGrowthPhotoCapture
+              instance={resolvedInstance}
+              species={resolvedSpecies}
+              growingSeasonId={activeSeasonIdByInstance.get(resolvedInstance.id) ?? null}
+              foundViaQr={resolvedViaQr}
+              onSaved={resetToScanning}
+            />
+          ) : (
+            // phase === "scanning" — de eigenlijke camera-overlay staat in
+            // QrScanner hieronder; dit is puur wat er even doorheen
+            // schemert in de dialoog erachter.
+            <div className="py-10 text-center text-sm sv-muted">Scan de QR-code van de plant of batch.</div>
           )}
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={confirmDiscardOpen} onOpenChange={setConfirmDiscardOpen}>
-        <AlertDialogContent className="tuinieren-theme sv-dialog">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Niet-opgeslagen gegevens weggooien?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Je hebt een exemplaar, foto of meetgegevens ingevuld die nog niet zijn opgeslagen. Als je sluit, gaan deze verloren.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Terug naar formulier</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDiscardAndClose}>Sluiten zonder opslaan</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
       <QrScanner
-        open={qrScannerOpen}
-        onClose={() => setQrScannerOpen(false)}
-        onDetected={handleQrDetected}
+        open={open && phase === "scanning"}
+        onClose={() => setPhase("manual")}
+        onDetected={(text) => void handleQrDetected(text)}
         title="QR-code scannen"
-        description="Richt de camera op het QR-label van de plant of batch."
+        description="Scan de QR-code van de plant of batch."
+        footer={
+          <button type="button" onClick={() => setPhase("manual")} className="text-sm text-white/80 underline">
+            Of kies handmatig
+          </button>
+        }
       />
     </>
   );

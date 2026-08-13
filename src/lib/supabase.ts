@@ -446,6 +446,11 @@ export type QrLabel = {
   code: string;
   note: string | null;
   created_at: string;
+  // Soft-delete/archief-tijdstip. Null = normaal actief label. Niet-null =
+  // "verwijderd" — verdwijnt uit de standaard beheerlijst, kan nooit meer
+  // gekoppeld worden, maar de rij (en zijn assignmenthistorie) blijft
+  // bestaan. Zie 20260907000000_qr_label_management.sql.
+  deleted_at: string | null;
 };
 
 export type PlantInstanceQrAssignment = {

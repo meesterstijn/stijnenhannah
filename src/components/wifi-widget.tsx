@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import QRCodeStyling from "qr-code-styling";
 import { Wifi, X, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { cardSurface } from "@/components/modern-surfaces";
+import { QrCodeDisplay } from "@/components/qr-code-display";
 
 async function fetchWifiSettings(): Promise<{ ssid: string; password: string }> {
   const { data, error } = await supabase
@@ -15,20 +15,8 @@ async function fetchWifiSettings(): Promise<{ ssid: string; password: string }> 
   return { ssid: map.wifi_ssid ?? "", password: map.wifi_password ?? "" };
 }
 
-const qrCode = new QRCodeStyling({
-  width: 240,
-  height: 240,
-  type: "svg",
-  dotsOptions: { type: "rounded", color: "#000000" },
-  cornersSquareOptions: { type: "extra-rounded", color: "#000000" },
-  cornersDotOptions: { type: "dot", color: "#000000" },
-  backgroundOptions: { color: "#f8f3e6" },
-  qrOptions: { errorCorrectionLevel: "M" },
-});
-
 export function WifiWidget() {
   const [open, setOpen] = useState(false);
-  const qrRef = useRef<HTMLDivElement>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["wifi_settings"],
@@ -37,13 +25,6 @@ export function WifiWidget() {
   });
 
   const wifiString = data ? `WIFI:T:WPA;S:${data.ssid};P:${data.password};;` : "";
-
-  useEffect(() => {
-    if (!open || !data || !qrRef.current) return;
-    qrCode.update({ data: wifiString });
-    qrRef.current.innerHTML = "";
-    qrCode.append(qrRef.current);
-  }, [open, data, wifiString]);
 
   return (
     <>
@@ -95,10 +76,9 @@ export function WifiWidget() {
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             ) : (
               <>
-                <div
-                  ref={qrRef}
-                  className="rounded-2xl border border-border/60 bg-white p-3"
-                />
+                <div className="rounded-2xl border border-border/60 bg-white p-3">
+                  <QrCodeDisplay data={wifiString || null} size={240} backgroundColor="#f8f3e6" />
+                </div>
                 <p className="text-xs text-muted-foreground tracking-wide">
                   {data?.password}
                 </p>

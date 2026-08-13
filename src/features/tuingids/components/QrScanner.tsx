@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import jsQR from "jsqr";
 import { X } from "lucide-react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
@@ -9,6 +9,11 @@ type Props = {
   onDetected: (rawText: string) => void;
   title?: string;
   description?: string;
+  /** Optionele extra actie onder de scanner (bv. "Of kies handmatig"). Puur
+   *  een slot — QrScanner blijft zelf onwetend van wat de aanroeper daarmee
+   *  doet, net als bij `onDetected`. Ook zichtbaar in de foutweergave, zodat
+   *   'm bereikbaar blijft bij geweigerde cameratoegang of geen ondersteuning. */
+  footer?: ReactNode;
 };
 
 /**
@@ -22,7 +27,7 @@ type Props = {
  * detectie, sluiten, of unmount) vóórdat de aanroepende flow verdergaat naar
  * de volgende stap (bv. het foto-camera-input openen).
  */
-export function QrScanner({ open, onClose, onDetected, title = "QR-code scannen", description }: Props) {
+export function QrScanner({ open, onClose, onDetected, title = "QR-code scannen", description, footer }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -183,6 +188,8 @@ export function QrScanner({ open, onClose, onDetected, title = "QR-code scannen"
                 <div className="pointer-events-none absolute inset-8 border-2 border-white/70 rounded-2xl" />
               </div>
             )}
+
+            {footer && <div className="text-center">{footer}</div>}
           </div>
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>

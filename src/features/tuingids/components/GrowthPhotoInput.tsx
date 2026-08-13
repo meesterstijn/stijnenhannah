@@ -5,13 +5,23 @@ type Props = {
   files: File[];
   onFilesChange: (files: File[]) => void;
   disabled?: boolean;
+  /** Probeer de camera-input direct te openen zodra dit component verschijnt
+   *  (bv. na een succesvolle QR-scan, of wanneer de instance al vaststaat).
+   *  Vuurt precies één keer, bij mount. Browsers met strikte user-gesture-
+   *  eisen (met name iOS Safari) kunnen een programmatische `.click()` op een
+   *  file-input negeren als er te veel asynchroon werk tussen de laatste
+   *  echte tik en dit moment zat — er wordt bewust GEEN poging gedaan om dat
+   *  te detecteren of te omzeilen. De "Foto maken"-knop hieronder is en
+   *  blijft altijd zichtbaar, dus of de automatische open lukt of niet, is
+   *  er sowieso maar precies één tik nodig. */
+  autoOpenCamera?: boolean;
 };
 
 // Two separate hidden inputs: one with capture="environment" for the camera
 // (back camera hint on mobile), one without capture for the gallery.
 // Both call the shared processIncoming() logic so upload handling is identical.
 // ObjectURLs are created/revoked in sync with the files prop via useEffect.
-export function GrowthPhotoInput({ files, onFilesChange, disabled }: Props) {
+export function GrowthPhotoInput({ files, onFilesChange, disabled, autoOpenCamera }: Props) {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const [cameraKey, setCameraKey] = useState(0);
@@ -25,6 +35,13 @@ export function GrowthPhotoInput({ files, onFilesChange, disabled }: Props) {
       urls.forEach((url) => URL.revokeObjectURL(url));
     };
   }, [files]);
+
+  useEffect(() => {
+    if (autoOpenCamera && !disabled) cameraInputRef.current?.click();
+    // Bewust alleen bij mount (lege deps) — dit mag maar één keer per
+    // "verschijning" van deze capture-UI vuren, niet bij elke re-render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function processIncoming(fileList: FileList | null) {
     if (!fileList || fileList.length === 0) return;
