@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   supabase,
@@ -30,6 +30,16 @@ import {
   DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandInput, CommandList, CommandEmpty, CommandItem } from "@/components/ui/command";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -64,6 +74,7 @@ import {
   Clock,
   Check,
   Layers,
+  QrCode,
 } from "lucide-react";
 import { useGrowthLog } from "@/features/tuingids/hooks/useGrowthLog";
 import { useGrowthPhotos } from "@/features/tuingids/hooks/useGrowthPhotos";
@@ -73,6 +84,11 @@ import { uploadGrowthPhoto } from "@/features/tuingids/lib/growthPhotoStorage";
 import { GrowthPhotoInput } from "@/features/tuingids/components/GrowthPhotoInput";
 import { GrowthPhotoTimeline } from "@/features/tuingids/components/GrowthPhotoTimeline";
 import { QuickGrowthPhotoDialog } from "@/features/tuingids/components/QuickGrowthPhotoDialog";
+import { useQrLabels } from "@/features/tuingids/hooks/useQrLabels";
+import { QrScanner } from "@/features/tuingids/components/QrScanner";
+import { QrScanAndLinkControl } from "@/features/tuingids/components/QrScanAndLinkControl";
+import { QrLabelsManagerDialog } from "@/features/tuingids/components/QrLabelsManagerDialog";
+import { parseQrScanText } from "@/features/tuingids/lib/qrCode";
 import {
   fetchPlants,
   fetchHarvestLogs,
@@ -100,8 +116,10 @@ import { useRecordInstanceCare } from "@/features/tuingids/hooks/usePlantCareAct
 import {
   fetchPlantInstances,
   fetchActivePlantInstances,
+  fetchPlantInstance,
   fetchAllGrowingSeasons,
   fetchGrowingSeasons,
+  fetchActiveGrowingSeason,
   plantInstanceDisplayName,
   suggestInstanceName,
   suggestBatchName,
@@ -3344,8 +3362,14 @@ function NewPlantInstanceForm({
   const [startHeightInput, setStartHeightInput] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [batchSaving, setBatchSaving] = useState(false);
+  // Optionele QR-koppeling (Deel C): alleen zinvol als dit exact ÉÉN nieuwe
+  // registratie oplevert — een QR hoort bij precies één instance, dus bij
+  // bulkaanmaak van N losse individuele exemplaren is er geen eenduidige
+  // ontvanger voor de scan (zie qrEligible hieronder).
+  const [qrCode, setQrCode] = useState<string | null>(null);
 
   const { createInstanceWithSeason, isCreating } = usePlantInstances();
+  const { assignLabel } = useQrLabels();
   // Synchronous guard against double-submit: `isCreating` (mutation.isPending)
   // only flips after React commits the next render, so two clicks fired in
   // the same tick (e.g. a fast double-click) can both pass the `disabled`
@@ -3358,6 +3382,16 @@ function NewPlantInstanceForm({
   const validBulkCount = Number.isInteger(parsedBulkCount) && parsedBulkCount >= 1 && parsedBulkCount <= 50;
   const isBatch = trackingMode === "batch";
   const isSaving = batchSaving || isCreating;
+  const instancesByIdForQr = useMemo(() => new Map(allInstances.map((i) => [i.id, i])), [allInstances]);
+  const speciesByIdForQr = useMemo(() => new Map(speciesList.map((s) => [s.id, s])), [speciesList]);
+  // Eén QR-code hoort bij precies één instance — bij bulkaanmaak (N>1 losse
+  // individuele exemplaren) is er geen eenduidige ontvanger, dus is QR-
+  // koppeling dan niet beschikbaar. Wissel je terug naar N=1 nadat je al een
+  // code had gescand, dan blijft de koppeling gewoon beschikbaar.
+  const qrEligible = isBatch || parsedBulkCount === 1;
+  useEffect(() => {
+    if (!qrEligible && qrCode) setQrCode(null);
+  }, [qrEligible, qrCode]);
   const existingCountForSpecies = speciesId
     ? allInstances.filter((i) => i.species_id === speciesId).length
     : 0;
@@ -3426,11 +3460,23 @@ function NewPlantInstanceForm({
     setStartHeightInput("");
     setFormError(null);
     setBatchSaving(false);
+    setQrCode(null);
     if (onClose) {
       onClose();
     } else {
       setOpen(!!preselectedSpecies);
     }
+  }
+
+  // De QR-koppeling zelf gebeurt bewust NA het aanmaken van de instance (pas
+  // dan bestaat er een instance_id om aan te koppelen) — via dezelfde
+  // assign_qr_label-RPC als Deel D, dus dezelfde databasegaranties tegen
+  // dubbele koppelingen gelden hier ook. Mislukt de koppeling (bv. een race
+  // met een andere sessie) dan bestaat het exemplaar al gewoon — de QR kan
+  // daarna alsnog via het detailvenster gekoppeld worden.
+  async function linkScannedQrIfAny(instanceId: string) {
+    if (!qrCode) return;
+    await assignLabel({ code: qrCode, instanceId });
   }
 
   async function handleSave() {
@@ -3480,38 +3526,64 @@ function NewPlantInstanceForm({
       // Eén registratie, quantity blijft bewust null ("nog niet geteld") —
       // de gebruiker hoeft bij het zaaien geen aantal zaailingen te kiezen,
       // dat gebeurt pas later via "Aantal bijwerken" in het detailvenster.
+      let result: { instance_id: string } | undefined;
       try {
-        await createInstanceWithSeason({
+        result = await createInstanceWithSeason({
           ...baseInput,
           customName: customName.trim() || null,
           trackingMode: "batch",
           quantity: null,
         });
-        resetForm();
-        onCreated?.();
       } catch (err) {
         setFormError(err instanceof Error ? err.message : "Opslaan mislukt.");
-      } finally {
         isSavingRef.current = false;
+        return;
       }
+      try {
+        await linkScannedQrIfAny(result.instance_id);
+      } catch (err) {
+        toast.error(
+          `Batch aangemaakt, maar QR-koppeling mislukt: ${err instanceof Error ? err.message : "onbekende fout"}. Je kunt de QR-code later alsnog koppelen via het exemplaar.`,
+        );
+        isSavingRef.current = false;
+        resetForm();
+        onCreated?.();
+        return;
+      }
+      resetForm();
+      onCreated?.();
+      isSavingRef.current = false;
       return;
     }
 
     if (parsedBulkCount === 1) {
+      let result: { instance_id: string } | undefined;
       try {
-        await createInstanceWithSeason({
+        result = await createInstanceWithSeason({
           ...baseInput,
           customName: customName.trim() || null,
           trackingMode: "individual",
           quantity: 1,
         });
-        resetForm();
-        onCreated?.();
       } catch (err) {
         setFormError(err instanceof Error ? err.message : "Opslaan mislukt.");
-      } finally {
         isSavingRef.current = false;
+        return;
       }
+      try {
+        await linkScannedQrIfAny(result.instance_id);
+      } catch (err) {
+        toast.error(
+          `Exemplaar aangemaakt, maar QR-koppeling mislukt: ${err instanceof Error ? err.message : "onbekende fout"}. Je kunt de QR-code later alsnog koppelen via het exemplaar.`,
+        );
+        isSavingRef.current = false;
+        resetForm();
+        onCreated?.();
+        return;
+      }
+      resetForm();
+      onCreated?.();
+      isSavingRef.current = false;
       return;
     }
 
@@ -3625,6 +3697,23 @@ function NewPlantInstanceForm({
                   <p className="text-xs sv-muted">
                     Voor gewassen die je met veel tegelijk zaait (veldsla, rucola, radijs, kruiden...). Dit wordt
                     één registratie — het aantal opgekomen planten vul je later in, zodra je geteld hebt.
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <p className="text-xs sv-muted font-medium uppercase tracking-wide">QR-code (optioneel)</p>
+                {qrEligible ? (
+                  <QrScanAndLinkControl
+                    value={qrCode}
+                    onChange={setQrCode}
+                    instancesById={instancesByIdForQr}
+                    speciesById={speciesByIdForQr}
+                  />
+                ) : (
+                  <p className="text-xs sv-muted">
+                    Alleen beschikbaar als je precies 1 exemplaar aanmaakt — zet "Aantal exemplaren" op 1 om een
+                    QR-code te koppelen.
                   </p>
                 )}
               </div>
@@ -4409,11 +4498,15 @@ function PlantInstanceDetailDialog({
   instance,
   species,
   activeSeason,
+  allInstances,
+  speciesById,
   onClose,
 }: {
   instance: PlantInstance;
   species: Plant | undefined;
   activeSeason: GrowingSeason | null;
+  allInstances: PlantInstance[];
+  speciesById: Map<string, Plant>;
   onClose: () => void;
 }) {
   const [closingSeason, setClosingSeason] = useState(false);
@@ -4437,6 +4530,50 @@ function PlantInstanceDetailDialog({
   });
   const { getEntriesForGrowingSeason, getEntriesForPlantInstance } = useGrowthLog();
   const { getPhotosForInstance, deletePhoto: deleteGrowthPhoto } = useGrowthPhotos();
+  const {
+    getActiveAssignmentForInstance,
+    getLabelById,
+    assignLabel,
+    releaseLabel,
+    isAssigningLabel,
+    isReleasingLabel,
+  } = useQrLabels();
+  const [qrLinkFormOpen, setQrLinkFormOpen] = useState(false);
+  const [pendingQrCode, setPendingQrCode] = useState<string | null>(null);
+  const [qrError, setQrError] = useState<string | null>(null);
+  const [confirmUnlinkQrOpen, setConfirmUnlinkQrOpen] = useState(false);
+  const activeQrAssignment = getActiveAssignmentForInstance(instance.id);
+  const activeQrLabel = activeQrAssignment ? getLabelById(activeQrAssignment.qr_label_id) : null;
+  const instancesByIdForQr = useMemo(() => new Map(allInstances.map((i) => [i.id, i])), [allInstances]);
+
+  // Werkt zowel voor "eerste keer koppelen" als "vervangen": eerst een
+  // eventuele bestaande actieve koppeling vrijgeven (no-op als er nog geen
+  // was) en dan pas de nieuwe koppeling leggen — nooit in één stap
+  // "overschrijven", want assign_qr_label weigert een tweede actieve label
+  // op dezelfde instance (databaseconstraint), dus vervangen moet altijd via
+  // release-dan-assign, precies zoals hier.
+  async function handleLinkPendingQr() {
+    if (!pendingQrCode) return;
+    setQrError(null);
+    try {
+      if (activeQrAssignment) await releaseLabel(instance.id);
+      await assignLabel({ code: pendingQrCode, instanceId: instance.id });
+      setPendingQrCode(null);
+      setQrLinkFormOpen(false);
+    } catch (err) {
+      setQrError(err instanceof Error ? err.message : "Koppelen mislukt.");
+    }
+  }
+
+  async function handleUnlinkQr() {
+    setQrError(null);
+    setConfirmUnlinkQrOpen(false);
+    try {
+      await releaseLabel(instance.id);
+    } catch (err) {
+      setQrError(err instanceof Error ? err.message : "Ontkoppelen mislukt.");
+    }
+  }
 
   const { data: harvestLogs = [] } = useQuery({
     queryKey: ["plant_harvest_logs", "instance", instance.id],
@@ -4528,6 +4665,7 @@ function PlantInstanceDetailDialog({
   const pastSeasons = seasons.filter((s) => s.id !== activeSeason?.id);
 
   return (
+    <>
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className={PLANT_DIALOG_CONTENT_CLASS}>
         <DialogHeader>
@@ -4783,16 +4921,116 @@ function PlantInstanceDetailDialog({
               {groeifotosOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             </button>
             {groeifotosOpen && (
-              <div className="sv-inset p-4 rounded-xl">
+              <div className="sv-inset p-4 rounded-xl space-y-2">
+                {instance.derived_from_instance_id && (
+                  <p className="text-xs sv-muted">
+                    Inclusief foto's en metingen uit de zaailingfase (vóór uitplanten).
+                  </p>
+                )}
                 <GrowthPhotoTimeline
-                  entries={getEntriesForPlantInstance(instance.id)}
-                  photos={getPhotosForInstance(instance.id)}
+                  entries={[
+                    ...getEntriesForPlantInstance(instance.id),
+                    ...(instance.derived_from_instance_id
+                      ? getEntriesForPlantInstance(instance.derived_from_instance_id)
+                      : []),
+                  ]}
+                  photos={[
+                    ...getPhotosForInstance(instance.id),
+                    ...(instance.derived_from_instance_id
+                      ? getPhotosForInstance(instance.derived_from_instance_id)
+                      : []),
+                  ]}
                   onDeletePhoto={(photo) => deleteGrowthPhoto(photo)}
                   showLightbox
                   sortDir="desc"
                 />
               </div>
             )}
+          </div>
+
+          <div className="space-y-3">
+            <p className="text-xs sv-muted font-medium uppercase tracking-wide flex items-center gap-2">
+              <QrCode className="h-3.5 w-3.5" /> QR-code
+            </p>
+            {activeQrLabel ? (
+              <div className="sv-inset rounded-xl p-3 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm truncate">{activeQrLabel.note ?? "Gekoppeld QR-label"}</span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setQrError(null);
+                        setQrLinkFormOpen((o) => !o);
+                      }}
+                      className="text-xs sv-muted underline"
+                    >
+                      Vervangen
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmUnlinkQrOpen(true)}
+                      className="text-xs sv-destructive-text underline"
+                    >
+                      Ontkoppelen
+                    </button>
+                  </div>
+                </div>
+                {qrLinkFormOpen && (
+                  <div className="space-y-2 pt-2 border-t border-black/10">
+                    <p className="text-xs sv-muted">Scan de nieuwe QR-code om de huidige koppeling te vervangen.</p>
+                    <QrScanAndLinkControl
+                      value={pendingQrCode}
+                      onChange={setPendingQrCode}
+                      instancesById={instancesByIdForQr}
+                      speciesById={speciesById}
+                      ignoreLinkedToInstanceId={instance.id}
+                      disabled={isAssigningLabel || isReleasingLabel}
+                    />
+                    {pendingQrCode && (
+                      <div className="flex gap-2">
+                        <Button size="sm" className="sv-button" onClick={handleLinkPendingQr} disabled={isAssigningLabel || isReleasingLabel}>
+                          {isAssigningLabel || isReleasingLabel ? <Loader2 className="h-4 w-4 animate-spin" /> : "Vervangen bevestigen"}
+                        </Button>
+                        <Button size="sm" variant="ghost" className="sv-button sv-button-ghost" onClick={() => { setPendingQrCode(null); setQrLinkFormOpen(false); }}>
+                          Annuleren
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : qrLinkFormOpen ? (
+              <div className="sv-inset rounded-xl p-3 space-y-2">
+                <QrScanAndLinkControl
+                  value={pendingQrCode}
+                  onChange={setPendingQrCode}
+                  instancesById={instancesByIdForQr}
+                  speciesById={speciesById}
+                  disabled={isAssigningLabel}
+                />
+                {pendingQrCode && (
+                  <div className="flex gap-2">
+                    <Button size="sm" className="sv-button" onClick={handleLinkPendingQr} disabled={isAssigningLabel}>
+                      {isAssigningLabel ? <Loader2 className="h-4 w-4 animate-spin" /> : "Koppelen bevestigen"}
+                    </Button>
+                    <Button size="sm" variant="ghost" className="sv-button sv-button-ghost" onClick={() => { setPendingQrCode(null); setQrLinkFormOpen(false); }}>
+                      Annuleren
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                className="sv-button sv-button-thin-border w-full"
+                onClick={() => { setQrError(null); setQrLinkFormOpen(true); }}
+              >
+                <QrCode className="h-4 w-4" /> QR-code koppelen
+              </Button>
+            )}
+            {qrError && <p className="text-xs sv-destructive-text">{qrError}</p>}
           </div>
 
           <div className="space-y-3">
@@ -4900,6 +5138,23 @@ function PlantInstanceDetailDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <AlertDialog open={confirmUnlinkQrOpen} onOpenChange={setConfirmUnlinkQrOpen}>
+      <AlertDialogContent className="tuinieren-theme sv-dialog">
+        <AlertDialogHeader>
+          <AlertDialogTitle>QR-code ontkoppelen?</AlertDialogTitle>
+          <AlertDialogDescription>
+            De sticker zelf blijft bestaan en wordt "Vrij" — je kunt 'm later weer aan een andere plant of batch
+            koppelen. {name} blijft gewoon bestaan, alleen zonder QR-koppeling.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Annuleren</AlertDialogCancel>
+          <AlertDialogAction onClick={handleUnlinkQr}>Ontkoppelen</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
 
@@ -5344,6 +5599,8 @@ function MyPlantInstances({
           instance={detailInstance}
           species={speciesById.get(detailInstance.species_id)}
           activeSeason={activeSeasonByInstance.get(detailInstance.id) ?? null}
+          allInstances={instances}
+          speciesById={speciesById}
           onClose={() => setDetailInstanceId(null)}
         />
       )}
@@ -5529,6 +5786,75 @@ export default function Tuinieren() {
   const { data: allPlantInstances = [] } = useQuery({
     queryKey: ["plant_instances", "all"],
     queryFn: fetchPlantInstances,
+  });
+
+  // ── QR: scannen → direct het bijbehorende exemplaar openen (Deel E) ──────
+  const [qrScannerOpen, setQrScannerOpen] = useState(false);
+  const [qrLabelsManagerOpen, setQrLabelsManagerOpen] = useState(false);
+  const [qrOpenInstanceId, setQrOpenInstanceId] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { getLabelByCode, getActiveAssignmentForLabel, isLoadingLabels, isLoadingAssignments } = useQrLabels();
+  const speciesByIdTop = useMemo(() => new Map(plants.map((p) => [p.id, p])), [plants]);
+  const instancesByIdTop = useMemo(() => new Map(allPlantInstances.map((i) => [i.id, i])), [allPlantInstances]);
+
+  function resolveAndOpenQrScan(rawText: string) {
+    const code = parseQrScanText(rawText);
+    if (!code) {
+      toast.error("Kon geen QR-code lezen. Probeer opnieuw.");
+      return;
+    }
+    const label = getLabelByCode(code);
+    if (!label) {
+      toast.error("Onbekende QR-code — dit is geen Tuingids-label.");
+      return;
+    }
+    const assignment = getActiveAssignmentForLabel(label.id);
+    if (!assignment) {
+      toast(
+        `Deze QR-code is nog niet gekoppeld${label.note ? ` (${label.note})` : ""}. Koppel 'm bij het aanmaken of bewerken van een exemplaar.`,
+      );
+      return;
+    }
+    setQrOpenInstanceId(assignment.plant_instance_id);
+  }
+
+  // Deeplink: een QR-sticker gescand met de gewone telefooncamera (buiten de
+  // app om) opent "…/#/tuinieren?qr=<code>" — dezelfde afhandeling als een
+  // in-app scan, alleen ligt de code al klaar in de URL i.p.v. via de
+  // camera. Login blijft gewoon vereist (deze pagina zit al achter de
+  // bestaande auth-guard); de code zelf is puur een opzoeksleutel, geen
+  // authenticatiemiddel. Wacht tot labels/assignments geladen zijn zodat een
+  // nog-lege cache niet ten onrechte als "onbekende QR-code" wordt gelezen,
+  // en verwijdert de queryparam na afhandeling zodat verversen niet opnieuw
+  // dezelfde melding/opening triggert.
+  const qrDeeplinkHandledRef = useRef(false);
+  useEffect(() => {
+    if (qrDeeplinkHandledRef.current) return;
+    if (isLoadingLabels || isLoadingAssignments) return;
+    const code = searchParams.get("qr");
+    if (!code) return;
+    qrDeeplinkHandledRef.current = true;
+    resolveAndOpenQrScan(code);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("qr");
+        return next;
+      },
+      { replace: true },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoadingLabels, isLoadingAssignments, searchParams]);
+
+  const { data: qrOpenInstance } = useQuery({
+    queryKey: ["plant_instances", "single", qrOpenInstanceId],
+    queryFn: () => fetchPlantInstance(qrOpenInstanceId!),
+    enabled: !!qrOpenInstanceId,
+  });
+  const { data: qrOpenSeason = null } = useQuery({
+    queryKey: ["growing_seasons", "active", qrOpenInstanceId],
+    queryFn: () => fetchActiveGrowingSeason(qrOpenInstanceId!),
+    enabled: !!qrOpenInstanceId,
   });
 
   const { data: photos = [] } = useQuery({
@@ -5941,7 +6267,7 @@ export default function Tuinieren() {
   // registration linked to them. Deliberately a different JSON shape
   // (garden_backup) so it's never confused with the species-only export.
   async function handleExportGardenBackup() {
-    const [instancesRes, seasonsRes, logsRes, harvestRes, pruningRes, repotRes, inspectionsRes, photosRes, growthPhotosRes, plansRes, planItemsRes] = await Promise.all([
+    const [instancesRes, seasonsRes, logsRes, harvestRes, pruningRes, repotRes, inspectionsRes, photosRes, growthPhotosRes, plansRes, planItemsRes, qrLabelsRes] = await Promise.all([
       supabase.from("plant_instances").select("*"),
       supabase.from("growing_seasons").select("*"),
       supabase.from("growth_log_entries").select("*"),
@@ -5953,6 +6279,19 @@ export default function Tuinieren() {
       supabase.from("growth_log_photos").select("*"),
       supabase.from("cultivation_plans").select("*"),
       supabase.from("cultivation_plan_items").select("*"),
+      // qr_labels wél in de back-up (het zijn duurzame, fysieke stickers —
+      // die wil je niet kwijtraken bij een restore). plant_instance_qr_
+      // assignments (de koppeling label↔instance) bewust NIET: dat is
+      // "live" fysieke-wereld-state die op het moment van restore kan
+      // afwijken van de werkelijkheid (sticker is intussen verplaatst/
+      // hergebruikt), en de import hieronder doet geen constraint-bewuste
+      // samenvoeging — een oude, inmiddels achterhaalde actieve koppeling
+      // terugzetten zou een label ten onrechte weer "in gebruik" kunnen
+      // tonen, of zelfs botsen met de partiële unique-index als het label
+      // intussen al aan iets anders hangt. Labels overleven een restore dus
+      // gewoon, gekoppeld zijn ze daarna niet meer — dat koppel je bewust
+      // opnieuw, exact zoals bij een gewone hergebruikte sticker.
+      supabase.from("qr_labels").select("*"),
     ]);
     const speciesById = new Map(plants.map((p) => [p.id, p.name]));
     const backup = {
@@ -5975,6 +6314,7 @@ export default function Tuinieren() {
       growth_log_photos: growthPhotosRes.data ?? [],
       cultivation_plans: plansRes.data ?? [],
       cultivation_plan_items: planItemsRes.data ?? [],
+      qr_labels: qrLabelsRes.data ?? [],
     };
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -6143,6 +6483,19 @@ export default function Tuinieren() {
         else planItemsSkipped++;
       }
 
+      // QR-labels: alleen de labels zelf (duurzame stickers), nooit hun
+      // koppelingen — zie de toelichting bij handleExportGardenBackup. Een
+      // hersteld label is dus altijd "Vrij", ook als het backup-moment een
+      // actieve koppeling liet zien.
+      let qrLabelsImported = 0, qrLabelsSkipped = 0;
+      for (const label of backup.qr_labels ?? []) {
+        const { data: existing } = await supabase.from("qr_labels").select("id").eq("id", label.id).maybeSingle();
+        if (existing) { qrLabelsSkipped++; continue; }
+        const { error } = await supabase.from("qr_labels").insert(label);
+        if (!error) qrLabelsImported++;
+        else qrLabelsSkipped++;
+      }
+
       queryClient.invalidateQueries({ queryKey: ["plant_instances"] });
       queryClient.invalidateQueries({ queryKey: ["growing_seasons"] });
       queryClient.invalidateQueries({ queryKey: ["growth_log_entries"] });
@@ -6153,11 +6506,12 @@ export default function Tuinieren() {
       queryClient.invalidateQueries({ queryKey: ["plant_photos"] });
       queryClient.invalidateQueries({ queryKey: ["growth_log_photos"] });
       queryClient.invalidateQueries({ queryKey: ["cultivation_plans"] });
+      queryClient.invalidateQueries({ queryKey: ["qr_labels"] });
 
       setImportMsg(
         `Tuin-backup geïmporteerd: ${instancesImported} exemplaren, ${seasonsImported} seizoenen, ${logsResult.imported} logboekregels, ` +
-        `${harvestResult.imported} oogsten, ${pruningResult.imported} snoeimomenten, ${repotResult.imported} verpotmomenten, ${inspectionResult.imported} inspecties, ${photosResult.imported} foto's, ${growthPhotosImported} groeifoto's, ${plansImported} teeltplannen, ${planItemsImported} planregels toegevoegd. ` +
-        `Overgeslagen (al aanwezig of niet te koppelen): ${instancesSkipped + seasonsSkipped + logsResult.skipped + harvestResult.skipped + pruningResult.skipped + repotResult.skipped + inspectionResult.skipped + photosResult.skipped + growthPhotosSkipped + plansSkipped + planItemsSkipped}.`
+        `${harvestResult.imported} oogsten, ${pruningResult.imported} snoeimomenten, ${repotResult.imported} verpotmomenten, ${inspectionResult.imported} inspecties, ${photosResult.imported} foto's, ${growthPhotosImported} groeifoto's, ${plansImported} teeltplannen, ${planItemsImported} planregels, ${qrLabelsImported} QR-labels (zonder koppeling) toegevoegd. ` +
+        `Overgeslagen (al aanwezig of niet te koppelen): ${instancesSkipped + seasonsSkipped + logsResult.skipped + harvestResult.skipped + pruningResult.skipped + repotResult.skipped + inspectionResult.skipped + photosResult.skipped + growthPhotosSkipped + plansSkipped + planItemsSkipped + qrLabelsSkipped}.`
       );
     } catch {
       setImportMsg("Ongeldig JSON-bestand.");
@@ -6311,6 +6665,22 @@ export default function Tuinieren() {
             >
               <Camera className="h-4 w-4" /> Groeifoto maken
             </button>
+            <button
+              type="button"
+              onClick={() => setQrScannerOpen(true)}
+              className="sv-button sv-button-thin-border flex items-center gap-2 px-4 py-2.5 text-sm"
+            >
+              <QrCode className="h-4 w-4" /> QR scannen
+            </button>
+            <button
+              type="button"
+              onClick={() => setQrLabelsManagerOpen(true)}
+              className="sv-button sv-button-thin-border flex items-center gap-2 px-3 py-2.5 text-sm"
+              aria-label="QR-labels beheren"
+              title="QR-labels beheren"
+            >
+              <QrCode className="h-4 w-4" strokeWidth={1.4} />
+            </button>
           </div>
         )}
       </div>
@@ -6329,6 +6699,39 @@ export default function Tuinieren() {
           speciesList={plants}
           open={quickPhotoOpen}
           onClose={() => setQuickPhotoOpen(false)}
+        />
+      )}
+
+      {pageViewMode === "instances" && (
+        <QrScanner
+          open={qrScannerOpen}
+          onClose={() => setQrScannerOpen(false)}
+          onDetected={(text) => {
+            setQrScannerOpen(false);
+            resolveAndOpenQrScan(text);
+          }}
+          title="QR-code scannen"
+          description="Richt de camera op het QR-label om direct de plant of batch te openen."
+        />
+      )}
+
+      {pageViewMode === "instances" && (
+        <QrLabelsManagerDialog
+          open={qrLabelsManagerOpen}
+          onClose={() => setQrLabelsManagerOpen(false)}
+          instancesById={instancesByIdTop}
+          speciesById={speciesByIdTop}
+        />
+      )}
+
+      {qrOpenInstanceId && qrOpenInstance && (
+        <PlantInstanceDetailDialog
+          instance={qrOpenInstance}
+          species={speciesByIdTop.get(qrOpenInstance.species_id)}
+          activeSeason={qrOpenSeason}
+          allInstances={allPlantInstances}
+          speciesById={speciesByIdTop}
+          onClose={() => setQrOpenInstanceId(null)}
         />
       )}
 

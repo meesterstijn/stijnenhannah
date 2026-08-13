@@ -63,6 +63,11 @@ export function usePlantInstances() {
     queryClient.invalidateQueries({ queryKey: INSTANCES_KEY });
     queryClient.invalidateQueries({ queryKey: SEASONS_KEY });
     queryClient.invalidateQueries({ queryKey: GROWTH_LOG_KEY });
+    // Elke statuswijziging kan server-side (via de trigger in
+    // 20260906000000_qr_labels_and_photo_lineage.sql) een QR-koppeling
+    // hebben vrijgegeven — invalideer die cache hier ook centraal, zodat
+    // geen enkele losse mutatie dat zelf hoeft te onthouden.
+    queryClient.invalidateQueries({ queryKey: ["plant_instance_qr_assignments"] });
   }
 
   const createInstanceWithSeason = useMutation({

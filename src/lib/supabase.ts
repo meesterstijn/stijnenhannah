@@ -291,6 +291,12 @@ export type PlantInstance = {
   // bij tracking_mode "individual". Bij "batch": null = nog niet geteld
   // (NOOIT 0 voor "onbekend" — 0 betekent letterlijk nul planten over).
   quantity: number | null;
+  // Verwijst naar de zaailing-instance waaruit dit exemplaar ontstond via
+  // "Zaailing uitplanten" (plant_seedling_to_instances). Puur relationeel —
+  // gebruikt om de fotohistorie van vóór de split erbij te tonen (zie
+  // useAncestorGrowthHistory). Null voor exemplaren die niet uit een split
+  // ontstonden. Zie 20260906000000_qr_labels_and_photo_lineage.sql.
+  derived_from_instance_id: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -428,5 +434,26 @@ export type GrowthLogPhoto = {
   mime_type: string | null;
   file_size_bytes: number | null;
   created_at: string;
+};
+
+// ─── QR-labels ───────────────────────────────────────────────────────────
+// Een label is een permanente, herbruikbare rij (staat voor de fysieke
+// sticker); de koppeling naar een plant_instance is losstaand en
+// historisch bijgehouden zodat een sticker na vrijgeven opnieuw te
+// gebruiken is. Zie 20260906000000_qr_labels_and_photo_lineage.sql.
+export type QrLabel = {
+  id: string;
+  code: string;
+  note: string | null;
+  created_at: string;
+};
+
+export type PlantInstanceQrAssignment = {
+  id: string;
+  qr_label_id: string;
+  plant_instance_id: string;
+  assigned_at: string;
+  // null = deze koppeling is momenteel actief.
+  released_at: string | null;
 };
 

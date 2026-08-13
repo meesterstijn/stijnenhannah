@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Camera, ChevronDown, Loader2, Sprout } from "lucide-react";
+import { Camera, ChevronDown, Loader2, QrCode, Sprout } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,6 +30,9 @@ import { uploadGrowthPhoto } from "@/features/tuingids/lib/growthPhotoStorage";
 import { fetchActivePlantInstances, fetchAllGrowingSeasons, plantInstanceDisplayName } from "@/features/tuingids/lib/plantInstances";
 import { HEALTH_STATUS_EMOJI, compactBatchLabel } from "@/features/tuingids/lib/plantInstanceStatus";
 import { GrowthPhotoInput } from "@/features/tuingids/components/GrowthPhotoInput";
+import { QrScanner } from "@/features/tuingids/components/QrScanner";
+import { useQrLabels } from "@/features/tuingids/hooks/useQrLabels";
+import { parseQrScanText } from "@/features/tuingids/lib/qrCode";
 
 // Searchable exemplaar-picker — zelfde Popover+cmdk-Command-opbouw als
 // SpeciesCombobox in Tuinieren.tsx (niet geëxporteerd vanuit die pagina om
@@ -169,6 +172,7 @@ export function QuickGrowthPhotoDialog({
   });
   const { addEntryAsync, deleteEntry } = useGrowthLog();
   const { addPhoto } = useGrowthPhotos();
+  const { getLabelByCode, getActiveAssignmentForLabel } = useQrLabels();
 
   const speciesById = useMemo(() => new Map(speciesList.map((s) => [s.id, s])), [speciesList]);
   const activeSeasonIdByInstance = useMemo(() => {
@@ -184,6 +188,9 @@ export function QuickGrowthPhotoDialog({
   const [formError, setFormError] = useState<string | null>(null);
   const [savedConfirmation, setSavedConfirmation] = useState<SavedConfirmation | null>(null);
   const [confirmDiscardOpen, setConfirmDiscardOpen] = useState(false);
+  const [qrScannerOpen, setQrScannerOpen] = useState(false);
+  const [qrMessage, setQrMessage] = useState<string | null>(null);
+  const [qrAutoSelected, setQrAutoSelected] = useState(false);
   const isSavingRef = useRef(false);
 
   const selectedInstance = instances.find((i) => i.id === selectedInstanceId) ?? null;
@@ -198,8 +205,47 @@ export function QuickGrowthPhotoDialog({
     setSelectedPhotos([]);
     setFormError(null);
     setSavedConfirmation(null);
+    setQrMessage(null);
+    setQrAutoSelected(false);
     isSavingRef.current = false;
     setIsSaving(false);
+  }
+
+  // Snelle QR-flow (Deel F): scan → exemplaar/batch direct geselecteerd →
+  // gebruiker tikt alleen nog "Foto maken" hieronder (GrowthPhotoInput) om
+  // de OS-camera te openen. Geen los "instance_id"-veld in deze flow — de
+  // gescande code IS de selectie. Werkt identiek voor tracking_mode
+  // "individual" en "batch": in beide gevallen wordt precies één
+  // growth_log_entry (met precies één foto) aangemaakt voor de gescande
+  // instance, ongeacht quantity — een batch-QR maakt nooit meerdere
+  // logregels per plant in de batch.
+  function handleQrDetected(rawText: string) {
+    setQrScannerOpen(false);
+    const code = parseQrScanText(rawText);
+    if (!code) {
+      setQrMessage("Kon geen QR-code lezen. Probeer opnieuw, of kies hieronder handmatig een exemplaar.");
+      return;
+    }
+    const label = getLabelByCode(code);
+    if (!label) {
+      setQrMessage("Onbekende QR-code — dit is geen Tuingids-label. Kies hieronder handmatig een exemplaar.");
+      return;
+    }
+    const assignment = getActiveAssignmentForLabel(label.id);
+    if (!assignment) {
+      setQrMessage(
+        `Deze QR-code is nog niet gekoppeld${label.note ? ` (${label.note})` : ""}. Koppel 'm eerst aan een exemplaar via "Nieuw exemplaar planten" of het detailvenster.`,
+      );
+      return;
+    }
+    const found = instances.find((i) => i.id === assignment.plant_instance_id);
+    if (!found) {
+      setQrMessage("Gekoppeld exemplaar is niet (meer) actief. Kies hieronder handmatig een exemplaar.");
+      return;
+    }
+    setQrMessage(null);
+    setQrAutoSelected(true);
+    setSelectedInstanceId(found.id);
   }
 
   function requestClose() {
@@ -334,16 +380,36 @@ export function QuickGrowthPhotoDialog({
           ) : (
             <div className="space-y-4">
               <div className="space-y-1.5">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="sv-button sv-button-thin-border w-full"
+                  onClick={() => {
+                    setQrMessage(null);
+                    setQrScannerOpen(true);
+                  }}
+                >
+                  <QrCode className="h-4 w-4" /> QR-code scannen
+                </Button>
+                {qrMessage && <p className="text-xs sv-muted">{qrMessage}</p>}
+              </div>
+
+              <div className="space-y-1.5">
                 <p className="text-xs sv-muted font-medium uppercase tracking-wide">Exemplaar</p>
                 <InstanceCombobox
                   instances={instances}
                   speciesById={speciesById}
                   value={selectedInstanceId}
-                  onSelect={(i) => setSelectedInstanceId(i.id)}
+                  onSelect={(i) => {
+                    setQrAutoSelected(false);
+                    setSelectedInstanceId(i.id);
+                  }}
                 />
                 {selectedInstance && (
                   <p className="text-xs sv-muted">
-                    Foto wordt toegevoegd aan <span className="font-medium">{selectedName}</span>
+                    {qrAutoSelected ? "✅ Via QR-code gevonden — foto" : "Foto"} wordt toegevoegd aan{" "}
+                    <span className="font-medium">{selectedName}</span>
                     {selectedSpecies && selectedSpecies.name !== selectedName ? ` (${selectedSpecies.name})` : ""}.
                   </p>
                 )}
@@ -385,6 +451,14 @@ export function QuickGrowthPhotoDialog({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <QrScanner
+        open={qrScannerOpen}
+        onClose={() => setQrScannerOpen(false)}
+        onDetected={handleQrDetected}
+        title="QR-code scannen"
+        description="Richt de camera op het QR-label van de plant of batch."
+      />
     </>
   );
 }
