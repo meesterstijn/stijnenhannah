@@ -69,6 +69,19 @@ export function suggestInstanceName(speciesName: string, existingInstanceCountFo
   return `${speciesName} #${existingInstanceCountForSpecies + 1}`;
 }
 
+/** Suggested name for a brand-new BATCH, e.g. "Veldsla — 12 aug". Uses the
+ * sow/plant date (not a sequence number like suggestInstanceName) because
+ * the whole point of naming a batch is telling two sowings of the same
+ * species apart — "Veldsla — 12 aug" vs "Veldsla — 28 aug" — not counting
+ * them. `dateIso` is the season start date the user already fills in, so no
+ * extra field is needed. */
+export function suggestBatchName(speciesName: string, dateIso: string): string {
+  const date = new Date(`${dateIso}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return speciesName;
+  const label = date.toLocaleDateString("nl-NL", { day: "numeric", month: "short" }).replace(/\.$/, "");
+  return `${speciesName} — ${label}`;
+}
+
 function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

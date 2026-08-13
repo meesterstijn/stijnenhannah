@@ -78,6 +78,11 @@ export function GrowthPhotoTimeline({
                       📏 {formatMeasurement(entry.height_cm)} cm
                     </span>
                   )}
+                  {entry.quantity !== null && (
+                    <span className="sv-badge-ok text-xs px-2 py-0.5 rounded-full">
+                      🌱 {entry.quantity} {entry.quantity === 1 ? "plant" : "planten"}
+                    </span>
+                  )}
                   {fruitLabel && (
                     <span className="sv-badge-ok text-xs px-2 py-0.5 rounded-full">
                       🍅 {fruitLabel}

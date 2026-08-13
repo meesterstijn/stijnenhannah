@@ -15,6 +15,7 @@ import {
   type CultivationType,
   type IndoorOutdoorType,
   type GrowthLogPhoto,
+  type TrackingMode,
 } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -90,6 +91,9 @@ import {
   isInstanceWaterSkippedToday,
   INSTANCE_STATUS_LABELS,
   HEALTH_STATUS_EMOJI,
+  TRACKING_MODE_LABELS,
+  describeInstanceQuantity,
+  compactBatchLabel,
 } from "@/features/tuingids/lib/plantInstanceStatus";
 import { formatMeasurement, formatFruitSize, computeSeasonStats } from "@/features/tuingids/lib/growthStats";
 import { useRecordInstanceCare } from "@/features/tuingids/hooks/usePlantCareActions";
@@ -100,6 +104,7 @@ import {
   fetchGrowingSeasons,
   plantInstanceDisplayName,
   suggestInstanceName,
+  suggestBatchName,
   resolveInstanceNames,
   getActiveInstancesForSpecies,
   hasActiveInstancesForSpecies,
@@ -1460,7 +1465,7 @@ function PlantInstanceCard({
         ) : null
       }
       subtitle={species && species.name !== name ? species.name : undefined}
-      extraLines={[instance.location, seasonLabel, statusLabel]}
+      extraLines={[compactBatchLabel(instance), instance.location, seasonLabel, statusLabel]}
       badges={badges}
       onOpen={() => onOpen(instance)}
     />
@@ -1504,6 +1509,19 @@ function SpeciesGroupCard({
     ? instances.filter((i) => instanceFeedingStatus(i, species)?.overdue === true).length
     : 0;
 
+  // "{instances.length} exemplaren" blijft het aantal REGISTRATIES (zoals
+  // het al was) — een groep met batches erin toont er daarnaast het totaal
+  // aantal fysieke planten bij, want die twee getallen kunnen sinds
+  // batchtracking uiteenlopen (bv. 2 registraties, maar 1 daarvan is een
+  // batch van 18). Alleen getoond als het groep minstens 1 batch bevat, om
+  // de gangbare "allemaal individueel"-groep niet nodeloos drukker te maken.
+  const hasBatch = instances.some((i) => i.tracking_mode === "batch");
+  const totalPlants = instances.reduce(
+    (sum, i) => sum + (i.tracking_mode === "individual" ? 1 : (i.quantity ?? 0)),
+    0,
+  );
+  const hasUncountedBatch = instances.some((i) => i.tracking_mode === "batch" && i.quantity === null);
+
   // grid-template-rows 0fr→1fr is the standard CSS-only height animation.
   // The inner overflow:hidden clips content during the transition.
   const containerStyle: React.CSSProperties = reduced
@@ -1538,6 +1556,12 @@ function SpeciesGroupCard({
             <Layers className="h-4 w-4 sv-muted shrink-0" aria-hidden />
           </div>
           <p className="text-xs sv-muted">{instances.length} exemplaren</p>
+          {hasBatch && (
+            <p className="text-xs sv-muted">
+              {totalPlants} {totalPlants === 1 ? "plant" : "planten"}
+              {hasUncountedBatch ? " (excl. niet-getelde batch)" : ""}
+            </p>
+          )}
           {(waterNeededCount > 0 || feedNeededCount > 0) && (
             <div className="flex items-center gap-1.5 flex-wrap mt-1">
               {waterNeededCount > 0 && (
@@ -2180,10 +2204,14 @@ function PlantLogboek({
   plantName,
   plantInstanceId = null,
   growingSeasonId = null,
+  isBatch = false,
 }: {
   plantName: string;
   plantInstanceId?: string | null;
   growingSeasonId?: string | null;
+  /** True for tracking_mode="batch" instances — de hoogte staat dan voor de
+   *  hele batch, niet voor één plant, dus het label verduidelijkt dat. */
+  isBatch?: boolean;
 }) {
   const { addEntryAsync, isAdding, addError } = useGrowthLog();
   const { addPhoto } = useGrowthPhotos();
@@ -2255,6 +2283,7 @@ function PlantLogboek({
         fruit_count: null,
         fruit_length_cm: fruitLength,
         fruit_width_cm: fruitWidth,
+        quantity: null,
         watered: false,
         fertilized: false,
         photo_url: "",
@@ -2320,7 +2349,9 @@ function PlantLogboek({
               <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="text-sm" />
             </div>
             <div>
-              <label className="text-xs sv-muted block mb-1">Hoogte plant (cm)</label>
+              <label className="text-xs sv-muted block mb-1">
+                {isBatch ? "Gem. hoogte batch (cm)" : "Hoogte plant (cm)"}
+              </label>
               <Input
                 type="number"
                 step="0.1"
@@ -3278,13 +3309,24 @@ function NewPlantInstanceForm({
   const [open, setOpen] = useState(!!preselectedSpecies);
   const [locked, setLocked] = useState(!!preselectedSpecies);
   const [speciesId, setSpeciesId] = useState<string | null>(preselectedSpecies?.id ?? null);
+  // individual (default) vs batch — zie opdracht "hybride systeem voor
+  // individuele planten en batches". Bepaalt of het bestaande "Aantal
+  // exemplaren"-bulkveld hieronder (dat N losse exemplaren aanmaakt, elk
+  // met een eigen auto-naam) getoond wordt, of dat er in plaats daarvan ÉÉN
+  // batch-registratie met tracking_mode="batch" ontstaat.
+  const [trackingMode, setTrackingMode] = useState<TrackingMode>("individual");
   const [customName, setCustomName] = useState(() =>
     preselectedSpecies
       ? suggestInstanceName(preselectedSpecies.name, allInstances.filter((i) => i.species_id === preselectedSpecies.id).length)
       : "",
   );
   const [nameTouched, setNameTouched] = useState(false);
-  const [quantity, setQuantity] = useState("1");
+  // Bulkaanmaak van N losse INDIVIDUELE exemplaren in één keer (bestaande
+  // functionaliteit, ongewijzigd) — bewust NIET "quantity" genoemd, om
+  // verwarring met plant_instances.quantity (het aantal fysieke planten in
+  // ÉÉN batch-registratie) te voorkomen. Alleen relevant/getoond bij
+  // trackingMode "individual".
+  const [bulkCount, setBulkCount] = useState("1");
   const [location, setLocation] = useState("");
   const [cultivationType, setCultivationType] = useState<CultivationType | ("")>("");
   const [indoorOutdoor, setIndoorOutdoor] = useState<IndoorOutdoorType | "">("");
@@ -3312,8 +3354,9 @@ function NewPlantInstanceForm({
   const isSavingRef = useRef(false);
 
   // Derived values — computed once per render so handleSave and JSX share them.
-  const parsedQty = parseInt(quantity, 10);
-  const validQty = Number.isInteger(parsedQty) && parsedQty >= 1 && parsedQty <= 50;
+  const parsedBulkCount = parseInt(bulkCount, 10);
+  const validBulkCount = Number.isInteger(parsedBulkCount) && parsedBulkCount >= 1 && parsedBulkCount <= 50;
+  const isBatch = trackingMode === "batch";
   const isSaving = batchSaving || isCreating;
   const existingCountForSpecies = speciesId
     ? allInstances.filter((i) => i.species_id === speciesId).length
@@ -3325,39 +3368,47 @@ function NewPlantInstanceForm({
   const existingNamesForSpecies: string[] = speciesId
     ? allInstances.filter((i) => i.species_id === speciesId).map((i) => i.custom_name ?? "")
     : [];
-  // Pre-computed batch names: calculated once so preview and actual saves are identical.
-  const batchNames: string[] =
-    validQty && parsedQty > 1 && selectedSpecies
-      ? resolveInstanceNames(selectedSpecies.name, existingNamesForSpecies, parsedQty)
+  // Pre-computed names for de bulk-individuele-aanmaak (niet van toepassing
+  // op batch, die is altijd precies 1 registratie).
+  const bulkNames: string[] =
+    !isBatch && validBulkCount && parsedBulkCount > 1 && selectedSpecies
+      ? resolveInstanceNames(selectedSpecies.name, existingNamesForSpecies, parsedBulkCount)
       : [];
-
-  console.log("[NewPlantInstanceForm]", {
-    formType: preselectedSpecies ? "dialog (preselected)" : "standalone",
-    speciesId,
-    selectedSpecies: selectedSpecies?.name ?? null,
-    allInstancesTotal: allInstances.length,
-    existingNamesForSpecies,
-    batchNames,
-  });
 
   function selectSpecies(s: Plant) {
     setSpeciesId(s.id);
     if (!nameTouched) {
       const count = allInstances.filter((i) => i.species_id === s.id).length;
-      setCustomName(suggestInstanceName(s.name, count));
+      setCustomName(isBatch ? suggestBatchName(s.name, seasonStartedAt) : suggestInstanceName(s.name, count));
+    }
+  }
+
+  // Herberekent de voorgestelde naam wanneer de gebruiker van modus wisselt
+  // (maar alleen als die nog niet zelf een naam heeft ingetikt) — zodat
+  // "Courgette #2" meteen "Courgette — 12 aug" wordt zodra Batch gekozen
+  // wordt, i.p.v. dat de gebruiker dat zelf moet aanpassen.
+  function selectTrackingMode(mode: TrackingMode) {
+    setTrackingMode(mode);
+    if (!nameTouched && selectedSpecies) {
+      setCustomName(
+        mode === "batch"
+          ? suggestBatchName(selectedSpecies.name, seasonStartedAt)
+          : suggestInstanceName(selectedSpecies.name, existingCountForSpecies),
+      );
     }
   }
 
   function resetForm() {
     setSpeciesId(preselectedSpecies?.id ?? null);
     setLocked(!!preselectedSpecies);
+    setTrackingMode("individual");
     setCustomName(
       preselectedSpecies
         ? suggestInstanceName(preselectedSpecies.name, allInstances.filter((i) => i.species_id === preselectedSpecies.id).length)
         : "",
     );
     setNameTouched(false);
-    setQuantity("1");
+    setBulkCount("1");
     setLocation("");
     setCultivationType("");
     setIndoorOutdoor("");
@@ -3387,7 +3438,11 @@ function NewPlantInstanceForm({
     setFormError(null);
     if (!speciesId) { setFormError("Kies eerst een plantsoort."); return; }
     if (!seasonStartedAt) { setFormError("Vul een startdatum in."); return; }
-    if (!validQty) {
+    // Het bulkaantal is alleen van toepassing bij individuele registraties —
+    // een batch is per definitie altijd precies 1 registratie, ongeacht
+    // hoeveel fysieke planten erin blijken te zitten (dat wordt later apart
+    // geteld, zie "Aantal bijwerken" in het detailvenster).
+    if (!isBatch && !validBulkCount) {
       setFormError("Aantal moet een geheel getal zijn tussen 1 en 50.");
       return;
     }
@@ -3421,9 +3476,17 @@ function NewPlantInstanceForm({
       startHeightCm: parsedStartHeight,
     };
 
-    if (parsedQty === 1) {
+    if (isBatch) {
+      // Eén registratie, quantity blijft bewust null ("nog niet geteld") —
+      // de gebruiker hoeft bij het zaaien geen aantal zaailingen te kiezen,
+      // dat gebeurt pas later via "Aantal bijwerken" in het detailvenster.
       try {
-        await createInstanceWithSeason({ ...baseInput, customName: customName.trim() || null });
+        await createInstanceWithSeason({
+          ...baseInput,
+          customName: customName.trim() || null,
+          trackingMode: "batch",
+          quantity: null,
+        });
         resetForm();
         onCreated?.();
       } catch (err) {
@@ -3434,29 +3497,51 @@ function NewPlantInstanceForm({
       return;
     }
 
-    // Batch: maak N exemplaren aan, ieder met een eigen auto-naam en eigen UUID/groeiseizoen.
-    // batchNames is pre-computed (same array as the preview) so names are
-    // guaranteed identical between what the user saw and what gets saved.
-    setBatchSaving(true);
-    let succeeded = 0;
-    const batchErrors: string[] = [];
-    for (let i = 0; i < parsedQty; i++) {
+    if (parsedBulkCount === 1) {
       try {
         await createInstanceWithSeason({
           ...baseInput,
-          customName: batchNames[i] ?? null,
+          customName: customName.trim() || null,
+          trackingMode: "individual",
+          quantity: 1,
+        });
+        resetForm();
+        onCreated?.();
+      } catch (err) {
+        setFormError(err instanceof Error ? err.message : "Opslaan mislukt.");
+      } finally {
+        isSavingRef.current = false;
+      }
+      return;
+    }
+
+    // Bulkaanmaak: maak N losse INDIVIDUELE exemplaren aan, ieder met een
+    // eigen auto-naam en eigen UUID/groeiseizoen. bulkNames is pre-computed
+    // (same array as the preview) so names are guaranteed identical between
+    // what the user saw and what gets saved. Bestaande functionaliteit,
+    // ongewijzigd t.o.v. vóór batch-tracking.
+    setBatchSaving(true);
+    let succeeded = 0;
+    const bulkErrors: string[] = [];
+    for (let i = 0; i < parsedBulkCount; i++) {
+      try {
+        await createInstanceWithSeason({
+          ...baseInput,
+          customName: bulkNames[i] ?? null,
+          trackingMode: "individual",
+          quantity: 1,
         });
         succeeded++;
       } catch (err) {
-        batchErrors.push(err instanceof Error ? err.message : "Onbekende fout");
+        bulkErrors.push(err instanceof Error ? err.message : "Onbekende fout");
       }
     }
     setBatchSaving(false);
     isSavingRef.current = false;
 
-    if (batchErrors.length > 0) {
+    if (bulkErrors.length > 0) {
       setFormError(
-        `${succeeded} van ${parsedQty} exemplaren aangemaakt. ${batchErrors.length} mislukt: ${batchErrors.slice(0, 2).join(" · ")}${batchErrors.length > 2 ? " ..." : ""}`,
+        `${succeeded} van ${parsedBulkCount} exemplaren aangemaakt. ${bulkErrors.length} mislukt: ${bulkErrors.slice(0, 2).join(" · ")}${bulkErrors.length > 2 ? " ..." : ""}`,
       );
       return;
     }
@@ -3526,22 +3611,44 @@ function NewPlantInstanceForm({
 
           {speciesId && (
             <>
-              <div className="grid sm:grid-cols-2 gap-2">
-                <div>
-                  <label className="text-xs sv-muted block mb-1">Aantal exemplaren</label>
-                  <Input
-                    type="number"
-                    min="1"
-                    max="50"
-                    step="1"
-                    value={quantity}
-                    onChange={(e) => setQuantity(e.target.value)}
-                    className="text-sm"
-                  />
-                  {!validQty && quantity !== "" && (
-                    <p className="text-xs sv-destructive-text mt-1">Geheel getal tussen 1 en 50.</p>
-                  )}
+              <div className="space-y-1.5">
+                <p className="text-xs sv-muted font-medium uppercase tracking-wide">Registratietype</p>
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" onClick={() => selectTrackingMode("individual")} className={chipClass(!isBatch)}>
+                    Individuele plant
+                  </button>
+                  <button type="button" onClick={() => selectTrackingMode("batch")} className={chipClass(isBatch)}>
+                    Batch (meerdere planten samen)
+                  </button>
                 </div>
+                {isBatch && (
+                  <p className="text-xs sv-muted">
+                    Voor gewassen die je met veel tegelijk zaait (veldsla, rucola, radijs, kruiden...). Dit wordt
+                    één registratie — het aantal opgekomen planten vul je later in, zodra je geteld hebt.
+                  </p>
+                )}
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-2">
+                {isBatch ? (
+                  <div />
+                ) : (
+                  <div>
+                    <label className="text-xs sv-muted block mb-1">Aantal exemplaren</label>
+                    <Input
+                      type="number"
+                      min="1"
+                      max="50"
+                      step="1"
+                      value={bulkCount}
+                      onChange={(e) => setBulkCount(e.target.value)}
+                      className="text-sm"
+                    />
+                    {!validBulkCount && bulkCount !== "" && (
+                      <p className="text-xs sv-destructive-text mt-1">Geheel getal tussen 1 en 50.</p>
+                    )}
+                  </div>
+                )}
                 <div>
                   <label className="text-xs sv-muted block mb-1">Locatie</label>
                   <Input
@@ -3556,12 +3663,12 @@ function NewPlantInstanceForm({
               <div className="grid sm:grid-cols-2 gap-2">
                 <div>
                   <label className="text-xs sv-muted block mb-1">
-                    {parsedQty > 1 ? "Namen (automatisch)" : "Herkenningsnaam"}
+                    {!isBatch && parsedBulkCount > 1 ? "Namen (automatisch)" : "Herkenningsnaam"}
                   </label>
-                  {parsedQty > 1 && validQty ? (
+                  {!isBatch && parsedBulkCount > 1 && validBulkCount ? (
                     <div className="sv-inset rounded-lg px-3 py-2 text-sm sv-muted leading-snug">
-                      {batchNames.slice(0, 3).join(", ")}
-                      {parsedQty > 3 && ` ... ${batchNames[batchNames.length - 1]}`}
+                      {bulkNames.slice(0, 3).join(", ")}
+                      {parsedBulkCount > 3 && ` ... ${bulkNames[bulkNames.length - 1]}`}
                     </div>
                   ) : (
                     <Input
@@ -3679,7 +3786,9 @@ function NewPlantInstanceForm({
                 </div>
                 <div className="grid sm:grid-cols-2 gap-2">
                   <div>
-                    <label className="text-xs sv-muted block mb-1">Starthoogte (cm)</label>
+                    <label className="text-xs sv-muted block mb-1">
+                      {isBatch ? "Gem. starthoogte batch (cm)" : "Starthoogte (cm)"}
+                    </label>
                     <Input
                       type="number"
                       min="0"
@@ -3692,7 +3801,12 @@ function NewPlantInstanceForm({
                     />
                     <p className="text-xs sv-muted mt-0.5">Laat leeg om automatisch met 0 cm te starten.</p>
                     {(startHeightInput.trim() === "" || startHeightInput.trim() === "0") && (
-                      <p className="text-xs sv-muted mt-1">🌿 Wordt aangemaakt als zaailing — later om te zetten naar definitieve exemplaren.</p>
+                      <p className="text-xs sv-muted mt-1">
+                        🌿 Wordt aangemaakt als zaailing
+                        {isBatch
+                          ? " — vul het aantal opgekomen planten later in via \"Aantal bijwerken\"."
+                          : " — later om te zetten naar definitieve exemplaren."}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -3703,8 +3817,21 @@ function NewPlantInstanceForm({
           {formError && <p className="text-xs sv-destructive-text">{formError}</p>}
 
           <div className="flex gap-2 items-center flex-wrap">
-            <Button size="sm" className="sv-button" onClick={handleSave} disabled={isSaving || !speciesId || !validQty}>
-              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : parsedQty > 1 ? `${parsedQty} exemplaren opslaan` : "Opslaan"}
+            <Button
+              size="sm"
+              className="sv-button"
+              onClick={handleSave}
+              disabled={isSaving || !speciesId || (!isBatch && !validBulkCount)}
+            >
+              {isSaving ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : isBatch ? (
+                "Batch opslaan"
+              ) : parsedBulkCount > 1 ? (
+                `${parsedBulkCount} exemplaren opslaan`
+              ) : (
+                "Opslaan"
+              )}
             </Button>
             <Button
               size="sm"
@@ -4182,6 +4309,100 @@ function SeedlingConversionDialog({
   );
 }
 
+// ─── Batch quantity dialog ──────────────────────────────────────────────────
+// Enige plek in de UI die plant_instances.quantity wijzigt — altijd via
+// updateInstanceQuantity (usePlantInstances.ts), dat atomisch ook een
+// growth_log_entries-historierij wegschrijft. Geen tweede opslagroute: niet
+// de generieke Instellingen-patch, geen losse Supabase-call hier.
+function BatchQuantityDialog({
+  instance,
+  species,
+  activeSeason,
+  onClose,
+}: {
+  instance: PlantInstance;
+  species: Plant | undefined;
+  activeSeason: GrowingSeason | null;
+  onClose: () => void;
+}) {
+  const [value, setValue] = useState(instance.quantity !== null ? String(instance.quantity) : "");
+  const [notes, setNotes] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const { updateInstanceQuantity, isUpdatingQuantity } = usePlantInstances();
+
+  const trimmed = value.trim();
+  const parsed = trimmed === "" ? null : Number(trimmed);
+  const valid = parsed === null || (Number.isInteger(parsed) && parsed >= 0);
+
+  async function handleSave() {
+    if (!valid) {
+      setError("Aantal moet leeg zijn (nog niet geteld) of een geheel getal van 0 of hoger.");
+      return;
+    }
+    setError(null);
+    try {
+      await updateInstanceQuantity({
+        instanceId: instance.id,
+        quantity: parsed,
+        notes: notes.trim() || null,
+        growingSeasonId: activeSeason?.id ?? null,
+      });
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Bijwerken mislukt.");
+    }
+  }
+
+  const displayName = plantInstanceDisplayName(instance, species);
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className={PLANT_DIALOG_CONTENT_CLASS}>
+        <DialogHeader>
+          <DialogTitle className={PLANT_DIALOG_TITLE_CLASS}>{displayName}</DialogTitle>
+          <p className="text-sm sv-muted">Aantal planten bijwerken · nu: {describeInstanceQuantity(instance)}</p>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div>
+            <label className="text-xs sv-muted block mb-1">Aantal planten</label>
+            <Input
+              type="number"
+              min="0"
+              step="1"
+              inputMode="numeric"
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              placeholder="bijv. 21"
+              className="text-sm"
+            />
+            <p className="text-xs sv-muted mt-1">Laat leeg als je het aantal nog niet hebt geteld.</p>
+          </div>
+          <div>
+            <label className="text-xs sv-muted block mb-1">Notitie (optioneel)</label>
+            <Input
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="bijv. na dunnen, uitval door slakken..."
+              className="text-sm"
+            />
+          </div>
+          {error && <p className="text-xs sv-destructive-text">{error}</p>}
+        </div>
+
+        <DialogFooter>
+          <Button size="sm" variant="ghost" className="sv-button sv-button-ghost" onClick={onClose} disabled={isUpdatingQuantity}>
+            Annuleren
+          </Button>
+          <Button size="sm" className="sv-button" onClick={handleSave} disabled={isUpdatingQuantity || !valid}>
+            {isUpdatingQuantity ? <Loader2 className="h-4 w-4 animate-spin" /> : "Opslaan"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Instance detail dialog ─────────────────────────────────────────────────
 
 function PlantInstanceDetailDialog({
@@ -4197,6 +4418,7 @@ function PlantInstanceDetailDialog({
 }) {
   const [closingSeason, setClosingSeason] = useState(false);
   const [convertOpen, setConvertOpen] = useState(false);
+  const [quantityDialogOpen, setQuantityDialogOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [harvestOpen, setHarvestOpen] = useState(false);
   const [pruningOpen, setPruningOpen] = useState(false);
@@ -4340,6 +4562,35 @@ function PlantInstanceDetailDialog({
             </p>
           )}
 
+          {instance.tracking_mode === "batch" && (
+            <>
+              <div className="sv-panel p-4 flex items-center justify-between gap-3 flex-wrap">
+                <div>
+                  <p className="sv-heading text-lg flex items-center gap-1.5">
+                    <Layers className="h-4 w-4" aria-hidden /> {TRACKING_MODE_LABELS.batch}
+                  </p>
+                  <p className="text-sm sv-muted">{describeInstanceQuantity(instance)}</p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="sv-button sv-button-thin-border"
+                  onClick={() => setQuantityDialogOpen(true)}
+                >
+                  Aantal bijwerken
+                </Button>
+              </div>
+              {quantityDialogOpen && (
+                <BatchQuantityDialog
+                  instance={instance}
+                  species={species}
+                  activeSeason={activeSeason}
+                  onClose={() => setQuantityDialogOpen(false)}
+                />
+              )}
+            </>
+          )}
+
           {instance.health_status === "Zaailing" && (
             <>
               <Button
@@ -4430,6 +4681,7 @@ function PlantInstanceDetailDialog({
               plantName={name}
               plantInstanceId={instance.id}
               growingSeasonId={activeSeason.id}
+              isBatch={instance.tracking_mode === "batch"}
             />
           )}
 

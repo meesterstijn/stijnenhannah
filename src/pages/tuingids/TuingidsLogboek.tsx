@@ -18,7 +18,7 @@ import {
   plantInstanceDisplayName,
 } from "@/features/tuingids/lib/plantInstances";
 import { buildAllLogboekEvents, type LogboekEvent } from "@/features/tuingids/lib/events";
-import { INSTANCE_STATUS_LABELS } from "@/features/tuingids/lib/plantInstanceStatus";
+import { INSTANCE_STATUS_LABELS, compactBatchLabel } from "@/features/tuingids/lib/plantInstanceStatus";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -70,6 +70,7 @@ function emptyForm(): FormState {
     fruit_count: null,
     fruit_length_cm: null,
     fruit_width_cm: null,
+    quantity: null,
     notes: "",
     watered: false,
     fertilized: false,
@@ -172,6 +173,9 @@ function GrowthInstanceTile({
         {showSpeciesSubtitle && (
           <p className="text-xs sv-muted truncate">{species!.name}</p>
         )}
+        {compactBatchLabel(instance) && (
+          <p className="text-xs sv-muted truncate">{compactBatchLabel(instance)}</p>
+        )}
         {instance.location && (
           <p className="text-xs sv-muted truncate">{instance.location}</p>
         )}
@@ -240,6 +244,15 @@ function GrowthSpeciesGroupCard({
     return d && (!best || d > best) ? d : best;
   }, undefined);
 
+  // Zelfde "totaal aantal fysieke planten"-aanvulling als SpeciesGroupCard in
+  // Tuinieren.tsx — alleen getoond als de groep een batch bevat.
+  const hasBatch = instances.some((i) => i.tracking_mode === "batch");
+  const totalPlants = instances.reduce(
+    (sum, i) => sum + (i.tracking_mode === "individual" ? 1 : (i.quantity ?? 0)),
+    0,
+  );
+  const hasUncountedBatch = instances.some((i) => i.tracking_mode === "batch" && i.quantity === null);
+
   // Identical animation pattern as SpeciesGroupCard in Tuinieren.tsx
   const containerStyle: React.CSSProperties = reduced
     ? isExpanded
@@ -279,6 +292,12 @@ function GrowthSpeciesGroupCard({
             <Layers className="h-4 w-4 sv-muted shrink-0" aria-hidden />
           </div>
           <p className="text-xs sv-muted">{instances.length} exemplaren</p>
+          {hasBatch && (
+            <p className="text-xs sv-muted">
+              {totalPlants} {totalPlants === 1 ? "plant" : "planten"}
+              {hasUncountedBatch ? " (excl. niet-getelde batch)" : ""}
+            </p>
+          )}
           {(totalPhotos > 0 || latestUpdate) && (
             <div className="flex items-center gap-2 flex-wrap mt-0.5">
               {totalPhotos > 0 && (

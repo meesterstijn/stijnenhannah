@@ -1,5 +1,34 @@
-import type { Plant, PlantInstance } from "@/lib/supabase";
+import type { Plant, PlantInstance, TrackingMode } from "@/lib/supabase";
 import { MONTH_OPTIONS } from "./plantStatus";
+
+export const TRACKING_MODE_LABELS: Record<TrackingMode, string> = {
+  individual: "Individueel",
+  batch: "Batch",
+};
+
+/**
+ * Enige, centrale plek die "hoeveel planten" in mensentaal omzet — gebruikt
+ * door tegels/lijsten/detailweergaves/combobox-subtitels, zodat nergens
+ * anders een tweede "0 vs null"-interpretatie kan ontstaan.
+ *
+ * individual          -> "1 plant" (quantity is bij individueel altijd 1).
+ * batch, quantity=null -> "Aantal nog onbekend" (NOOIT "0 planten").
+ * batch, quantity=N    -> "N planten" ("1 plant" bij N=1, incl. N=0).
+ */
+export function describeInstanceQuantity(instance: Pick<PlantInstance, "tracking_mode" | "quantity">): string {
+  if (instance.tracking_mode === "individual") return "1 plant";
+  if (instance.quantity === null) return "Aantal nog onbekend";
+  return instance.quantity === 1 ? "1 plant" : `${instance.quantity} planten`;
+}
+
+/** Compacte variant voor krappe ruimtes (tegels, combobox-subtitels):
+ * "18 planten" / "Onbekend aantal" / null voor individueel (niets extra's
+ * te melden — de plantnaam/soort is daar al genoeg). */
+export function compactBatchLabel(instance: Pick<PlantInstance, "tracking_mode" | "quantity">): string | null {
+  if (instance.tracking_mode !== "batch") return null;
+  if (instance.quantity === null) return "Onbekend aantal";
+  return instance.quantity === 1 ? "1 plant" : `${instance.quantity} planten`;
+}
 
 // Instance-aware counterpart of plantStatus.ts. Water/feeding urgency is
 // computed from the INSTANCE's own last_watered_at/last_fed_at/status

@@ -46,6 +46,10 @@ export interface LogEntry {
   fruit_count: number | null;
   fruit_length_cm: number | null;
   fruit_width_cm: number | null;
+  // Momentopname van plant_instances.quantity op het moment van deze entry —
+  // batchtracking-historie ("21 zaailingen opgekomen", "18 planten over na
+  // dunnen"). Null voor entries die geen aantalswijziging registreren.
+  quantity: number | null;
   notes: string;
   watered: boolean;
   fertilized: boolean;

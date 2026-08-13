@@ -17,6 +17,7 @@ type GrowthLogRow = {
   fruit_count: number | null;
   fruit_length_cm: number | null;
   fruit_width_cm: number | null;
+  quantity: number | null;
   notes: string | null;
   watered: boolean;
   fertilized: boolean;
@@ -37,6 +38,7 @@ function rowToEntry(row: GrowthLogRow): LogEntry {
     fruit_count: row.fruit_count,
     fruit_length_cm: row.fruit_length_cm ?? null,
     fruit_width_cm: row.fruit_width_cm ?? null,
+    quantity: row.quantity ?? null,
     notes: row.notes ?? "",
     watered: row.watered,
     fertilized: row.fertilized,
@@ -77,6 +79,7 @@ export function useGrowthLog() {
           fruit_count: entry.fruit_count,
           fruit_length_cm: entry.fruit_length_cm,
           fruit_width_cm: entry.fruit_width_cm,
+          quantity: entry.quantity,
           notes: entry.notes || null,
           watered: entry.watered,
           fertilized: entry.fertilized,
@@ -99,6 +102,7 @@ export function useGrowthLog() {
       if (patch.fruit_count !== undefined) row.fruit_count = patch.fruit_count;
       if (patch.fruit_length_cm !== undefined) row.fruit_length_cm = patch.fruit_length_cm;
       if (patch.fruit_width_cm !== undefined) row.fruit_width_cm = patch.fruit_width_cm;
+      if (patch.quantity !== undefined) row.quantity = patch.quantity;
       if (patch.plant_instance_id !== undefined) row.plant_instance_id = patch.plant_instance_id;
       if (patch.growing_season_id !== undefined) row.growing_season_id = patch.growing_season_id;
       if (patch.watered !== undefined) row.watered = patch.watered;

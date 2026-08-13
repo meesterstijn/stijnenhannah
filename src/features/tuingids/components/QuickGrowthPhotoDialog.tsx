@@ -28,7 +28,7 @@ import { useGrowthPhotos } from "@/features/tuingids/hooks/useGrowthPhotos";
 import { optimizeGrowthPhoto } from "@/features/tuingids/lib/optimizeGrowthPhoto";
 import { uploadGrowthPhoto } from "@/features/tuingids/lib/growthPhotoStorage";
 import { fetchActivePlantInstances, fetchAllGrowingSeasons, plantInstanceDisplayName } from "@/features/tuingids/lib/plantInstances";
-import { HEALTH_STATUS_EMOJI } from "@/features/tuingids/lib/plantInstanceStatus";
+import { HEALTH_STATUS_EMOJI, compactBatchLabel } from "@/features/tuingids/lib/plantInstanceStatus";
 import { GrowthPhotoInput } from "@/features/tuingids/components/GrowthPhotoInput";
 
 // Searchable exemplaar-picker — zelfde Popover+cmdk-Command-opbouw als
@@ -97,7 +97,9 @@ function InstanceCombobox({
               const healthLabel = instance.health_status
                 ? `${HEALTH_STATUS_EMOJI[instance.health_status] ?? ""} ${instance.health_status}`
                 : null;
-              const subtitle = [species?.name, healthLabel, instance.location].filter(Boolean).join(" · ");
+              const subtitle = [species?.name, compactBatchLabel(instance), healthLabel, instance.location]
+                .filter(Boolean)
+                .join(" · ");
               return (
                 <CommandItem
                   key={instance.id}
@@ -253,6 +255,7 @@ export function QuickGrowthPhotoDialog({
         fruit_count: null,
         fruit_length_cm: null,
         fruit_width_cm: null,
+        quantity: null,
         watered: false,
         fertilized: false,
         photo_url: "",

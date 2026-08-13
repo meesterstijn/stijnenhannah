@@ -244,6 +244,15 @@ export type PlantInstanceStatus = "active" | "dormant" | "archived" | "dead" | "
 
 export type GrowingSeasonStatus = "active" | "completed" | "failed";
 
+// individual = deze rij stelt precies 1 fysieke plant voor (quantity is dan
+// altijd 1, afgedwongen door een DB check-constraint). batch = deze rij
+// stelt een groep samen bijgehouden planten voor, bv. een bak veldsla —
+// water/voeding/groeifoto's blijven ongewijzigd één actie per rij, ongeacht
+// tracking_mode (zie usePlantCareActions.ts). Zie migratie
+// 20260905000000_plant_instance_batch_tracking.sql voor de volledige
+// semantiek van quantity.
+export type TrackingMode = "individual" | "batch";
+
 export type PlantInstance = {
   id: string;
   species_id: string;
@@ -277,6 +286,11 @@ export type PlantInstance = {
   // Set when this instance was created via "Plant nu" from a cultivation plan
   // item. ON DELETE SET NULL so deleting a plan never removes instances.
   cultivation_plan_item_id: string | null;
+  tracking_mode: TrackingMode;
+  // Huidig aantal levende/groeiende planten in deze registratie. Altijd 1
+  // bij tracking_mode "individual". Bij "batch": null = nog niet geteld
+  // (NOOIT 0 voor "onbekend" — 0 betekent letterlijk nul planten over).
+  quantity: number | null;
   created_at: string;
   updated_at: string;
 };

@@ -1,10 +1,15 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase, type CultivationType, type IndoorOutdoorType, type PlantInstanceStatus, type GrowingSeasonStatus } from "@/lib/supabase";
+import { supabase, type CultivationType, type IndoorOutdoorType, type PlantInstanceStatus, type GrowingSeasonStatus, type TrackingMode, type PlantHealthStatus } from "@/lib/supabase";
 
 /** Shape returned by the create_plant_instance_with_season RPC. */
 type CreateInstanceRpcResult = {
   instance_id: string;
   season_id: string;
+  entry_id: string;
+};
+
+/** Shape returned by the update_plant_instance_quantity RPC. */
+type UpdateQuantityRpcResult = {
   entry_id: string;
 };
 
@@ -40,6 +45,15 @@ export type CreatePlantInstanceInput = {
   seasonLabel: string | null;
   /** Starting height in cm; 0 when the field was left empty. Never null. */
   startHeightCm: number;
+  /** Defaults server-side to "individual" when omitted — matches every
+   *  call site that predates batch tracking. */
+  trackingMode?: TrackingMode;
+  /** Physical plant count for this registration. Ignored/forced to 1 by the
+   *  RPC when trackingMode is "individual". null = batch, nog niet geteld. */
+  quantity?: number | null;
+  /** Expliciete initiële status; laat leeg om de bestaande centrale regel
+   *  (hoogte leeg/0 -> "Zaailing") zijn werk te laten doen. */
+  healthStatus?: PlantHealthStatus | null;
 };
 
 export function usePlantInstances() {
@@ -77,6 +91,9 @@ export function usePlantInstances() {
           p_price:             input.price,
           p_season_label:      input.seasonLabel,
           p_start_height_cm:   input.startHeightCm,
+          p_tracking_mode:     input.trackingMode ?? "individual",
+          p_quantity:          input.quantity ?? 1,
+          p_health_status:     input.healthStatus ?? null,
         },
       );
       if (error) throw new Error(error.message);
@@ -140,6 +157,33 @@ export function usePlantInstances() {
     onSuccess: invalidate,
   });
 
+  // Enige schrijfpad voor "aantal bijwerken" op een batch — atomisch via de
+  // update_plant_instance_quantity RPC (plant_instances.quantity + een
+  // growth_log_entries-historierij slagen of falen samen), zodat er nooit
+  // een aantalswijziging zonder geschiedenis-spoor kan ontstaan. Wordt zowel
+  // door de compacte "Aantal bijwerken"-actie als door het aantalveld in
+  // InstanceSettingsSection aangeroepen — geen tweede opslagroute.
+  const updateInstanceQuantity = useMutation({
+    mutationFn: async (args: {
+      instanceId: string;
+      quantity: number | null;
+      entryDate?: string;
+      notes?: string | null;
+      growingSeasonId?: string | null;
+    }) => {
+      const { data, error } = await supabase.rpc("update_plant_instance_quantity", {
+        p_instance_id:       args.instanceId,
+        p_quantity:          args.quantity,
+        p_entry_date:        args.entryDate ?? new Date().toISOString().slice(0, 10),
+        p_notes:             args.notes ?? null,
+        p_growing_season_id: args.growingSeasonId ?? null,
+      });
+      if (error) throw new Error(error.message);
+      return data as UpdateQuantityRpcResult;
+    },
+    onSuccess: invalidate,
+  });
+
   const convertSeedling = useMutation({
     mutationFn: async (args: {
       seedlingId: string;
@@ -189,6 +233,15 @@ export function usePlantInstances() {
     isUpdatingStatus: setInstanceStatus.isPending,
 
     patchInstance: (args: { id: string; patch: Record<string, unknown> }) => patchInstance.mutateAsync(args),
+
+    updateInstanceQuantity: (args: {
+      instanceId: string;
+      quantity: number | null;
+      entryDate?: string;
+      notes?: string | null;
+      growingSeasonId?: string | null;
+    }) => updateInstanceQuantity.mutateAsync(args),
+    isUpdatingQuantity: updateInstanceQuantity.isPending,
 
     convertSeedling: (args: {
       seedlingId: string;
