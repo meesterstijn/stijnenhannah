@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import jsQR from "jsqr";
 import { X } from "lucide-react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
@@ -14,6 +15,35 @@ type Props = {
    *  doet, net als bij `onDetected`. Ook zichtbaar in de foutweergave, zodat
    *   'm bereikbaar blijft bij geweigerde cameratoegang of geen ondersteuning. */
   footer?: ReactNode;
+  /** Uitsluitend voor gebruik binnen QuickGrowthPhotoDialog, dat zelf al een
+   *  eigen modale <Dialog> open heeft staan terwijl deze scanner ook open
+   *  gaat. Standaard (false, alle andere aanroepers) rendert deze component
+   *  zijn eigen `DialogPrimitive.Root`/Portal/Overlay — dat is dan de ENIGE
+   *  modale laag. `embedded=true` slaat die Radix-Dialog-wrapper over en
+   *  portalt in plaats daarvan een kale, niet-Radix full-screen `<div>` met
+   *  exact dezelfde opmaak naar document.body.
+   *
+   *  Waarom: twee gelijktijdig open Radix `Dialog.Root`-instanties (deze
+   *  scanner ÉN de aanroepende dialoog) zijn geen DOM-afstammeling van
+   *  elkaar (allebei geportald), maar registreren zich wél als aparte lagen
+   *  bij Radix' gedeelde DismissableLayer-stack. Op desktop bleek al dat
+   *  focus die in deze (hogere) laag belandt door de buitenste dialoog als
+   *  "focus verliet mij" wordt gezien. Op mobiel/touch is er een tweede,
+   *  hardnekkiger variant: Radix' `usePointerDownOutside` stelt de
+   *  dismiss-beslissing bij een touch-pointerdown bewust uit tot het
+   *  eerstvolgende `click`-event op `document` (zie
+   *  node_modules/@radix-ui/react-dismissable-layer/dist/index.js,
+   *  `if (event.pointerType === "touch") { ... addEventListener("click", ..., {once:true}) }`)
+   *  — en dát is precies hetzelfde native click-event dat de "Handmatig
+   *  kiezen"-knop zelf ook al afhandelt. Een losse `onInteractOutside`-
+   *  preventDefault op de buitenste dialoog (eerdere, ontoereikende fix)
+   *  blijft afhankelijk van de exacte volgorde waarin React die uitgestelde
+   *  dispatch verwerkt t.o.v. de eigen state-update, en is op mobiel niet
+   *  betrouwbaar gebleken. `embedded` verwijdert de wortel van dit probleem:
+   *  met maar één actieve Radix-Dialog-laag tegelijk kan dit conflict
+   *  helemaal niet meer optreden — voor geen enkele andere aanroeper van
+   *  QrScanner verandert er iets, die laten `embedded` gewoon weg. */
+  embedded?: boolean;
 };
 
 /**
@@ -27,7 +57,15 @@ type Props = {
  * detectie, sluiten, of unmount) vóórdat de aanroepende flow verdergaat naar
  * de volgende stap (bv. het foto-camera-input openen).
  */
-export function QrScanner({ open, onClose, onDetected, title = "QR-code scannen", description, footer }: Props) {
+export function QrScanner({
+  open,
+  onClose,
+  onDetected,
+  title = "QR-code scannen",
+  description,
+  footer,
+  embedded = false,
+}: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -141,6 +179,73 @@ export function QrScanner({ open, onClose, onDetected, title = "QR-code scannen"
     };
   }, [open]);
 
+  // Gedeeld tussen beide render-paden hieronder (embedded en normaal) —
+  // exact dezelfde opmaak/markup, alleen de buitenste wrapper verschilt.
+  const content = (
+    <div className="w-full max-w-md space-y-4">
+      <div className="flex items-center justify-between text-white">
+        <p className="text-sm font-medium">{title}</p>
+        <button
+          type="button"
+          onClick={onClose}
+          className="bg-white/10 rounded-full h-9 w-9 flex items-center justify-center"
+          aria-label="Sluiten"
+        >
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+
+      {description && <p className="text-xs text-white/70">{description}</p>}
+
+      {error ? (
+        <div className="rounded-xl bg-white/10 text-white text-sm p-4 space-y-3">
+          <p>{error}</p>
+          <button
+            type="button"
+            onClick={onClose}
+            className="sv-button sv-button-thin-border px-4 py-2 text-sm"
+          >
+            Sluiten
+          </button>
+        </div>
+      ) : (
+        <div className="relative rounded-xl overflow-hidden bg-black aspect-square">
+          <video
+            ref={videoRef}
+            playsInline
+            muted
+            className="h-full w-full object-cover"
+          />
+          <canvas ref={canvasRef} className="hidden" />
+          <div className="pointer-events-none absolute inset-8 border-2 border-white/70 rounded-2xl" />
+        </div>
+      )}
+
+      {footer && <div className="text-center">{footer}</div>}
+    </div>
+  );
+
+  if (embedded) {
+    // Kale, niet-Radix full-screen overlay — zie de toelichting bij de
+    // `embedded`-prop hierboven voor waarom dit nodig is (voorkomt een
+    // tweede, gelijktijdig actieve Radix Dialog-laag). Overlay-achtergrond
+    // en content-centrering hier samengevoegd in één element (i.p.v. de
+    // aparte Overlay+Content van Radix hieronder) — puur omdat er nu geen
+    // aparte lagen meer nodig zijn; visueel identiek.
+    if (!open) return null;
+    return createPortal(
+      <div
+        className="fixed inset-0 z-[210] flex flex-col items-center justify-center p-4 bg-black/90"
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+      >
+        {content}
+      </div>,
+      document.body,
+    );
+  }
+
   return (
     <DialogPrimitive.Root open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogPrimitive.Portal>
@@ -150,47 +255,7 @@ export function QrScanner({ open, onClose, onDetected, title = "QR-code scannen"
           aria-describedby={undefined}
         >
           <DialogPrimitive.Title className="sr-only">{title}</DialogPrimitive.Title>
-          <div className="w-full max-w-md space-y-4">
-            <div className="flex items-center justify-between text-white">
-              <p className="text-sm font-medium">{title}</p>
-              <button
-                type="button"
-                onClick={onClose}
-                className="bg-white/10 rounded-full h-9 w-9 flex items-center justify-center"
-                aria-label="Sluiten"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            {description && <p className="text-xs text-white/70">{description}</p>}
-
-            {error ? (
-              <div className="rounded-xl bg-white/10 text-white text-sm p-4 space-y-3">
-                <p>{error}</p>
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="sv-button sv-button-thin-border px-4 py-2 text-sm"
-                >
-                  Sluiten
-                </button>
-              </div>
-            ) : (
-              <div className="relative rounded-xl overflow-hidden bg-black aspect-square">
-                <video
-                  ref={videoRef}
-                  playsInline
-                  muted
-                  className="h-full w-full object-cover"
-                />
-                <canvas ref={canvasRef} className="hidden" />
-                <div className="pointer-events-none absolute inset-8 border-2 border-white/70 rounded-2xl" />
-              </div>
-            )}
-
-            {footer && <div className="text-center">{footer}</div>}
-          </div>
+          {content}
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>
