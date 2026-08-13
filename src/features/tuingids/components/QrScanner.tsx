@@ -42,8 +42,25 @@ type Props = {
    *  betrouwbaar gebleken. `embedded` verwijdert de wortel van dit probleem:
    *  met maar één actieve Radix-Dialog-laag tegelijk kan dit conflict
    *  helemaal niet meer optreden — voor geen enkele andere aanroeper van
-   *  QrScanner verandert er iets, die laten `embedded` gewoon weg. */
+   *  QrScanner verandert er iets, die laten `embedded` gewoon weg.
+   *
+   *  `embedded` alléén blijkt niet voldoende: zonder een tweede Radix-laag
+   *  ziet de aanroepende dialoog een klik in deze overlay opnieuw als
+   *  "outside" (voorheen toevallig onderdrukt door de layer-stack-logica die
+   *  bij twee gelijktijdige modale Radix-lagen hoort — zie
+   *  `onEmbeddedPointerDown` hieronder voor de aanvullende fix die de
+   *  aanroeper daadwerkelijk in staat stelt dit te voorkomen). */
   embedded?: boolean;
+  /** Alleen relevant met `embedded`. Vuurt synchroon op de capture-fase van
+   *  pointerdown binnen deze overlay — vóórdat React state bijwerkt of iets
+   *  unmount. De aanroeper gebruikt dit om (via een ref, niet via state) te
+   *  onthouden "deze interactie begon in de scanner", zodat de eigen
+   *  buitenste <Dialog> die interactie via `onInteractOutside` alsnog kan
+   *  negeren — ongeacht of dat direct gebeurt (muis) of pas na een later,
+   *  uitgesteld click-event op document (touch, Radix' eigen gedrag voor
+   *  pointerType "touch"), want op dát moment kan de eigen `phase`-state
+   *  van de aanroeper al zijn doorgeschoten naar "manual". */
+  onEmbeddedPointerDown?: () => void;
 };
 
 /**
@@ -65,6 +82,7 @@ export function QrScanner({
   description,
   footer,
   embedded = false,
+  onEmbeddedPointerDown,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -235,10 +253,21 @@ export function QrScanner({
     if (!open) return null;
     return createPortal(
       <div
-        className="fixed inset-0 z-[210] flex flex-col items-center justify-center p-4 bg-black/90"
+        // `pointer-events-auto` is hier geen stijlkeuze maar functioneel
+        // noodzakelijk: zolang de aanroepende (buitenste) Dialog modaal open
+        // staat, zet Radix' eigen DismissableLayer `document.body.style.
+        // pointerEvents = "none"` om echte klikken buiten de dialoog te
+        // blokkeren — en compenseert dat alleen voor DOM-nodes die het zelf
+        // als Radix-laag herkent. Deze div is met opzet GEEN Radix-laag
+        // (dat is het hele punt van embedded), dus zonder deze expliciete
+        // override erft hij `pointer-events: none` van <body> en wordt de
+        // volledige overlay (incl. "Of kies handmatig") onklikbaar terwijl
+        // 'm gewoon zichtbaar blijft.
+        className="fixed inset-0 z-[210] flex flex-col items-center justify-center p-4 bg-black/90 pointer-events-auto"
         role="dialog"
         aria-modal="true"
         aria-label={title}
+        onPointerDownCapture={onEmbeddedPointerDown}
       >
         {content}
       </div>,

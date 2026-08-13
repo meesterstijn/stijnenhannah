@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ChevronDown, Loader2, QrCode, Sprout } from "lucide-react";
@@ -166,6 +166,16 @@ export function QuickGrowthPhotoDialog({
   const [resolvedInstance, setResolvedInstance] = useState<PlantInstance | null>(null);
   const [resolvedViaQr, setResolvedViaQr] = useState(false);
 
+  // Geen state (bewust): moet synchroon en direct leesbaar zijn op het exacte
+  // moment van pointerdown in de embedded QrScanner-overlay, en nog correct
+  // uitleesbaar zijn wanneer de buitenste dialoog's onInteractOutside pas
+  // later vuurt — bij een touch-tik stelt Radix die dispatch bewust uit tot
+  // het eerstvolgende click-event op document, wat na de eigen setPhase()
+  // re-render kan liggen (dan zou een `phase === "scanning"`-check in
+  // onInteractOutside hieronder al de nieuwe, foute waarde lezen). Een ref
+  // is daar wél tegen bestand: hij verandert nooit door een render.
+  const scannerInteractionRef = useRef(false);
+
   // Terug naar de scanstap: gebruikt na een geslaagde opslag — de toast
   // ("Groeifoto opgeslagen", zie QuickGrowthPhotoCapture) blijft even
   // zichtbaar terwijl de scanner alweer klaarstaat voor de volgende plant,
@@ -228,7 +238,21 @@ export function QuickGrowthPhotoDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
-        <DialogContent className="tuinieren-theme sv-dialog w-full max-w-lg max-h-[90vh]">
+        <DialogContent
+          className="tuinieren-theme sv-dialog w-full max-w-lg max-h-[90vh]"
+          onInteractOutside={(e) => {
+            // Vangt zowel een directe (muis) als een uitgestelde (touch,
+            // zie useEffect-comment bij scannerInteractionRef) "outside"-
+            // dispatch af, mits die daadwerkelijk ontstond door een
+            // interactie die in de embedded QrScanner-overlay begon —
+            // ongeacht de huidige `phase`-waarde op het moment dat déze
+            // handler afgaat.
+            if (scannerInteractionRef.current) {
+              scannerInteractionRef.current = false;
+              e.preventDefault();
+            }
+          }}
+        >
           <DialogHeader>
             <DialogTitle className="sv-heading text-3xl">Groeifoto maken</DialogTitle>
           </DialogHeader>
@@ -277,12 +301,19 @@ export function QuickGrowthPhotoDialog({
         onDetected={(text) => void handleQrDetected(text)}
         title="QR-code scannen"
         description="Scan de QR-code van de plant of batch."
-        // Deze scanner opent terwijl de <Dialog> hierboven al open staat —
-        // embedded voorkomt daarmee een tweede, gelijktijdig actieve Radix
-        // Dialog-laag (zie de toelichting bij QrScanner's `embedded`-prop).
-        // Dat was de daadwerkelijke oorzaak van "Handmatig kiezen" die de
-        // hele flow sloot, met name op mobiel/touch.
+        // Deze scanner opent terwijl de <Dialog> hierboven al open staat.
+        // `embedded` voorkomt een tweede, gelijktijdig actieve Radix
+        // Dialog-laag (opgeruimde architectuur, zie QrScanner's
+        // `embedded`-toelichting) — maar lost het sluitprobleem niet
+        // zelfstandig op: de buitenste <Dialog> ziet elke klik in deze
+        // overlay nog steeds als "outside" (het is en blijft een aparte
+        // portal). `onEmbeddedPointerDown` hieronder + de
+        // `onInteractOutside`-check hierboven zijn samen de daadwerkelijke
+        // fix.
         embedded
+        onEmbeddedPointerDown={() => {
+          scannerInteractionRef.current = true;
+        }}
         footer={
           <button type="button" onClick={() => setPhase("manual")} className="text-sm text-white/80 underline">
             Of kies handmatig
