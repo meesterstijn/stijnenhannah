@@ -228,7 +228,26 @@ export function QuickGrowthPhotoDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
-        <DialogContent className="tuinieren-theme sv-dialog w-full max-w-lg max-h-[90vh]">
+        <DialogContent
+          className="tuinieren-theme sv-dialog w-full max-w-lg max-h-[90vh]"
+          onInteractOutside={(e) => {
+            // QrScanner hieronder is een eigen, los geportaalde Dialog
+            // (nodig voor zijn full-screen camera-overlay) — géén DOM-
+            // afstammeling van déze DialogContent. Radix' "focus outside"-
+            // detectie (i.t.t. "pointer down outside") houdt geen rekening
+            // met welke modale laag boven welke andere staat: zodra de
+            // focus (bv. door op "Of kies handmatig" te klikken) in
+            // QrScanner's eigen portal belandt, ziet déze buitenste dialoog
+            // dat als "focus verliet mij" en sluit zichzelf — precies de
+            // gerapporteerde bug. Zolang we in de scanfase zitten, bedekt
+            // QrScanner's eigen full-screen overlay toch al het hele scherm
+            // (dus een échte klik buiten alle dialogen kan dan niet
+            // voorkomen), dus hier veilig onderdrukken; in de andere fases
+            // (manual/capture) blijft normaal buiten-de-dialoog-sluiten
+            // gewoon werken.
+            if (phase === "scanning") e.preventDefault();
+          }}
+        >
           <DialogHeader>
             <DialogTitle className="sv-heading text-3xl">Groeifoto maken</DialogTitle>
           </DialogHeader>
