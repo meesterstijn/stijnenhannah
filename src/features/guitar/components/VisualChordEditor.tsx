@@ -6,6 +6,8 @@ import {
 } from "@/features/guitar/lib/chordSheet";
 import {
   createEmptySection,
+  duplicateLineAt as libDuplicateLineAt,
+  duplicateSection as libDuplicateSection,
   flattenWordRefs,
   insertLineAfter as libInsertLineAfter,
   insertSectionAfter as libInsertSectionAfter,
@@ -216,6 +218,10 @@ export function VisualChordEditor({
     commit(next);
   }
 
+  function handleDuplicateLine(sectionIndex: number, lineIndex: number) {
+    commit(libDuplicateLineAt(sections, sectionIndex, lineIndex));
+  }
+
   function handleRemoveLine(sectionIndex: number, lineIndex: number) {
     commit(libRemoveLineAt(sections, sectionIndex, lineIndex));
     setSelected(null);
@@ -223,6 +229,10 @@ export function VisualChordEditor({
 
   function handleRenameSection(sectionIndex: number, name: string) {
     commit(libRenameSectionAt(sections, sectionIndex, name));
+  }
+
+  function handleDuplicateSection(sectionIndex: number) {
+    commit(libDuplicateSection(sections, sectionIndex));
   }
 
   function handleRemoveSection(sectionIndex: number) {
@@ -290,10 +300,14 @@ export function VisualChordEditor({
             onInsertMultilineText={(lineIndex, lines) =>
               handleInsertMultilineText(sectionIndex, lineIndex, lines)
             }
+            onDuplicateLine={(lineIndex) =>
+              handleDuplicateLine(sectionIndex, lineIndex)
+            }
             onRemoveLine={(lineIndex) =>
               handleRemoveLine(sectionIndex, lineIndex)
             }
             onRename={(name) => handleRenameSection(sectionIndex, name)}
+            onDuplicateSection={() => handleDuplicateSection(sectionIndex)}
             onRemoveSection={() => handleRemoveSection(sectionIndex)}
             onMoveSection={(direction) =>
               handleMoveSection(sectionIndex, direction)

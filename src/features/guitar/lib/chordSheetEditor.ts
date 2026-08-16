@@ -27,6 +27,7 @@ export type LyricsLine = Extract<ChordSheetLine, { type: "lyrics" }>;
 // waarom akkoorden altijd aan het begin van een woord/segment staan.
 
 export type EditorWordToken = {
+  kind: "word";
   key: string;
   text: string;
   chord: string | null;
@@ -34,16 +35,46 @@ export type EditorWordToken = {
   offsetInSegment: number;
 };
 
-export function tokenizeLineWords(line: LyricsLine): EditorWordToken[] {
-  const tokens: EditorWordToken[] = [];
+export type EditorSpaceToken = {
+  kind: "space";
+  key: string;
+  /** De letterlijke witruimte uit de brontekst (kan meerdere spaties zijn) —
+   * NOOIT vervangen door een vaste CSS-gap: witruimte is onderdeel van de
+   * songtekst en moet exact behouden blijven. */
+  text: string;
+};
+
+export type EditorLineToken = EditorWordToken | EditorSpaceToken;
+
+/**
+ * Tokeniseert een regel in ZOWEL woorden als de witruimte ertussen, in de
+ * oorspronkelijke volgorde. Vorige versie matchte alleen `\S+` (woorden) en
+ * liet de tussenliggende spaties gewoon weg — dat was de bug die woorden aan
+ * elkaar liet plakken in Visueel → Bewerken. `(\S+|\s+)` matcht de VOLLEDIGE
+ * tekst (geen enkel teken wordt overgeslagen), dus concatenatie van alle
+ * token.text-waarden reproduceert het segment exact. Alleen "word"-tokens
+ * zijn klikbaar/akkoord-targets; "space"-tokens zijn puur weergave.
+ */
+export function tokenizeLineWords(line: LyricsLine): EditorLineToken[] {
+  const tokens: EditorLineToken[] = [];
   line.segments.forEach((seg, segIndex) => {
-    const wordPattern = /\S+/g;
+    const chunkPattern = /(\S+|\s+)/g;
     let match: RegExpExecArray | null;
     let isFirstWordOfSegment = true;
-    while ((match = wordPattern.exec(seg.text))) {
+    while ((match = chunkPattern.exec(seg.text))) {
+      const chunk = match[0];
+      if (/^\s+$/.test(chunk)) {
+        tokens.push({
+          kind: "space",
+          key: `${segIndex}-s${match.index}`,
+          text: chunk,
+        });
+        continue;
+      }
       tokens.push({
-        key: `${segIndex}-${match.index}`,
-        text: match[0],
+        kind: "word",
+        key: `${segIndex}-w${match.index}`,
+        text: chunk,
         chord: isFirstWordOfSegment ? seg.chord : null,
         segIndex,
         offsetInSegment: match.index,
@@ -267,6 +298,61 @@ export function moveSectionAt(
   return next;
 }
 
+// ── Dupliceren (section 1-6) ─────────────────────────────────────────────
+
+/**
+ * Bepaalt de naam van een gedupliceerde sectie: een naam die op een getal
+ * eindigt wordt met 1 opgehoogd ("Verse 1" -> "Verse 2"), een naam zonder
+ * getal ("Chorus", "Bridge") blijft ongewijzigd — een refrein dat later
+ * nogmaals voorkomt hoeft niet geforceerd "Chorus 2" te heten.
+ */
+export function nextSectionNameForDuplicate(name: string): string {
+  const match = /^(.*?)(\d+)$/.exec(name.trim());
+  if (!match) return name;
+  const [, base, numStr] = match;
+  const nextNumber = parseInt(numStr, 10) + 1;
+  const trimmedBase = base.trimEnd();
+  return trimmedBase ? `${trimmedBase} ${nextNumber}` : `${nextNumber}`;
+}
+
+/**
+ * Dupliceert een volledige sectie (titel + alle regels + alle akkoorden op
+ * exact dezelfde posities) direct onder het origineel. `structuredClone`
+ * garandeert een ECHTE deep copy — origineel en kopie delen daarna geen
+ * enkele geneste array/object meer, dus latere edits aan de kopie (via
+ * setWordChord/replaceLineAt/etc., die zelf ook altijd nieuwe arrays
+ * teruggeven) kunnen het origineel nooit raken, en andersom.
+ */
+export function duplicateSection(
+  sections: ChordSheetSection[],
+  sectionIndex: number,
+): ChordSheetSection[] {
+  const original = sections[sectionIndex];
+  if (!original) return sections;
+  const clone = structuredClone(original);
+  clone.name = nextSectionNameForDuplicate(clone.name);
+  const next = [...sections];
+  next.splice(sectionIndex + 1, 0, clone);
+  return next;
+}
+
+/** Dupliceert één regel (tekst, akkoorden, akkoordposities, regeltype)
+ * direct onder de originele regel binnen dezelfde sectie. Zelfde deep-copy
+ * garantie als duplicateSection hierboven. */
+export function duplicateLineAt(
+  sections: ChordSheetSection[],
+  sectionIndex: number,
+  lineIndex: number,
+): ChordSheetSection[] {
+  const section = sections[sectionIndex];
+  const original = section?.lines[lineIndex];
+  if (!section || !original) return sections;
+  const clone = structuredClone(original);
+  const lines = [...section.lines];
+  lines.splice(lineIndex + 1, 0, clone);
+  return replaceAt(sections, sectionIndex, { ...section, lines });
+}
+
 // ── Woord-navigatie (Tab/Shift+Tab, auto-advance na Enter — section 12) ──
 
 export type WordRef = {
@@ -284,6 +370,7 @@ export function flattenWordRefs(sections: ChordSheetSection[]): WordRef[] {
     section.lines.forEach((line, lineIndex) => {
       if (line.type !== "lyrics" || isChordOnlyLine(line)) return;
       for (const tok of tokenizeLineWords(line)) {
+        if (tok.kind !== "word") continue;
         refs.push({
           sectionIndex,
           lineIndex,

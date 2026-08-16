@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Copy, Pencil, Plus, Trash2 } from "lucide-react";
 import {
   type ChordSheetLine,
   isChordOnlyLine,
@@ -34,6 +34,7 @@ type EditableChordLineProps = {
   onReplaceLine: (line: ChordSheetLine) => void;
   onInsertLineAfter: () => void;
   onInsertMultilineText: (lines: string[]) => void;
+  onDuplicateLine: () => void;
   onRemoveLine: () => void;
 };
 
@@ -56,6 +57,7 @@ export function EditableChordLine({
   onReplaceLine,
   onInsertLineAfter,
   onInsertMultilineText,
+  onDuplicateLine,
   onRemoveLine,
 }: EditableChordLineProps) {
   const [editingText, setEditingText] = useState(false);
@@ -80,6 +82,15 @@ export function EditableChordLine({
         aria-label="Tekst bewerken"
       >
         <Pencil className="h-3 w-3" />
+      </button>
+      <button
+        type="button"
+        onClick={onDuplicateLine}
+        className="h-6 w-6 rounded-md flex items-center justify-center wa-muted hover:bg-[var(--wa-surface-strong)] hover:text-[var(--wa-text)]"
+        aria-label="Regel dupliceren"
+        title="Dupliceren"
+      >
+        <Copy className="h-3 w-3" />
       </button>
       <button
         type="button"
@@ -167,39 +178,45 @@ export function EditableChordLine({
     );
   }
 
-  const words = tokenizeLineWords(line);
+  const tokens = tokenizeLineWords(line);
 
   return (
     <div className="flex items-start gap-2 group">
       <div className="flex-1 flex flex-wrap items-start gap-y-3">
-        {words.length === 0 && (
+        {tokens.length === 0 && (
           <span className="wa-muted text-xs italic py-1">(lege regel)</span>
         )}
-        {words.map((token) => (
-          <EditableWord
-            key={token.key}
-            text={token.text}
-            chord={token.chord}
-            originalKey={originalKey}
-            recentChords={recentChords}
-            onRecordRecent={onRecordRecent}
-            isSelected={isWordSelected(token.segIndex, token.offsetInSegment)}
-            onSelect={() => onSelectWord(token.segIndex, token.offsetInSegment)}
-            onDeselect={onDeselect}
-            onCommit={(chord, advancedOffset) =>
-              onCommitChord(
-                token.segIndex,
-                token.offsetInSegment + advancedOffset,
-                chord,
-              )
-            }
-            onRemove={
-              token.chord
-                ? () => onCommitChord(token.segIndex, 0, null)
-                : undefined
-            }
-          />
-        ))}
+        {tokens.map((token) =>
+          token.kind === "space" ? (
+            <WhitespaceToken key={token.key} text={token.text} />
+          ) : (
+            <EditableWord
+              key={token.key}
+              text={token.text}
+              chord={token.chord}
+              originalKey={originalKey}
+              recentChords={recentChords}
+              onRecordRecent={onRecordRecent}
+              isSelected={isWordSelected(token.segIndex, token.offsetInSegment)}
+              onSelect={() =>
+                onSelectWord(token.segIndex, token.offsetInSegment)
+              }
+              onDeselect={onDeselect}
+              onCommit={(chord, advancedOffset) =>
+                onCommitChord(
+                  token.segIndex,
+                  token.offsetInSegment + advancedOffset,
+                  chord,
+                )
+              }
+              onRemove={
+                token.chord
+                  ? () => onCommitChord(token.segIndex, 0, null)
+                  : undefined
+              }
+            />
+          ),
+        )}
       </div>
       {toolbar}
     </div>
@@ -279,6 +296,25 @@ function EditableWord({
           : undefined
       }
     />
+  );
+}
+
+/**
+ * De letterlijke witruimte tussen twee woorden — niet klikbaar, geen akkoord-
+ * target. Zelfde tweerijige opbouw (lege akkoordrij + tekstrij) als
+ * EditableWord hierboven, puur zodat de tekstrij verticaal precies op de
+ * lyricbaseline van de woorden ernaast uitkomt. `whitespace-pre` behoudt
+ * meerdere spaties exact — dit is de daadwerkelijke brontekst, geen
+ * CSS-gap-benadering.
+ */
+function WhitespaceToken({ text }: { text: string }) {
+  return (
+    <span className="inline-flex flex-col items-start py-0.5" aria-hidden>
+      <span className="h-[1.25em] leading-none block" />
+      <span className="wa-lyric text-base leading-snug whitespace-pre">
+        {text}
+      </span>
+    </span>
   );
 }
 

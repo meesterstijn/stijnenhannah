@@ -2,11 +2,21 @@ import { useState } from "react";
 import {
   ChevronDown,
   ChevronUp,
+  Copy,
   ListMusic,
+  Pencil,
+  MoreHorizontal,
   Plus,
   Trash2,
   Type,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type {
   ChordSheetLine,
   ChordSheetSection,
@@ -41,8 +51,10 @@ type EditableSectionProps = {
   onReplaceLine: (lineIndex: number, line: ChordSheetLine) => void;
   onInsertLineAfter: (lineIndex: number, line: ChordSheetLine) => void;
   onInsertMultilineText: (lineIndex: number, lines: string[]) => void;
+  onDuplicateLine: (lineIndex: number) => void;
   onRemoveLine: (lineIndex: number) => void;
   onRename: (name: string) => void;
+  onDuplicateSection: () => void;
   onRemoveSection: () => void;
   onMoveSection: (direction: -1 | 1) => void;
 };
@@ -66,8 +78,10 @@ export function EditableSection({
   onReplaceLine,
   onInsertLineAfter,
   onInsertMultilineText,
+  onDuplicateLine,
   onRemoveLine,
   onRename,
+  onDuplicateSection,
   onRemoveSection,
   onMoveSection,
 }: EditableSectionProps) {
@@ -114,34 +128,51 @@ export function EditableSection({
             {section.name || "Naamloos"}
           </button>
         )}
-        <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover/section:opacity-100 group-focus-within/section:opacity-100">
-          <button
-            type="button"
-            onClick={() => onMoveSection(-1)}
-            disabled={isFirst}
-            className="h-6 w-6 rounded-md flex items-center justify-center wa-muted hover:bg-[var(--wa-surface-strong)] hover:text-[var(--wa-text)] disabled:opacity-30 disabled:pointer-events-none"
-            aria-label="Sectie omhoog"
-          >
-            <ChevronUp className="h-3 w-3" />
-          </button>
-          <button
-            type="button"
-            onClick={() => onMoveSection(1)}
-            disabled={isLast}
-            className="h-6 w-6 rounded-md flex items-center justify-center wa-muted hover:bg-[var(--wa-surface-strong)] hover:text-[var(--wa-text)] disabled:opacity-30 disabled:pointer-events-none"
-            aria-label="Sectie omlaag"
-          >
-            <ChevronDown className="h-3 w-3" />
-          </button>
-          <button
-            type="button"
-            onClick={onRemoveSection}
-            className="h-6 w-6 rounded-md flex items-center justify-center wa-muted hover:bg-[var(--wa-surface-strong)] hover:text-destructive"
-            aria-label="Sectie verwijderen"
-          >
-            <Trash2 className="h-3 w-3" />
-          </button>
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className="h-6 w-6 rounded-md flex items-center justify-center wa-muted opacity-0 transition-opacity hover:bg-[var(--wa-surface-strong)] hover:text-[var(--wa-text)] group-hover/section:opacity-100 group-focus-within/section:opacity-100 data-[state=open]:opacity-100"
+              aria-label="Sectiemenu"
+              title="Sectiemenu"
+            >
+              <MoreHorizontal className="h-3.5 w-3.5" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="guitar-theme">
+            <DropdownMenuItem
+              onClick={() => {
+                setNameDraft(section.name);
+                setRenaming(true);
+              }}
+            >
+              <Pencil className="h-3.5 w-3.5" /> Naam wijzigen
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onDuplicateSection}>
+              <Copy className="h-3.5 w-3.5" /> Dupliceren
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => onMoveSection(-1)}
+              disabled={isFirst}
+            >
+              <ChevronUp className="h-3.5 w-3.5" /> Omhoog
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => onMoveSection(1)}
+              disabled={isLast}
+            >
+              <ChevronDown className="h-3.5 w-3.5" /> Omlaag
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={onRemoveSection}
+              className="text-destructive focus:text-destructive"
+            >
+              <Trash2 className="h-3.5 w-3.5" /> Verwijderen
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <div className="flex flex-col gap-2.5">
@@ -169,6 +200,7 @@ export function EditableSection({
             onInsertMultilineText={(lines) =>
               onInsertMultilineText(lineIndex, lines)
             }
+            onDuplicateLine={() => onDuplicateLine(lineIndex)}
             onRemoveLine={() => onRemoveLine(lineIndex)}
           />
         ))}
