@@ -142,6 +142,63 @@ export function splitSectionsIntoColumns(
   return [sections.slice(0, splitIndex), sections.slice(splitIndex)];
 }
 
+/**
+ * Inverse van parseChordSheet — zet het geparste model terug om naar het
+ * opslagformaat. Bewust GEEN eis dat dit byte-voor-byte de oorspronkelijke
+ * tekst reproduceert (andere insprongen/witruimte zijn prima); de eis is
+ * functionele round-trip: parseChordSheet(serializeChordSheet(x)) levert
+ * dezelfde structuur op als x. Dit is de ENIGE plek die naar het
+ * bracket-formaat terugschrijft — de editor roept dit aan, nooit een eigen
+ * losse serialisatie.
+ */
+export function serializeChordSheet(sections: ChordSheetSection[]): string {
+  return sections.map(serializeSection).join("\n\n");
+}
+
+function serializeSection(section: ChordSheetSection): string {
+  const header = section.name.trim() ? `# ${section.name.trim()}` : "";
+  const body = section.lines.map(serializeLine).join("\n");
+  return [header, body].filter((part) => part !== "").join("\n");
+}
+
+export function serializeLine(line: ChordSheetLine): string {
+  if (line.type === "blank") return "";
+  return line.segments
+    .map((seg) => (seg.chord ? `[${seg.chord}]` : "") + seg.text)
+    .join("");
+}
+
+/** Een regel is "chord-only" (bv. een Intro-regel) als geen enkel segment
+ * daadwerkelijke tekst bevat — alleen akkoorden + scheidingsspaties. */
+export function isChordOnlyLine(line: ChordSheetLine): boolean {
+  if (line.type !== "lyrics") return false;
+  const hasChord = line.segments.some((seg) => seg.chord);
+  const hasText = line.segments.some((seg) => seg.text.trim() !== "");
+  return hasChord && !hasText;
+}
+
+/**
+ * Compacte invoer voor akkoordenregels: "E B C#m A" of "| E | B | C#m | A |"
+ * — beide vormen worden hetzelfde getokeniseerd (section 18).
+ */
+export function parseChordOnlyInput(raw: string): string[] {
+  return raw
+    .split("|")
+    .join(" ")
+    .split(/\s+/)
+    .map((t) => t.trim())
+    .filter(Boolean);
+}
+
+/** Zet een lijst akkoorden om naar segmenten voor een chord-only regel,
+ * met een enkele spatie tussen elk akkoord als scheidingstekst. */
+export function chordTokensToSegments(tokens: string[]): ChordSheetSegment[] {
+  return tokens.map((chord, i) => ({
+    chord,
+    text: i < tokens.length - 1 ? " " : "",
+  }));
+}
+
 /** Alle unieke akkoorden in een chord sheet, in volgorde van eerste voorkomen — handig voor previews/badges. */
 export function collectChords(sections: ChordSheetSection[]): string[] {
   const seen = new Set<string>();

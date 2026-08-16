@@ -210,3 +210,42 @@ export function playKey(
     preferFlat,
   });
 }
+
+// ── Diatonische suggesties ("In key") voor de akkoordeditor ────────────────
+// Bewust beperkt tot de 6 meest gebruikte graden per toonsoort (I ii iii IV V
+// vi voor majeur, i III iv v VI VII voor mineur) — de verminderde graad
+// (vii° / ii°) wordt weggelaten. Dat is precies wat section 11 zelf als
+// voorbeeld geeft voor E-majeur (E F#m G#m A B C#m, dus 6 akkoorden, geen
+// zevende) en is "muzikaal betrouwbaar en eenvoudig": deze suggesties zijn
+// nooit een beperking, alleen sneltoetsen — elk akkoord blijft vrij te typen.
+const MAJOR_DIATONIC_DEGREES: { offset: number; quality: string }[] = [
+  { offset: 0, quality: "" },
+  { offset: 2, quality: "m" },
+  { offset: 4, quality: "m" },
+  { offset: 5, quality: "" },
+  { offset: 7, quality: "" },
+  { offset: 9, quality: "m" },
+];
+
+const MINOR_DIATONIC_DEGREES: { offset: number; quality: string }[] = [
+  { offset: 0, quality: "m" },
+  { offset: 3, quality: "" },
+  { offset: 5, quality: "m" },
+  { offset: 7, quality: "m" },
+  { offset: 8, quality: "" },
+  { offset: 10, quality: "" },
+];
+
+export function diatonicChordsForKey(
+  key: string,
+  preferFlat = false,
+): string[] {
+  const parsed = parseChord(key);
+  if (!parsed) return [];
+  const root = parsed.rootLetter + parsed.rootAccidental;
+  const isMinor = parsed.modifiers === "m";
+  const degrees = isMinor ? MINOR_DIATONIC_DEGREES : MAJOR_DIATONIC_DEGREES;
+  return degrees.map(
+    (d) => transposeChord(root, d.offset, { preferFlat }) + d.quality,
+  );
+}
