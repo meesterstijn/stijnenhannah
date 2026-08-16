@@ -77,6 +77,16 @@ const TuingidsZoek = lazy(() => import("@/pages/tuingids/TuingidsZoek"));
 const TuingidsTeeltplanner = lazy(
   () => import("@/pages/tuingids/TuingidsTeeltplanner"),
 );
+const GitaarLayout = lazy(() => import("@/pages/gitaar/GitaarLayout"));
+const GitaarMijnMuziek = lazy(() => import("@/pages/gitaar/GitaarMijnMuziek"));
+const GitaarAlbums = lazy(() => import("@/pages/gitaar/GitaarAlbums"));
+const GitaarAlbumDetail = lazy(
+  () => import("@/pages/gitaar/GitaarAlbumDetail"),
+);
+const GitaarFavorieten = lazy(() => import("@/pages/gitaar/GitaarFavorieten"));
+const GitaarRecent = lazy(() => import("@/pages/gitaar/GitaarRecent"));
+const GitaarSong = lazy(() => import("@/pages/gitaar/GitaarSong"));
+const GitaarSongEditor = lazy(() => import("@/pages/gitaar/GitaarSongEditor"));
 
 const queryClient = new QueryClient();
 
@@ -205,6 +215,19 @@ function AppRoutes() {
               <Route
                 path="teeltplanner/:planId"
                 element={<TuingidsTeeltplanner />}
+              />
+            </Route>
+            <Route path="/gitaar" element={<GitaarLayout />}>
+              <Route index element={<GitaarMijnMuziek />} />
+              <Route path="albums" element={<GitaarAlbums />} />
+              <Route path="albums/:id" element={<GitaarAlbumDetail />} />
+              <Route path="favorieten" element={<GitaarFavorieten />} />
+              <Route path="recent" element={<GitaarRecent />} />
+              <Route path="nummers/nieuw" element={<GitaarSongEditor />} />
+              <Route path="nummers/:id" element={<GitaarSong />} />
+              <Route
+                path="nummers/:id/bewerken"
+                element={<GitaarSongEditor />}
               />
             </Route>
             <Route path="*" element={<NotFound />} />

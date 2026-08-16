@@ -23,13 +23,17 @@ import {
   Crosshair,
   Martini,
   CloudSun,
+  Guitar,
   ChevronRight,
   MoreHorizontal,
 } from "lucide-react";
 
 type GroceryItem = { id: string; text: string; done: boolean };
 type Todo = { id: string; text: string; done: boolean; created_at: string };
-type IconType = React.ComponentType<{ className?: string; strokeWidth?: number }>;
+type IconType = React.ComponentType<{
+  className?: string;
+  strokeWidth?: number;
+}>;
 
 const MEER_SECTION_ID = "home-meer";
 
@@ -77,7 +81,9 @@ export default function Home() {
   const WeatherIcon = weather ? iconFor(weather.code) : null;
 
   function scrollToMeer() {
-    document.getElementById(MEER_SECTION_ID)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    document
+      .getElementById(MEER_SECTION_ID)
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   return (
@@ -105,7 +111,9 @@ export default function Home() {
           <p className="home-date">{dateLabelCap}</p>
 
           <Link to="/weer" className="home-weather">
-            {WeatherIcon && <WeatherIcon className="h-9 w-9" strokeWidth={1.5} />}
+            {WeatherIcon && (
+              <WeatherIcon className="h-9 w-9" strokeWidth={1.5} />
+            )}
             {weather ? (
               <div>
                 <p className="home-weather-temp">{weather.temp}°</p>
@@ -123,16 +131,32 @@ export default function Home() {
             to="/boodschappen"
             icon={ShoppingBasket}
             title="Boodschappen"
-            desc={openItems.length ? `${openItems.length} nog te halen` : "Lijst is leeg"}
+            desc={
+              openItems.length
+                ? `${openItems.length} nog te halen`
+                : "Lijst is leeg"
+            }
           />
           <HomeTile
             to="/todo"
             icon={ListTodo}
             title="To-do"
-            desc={openTodos.length ? `${openTodos.length} open` : "Alles gedaan"}
+            desc={
+              openTodos.length ? `${openTodos.length} open` : "Alles gedaan"
+            }
           />
-          <HomeTile to="/notities" icon={NotebookPen} title="Notities" desc="Schrijf het op" />
-          <HomeTile to="/recepten" icon={BookHeart} title="Recepten" desc="Bewaar wat jullie graag eten" />
+          <HomeTile
+            to="/notities"
+            icon={NotebookPen}
+            title="Notities"
+            desc="Schrijf het op"
+          />
+          <HomeTile
+            to="/recepten"
+            icon={BookHeart}
+            title="Recepten"
+            desc="Bewaar wat jullie graag eten"
+          />
         </section>
 
         <section className="flex flex-col gap-3">
@@ -150,14 +174,54 @@ export default function Home() {
           />
         </section>
 
-        <section id={MEER_SECTION_ID} className="flex flex-col gap-3 scroll-mt-20">
+        <section
+          id={MEER_SECTION_ID}
+          className="flex flex-col gap-3 scroll-mt-20"
+        >
           <p className="home-section-heading">Meer</p>
           <div className="home-glass-scope dark grid grid-cols-2 sm:grid-cols-3 gap-3">
-            <HomeTile to="/dagvraag" icon={Sparkles} title="Dagvraag" desc="Elke dag een antwoord van Gemini" compact />
-            <HomeTile to="/rainbow-six-siege" icon={Crosshair} title="Rainbow Six Siege" desc="Plan jullie LAN Night" compact />
-            <HomeTile to="/cocktail-bar" icon={Martini} title="Cocktail Bar" desc="Handcrafted cocktails" compact />
-            <HomeTile to="/fotografie" icon={Camera} title="Fotografie" desc="Jullie mooiste momenten" compact />
-            <HomeTile to="/weer" icon={CloudSun} title="Weer" desc="Volledige verwachting" compact />
+            <HomeTile
+              to="/dagvraag"
+              icon={Sparkles}
+              title="Dagvraag"
+              desc="Elke dag een antwoord van Gemini"
+              compact
+            />
+            <HomeTile
+              to="/rainbow-six-siege"
+              icon={Crosshair}
+              title="Rainbow Six Siege"
+              desc="Plan jullie LAN Night"
+              compact
+            />
+            <HomeTile
+              to="/cocktail-bar"
+              icon={Martini}
+              title="Cocktail Bar"
+              desc="Handcrafted cocktails"
+              compact
+            />
+            <HomeTile
+              to="/gitaar"
+              icon={Guitar}
+              title="Gitaar"
+              desc="Akkoorden en songteksten"
+              compact
+            />
+            <HomeTile
+              to="/fotografie"
+              icon={Camera}
+              title="Fotografie"
+              desc="Jullie mooiste momenten"
+              compact
+            />
+            <HomeTile
+              to="/weer"
+              icon={CloudSun}
+              title="Weer"
+              desc="Volledige verwachting"
+              compact
+            />
             <SpotifyWidget />
             <VerjaarDagWidget />
             <SchoonmaakWidget />
@@ -190,7 +254,11 @@ export default function Home() {
           Recepten
           <span className="home-bottom-nav-dot" />
         </Link>
-        <button type="button" onClick={scrollToMeer} className="home-bottom-nav-item">
+        <button
+          type="button"
+          onClick={scrollToMeer}
+          className="home-bottom-nav-item"
+        >
           <MoreHorizontal className="h-5 w-5" strokeWidth={1.8} />
           Meer
           <span className="home-bottom-nav-dot" />
@@ -221,7 +289,9 @@ function HomeTile({
         </div>
         <div className="min-w-0">
           <p className="sv-heading text-sm leading-tight truncate">{title}</p>
-          <p className="sv-muted text-xs mt-0.5 leading-tight truncate">{desc}</p>
+          <p className="sv-muted text-xs mt-0.5 leading-tight truncate">
+            {desc}
+          </p>
         </div>
       </Link>
     );

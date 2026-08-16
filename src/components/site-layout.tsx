@@ -42,6 +42,11 @@ export function SiteLayout() {
   // (showcase/beheer/bereiden/dashboard), die net als R6 hun eigen donkere
   // thema en een zwevende terug-link i.p.v. de volle navbalk willen.
   const isCocktailBar = pathname.startsWith("/cocktail-bar");
+  // Gitaar heeft net als R6/Cocktail Bar een eigen sterke visuele identiteit
+  // (Worship Air, zie .guitar-theme in styles.css) — de standaard navbalk
+  // ("Ons Huisje" + weekdag) hoort daar niet bij, dus dezelfde behandeling:
+  // volle balk uit, alleen een kleine zwevende terug-link.
+  const isGitaar = pathname.startsWith("/gitaar");
   const isHome = pathname === "/";
   // Boodschappen rendert zelf een "Ons Huisje"-terugknop op de plek van de
   // paginatitel (zie Boodschappen.tsx) i.p.v. de gedeelde navbalk — dezelfde
@@ -96,11 +101,27 @@ export function SiteLayout() {
           )}
         </div>
       )}
+      {/* Eigen blok i.p.v. meeliften op de R6/Cocktail Bar-groep hierboven —
+          die twee delen hun cb-/r6-specifieke binnenstyling, Gitaar heeft
+          een volledig andere (Worship Air, wa-*-klassen). */}
+      {isGitaar && (
+        <div className="guitar-theme fixed left-3 top-3 z-50 flex max-w-[calc(100vw-1.5rem)] items-center gap-2 overflow-x-auto">
+          <Link
+            to="/"
+            className="wa-button-ghost flex shrink-0 items-center gap-1.5 px-3 py-1.5 text-xs shadow-sm"
+          >
+            <Home className="h-3.5 w-3.5" />
+            <span className="font-medium">Ons Huisje</span>
+          </Link>
+        </div>
+      )}
       {/* De homepage bouwt haar eigen transparante, fullscreen header (zie
           Home.tsx) i.p.v. deze algemene navbalk — vandaar ook hier buiten
           gesloten met !isHome, net als bij R6/Cocktail Bar hierboven.
-          Boodschappen sluit om dezelfde reden uit met !isBoodschappen. */}
-      {!isR6 && !isCocktailBar && !isHome && !isBoodschappen && (
+          Boodschappen sluit om dezelfde reden uit met !isBoodschappen.
+          Gitaar sluit uit met !isGitaar — zie het eigen zwevende blokje
+          hierboven. */}
+      {!isR6 && !isCocktailBar && !isHome && !isBoodschappen && !isGitaar && (
         <header className="border-b border-border/60 backdrop-blur-sm bg-background/70 sticky top-0 z-40">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-4 md:grid md:grid-cols-[auto_1fr_auto]">
             <Link to="/" className="flex items-center gap-2 group">
@@ -173,7 +194,9 @@ export function SiteLayout() {
                     ? "r6-theme pt-16 pb-8 sm:pb-12"
                     : isCocktailBar
                       ? "cocktail-theme pt-16 pb-8 sm:pb-12"
-                      : "py-8 sm:py-12"
+                      : isGitaar
+                        ? "pt-16 pb-8 sm:pb-12"
+                        : "py-8 sm:py-12"
               }`
         }
       >

@@ -210,7 +210,6 @@
   inset: 0;
   z-index: -1;
   background: url("/ownbg.png") center / cover no-repeat;
-
 }
 
 @media (min-width: 640px) {
@@ -427,12 +426,7 @@ body:has(.tuinieren-theme) header span {
 
 .tuinieren-theme .sv-button {
   font-family: "TuinTitel", "Pixelify Sans", var(--font-serif), serif;
-  background: linear-gradient(
-    180deg,
-    #eda65f 0%,
-    #fcc571 50%,
-    #eda65f 100%
-  );
+  background: linear-gradient(180deg, #eda65f 0%, #fcc571 50%, #eda65f 100%);
   border: 6px solid;
   border-radius: 0;
   border-image-source: url("/gradient-frame.svg?v=2");
@@ -708,7 +702,11 @@ body:has(.cocktail-theme) {
 /* Zachte gloed achter de vrijstaande productfoto — laat een transparante PNG
    "zweven" i.p.v. plat op een egale achtergrond te staan. */
 .cocktail-theme .cb-product-glow {
-  background: radial-gradient(circle, oklch(0.4 0.09 60 / 0.28), transparent 70%);
+  background: radial-gradient(
+    circle,
+    oklch(0.4 0.09 60 / 0.28),
+    transparent 70%
+  );
 }
 
 .cocktail-theme .cb-badge {
@@ -813,10 +811,20 @@ body:has(.cocktail-theme) {
    hetzelfde element als deze animatie, om conflicten met de inline transform
    te voorkomen). Extreem subtiel: kleine waarden, lange duren, nooit "druk". */
 @keyframes cb-dust-float {
-  0% { transform: translate3d(0, 0, 0); opacity: 0; }
-  12% { opacity: 0.55; }
-  88% { opacity: 0.55; }
-  100% { transform: translate3d(1.5%, -26%, 0); opacity: 0; }
+  0% {
+    transform: translate3d(0, 0, 0);
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.55;
+  }
+  88% {
+    opacity: 0.55;
+  }
+  100% {
+    transform: translate3d(1.5%, -26%, 0);
+    opacity: 0;
+  }
 }
 
 .cocktail-theme .cb-layer-dust {
@@ -828,8 +836,16 @@ body:has(.cocktail-theme) {
    nieuwe mount, dus een CSS-animation bij mount is hier voldoende voor een
    rustige "staggered entrance", zonder een animatiebibliotheek. */
 @keyframes cb-bigscreen-enter {
-  0% { opacity: 0; transform: translate3d(0, 12px, 0) scale(0.98); filter: blur(6px); }
-  100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); filter: blur(0); }
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0) scale(0.98);
+    filter: blur(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+    filter: blur(0);
+  }
 }
 
 .cb-bigscreen-enter {
@@ -886,7 +902,12 @@ body:has(.cocktail-theme) {
   z-index: 0;
   background-color: #1c1712;
   background-image:
-    linear-gradient(to bottom, rgba(10, 10, 10, 0.2) 0%, rgba(10, 10, 10, 0.38) 55%, rgba(10, 10, 10, 0.72) 100%),
+    linear-gradient(
+      to bottom,
+      rgba(10, 10, 10, 0.2) 0%,
+      rgba(10, 10, 10, 0.38) 55%,
+      rgba(10, 10, 10, 0.72) 100%
+    ),
     url("/home-hero.jpg");
   background-size: cover;
   background-position: center;
@@ -1227,4 +1248,276 @@ body:has(.cocktail-theme) {
 
 .shopping-page button:active {
   transform: scale(0.97);
+}
+
+/*
+ * .guitar-theme — "Worship Air": de visuele identiteit van de Gitaar/
+ * Akkoorden-module. Eerdere versie hergebruikte de sitewide --background/
+ * --primary (warme, perzikkleurige "papieren" tint + bruinrode accent, zie
+ * :root bovenaan dit bestand) — dat is precies de "Ons Huisje"-uitstraling
+ * die Worship Air NIET moet hebben. Deze versie overschrijft daarom de
+ * ECHTE shadcn/Tailwind-tokens (--background, --card, --primary, --border,
+ * --ring, ...) i.p.v. alleen eigen --wa-*-namen te verzinnen — dat is
+ * bewust dezelfde constructie als het bestaande :root -> .dark
+ * mechanisme (@theme inline maakt --color-background e.d. een levende
+ * runtime-verwijzing naar --background, geen build-time-vaste waarde), dus
+ * ELKE shadcn-component (Select/Dialog/Input/DropdownMenu/...) die binnen
+ * `.guitar-theme` rendert, krijgt de nieuwe koele palette automatisch mee
+ * zonder losse per-component overrides. De --wa-*-namen hieronder blijven
+ * bestaan als leesbare aliassen voor de eigen wa-*-klassen, maar wijzen nu
+ * naar dezelfde bron — één source of truth per kleur, geen dubbel systeem.
+ *
+ * Radix' Select/DropdownMenu/Dialog/AlertDialog-content rendert via een
+ * Portal naar document.body, dus BUITEN de DOM-subtree van `.guitar-theme`
+ * — CSS custom properties cascaden via de DOM, niet via de Reactboom, dus
+ * die portalcontent moet de klasse zelf ook dragen (compound selector,
+ * zie de <XContent className="guitar-theme">-aanroepen in de paginas) —
+ * exact hetzelfde patroon als .cocktail-theme.cb-dialog/.tuinieren-theme.sv-dialog.
+ */
+.guitar-theme {
+  --background: oklch(0.983 0.004 247);
+  --foreground: oklch(0.2 0.017 260);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.2 0.017 260);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.2 0.017 260);
+  --primary: oklch(0.5 0.1 264);
+  --primary-foreground: oklch(0.99 0.004 247);
+  --secondary: oklch(0.967 0.006 248);
+  --secondary-foreground: oklch(0.28 0.02 260);
+  --muted: oklch(0.967 0.006 248);
+  --muted-foreground: oklch(0.551 0.023 255);
+  --accent: oklch(0.94 0.022 264);
+  --accent-foreground: oklch(0.38 0.09 264);
+  --border: oklch(0.928 0.008 253);
+  --input: oklch(0.928 0.008 253);
+  --ring: oklch(0.5 0.1 264 / 0.45);
+
+  --wa-bg: var(--background);
+  --wa-surface: var(--card);
+  --wa-surface-strong: var(--secondary);
+  --wa-border: var(--border);
+  --wa-text: var(--foreground);
+  --wa-text-muted: var(--muted-foreground);
+  --wa-text-faint: oklch(0.71 0.016 255);
+  --wa-accent: var(--primary);
+  --wa-accent-foreground: var(--primary-foreground);
+  --wa-accent-soft: var(--accent);
+  --wa-accent-soft-text: var(--accent-foreground);
+  --wa-radius: 1rem;
+}
+
+/* Body zonder .guitar-theme heeft een warme, vaste radial-gradient
+   achtergrond (zie @layer base body hierboven) — precies de "beige/perzik"
+   look die hier expliciet weg moet, ook in de marges/gaps buiten wat
+   .guitar-theme zelf beschildert. Zelfde `body:has()`-patroon als
+   .cocktail-theme hieronder. */
+body:has(.guitar-theme) {
+  background-color: oklch(0.983 0.004 247);
+  background-image: none;
+  background-attachment: fixed;
+}
+
+/* De globale basisregel (h1,h2,h3,.font-serif { font-family: var(--font-serif) })
+   staat bovenaan dit bestand en geldt sitewide — Worship Air wil expliciet
+   GEEN klassiek serif voor koppen, dus binnen deze module altijd het
+   moderne sans-serif terugzetten, ongeacht welke tag/klasse gebruikt wordt
+   (dekt ook Radix' Dialog/AlertDialog-titels, die als <h2> renderen). */
+.guitar-theme h1,
+.guitar-theme h2,
+.guitar-theme h3,
+.guitar-theme h4,
+.guitar-theme .font-serif {
+  font-family: var(--font-sans);
+  letter-spacing: -0.015em;
+}
+
+/* Sectiekoppen in de chord sheet: klein, rustig, herkenbaar via uppercase +
+   letterspacing i.p.v. grootte/kleur — section 9. */
+.guitar-theme .wa-section-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--wa-text-faint);
+}
+
+/* Akkoorden zijn zwaarder én in de accentkleur — expliciet visueel
+   dominanter dan de lyrics eronder (section 8). */
+.guitar-theme .wa-chord {
+  color: var(--wa-accent);
+  font-weight: 600;
+  font-variant-ligatures: none;
+}
+
+.guitar-theme .wa-lyric {
+  color: var(--wa-text);
+}
+
+.guitar-theme .wa-panel {
+  background: var(--wa-surface);
+  border: 1px solid var(--wa-border);
+  border-radius: var(--wa-radius);
+}
+
+.guitar-theme .wa-panel-strong {
+  background: var(--wa-surface-strong);
+  border: 1px solid var(--wa-border);
+  border-radius: var(--wa-radius);
+}
+
+.guitar-theme .wa-eyebrow {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--wa-text-faint);
+}
+
+.guitar-theme .wa-muted {
+  color: var(--wa-text-muted);
+}
+
+/* Navigatie-item (sidebar op desktop, tabbalk op mobiel) — actieve staat via
+   de zachte accenttint, geen volle accentkleur (dat zou te druk ogen voor
+   een rustige, permanent zichtbare navigatie). */
+.guitar-theme .wa-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  border-radius: 0.7rem;
+  color: var(--wa-text-muted);
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.guitar-theme .wa-nav-item:hover {
+  background: var(--wa-surface-strong);
+  color: var(--wa-text);
+}
+
+.guitar-theme .wa-nav-item.active {
+  background: var(--wa-accent-soft);
+  color: var(--wa-accent-soft-text);
+  font-weight: 600;
+}
+
+.guitar-theme .wa-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  border: 1px solid var(--wa-border);
+  background: var(--wa-surface);
+  color: var(--wa-text-muted);
+  font-size: 0.75rem;
+  padding: 0.3rem 0.75rem;
+  white-space: nowrap;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.guitar-theme .wa-chip.active {
+  background: var(--wa-accent-soft);
+  border-color: color-mix(in oklch, var(--wa-accent) 35%, transparent);
+  color: var(--wa-accent-soft-text);
+  font-weight: 600;
+}
+
+.guitar-theme .wa-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border-radius: 0.7rem;
+  background: var(--wa-accent);
+  color: var(--wa-accent-foreground);
+  font-weight: 600;
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
+}
+
+.guitar-theme .wa-button:hover {
+  opacity: 0.92;
+}
+
+.guitar-theme .wa-button:active {
+  transform: scale(0.98);
+}
+
+.guitar-theme .wa-button-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border-radius: 0.7rem;
+  border: 1px solid var(--wa-border);
+  background: var(--wa-surface);
+  color: var(--wa-text-muted);
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.guitar-theme .wa-button-ghost:hover {
+  background: var(--wa-surface-strong);
+  color: var(--wa-text);
+}
+
+.guitar-theme input,
+.guitar-theme textarea {
+  background: var(--wa-surface);
+  border: 1px solid var(--wa-border);
+  border-radius: 0.7rem;
+  color: var(--wa-text);
+}
+
+.guitar-theme input::placeholder,
+.guitar-theme textarea::placeholder {
+  color: var(--wa-text-faint);
+}
+
+.guitar-theme input:focus,
+.guitar-theme textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--wa-accent-soft);
+  border-color: color-mix(in oklch, var(--wa-accent) 45%, transparent);
+}
+
+/* Speelmodus: zoveel mogelijk chrome weg, alleen nog het lettertype groter en
+   de vaste bedieningsbalk onderaan (section 12). Eigen, iets rustiger
+   achtergrond dan de standaardpagina (vlak i.p.v. de subtiele paginatextuur)
+   zodat niets afleidt tijdens het spelen. */
+.guitar-theme .wa-play-surface {
+  background: var(--wa-bg);
+}
+
+.guitar-theme .wa-play-bar {
+  background: color-mix(in oklch, var(--wa-surface) 92%, transparent);
+  border: 1px solid var(--wa-border);
+  border-radius: 999px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 12px 32px -14px rgba(15, 23, 42, 0.18);
+}
+
+/* Albumcovers mogen wél visueel sterk aanwezig zijn (section 6) — zachte,
+   koele schaduw (geen bruine ondertoon) + subtiele afronding, geen rand die
+   met de foto concurreert. */
+.guitar-theme .wa-cover {
+  border-radius: calc(var(--wa-radius) - 0.15rem);
+  box-shadow: 0 10px 24px -14px rgba(15, 23, 42, 0.25);
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .guitar-theme .wa-nav-item,
+  .guitar-theme .wa-chip,
+  .guitar-theme .wa-button,
+  .guitar-theme .wa-button-ghost {
+    transition: none !important;
+  }
 }

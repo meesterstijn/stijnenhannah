@@ -240,7 +240,12 @@ export type PotMaterial =
 export type CultivationType = "pot" | "open_ground" | "raised_bed";
 export type IndoorOutdoorType = "outdoor" | "indoor";
 
-export type PlantInstanceStatus = "active" | "dormant" | "archived" | "dead" | "removed";
+export type PlantInstanceStatus =
+  | "active"
+  | "dormant"
+  | "archived"
+  | "dead"
+  | "removed";
 
 export type GrowingSeasonStatus = "active" | "completed" | "failed";
 
@@ -391,7 +396,11 @@ export type PlantInspectionLog = {
 
 // ─── Teeltplanner ────────────────────────────────────────────────────────────
 
-export type CultivationPlanStatus = "draft" | "active" | "completed" | "archived";
+export type CultivationPlanStatus =
+  | "draft"
+  | "active"
+  | "completed"
+  | "archived";
 
 export type CultivationPlan = {
   id: string;
@@ -462,3 +471,42 @@ export type PlantInstanceQrAssignment = {
   released_at: string | null;
 };
 
+// ─── Gitaar / Akkoorden ─────────────────────────────────────────────────
+
+export type GuitarAlbum = {
+  id: string;
+  title: string;
+  artist: string;
+  cover_storage_path: string | null;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type GuitarSong = {
+  id: string;
+  title: string;
+  artist: string;
+  album_id: string | null;
+  // Grondtoon-notatie, bv. "A", "F#", "Bb", "Em" — zelfde chordsyntax als
+  // akkoorden in `content` (zie features/guitar/lib/transpose.ts).
+  original_key: string;
+  bpm: number | null;
+  // Originele, ongewijzigde songdata: secties + inline akkoorden gekoppeld
+  // aan tekstposities. Zie features/guitar/lib/chordSheet.ts voor het
+  // opslagformaat en de parser.
+  content: string;
+  source_url: string | null;
+  favorite: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type GuitarSongWithAlbum = GuitarSong & {
+  album: Pick<
+    GuitarAlbum,
+    "id" | "title" | "artist" | "cover_storage_path"
+  > | null;
+};
+
+export type GuitarAlbumWithSongCount = GuitarAlbum & { song_count: number };
