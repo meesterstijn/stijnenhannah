@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400&family=Inter:wght@300;400;500;600;700&family=Pixelify+Sans:wght@400;500;600;700&family=Teko:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,400&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400&family=Inter:wght@300;400;500;600;700&family=Pixelify+Sans:wght@400;500;600;700&family=Teko:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,400&family=Cinzel:wght@400;500;600;700;800&display=swap");
 @import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
@@ -924,8 +924,6 @@ body:has(.cocktail-theme) {
   gap: 0.75rem;
   padding: 0.9rem 1rem;
   background: rgba(10, 10, 10, 0.12);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
 }
 
 .home-header a,
@@ -966,7 +964,6 @@ body:has(.cocktail-theme) {
   display: inline-flex;
   align-items: center;
   gap: 0.9rem;
-  margin-top: 1.1rem;
   transition: opacity 180ms ease;
 }
 
@@ -1519,5 +1516,1026 @@ body:has(.guitar-theme) {
   .guitar-theme .wa-button,
   .guitar-theme .wa-button-ghost {
     transition: none !important;
+  }
+}
+
+/*
+ * .gamenight-theme — "The Game Room", v2: nu gebouwd op de aangeleverde
+ * referentiecompositie (echte houten-tafelfoto als achtergrond, fysieke
+ * plaquettes i.p.v. dashboardcards) i.p.v. de eerdere CSS-only V1-tolkening.
+ * Losstaand van elk ander thema in dit bestand (.cocktail-theme,
+ * .tuinieren-theme, .guitar-theme, .r6-theme) — zie het opleverrapport voor
+ * de legacy-audit.
+ *
+ * Kleurrichting: warm donker walnoothout/antraciet (--gn-bg, warme bruine
+ * ondertoon, hue ~55 — cocktail-theme's zwart zit bewust op hue ~280,
+ * blauwiger/kouder) met TWEE accenten i.p.v. cocktail's ene amber: oud
+ * messing/goud (--gn-brass, primair) en gedempt speelveltgroen (--gn-felt,
+ * spaarzaam). Typografie: "Cinzel" (Romeinse inscriptie-kapitalen, nieuw
+ * geladen — zie de @import bovenaan dit bestand) voor titels/plaquette-
+ * opschriften, dicht bij de referentie; lopende tekst blijft Inter voor
+ * leesbaarheid (section 7/8).
+ */
+.gamenight-theme {
+  --gn-bg: oklch(0.13 0.012 55);
+  --gn-bg-elevated: oklch(0.19 0.017 52);
+  --gn-surface: oklch(0.16 0.015 50 / 0.82);
+  --gn-surface-strong: oklch(0.21 0.02 48 / 0.9);
+  --gn-border: oklch(0.4 0.025 55 / 0.35);
+  --gn-border-strong: oklch(0.72 0.09 78 / 0.5);
+  --gn-text: oklch(0.95 0.014 75);
+  --gn-text-muted: oklch(0.78 0.025 70);
+  --gn-text-faint: oklch(0.62 0.025 65);
+  --gn-brass: oklch(0.76 0.11 78);
+  --gn-brass-strong: oklch(0.85 0.13 82);
+  --gn-brass-contrast: oklch(0.18 0.02 60);
+  --gn-brass-soft: oklch(0.32 0.045 75 / 0.3);
+  --gn-felt: oklch(0.5 0.075 155);
+  --gn-felt-deep: oklch(0.22 0.035 155);
+  --gn-felt-soft: oklch(0.32 0.05 155 / 0.28);
+  --gn-radius: 0.9rem;
+  --gn-font-display: "Cinzel", ui-serif, Georgia, serif;
+  color: var(--gn-text);
+}
+
+/* Laag 1 (section 2): de echte houten-tafelfoto (public/game-night/table-wood.jpg,
+   aangeleverd door de gebruiker) als fullscreen achtergrond, met een warme
+   bovenlicht-gloed + verticale vignet erover voor contrast — zelfde
+   `body:has()`-patroon als .cocktail-theme/.guitar-theme, nu met een echt
+   fotobestand i.p.v. alleen CSS-gradients. */
+body:has(.gamenight-theme) {
+  background-color: oklch(0.1 0.01 55);
+  background-image:
+    radial-gradient(
+      ellipse 1200px 650px at 50% -8%,
+      oklch(0.55 0.09 75 / 0.28),
+      transparent 62%
+    ),
+    linear-gradient(
+      180deg,
+      oklch(0.05 0.01 55 / 0.6) 0%,
+      oklch(0.05 0.01 55 / 0.1) 24%,
+      oklch(0.05 0.01 55 / 0.12) 68%,
+      oklch(0.05 0.01 55 / 0.65) 94%
+    ),
+    url("/game-night/table-wood.jpg");
+  background-size: cover, cover, cover;
+  background-position: center, center, center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+/* De globale basisregel (h1,h2,h3,.font-serif { font-family: var(--font-serif) },
+   Fraunces) geldt sitewide — Game Night wil daar bewust NOOIT Fraunces
+   overnemen. Alleen expliciet met .gn-display gemarkeerde koppen krijgen
+   het displaylettertype; kale h1/h2/h3 vallen terug op het sitewide
+   sans-serif (--font-sans, Inter) i.p.v. Fraunces. */
+.gamenight-theme h1,
+.gamenight-theme h2,
+.gamenight-theme h3,
+.gamenight-theme h4 {
+  font-family: var(--font-sans);
+}
+
+.gamenight-theme .gn-display {
+  font-family: var(--gn-font-display);
+  letter-spacing: -0.01em;
+}
+
+.gamenight-theme .gn-eyebrow {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gn-brass);
+}
+
+.gamenight-theme .gn-muted {
+  color: var(--gn-text-muted);
+}
+
+.gamenight-theme .gn-faint {
+  color: var(--gn-text-faint);
+}
+
+.gamenight-theme .gn-panel {
+  background: var(--gn-surface);
+  border: 1px solid var(--gn-border);
+  border-radius: var(--gn-radius);
+  box-shadow: 0 18px 40px -22px rgba(0, 0, 0, 0.6);
+}
+
+.gamenight-theme .gn-panel-elevated {
+  background: var(--gn-surface-strong);
+  border: 1px solid var(--gn-border-strong);
+  border-radius: var(--gn-radius);
+  box-shadow: 0 22px 48px -20px rgba(0, 0, 0, 0.65);
+}
+
+/* Messing plaquette (kampioenselement, section 9) — dunne dubbele rand +
+   zachte gloed, bewust géén gewone dashboardcard. */
+.gamenight-theme .gn-plaque {
+  position: relative;
+  background: linear-gradient(160deg, var(--gn-bg-elevated), var(--gn-surface));
+  border: 1px solid var(--gn-border-strong);
+  border-radius: var(--gn-radius);
+  box-shadow:
+    0 0 0 1px oklch(0.76 0.11 78 / 0.14),
+    0 24px 56px -24px rgba(0, 0, 0, 0.7);
+}
+
+.gamenight-theme .gn-plaque::before {
+  content: "";
+  position: absolute;
+  inset: 0.4rem;
+  border: 1px solid oklch(0.76 0.11 78 / 0.22);
+  border-radius: calc(var(--gn-radius) - 0.35rem);
+  pointer-events: none;
+}
+
+.gamenight-theme .gn-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid var(--gn-border);
+  background: var(--gn-bg-elevated);
+  color: var(--gn-text-muted);
+  font-size: 0.72rem;
+  font-weight: 500;
+  padding: 0.22rem 0.65rem;
+  white-space: nowrap;
+}
+
+.gamenight-theme .gn-chip-felt {
+  border-color: oklch(0.62 0.09 155 / 0.35);
+  background: var(--gn-felt-soft);
+  color: oklch(0.86 0.06 150);
+}
+
+.gamenight-theme .gn-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.65rem;
+  background: linear-gradient(180deg, var(--gn-brass-strong), var(--gn-brass));
+  color: var(--gn-brass-contrast);
+  font-weight: 600;
+  box-shadow: 0 10px 26px -10px oklch(0.76 0.11 78 / 0.55);
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    filter 0.15s ease;
+}
+
+.gamenight-theme .gn-button:hover {
+  filter: brightness(1.06);
+  box-shadow: 0 14px 30px -10px oklch(0.76 0.11 78 / 0.65);
+}
+
+.gamenight-theme .gn-button:active {
+  transform: scale(0.98);
+}
+
+.gamenight-theme .gn-button-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.65rem;
+  border: 1px solid var(--gn-border-strong);
+  background: color-mix(in oklch, var(--gn-bg-elevated) 70%, transparent);
+  color: var(--gn-text);
+  font-weight: 500;
+  backdrop-filter: blur(6px);
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.gamenight-theme .gn-button-ghost:hover {
+  border-color: var(--gn-brass);
+  background: var(--gn-surface-strong);
+}
+
+.gamenight-theme .gn-button-ghost:active {
+  transform: scale(0.98);
+}
+
+/* Hybride spelkaart (section 5) — rust heel licht scheef op de "tafel" en
+   richt zichzelf recht bij hover, met een iets diepere schaduw alsof hij
+   optilt. De rotatiehoek komt uit --gn-tilt (inline gezet per kaart, zie
+   GameCard.tsx) i.p.v. hier een vaste waarde, zodat kaarten niet allemaal
+   identiek ogen. */
+.gamenight-theme .gn-card {
+  --gn-tilt: 0deg;
+  background: var(--gn-surface);
+  border: 1px solid var(--gn-border);
+  border-radius: var(--gn-radius);
+  box-shadow: 0 16px 32px -20px rgba(0, 0, 0, 0.65);
+  transform: rotate(var(--gn-tilt));
+  transition:
+    transform 0.22s ease,
+    box-shadow 0.22s ease,
+    border-color 0.22s ease;
+}
+
+.gamenight-theme .gn-card:hover {
+  transform: rotate(0deg) translateY(-3px);
+  border-color: var(--gn-border-strong);
+  box-shadow: 0 26px 48px -20px rgba(0, 0, 0, 0.75);
+}
+
+.gamenight-theme .gn-cover {
+  border-radius: calc(var(--gn-radius) - 0.15rem);
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px oklch(1 0 0 / 0.06);
+}
+
+/* Zeer subtiele glans-veeg over de plaquette/badges — één keer bij het
+   verschijnen, geen doorlopende animatie (section 14: geen continue
+   animaties op de landingspagina). */
+@keyframes gn-sheen {
+  0% {
+    transform: translateX(-120%) skewX(-12deg);
+    opacity: 0;
+  }
+  35% {
+    opacity: 0.5;
+  }
+  100% {
+    transform: translateX(220%) skewX(-12deg);
+    opacity: 0;
+  }
+}
+
+.gamenight-theme .gn-glow::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    75deg,
+    transparent,
+    oklch(0.9 0.06 85 / 0.16),
+    transparent
+  );
+  animation: gn-sheen 2.6s ease-in-out 0.4s 1;
+  pointer-events: none;
+}
+
+.gamenight-theme input,
+.gamenight-theme textarea {
+  background: var(--gn-bg-elevated);
+  border: 1px solid var(--gn-border);
+  border-radius: 0.6rem;
+  color: var(--gn-text);
+}
+
+.gamenight-theme input::placeholder,
+.gamenight-theme textarea::placeholder {
+  color: var(--gn-text-faint);
+}
+
+.gamenight-theme input:focus,
+.gamenight-theme textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--gn-brass-soft);
+  border-color: var(--gn-brass);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gamenight-theme .gn-card,
+  .gamenight-theme .gn-button,
+  .gamenight-theme .gn-button-ghost {
+    transition: none !important;
+  }
+  .gamenight-theme .gn-card:hover {
+    transform: rotate(var(--gn-tilt)) !important;
+  }
+  .gamenight-theme .gn-glow::after {
+    animation: none !important;
+    display: none;
+  }
+}
+
+/* ── Tabletop-shell v2 (section 1-16: referentiecompositie) ──────────────── */
+
+/* De "control table"-schil: op tablet-landscape en groter (lg:) vult dit
+   precies de viewporthoogte zonder scroll — een 2-rijen-grid (nav /
+   midden). Op mobiel/smalle tablet valt dit terug op een gewone scrollbare
+   kolom (zie GameNightHome.tsx, dat de grid-classes alleen vanaf lg:
+   toepast). */
+.gamenight-theme .gn-tabletop {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+@media (min-width: 1024px) {
+  /* Deze box neemt hier bewust de VOLLEDIGE 100dvh + eigen top/bottom-
+     padding voor zijn rekening (i.p.v. te vertrouwen op padding van
+     <main> in site-layout.tsx) — dat was de daadwerkelijke oorzaak van de
+     onzichtbare verticale overflow: main's pt-16/pb-12 (7rem) kwam BOVENOP
+     deze box' eigen hoogte terecht i.p.v. erbinnen. Nu is er precies één
+     box die exact 100dvh groot is (border-box, dus padding telt mee) en
+     die zelf clipt (overflow:hidden) — main's eigen padding wordt voor de
+     home-route in site-layout.tsx gecanceld op lg: (lg:pt-0 lg:pb-0). */
+  .gamenight-theme .gn-tabletop-fit {
+    height: 100dvh;
+    padding: 4rem 0 3rem;
+    display: grid;
+    grid-template-rows: auto 1fr;
+    gap: 1rem;
+    overflow: hidden;
+  }
+}
+
+/* Bovenste navigatiebalk — verdwijnt in de donkere bovenrand i.p.v. een
+   eigen paneel te zijn (section 19: mag minder aandacht trekken dan het
+   fysieke speelbord, dus lagere contrast/opacity dan de rest van de UI). */
+.gamenight-theme .gn-topnav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  opacity: 0.94;
+}
+
+.gamenight-theme .gn-topnav-link {
+  font-size: 0.85rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: oklch(0.85 0.02 75 / 0.85);
+  transition: color 0.15s ease;
+}
+
+.gamenight-theme .gn-topnav-link:hover {
+  color: var(--gn-brass);
+}
+
+.gamenight-theme .gn-topnav-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 2rem;
+  width: 2rem;
+  border-radius: 999px;
+  border: 1px solid oklch(0.4 0.025 55 / 0.22);
+  background: oklch(0.14 0.012 55 / 0.35);
+  color: var(--gn-text-faint);
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.gamenight-theme .gn-topnav-icon-btn:hover {
+  border-color: var(--gn-brass);
+  color: var(--gn-brass);
+}
+
+.gamenight-theme .gn-topnav-user {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  border: 1px solid oklch(0.4 0.025 55 / 0.22);
+  background: oklch(0.14 0.012 55 / 0.35);
+  padding: 0.3rem 0.75rem 0.3rem 0.3rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--gn-text-muted);
+}
+
+/* Gedeelde messing-klinknagels (4 hoekstipjes) voor de fysieke plaquettes
+   (kampioen/menu/acties) — één achtergrond met 4 radial-gradients i.p.v.
+   extra DOM-nodes per hoek. */
+.gamenight-theme .gn-plaque::after,
+.gamenight-theme .gn-plaque-mini::after,
+.gamenight-theme .gn-plaque-action::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(
+      circle 2.2px at 0.55rem 0.5rem,
+      var(--gn-brass) 92%,
+      transparent 100%
+    ),
+    radial-gradient(
+      circle 2.2px at calc(100% - 0.55rem) 0.5rem,
+      var(--gn-brass) 92%,
+      transparent 100%
+    ),
+    radial-gradient(
+      circle 2.2px at 0.55rem calc(100% - 0.5rem),
+      var(--gn-brass) 92%,
+      transparent 100%
+    ),
+    radial-gradient(
+      circle 2.2px at calc(100% - 0.55rem) calc(100% - 0.5rem),
+      var(--gn-brass) 92%,
+      transparent 100%
+    );
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Centraal speelvlak (correctieronde sectie 3/4/5) — kleiner en fysieker:
+   verweerd donker leer/hout met zichtbare gebruikssporen (asymmetrische
+   worn-patches), een heel subtiel bordraster erachter (decoratief, geen
+   leesbare cijfers/vakken — puur om te suggereren dat dit een bestaand
+   speelbord is), materiaalkorrel, een kleinere/fysiekere radius, een
+   messing dubbele rand + hoekstudjes, en een zichtbare "dikte" via een
+   donkere onderrand + contact shadow op de tafel eronder. */
+.gamenight-theme .gn-board {
+  position: relative;
+  background-image:
+    radial-gradient(
+      ellipse 34% 26% at 22% 78%,
+      oklch(0.3 0.03 85 / 0.35),
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 26% 20% at 82% 30%,
+      oklch(0.28 0.028 85 / 0.28),
+      transparent 70%
+    ),
+    repeating-linear-gradient(
+      0deg,
+      oklch(1 0 0 / 0.025) 0px,
+      oklch(1 0 0 / 0.025) 1px,
+      transparent 1px,
+      transparent 42px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      oklch(1 0 0 / 0.02) 0px,
+      oklch(1 0 0 / 0.02) 1px,
+      transparent 1px,
+      transparent 42px
+    ),
+    repeating-linear-gradient(
+      118deg,
+      oklch(1 0 0 / 0.02) 0px,
+      oklch(1 0 0 / 0.02) 1px,
+      transparent 1px,
+      transparent 3px
+    ),
+    radial-gradient(
+      ellipse 90% 70% at 50% 12%,
+      oklch(0.24 0.025 90 / 0.5),
+      transparent 60%
+    ),
+    radial-gradient(
+      ellipse at 50% 25%,
+      var(--gn-felt-deep),
+      oklch(0.085 0.012 50) 80%
+    );
+  border: 1px solid var(--gn-border-strong);
+  border-bottom: 3px solid oklch(0.05 0.01 40 / 0.8);
+  border-radius: 0.6rem;
+  box-shadow:
+    inset 0 0 0 1px oklch(0.76 0.11 78 / 0.12),
+    inset 0 2px 18px rgba(0, 0, 0, 0.55),
+    0 4px 0 -1px oklch(0.76 0.11 78 / 0.1),
+    0 26px 38px -20px rgba(0, 0, 0, 0.8);
+}
+
+.gamenight-theme .gn-board::before {
+  content: "";
+  position: absolute;
+  inset: 0.45rem;
+  border: 1px solid oklch(0.76 0.11 78 / 0.16);
+  border-radius: 0.35rem;
+  pointer-events: none;
+}
+
+.gamenight-theme .gn-board::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(
+      circle 2.6px at 0.65rem 0.6rem,
+      var(--gn-brass) 92%,
+      transparent 100%
+    ),
+    radial-gradient(
+      circle 2.6px at calc(100% - 0.65rem) 0.6rem,
+      var(--gn-brass) 92%,
+      transparent 100%
+    ),
+    radial-gradient(
+      circle 2.6px at 0.65rem calc(100% - 0.6rem),
+      var(--gn-brass) 92%,
+      transparent 100%
+    ),
+    radial-gradient(
+      circle 2.6px at calc(100% - 0.65rem) calc(100% - 0.6rem),
+      var(--gn-brass) 92%,
+      transparent 100%
+    );
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+/* Fysieke plaquette-knop (Start Game Night / Laat een spel kiezen,
+   section 5/6) — bewust GEEN standaard webknop: messing rand, inner shadow,
+   bovenrand-highlight, messing klinknagels in de hoeken en een echte
+   pressed-state bij aanraken (geen moderne button-hover-glow). */
+.gamenight-theme .gn-plaque-action {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 1.35rem 1.35rem 0.65rem 0.65rem;
+  border: 1px solid var(--gn-border-strong);
+  background-image:
+    repeating-linear-gradient(
+      122deg,
+      oklch(1 0 0 / 0.025) 0px,
+      oklch(1 0 0 / 0.025) 1px,
+      transparent 1px,
+      transparent 3px
+    ),
+    linear-gradient(180deg, oklch(0.24 0.02 55), oklch(0.15 0.016 55));
+  box-shadow:
+    inset 0 0 0 1px oklch(0.76 0.11 78 / 0.14),
+    inset 0 1px 0 oklch(0.85 0.1 78 / 0.25),
+    inset 0 -10px 18px -12px rgba(0, 0, 0, 0.7),
+    0 16px 30px -16px rgba(0, 0, 0, 0.75);
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease,
+    border-color 0.12s ease;
+}
+
+.gamenight-theme .gn-plaque-action::before {
+  content: "";
+  position: absolute;
+  inset: 0.35rem;
+  border: 1px solid oklch(0.76 0.11 78 / 0.22);
+  border-radius: calc(1.35rem - 0.35rem);
+  pointer-events: none;
+}
+
+.gamenight-theme .gn-plaque-action:hover {
+  border-color: var(--gn-brass);
+}
+
+.gamenight-theme .gn-plaque-action:active {
+  transform: scale(0.985) translateY(1px);
+  box-shadow:
+    inset 0 0 0 1px oklch(0.76 0.11 78 / 0.14),
+    inset 0 1px 0 oklch(0.85 0.1 78 / 0.15),
+    inset 0 6px 14px -8px rgba(0, 0, 0, 0.8),
+    0 8px 16px -12px rgba(0, 0, 0, 0.7);
+}
+
+.gamenight-theme .gn-plaque-action-primary {
+  background-image:
+    repeating-linear-gradient(
+      122deg,
+      oklch(1 0 0 / 0.025) 0px,
+      oklch(1 0 0 / 0.025) 1px,
+      transparent 1px,
+      transparent 3px
+    ),
+    linear-gradient(180deg, var(--gn-felt), var(--gn-felt-deep));
+  border-color: oklch(0.76 0.11 78 / 0.55);
+}
+
+/* Kampioenskaart (section 7) — licht gekanteld, verweerd zwart materiaal
+   met messing rand + klinknagels, eigen slagschaduw op het hout via de
+   losstaande ::after (niet de paneelschaduw zelf, die volgt de rotatie niet
+   mee op een manier die overtuigend oogt). */
+.gamenight-theme .gn-plaque-tilt {
+  position: relative;
+  transform: rotate(var(--gn-tilt, -3deg));
+}
+
+.gamenight-theme .gn-plaque-tilt::after {
+  content: "";
+  position: absolute;
+  inset: 6% 4%;
+  background: black;
+  filter: blur(18px);
+  opacity: 0.5;
+  z-index: -1;
+  border-radius: inherit;
+}
+
+/* Compacte menuplaquette (rechterkolom, section 8) — klein fysiek object
+   met messing klinknagels, geen grote dashboardcard. */
+.gamenight-theme .gn-plaque-mini {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  border-radius: 0.65rem;
+  border: 1px solid var(--gn-border);
+  background-image:
+    repeating-linear-gradient(
+      122deg,
+      oklch(1 0 0 / 0.02) 0px,
+      oklch(1 0 0 / 0.02) 1px,
+      transparent 1px,
+      transparent 3px
+    ),
+    linear-gradient(
+      160deg,
+      oklch(0.2 0.017 52 / 0.9),
+      oklch(0.14 0.014 55 / 0.9)
+    );
+  box-shadow:
+    inset 0 1px 0 oklch(0.85 0.1 78 / 0.08),
+    0 10px 20px -14px rgba(0, 0, 0, 0.7);
+  transition:
+    border-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+a.gn-plaque-mini:hover {
+  border-color: var(--gn-brass);
+  transform: translateX(2px);
+}
+
+/* Onderste informatiepanelen — zelfde donkere plaquette-taal; niet meer op
+   de Game Night-home gerenderd (section 9: die tafel blijft leeg/sfeervol),
+   maar de component/klasse blijft bestaan voor Geschiedenis/Hall of
+   Fame/spelersdetail-pagina's later. */
+.gamenight-theme .gn-panel-info {
+  background: oklch(0.15 0.014 53 / 0.88);
+  border: 1px solid var(--gn-border);
+  border-radius: var(--gn-radius);
+  box-shadow: 0 16px 32px -20px rgba(0, 0, 0, 0.65);
+}
+
+/* ── Losse fysieke tafelobjecten (section 4/15/16/17) — echte, uit de
+   aangeleverde asset-sheet uitgesneden fotoassets (public/game-night/
+   assets/*.webp), elk een los element met een eigen contact shadow per
+   materiaaltype (section 21) i.p.v. één generieke box-shadow overal. ── */
+
+.gamenight-theme .gn-tableobj {
+  position: absolute;
+  height: auto;
+  pointer-events: none;
+  user-select: none;
+}
+
+.gamenight-theme .gn-tableobj-card {
+  filter: drop-shadow(0 5px 7px rgba(0, 0, 0, 0.4));
+}
+
+.gamenight-theme .gn-tableobj-dice {
+  filter: drop-shadow(3px 9px 7px rgba(0, 0, 0, 0.5));
+}
+
+.gamenight-theme .gn-tableobj-pawn {
+  filter: drop-shadow(0 5px 5px rgba(0, 0, 0, 0.45));
+}
+
+/* Platte fiche-contactschaduw (correctieronde) — strakker/kleiner dan de
+   pion-schaduw zodat fiches plat op het bord liggen i.p.v. als bolletjes
+   te zweven. */
+.gamenight-theme .gn-tableobj-chip {
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.5));
+}
+
+.gamenight-theme .gn-tableobj-bowl {
+  filter: drop-shadow(0 16px 18px rgba(0, 0, 0, 0.55));
+}
+
+/* ── Kaarsen (section 11/12/13/14) — een echt fotoasset als basis
+   (candle-base.webp, de versie zonder brandende vlam) met een losse,
+   apart geanimeerde vlam (flame-a/b.webp) erboven, en drie gestapelde
+   gloed-lagen (core/mid/ambient) die elk een eigen tempo ademen zodat het
+   hout er echt door lijkt te worden verlicht i.p.v. dat de kaars alleen een
+   object is. Timing per instantie komt uit --gn-flicker-dur/-delay en
+   --gn-glow-dur/-delay (inline gezet, zie Candle.tsx). */
+.gamenight-theme .gn-candle-v2 {
+  position: relative;
+  pointer-events: none;
+}
+
+.gamenight-theme .gn-candle-base-img {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 10px 9px rgba(0, 0, 0, 0.5));
+}
+
+.gamenight-theme .gn-candle-glow-core,
+.gamenight-theme .gn-candle-glow-mid,
+.gamenight-theme .gn-candle-glow-ambient {
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  top: 8%;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  animation: gn-glow-breathe var(--gn-glow-dur, 6s) ease-in-out infinite;
+  animation-delay: var(--gn-glow-delay, 0s);
+}
+
+.gamenight-theme .gn-candle-glow-core {
+  width: 95%;
+  height: 95%;
+  background: radial-gradient(
+    circle,
+    oklch(0.9 0.11 88 / 0.85) 0%,
+    oklch(0.83 0.14 78 / 0.45) 48%,
+    transparent 76%
+  );
+  filter: blur(4px);
+}
+
+.gamenight-theme .gn-candle-glow-mid {
+  width: 230%;
+  height: 230%;
+  background: radial-gradient(
+    circle,
+    oklch(0.76 0.13 72 / 0.4) 0%,
+    oklch(0.6 0.1 62 / 0.16) 52%,
+    transparent 78%
+  );
+  filter: blur(11px);
+  animation-duration: calc(var(--gn-glow-dur, 6s) * 1.3);
+  animation-delay: calc(var(--gn-glow-delay, 0s) + 0.6s);
+}
+
+.gamenight-theme .gn-candle-glow-ambient {
+  width: 440%;
+  height: 440%;
+  background: radial-gradient(
+    circle,
+    oklch(0.55 0.09 60 / 0.2) 0%,
+    transparent 72%
+  );
+  filter: blur(22px);
+  animation-duration: calc(var(--gn-glow-dur, 6s) * 1.8);
+  animation-delay: calc(var(--gn-glow-delay, 0s) + 1.1s);
+}
+
+/* De vlam-anchor (top:25%) is niet arbitrair: dat is waar de lont daadwerkelijk
+   zichtbaar is in candle-base.webp (geverifieerd met een procentraster over het
+   asset). translate(-50%, -100%) schuift de wrapper omhoog met precies zijn
+   eigen hoogte, zodat de ONDERKANT van de vlam op de lont landt en de rest van
+   de vlam (bijna) volledig boven de glasrand uitsteekt — dit blijft correct op
+   elke `size` omdat zowel de vlamhoogte als de containerhoogte evenredig
+   meeschalen met de candle-breedte. */
+.gamenight-theme .gn-candle-flame-wrap {
+  position: absolute;
+  z-index: 2;
+  left: 47%;
+  top: 25%;
+  width: 28%;
+  transform: translate(-50%, -100%);
+}
+
+.gamenight-theme .gn-candle-flame-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  transform-origin: 50% 96%;
+  animation: gn-flame-flicker-v2 var(--gn-flicker-dur, 2.6s) ease-in-out
+    infinite;
+  animation-delay: var(--gn-flicker-delay, 0s);
+  filter: drop-shadow(0 0 7px oklch(0.85 0.14 80 / 0.75))
+    drop-shadow(0 0 16px oklch(0.75 0.13 70 / 0.4));
+}
+
+@keyframes gn-flame-flicker-v2 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1, 1) rotate(0deg);
+  }
+  15% {
+    transform: translate(-7%, -3%) scale(0.94, 1.05) rotate(-3deg);
+  }
+  32% {
+    transform: translate(5%, 1%) scale(1.04, 0.96) rotate(2deg);
+  }
+  50% {
+    transform: translate(-4%, -2%) scale(0.97, 1.03) rotate(-1.5deg);
+  }
+  68% {
+    transform: translate(6%, 0%) scale(1.02, 0.98) rotate(3deg);
+  }
+  85% {
+    transform: translate(-5%, -1%) scale(0.96, 1.04) rotate(-2deg);
+  }
+}
+
+@keyframes gn-glow-breathe {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  30% {
+    opacity: 0.66;
+    transform: translate(-50%, -50%) scale(1.06);
+  }
+  55% {
+    opacity: 0.46;
+    transform: translate(-50%, -50%) scale(0.95);
+  }
+  80% {
+    opacity: 0.6;
+    transform: translate(-50%, -50%) scale(1.04);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gamenight-theme .gn-candle-flame-img,
+  .gamenight-theme .gn-candle-glow-core,
+  .gamenight-theme .gn-candle-glow-mid,
+  .gamenight-theme .gn-candle-glow-ambient {
+    animation: none !important;
+  }
+}
+
+/* ── Start Game Night-flow (functioneel fundament) ────────────────────────
+   Zelfde tabletop-scène, geen aparte pagina: peripherale plaques dimmen
+   subtiel terug zodra het bord de actieve interface wordt, spelersfiches
+   krijgen een messing highlight bij selectie, en een compact "fysiek
+   muziekkaartje" voor de bestaande Spotify-koppeling tijdens een actieve
+   Game Night. ── */
+
+.gamenight-theme .gn-peripheral-dim {
+  opacity: 0.32;
+  transform: scale(0.97);
+  transition:
+    opacity 0.35s ease,
+    transform 0.35s ease;
+  pointer-events: none;
+}
+
+/* Spelersfiche (sectie 19) — geen checkboxlijst: een compacte fysieke
+   plaquette, messing rand + highlight bij selectie, lichte optil-animatie. */
+.gamenight-theme .gn-player-grid-scroll {
+  width: 100%;
+  max-height: 13rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.gamenight-theme .gn-player-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.6rem;
+  padding: 0.25rem;
+}
+
+.gamenight-theme .gn-player-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  width: 5.5rem;
+  border-radius: 0.65rem;
+  border: 1px solid var(--gn-border);
+  background: linear-gradient(
+    160deg,
+    oklch(0.2 0.017 52 / 0.9),
+    oklch(0.14 0.014 55 / 0.9)
+  );
+  padding: 0.65rem 0.4rem;
+  box-shadow: 0 8px 16px -12px rgba(0, 0, 0, 0.7);
+  transition:
+    transform 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.gamenight-theme .gn-player-chip:hover {
+  border-color: oklch(0.72 0.09 78 / 0.4);
+}
+
+.gamenight-theme .gn-player-chip-selected {
+  border-color: var(--gn-brass);
+  box-shadow:
+    0 0 0 1px oklch(0.76 0.11 78 / 0.35),
+    0 14px 22px -12px rgba(0, 0, 0, 0.75);
+  transform: translateY(-3px) scale(1.04);
+}
+
+.gamenight-theme .gn-player-avatar {
+  display: flex;
+  height: 2.1rem;
+  width: 2.1rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--gn-brass-soft);
+  color: var(--gn-brass);
+  font-family: var(--gn-font-display);
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.gamenight-theme .gn-player-name {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--gn-text-muted);
+  text-align: center;
+  line-height: 1.15;
+}
+
+.gamenight-theme .gn-player-chip-selected .gn-player-name {
+  color: var(--gn-text);
+}
+
+.gamenight-theme .gn-player-chip-new {
+  border-style: dashed;
+  color: var(--gn-text-faint);
+  justify-content: center;
+}
+
+.gamenight-theme .gn-player-chip-new:hover {
+  color: var(--gn-brass);
+  border-color: var(--gn-brass);
+}
+
+.gamenight-theme .gn-player-chip-form {
+  justify-content: center;
+}
+
+.gamenight-theme .gn-player-chip-archive {
+  position: absolute;
+  top: -0.3rem;
+  right: -0.3rem;
+  display: flex;
+  height: 1.05rem;
+  width: 1.05rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid var(--gn-border-strong);
+  background: oklch(0.16 0.014 53 / 0.95);
+  color: var(--gn-text-faint);
+  /* Bewust niet volledig verborgen tot :hover — de primaire viewport is een
+     touchscreen (Tab S9) zonder betrouwbare hover-state. */
+  opacity: 0.45;
+  transition:
+    opacity 0.15s ease,
+    color 0.15s ease;
+}
+
+.gamenight-theme .gn-player-chip:hover .gn-player-chip-archive {
+  opacity: 1;
+}
+
+.gamenight-theme .gn-player-chip-archive:hover {
+  color: oklch(0.68 0.19 25);
+  border-color: oklch(0.68 0.19 25 / 0.6);
+}
+
+/* Compact "fysiek muziekkaartje" voor de bestaande Spotify-koppeling. */
+.gamenight-theme .gn-nowplaying-collapsed {
+  display: flex;
+  height: 2.15rem;
+  width: 2.15rem;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 999px;
+  border: 1px solid var(--gn-border);
+  background: oklch(0.14 0.012 55 / 0.7);
+  color: var(--gn-text-muted);
+  backdrop-filter: blur(6px);
+  transition: border-color 0.15s ease;
+}
+
+.gamenight-theme .gn-nowplaying-collapsed:hover {
+  border-color: var(--gn-brass);
+  color: var(--gn-brass);
+}
+
+.gamenight-theme .gn-nowplaying-card {
+  width: 13.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--gn-border-strong);
+  background: oklch(0.15 0.014 53 / 0.92);
+  backdrop-filter: blur(8px);
+  padding: 0.65rem 0.75rem;
+  box-shadow: 0 16px 32px -20px rgba(0, 0, 0, 0.75);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gamenight-theme .gn-peripheral-dim,
+  .gamenight-theme .gn-player-chip,
+  .gamenight-theme .gn-player-chip-selected {
+    transition: none !important;
+    transform: none !important;
   }
 }

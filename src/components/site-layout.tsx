@@ -47,6 +47,14 @@ export function SiteLayout() {
   // ("Ons Huisje" + weekdag) hoort daar niet bij, dus dezelfde behandeling:
   // volle balk uit, alleen een kleine zwevende terug-link.
   const isGitaar = pathname.startsWith("/gitaar");
+  // Game Night heeft z'n eigen "The Game Room"-identiteit (.gamenight-theme,
+  // zie styles.css) — zelfde behandeling als R6/Cocktail Bar/Gitaar: volle
+  // navbalk uit, alleen een kleine zwevende terug-link.
+  const isGameNight = pathname.startsWith("/game-night");
+  // Alleen de home zelf wordt een niet-scrollbare "tabletop"-scène op
+  // tablet/desktop (lg:) — subroutes zoals /game-night/spellen blijven
+  // gewoon normaal scrollen, zie de opdracht "vaste tafel" sectie 2.
+  const isGameNightHome = pathname === "/game-night";
   const isHome = pathname === "/";
   // Boodschappen rendert zelf een "Ons Huisje"-terugknop op de plek van de
   // paginatitel (zie Boodschappen.tsx) i.p.v. de gedeelde navbalk — dezelfde
@@ -54,7 +62,13 @@ export function SiteLayout() {
   const isBoodschappen = pathname === "/boodschappen";
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div
+      className={`min-h-screen flex flex-col ${
+        isGameNightHome
+          ? "lg:h-dvh lg:min-h-0 lg:overflow-hidden lg:overscroll-none"
+          : ""
+      }`}
+    >
       {((isR6 && !isR6SessionDetail && !isR6Player) || isCocktailBar) && (
         // Op Cocktail Bar-pagina's staat de hele groep (incl. "Ons Huisje")
         // in .cocktail-theme, zodat de knop daar dezelfde look krijgt als
@@ -115,74 +129,90 @@ export function SiteLayout() {
           </Link>
         </div>
       )}
+      {isGameNight && (
+        <div className="gamenight-theme fixed left-3 top-3 z-50 flex max-w-[calc(100vw-1.5rem)] items-center gap-2 overflow-x-auto">
+          <Link
+            to="/"
+            className="gn-button-ghost flex shrink-0 items-center gap-1.5 px-3 py-1.5 text-xs"
+          >
+            <Home className="h-3.5 w-3.5" />
+            <span className="font-medium">Ons Huisje</span>
+          </Link>
+        </div>
+      )}
       {/* De homepage bouwt haar eigen transparante, fullscreen header (zie
           Home.tsx) i.p.v. deze algemene navbalk — vandaar ook hier buiten
           gesloten met !isHome, net als bij R6/Cocktail Bar hierboven.
           Boodschappen sluit om dezelfde reden uit met !isBoodschappen.
-          Gitaar sluit uit met !isGitaar — zie het eigen zwevende blokje
-          hierboven. */}
-      {!isR6 && !isCocktailBar && !isHome && !isBoodschappen && !isGitaar && (
-        <header className="border-b border-border/60 backdrop-blur-sm bg-background/70 sticky top-0 z-40">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-4 md:grid md:grid-cols-[auto_1fr_auto]">
-            <Link to="/" className="flex items-center gap-2 group">
+          Gitaar/Game Night sluiten uit met !isGitaar/!isGameNight — zie de
+          eigen zwevende blokjes hierboven. */}
+      {!isR6 &&
+        !isCocktailBar &&
+        !isHome &&
+        !isBoodschappen &&
+        !isGitaar &&
+        !isGameNight && (
+          <header className="border-b border-border/60 backdrop-blur-sm bg-background/70 sticky top-0 z-40">
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-4 md:grid md:grid-cols-[auto_1fr_auto]">
+              <Link to="/" className="flex items-center gap-2 group">
+                {isTuinieren ? (
+                  <Sprout className="h-5 w-5" strokeWidth={1.6} />
+                ) : (
+                  <Home className="h-5 w-5" />
+                )}
+                <span
+                  className={
+                    isTuinieren
+                      ? "sv-heading text-2xl"
+                      : "tuin-font text-xl font-semibold"
+                  }
+                >
+                  {isTuinieren ? "Tuinieren" : "Ons Huisje"}
+                </span>
+              </Link>
               {isTuinieren ? (
-                <Sprout className="h-5 w-5" strokeWidth={1.6} />
+                <span />
               ) : (
-                <Home className="h-5 w-5" />
-              )}
-              <span
-                className={
-                  isTuinieren
-                    ? "sv-heading text-2xl"
-                    : "tuin-font text-xl font-semibold"
-                }
-              >
-                {isTuinieren ? "Tuinieren" : "Ons Huisje"}
-              </span>
-            </Link>
-            {isTuinieren ? (
-              <span />
-            ) : (
-              <span className="hidden md:block text-center text-sm text-muted-foreground tuin-font font-normal capitalize">
-                {new Date().toLocaleDateString("nl-NL", {
-                  weekday: "long",
-                  day: "numeric",
-                  month: "long",
-                })}
-              </span>
-            )}
-            <div className="justify-self-end">
-              {isTuinieren ? (
-                <WeatherForecast />
-              ) : (
-                <nav className="flex items-center gap-1 sm:gap-2">
-                  {nav.map((item) => {
-                    const active = pathname === item.to;
-                    const Icon = item.icon;
-                    return (
-                      <Link
-                        key={item.to}
-                        to={item.to}
-                        className={`flex items-center gap-2 px-3 py-2 rounded-full text-sm transition-colors ${
-                          pathname === item.to ||
-                          pathname.startsWith(item.to + "/")
-                            ? "bg-primary text-primary-foreground shadow-sm"
-                            : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                        }`}
-                      >
-                        <Icon className="h-5 w-5" />
-                        <span className="hidden sm:inline text-base">
-                          {item.label}
-                        </span>
-                      </Link>
-                    );
+                <span className="hidden md:block text-center text-sm text-muted-foreground tuin-font font-normal capitalize">
+                  {new Date().toLocaleDateString("nl-NL", {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "long",
                   })}
-                </nav>
+                </span>
               )}
+              <div className="justify-self-end">
+                {isTuinieren ? (
+                  <WeatherForecast />
+                ) : (
+                  <nav className="flex items-center gap-1 sm:gap-2">
+                    {nav.map((item) => {
+                      const active = pathname === item.to;
+                      const Icon = item.icon;
+                      return (
+                        <Link
+                          key={item.to}
+                          to={item.to}
+                          className={`flex items-center gap-2 px-3 py-2 rounded-full text-sm transition-colors ${
+                            pathname === item.to ||
+                            pathname.startsWith(item.to + "/")
+                              ? "bg-primary text-primary-foreground shadow-sm"
+                              : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                          }`}
+                        >
+                          <Icon className="h-5 w-5" />
+                          <span className="hidden sm:inline text-base">
+                            {item.label}
+                          </span>
+                        </Link>
+                      );
+                    })}
+                  </nav>
+                )}
+              </div>
             </div>
-          </div>
-        </header>
-      )}
+          </header>
+        )}
       <main
         className={
           isHome
@@ -194,9 +224,18 @@ export function SiteLayout() {
                     ? "r6-theme pt-16 pb-8 sm:pb-12"
                     : isCocktailBar
                       ? "cocktail-theme pt-16 pb-8 sm:pb-12"
-                      : isGitaar
-                        ? "pt-16 pb-8 sm:pb-12"
-                        : "py-8 sm:py-12"
+                      : isGameNightHome
+                        ? // Op lg: neemt .gn-tabletop-fit zelf de volledige
+                          // 100dvh + eigen padding voor z'n rekening (zie
+                          // styles.css) — main's eigen pt/pb zouden daar
+                          // bovenop een niet-zichtbare scrollbar opleveren.
+                          // Onder lg: (mobiel) blijft dit gewoon een normale
+                          // scrollbare pagina met dezelfde spacing als de
+                          // rest van Game Night.
+                          "pt-16 pb-8 sm:pb-12 lg:pt-0 lg:pb-0 lg:min-h-0 lg:overflow-hidden"
+                        : isGitaar || isGameNight
+                          ? "pt-16 pb-8 sm:pb-12"
+                          : "py-8 sm:py-12"
               }`
         }
       >

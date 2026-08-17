@@ -18,12 +18,12 @@ import {
   ListTodo,
   NotebookPen,
   CalendarDays,
-  Sparkles,
   Sprout,
   Crosshair,
   Martini,
   CloudSun,
   Guitar,
+  Dices,
   ChevronRight,
   MoreHorizontal,
 } from "lucide-react";
@@ -36,13 +36,6 @@ type IconType = React.ComponentType<{
 }>;
 
 const MEER_SECTION_ID = "home-meer";
-
-function getGreeting(hour: number) {
-  if (hour < 6) return "Goedenacht";
-  if (hour < 12) return "Goedemorgen";
-  if (hour < 18) return "Goedemiddag";
-  return "Goedenavond";
-}
 
 export default function Home() {
   const { data: items = [] } = useQuery({
@@ -70,7 +63,6 @@ export default function Home() {
   const openTodos = todos.filter((t) => !t.done);
 
   const now = new Date();
-  const greeting = getGreeting(now.getHours());
   const dateLabel = now.toLocaleDateString("nl-NL", {
     weekday: "long",
     day: "numeric",
@@ -106,11 +98,13 @@ export default function Home() {
       </header>
 
       <div className="home-content">
-        <section>
-          <p className="home-greeting">{greeting} 👋</p>
-          <p className="home-date">{dateLabelCap}</p>
+        <section className="flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <p className="home-greeting">Hej! 👋</p>
+            <p className="home-date">{dateLabelCap}</p>
+          </div>
 
-          <Link to="/weer" className="home-weather">
+          <Link to="/weer" className="home-weather shrink-0">
             {WeatherIcon && (
               <WeatherIcon className="h-9 w-9" strokeWidth={1.5} />
             )}
@@ -181,13 +175,6 @@ export default function Home() {
           <p className="home-section-heading">Meer</p>
           <div className="home-glass-scope dark grid grid-cols-2 sm:grid-cols-3 gap-3">
             <HomeTile
-              to="/dagvraag"
-              icon={Sparkles}
-              title="Dagvraag"
-              desc="Elke dag een antwoord van Gemini"
-              compact
-            />
-            <HomeTile
               to="/rainbow-six-siege"
               icon={Crosshair}
               title="Rainbow Six Siege"
@@ -206,6 +193,13 @@ export default function Home() {
               icon={Guitar}
               title="Gitaar"
               desc="Akkoorden en songteksten"
+              compact
+            />
+            <HomeTile
+              to="/game-night"
+              icon={Dices}
+              title="Game Night"
+              desc="Vanavond wordt er gespeeld"
               compact
             />
             <HomeTile

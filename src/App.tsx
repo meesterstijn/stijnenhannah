@@ -87,6 +87,21 @@ const GitaarFavorieten = lazy(() => import("@/pages/gitaar/GitaarFavorieten"));
 const GitaarRecent = lazy(() => import("@/pages/gitaar/GitaarRecent"));
 const GitaarSong = lazy(() => import("@/pages/gitaar/GitaarSong"));
 const GitaarSongEditor = lazy(() => import("@/pages/gitaar/GitaarSongEditor"));
+const GameNightLayout = lazy(
+  () => import("@/pages/game-night/GameNightLayout"),
+);
+const GameNightHome = lazy(() => import("@/pages/game-night/GameNightHome"));
+const GameNightGames = lazy(() => import("@/pages/game-night/GameNightGames"));
+const GameNightPlay = lazy(() => import("@/pages/game-night/GameNightPlay"));
+const GameNightPicker = lazy(
+  () => import("@/pages/game-night/GameNightPicker"),
+);
+const GameNightHallOfFame = lazy(
+  () => import("@/pages/game-night/GameNightHallOfFame"),
+);
+const GameNightHistory = lazy(
+  () => import("@/pages/game-night/GameNightHistory"),
+);
 
 const queryClient = new QueryClient();
 
@@ -229,6 +244,14 @@ function AppRoutes() {
                 path="nummers/:id/bewerken"
                 element={<GitaarSongEditor />}
               />
+            </Route>
+            <Route path="/game-night" element={<GameNightLayout />}>
+              <Route index element={<GameNightHome />} />
+              <Route path="spellen" element={<GameNightGames />} />
+              <Route path="spelen" element={<GameNightPlay />} />
+              <Route path="spel-kiezen" element={<GameNightPicker />} />
+              <Route path="hall-of-fame" element={<GameNightHallOfFame />} />
+              <Route path="geschiedenis" element={<GameNightHistory />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Route>

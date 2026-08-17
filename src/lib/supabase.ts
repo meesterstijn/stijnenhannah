@@ -510,3 +510,142 @@ export type GuitarSongWithAlbum = GuitarSong & {
 };
 
 export type GuitarAlbumWithSongCount = GuitarAlbum & { song_count: number };
+
+// ─── Game Night ─────────────────────────────────────────────────────────
+// Functioneel fundament: permanente spelers, Game Night-sessies, spelsessies
+// (één spel binnen een avond), rondes/resultaten en checkpoints/foto's. Zie
+// de migraties 20260912000000 t/m 20260912050000 en het opleverrapport voor
+// de volledige architectuurmotivatie (met name sectie 12: een overwinning is
+// altijd herleidbaar via ronde/spelsessie → spel → Game Night, nooit los).
+
+export type GameDifficulty = "licht" | "gemiddeld" | "zwaar";
+export type GameResultMode = "winner" | "score" | "ranking" | "team" | "coop";
+
+export type GameNightGame = {
+  id: string;
+  name: string;
+  cover_storage_path: string | null;
+  min_players: number | null;
+  max_players: number | null;
+  duration_minutes: number | null;
+  difficulty: GameDifficulty | null;
+  tags: string[];
+  description: string | null;
+  uses_rounds: boolean;
+  track_round_results: boolean;
+  has_session_winner: boolean;
+  result_mode: GameResultMode;
+  archived_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type GameNightPlayer = {
+  id: string;
+  name: string;
+  avatar_url: string | null;
+  color: string | null;
+  sort_order: number;
+  archived_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type GameNightSessionStatus = "active" | "paused" | "completed";
+
+export type GameNightSession = {
+  id: string;
+  name: string;
+  status: GameNightSessionStatus;
+  started_at: string;
+  paused_at: string | null;
+  ended_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type GameNightSessionPlayer = {
+  session_id: string;
+  player_id: string;
+  joined_at: string;
+};
+
+export type GameNightGameSession = {
+  id: string;
+  game_night_session_id: string;
+  game_id: string;
+  status: GameNightSessionStatus;
+  started_at: string;
+  paused_at: string | null;
+  ended_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type GameNightGameSessionPlayer = {
+  game_session_id: string;
+  player_id: string;
+  team_id: string | null;
+  seat_order: number | null;
+  created_at: string;
+};
+
+export type GameNightRound = {
+  id: string;
+  game_session_id: string;
+  round_number: number;
+  started_at: string;
+  ended_at: string | null;
+  created_at: string;
+};
+
+export type GameNightRoundResult = {
+  id: string;
+  round_id: string;
+  player_id: string;
+  team_id: string | null;
+  is_winner: boolean;
+  score: number | null;
+  rank: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type GameNightGameSessionResult = {
+  id: string;
+  game_session_id: string;
+  player_id: string;
+  team_id: string | null;
+  is_winner: boolean;
+  score: number | null;
+  rank: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type GameNightCheckpointPhotoType =
+  | "board"
+  | "cards"
+  | "player"
+  | "supply"
+  | "score"
+  | "other";
+
+export type GameNightCheckpoint = {
+  id: string;
+  game_session_id: string;
+  title: string | null;
+  notes: string | null;
+  created_at: string;
+  created_by: string | null;
+};
+
+export type GameNightCheckpointPhoto = {
+  id: string;
+  checkpoint_id: string;
+  storage_path: string;
+  photo_type: GameNightCheckpointPhotoType;
+  caption: string | null;
+  sort_order: number;
+  created_at: string;
+};
