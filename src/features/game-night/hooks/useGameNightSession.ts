@@ -94,3 +94,23 @@ export function useStartGameNightSession() {
     },
   });
 }
+
+// Sectie 28: sluit de hele avond af — de RPC weigert dit zolang er nog een
+// open (niet-completed) spelsessie bestaat, dus hier hoeft alleen de
+// queries ververst te worden na succes.
+export function useCompleteGameNight() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (sessionId: string): Promise<GameNightSession> => {
+      const { data, error } = await supabase.rpc(
+        "game_night_complete_session",
+        { p_session_id: sessionId },
+      );
+      if (error) throw error;
+      return data as GameNightSession;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ACTIVE_SESSION_KEY });
+    },
+  });
+}

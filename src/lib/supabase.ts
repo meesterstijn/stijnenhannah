@@ -578,6 +578,19 @@ export type GameNightGameSession = {
   started_at: string;
   paused_at: string | null;
   ended_at: string | null;
+  // Cumulatieve gepauzeerde tijd in seconden — zie
+  // 20260912060000_game_night_active_play.sql voor de volledige uitleg.
+  total_paused_seconds: number;
+  // Snapshot van game_night_games.{uses_rounds,track_round_results,
+  // has_session_winner,result_mode} op het moment dat DEZE spelsessie
+  // startte (20260912070000_game_night_round_configuration.sql). Alle UI-
+  // logica moet deze velden lezen, nooit gameSession.game.uses_rounds e.d.
+  // — zo blijft een lopende/afgeronde sessie stabiel als de spelconfiguratie
+  // later wijzigt.
+  uses_rounds: boolean;
+  track_round_results: boolean;
+  has_session_winner: boolean;
+  result_mode: GameResultMode;
   created_at: string;
   updated_at: string;
 };
@@ -638,6 +651,9 @@ export type GameNightCheckpoint = {
   notes: string | null;
   created_at: string;
   created_by: string | null;
+  // Context/metadata: tijdens welke ronde dit checkpoint gemaakt is (alleen
+  // relevant voor rondespellen) — 20260912090000_game_night_checkpoint_photo_ux.
+  round_id: string | null;
 };
 
 export type GameNightCheckpointPhoto = {
@@ -648,4 +664,7 @@ export type GameNightCheckpointPhoto = {
   caption: string | null;
   sort_order: number;
   created_at: string;
+  // Optioneel: van welke speler is deze foto (kaarten/hand) —
+  // 20260912090000_game_night_checkpoint_photo_ux.
+  player_id: string | null;
 };

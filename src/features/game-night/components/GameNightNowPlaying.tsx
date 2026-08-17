@@ -9,32 +9,38 @@ import {
   type NowPlaying,
 } from "@/lib/spotify";
 
-// Compact "fysiek muziekkaartje" tijdens een actieve Game Night (sectie
-// 22). Hergebruikt bewust de BESTAANDE Spotify-koppeling (src/lib/spotify.ts
-// — dezelfde PKCE-authenticatie/tokens/refresh-logica als de widget op de
-// hoofdpagina, src/components/spotify-widget.tsx) i.p.v. een tweede OAuth-
-// flow te bouwen. Alleen de presentatie is nieuw (gn-*-styling i.p.v.
-// sv-*), de onderliggende service/token-laag is exact hetzelfde bestand.
+// Ingebouwde playback-controller tijdens een actieve Game Night (correctie:
+// "Spotify ombouwen naar controller") — hergebruikt uitsluitend de
+// BESTAANDE Spotify-koppeling (src/lib/spotify.ts: zelfde PKCE-auth/tokens/
+// refresh-logica als src/components/spotify-widget.tsx op de hoofdpagina).
+// Geen tweede OAuth, geen nieuwe tokenopslag, geen nieuwe Spotify-app.
+// `skipTrack("previous"|"next")` bestond al voor beide richtingen — geen
+// nieuwe helper nodig voor "vorige".
 //
-// Sectie 23: Spotify is ambiance, geen kernfunctionaliteit — elke fout/
-// afwezige koppeling/geen actief device resulteert hier hooguit in een
-// onopvallende staat, nooit in een geblokkeerde Game Night. Bestaande
-// foutafhandeling van lib/spotify.ts (getNowPlaying geeft null terug bij
-// elke fout) wordt hier één-op-één overgenomen.
+// Bewust GEEN in-/uitklap-stap meer (dat kostte een extra tik vóór Next/
+// Previous bruikbaar was) — het paneel toont cover/titel/artiest + drie
+// 48px-knoppen direct. Spotify is en blijft ambiance, nooit kernfunctionaliteit
+// (elke fout/afwezige koppeling/geen actief device geeft hier alleen een
+// compacte staat, nooit een blokkade van Game Night) — de enige uitzondering
+// is de "Koppelen"-knop wanneer er nog geen geldige auth bestaat.
 export function GameNightNowPlaying() {
   const [connected, setConnected] = useState(isSpotifyConnected);
-  const [expanded, setExpanded] = useState(false);
   const [nowPlaying, setNowPlaying] = useState<NowPlaying>(null);
+  const [hasFetchedOnce, setHasFetchedOnce] = useState(false);
   const [actionPending, setActionPending] = useState(false);
 
   const fetchNowPlaying = useCallback(async () => {
     if (!isSpotifyConnected()) return;
-    setNowPlaying(await getNowPlaying());
+    const result = await getNowPlaying();
+    setNowPlaying(result);
+    setHasFetchedOnce(true);
   }, []);
 
   useEffect(() => {
     if (!connected) return;
     fetchNowPlaying();
+    // Redelijke periodieke polling (10s), geen agressieve API-calls; wordt
+    // netjes opgeruimd bij unmount (bv. zodra de actieve speelmodus eindigt).
     const interval = setInterval(fetchNowPlaying, 10_000);
     return () => clearInterval(interval);
   }, [connected, fetchNowPlaying]);
@@ -59,112 +65,108 @@ export function GameNightNowPlaying() {
     }, 700);
   }
 
+  // Nog geen geldige Spotify-auth — de enige situatie waarin een auth-actie
+  // hier logisch is; tijdens normale playback verlaat de gebruiker Game
+  // Night nooit. Zelfde fysieke paneel in ruststand, geen los popupje.
   if (!connected) {
     return (
-      <button
-        type="button"
-        onClick={() => initiateSpotifyLogin().then(() => setConnected(true))}
-        className="gn-nowplaying-collapsed"
-        aria-label="Spotify verbinden"
-        title="Spotify verbinden"
-      >
-        <Music className="h-4 w-4" strokeWidth={1.7} />
-      </button>
+      <div className="gn-nowplaying-card gn-nowplaying-card-compact">
+        <span className="gn-eyebrow gn-nowplaying-eyebrow">Muziek</span>
+        <p className="gn-faint text-xs">Spotify niet verbonden</p>
+        <button
+          type="button"
+          onClick={() => initiateSpotifyLogin().then(() => setConnected(true))}
+          className="gn-button mt-2 flex min-h-[44px] w-full items-center justify-center px-4 text-xs"
+        >
+          Spotify koppelen
+        </button>
+      </div>
     );
   }
 
-  if (!expanded) {
+  // Wel gekoppeld, maar de eerste poll is nog niet binnen — voorkom een
+  // verkeerde "geen apparaat"-flits vlak na het openen van de pagina.
+  if (!hasFetchedOnce) {
     return (
-      <button
-        type="button"
-        onClick={() => setExpanded(true)}
-        className="gn-nowplaying-collapsed"
-        aria-label="Now Playing tonen"
-        title="Now Playing"
-      >
-        {nowPlaying?.albumArt ? (
-          <img
-            src={nowPlaying.albumArt}
-            alt=""
-            className="h-full w-full rounded-full object-cover"
-          />
-        ) : (
-          <Music className="h-4 w-4" strokeWidth={1.7} />
-        )}
-      </button>
+      <div className="gn-nowplaying-card gn-nowplaying-card-compact">
+        <span className="gn-eyebrow gn-nowplaying-eyebrow">Muziek</span>
+        <Music className="gn-faint h-4 w-4" strokeWidth={1.7} />
+      </div>
+    );
+  }
+
+  // Gekoppeld, maar Spotify meldt geen actief apparaat/afspeelsessie.
+  if (!nowPlaying) {
+    return (
+      <div className="gn-nowplaying-card gn-nowplaying-card-compact">
+        <span className="gn-eyebrow gn-nowplaying-eyebrow">Muziek</span>
+        <p className="text-xs font-medium">Geen actief apparaat</p>
+        <p className="gn-faint mt-1 text-xs leading-snug">
+          Open Spotify op een apparaat
+        </p>
+      </div>
     );
   }
 
   return (
     <div className="gn-nowplaying-card">
-      <button
-        type="button"
-        onClick={() => setExpanded(false)}
-        className="gn-eyebrow mb-2 flex items-center gap-1.5"
-      >
-        <Music className="h-3 w-3" /> Now Playing
-      </button>
-
+      <span className="gn-eyebrow gn-nowplaying-eyebrow">Muziek</span>
       <div className="flex items-center gap-2.5">
-        {nowPlaying?.albumArt ? (
+        {nowPlaying.albumArt ? (
           <img
             src={nowPlaying.albumArt}
             alt=""
-            className="h-10 w-10 shrink-0 rounded-md object-cover"
+            className="h-12 w-12 shrink-0 rounded-md object-cover"
           />
         ) : (
           <div
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md"
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md"
             style={{ background: "var(--gn-brass-soft)" }}
           >
-            <Music className="h-4 w-4" style={{ color: "var(--gn-brass)" }} />
+            <Music className="h-5 w-5" style={{ color: "var(--gn-brass)" }} />
           </div>
         )}
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">
-            {nowPlaying?.trackName ?? "Niets aan het spelen"}
+            {nowPlaying.trackName}
           </p>
-          <p className="gn-faint truncate text-xs">
-            {nowPlaying?.artistName ?? "Speel iets af op Spotify"}
-          </p>
+          <p className="gn-faint truncate text-xs">{nowPlaying.artistName}</p>
         </div>
       </div>
 
-      {nowPlaying && (
-        <div className="mt-2.5 flex items-center justify-center gap-2">
-          <button
-            type="button"
-            onClick={() => handleSkip("previous")}
-            disabled={actionPending}
-            className="gn-topnav-icon-btn"
-            aria-label="Vorige"
-          >
-            <SkipBack className="h-3.5 w-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={handleToggle}
-            disabled={actionPending}
-            className="gn-topnav-icon-btn"
-            aria-label={nowPlaying.isPlaying ? "Pauzeer" : "Speel af"}
-          >
-            {nowPlaying.isPlaying ? (
-              <Pause className="h-3.5 w-3.5" />
-            ) : (
-              <Play className="h-3.5 w-3.5" />
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={() => handleSkip("next")}
-            disabled={actionPending}
-            className="gn-topnav-icon-btn"
-            aria-label="Volgende"
-          >
-            <SkipForward className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      )}
+      <div className="mt-3 flex items-center justify-center gap-3">
+        <button
+          type="button"
+          onClick={() => handleSkip("previous")}
+          disabled={actionPending}
+          className="gn-nowplaying-btn"
+          aria-label="Vorige"
+        >
+          <SkipBack className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          onClick={handleToggle}
+          disabled={actionPending}
+          className="gn-nowplaying-btn gn-nowplaying-btn-primary"
+          aria-label={nowPlaying.isPlaying ? "Pauzeer" : "Speel af"}
+        >
+          {nowPlaying.isPlaying ? (
+            <Pause className="h-5 w-5" />
+          ) : (
+            <Play className="h-5 w-5" />
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={() => handleSkip("next")}
+          disabled={actionPending}
+          className="gn-nowplaying-btn"
+          aria-label="Volgende"
+        >
+          <SkipForward className="h-4 w-4" />
+        </button>
+      </div>
     </div>
   );
 }
