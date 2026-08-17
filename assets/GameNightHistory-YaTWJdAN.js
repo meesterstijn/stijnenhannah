@@ -1,1 +1,0 @@
-import{j as e}from"./query-BGuq1gWo.js";import{G as t}from"./GameNightComingSoon-B7SvFWnw.js";import"./react-Cq_o7XYK.js";import"./ui-CC4zyf2Z.js";import"./supabase-CIS1ha1V.js";function m(){return e.jsx(t,{title:"Geschiedenis",description:"Een overzicht van eerdere Game Nights en potjes — wie er speelde, wat er gespeeld werd en wie won."})}export{m as default};

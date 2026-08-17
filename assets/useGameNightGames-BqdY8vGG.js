@@ -1,1 +1,0 @@
-import{u as a}from"./query-BGuq1gWo.js";import{s}from"./index-CD8gvJm4.js";function u(){return a({queryKey:["game-night","games"],queryFn:async()=>{const{data:r,error:e}=await s.from("game_night_games").select("*").is("archived_at",null).order("name",{ascending:!0});if(e)throw e;return r??[]}})}export{u};
