@@ -92,6 +92,9 @@ const GameNightLayout = lazy(
 );
 const GameNightHome = lazy(() => import("@/pages/game-night/GameNightHome"));
 const GameNightGames = lazy(() => import("@/pages/game-night/GameNightGames"));
+const GameNightGameDetail = lazy(
+  () => import("@/pages/game-night/GameNightGameDetail"),
+);
 const GameNightPlay = lazy(() => import("@/pages/game-night/GameNightPlay"));
 const GameNightPicker = lazy(
   () => import("@/pages/game-night/GameNightPicker"),
@@ -102,6 +105,20 @@ const GameNightHallOfFame = lazy(
 const GameNightHistory = lazy(
   () => import("@/pages/game-night/GameNightHistory"),
 );
+const GameNightHistoryDetail = lazy(
+  () => import("@/pages/game-night/GameNightHistoryDetail"),
+);
+const GameNightFinale = lazy(
+  () => import("@/pages/game-night/GameNightFinale"),
+);
+const GameNightPlayers = lazy(
+  () => import("@/pages/game-night/GameNightPlayers"),
+);
+const GameNightPlayerProfile = lazy(
+  () => import("@/pages/game-night/GameNightPlayerProfile"),
+);
+const GameNightMe = lazy(() => import("@/pages/game-night/GameNightMe"));
+const GameNightJoin = lazy(() => import("@/pages/game-night/GameNightJoin"));
 
 const queryClient = new QueryClient();
 
@@ -160,6 +177,11 @@ function AppRoutes() {
     return (
       <Suspense fallback={<PageLoader />}>
         <Routes>
+          {/* Game Night V2.4 (sectie 12-13): de enige route die zonder
+              login bereikbaar mag zijn — self-service signup is uitsluitend
+              toegankelijk binnen een geldig join-token, dat hier letterlijk
+              in de URL zit. Elk ander pad valt terug op de gewone Login. */}
+          <Route path="/game-night/join/:token" element={<GameNightJoin />} />
           <Route path="*" element={<Login />} />
         </Routes>
       </Suspense>
@@ -247,11 +269,32 @@ function AppRoutes() {
             </Route>
             <Route path="/game-night" element={<GameNightLayout />}>
               <Route index element={<GameNightHome />} />
+              <Route path="me" element={<GameNightMe />} />
+              {/* Ook bereikbaar terwijl al ingelogd — bestaand account dat
+                  opnieuw scant (sectie 15), of owner die zelf test. */}
+              <Route path="join/:token" element={<GameNightJoin />} />
               <Route path="spellen" element={<GameNightGames />} />
+              <Route
+                path="spellen/:gameSlug"
+                element={<GameNightGameDetail />}
+              />
               <Route path="spelen" element={<GameNightPlay />} />
               <Route path="spel-kiezen" element={<GameNightPicker />} />
               <Route path="hall-of-fame" element={<GameNightHallOfFame />} />
               <Route path="geschiedenis" element={<GameNightHistory />} />
+              <Route
+                path="geschiedenis/:sessionId"
+                element={<GameNightHistoryDetail />}
+              />
+              <Route
+                path="geschiedenis/:sessionId/finale"
+                element={<GameNightFinale />}
+              />
+              <Route path="spelers" element={<GameNightPlayers />} />
+              <Route
+                path="spelers/:playerId"
+                element={<GameNightPlayerProfile />}
+              />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Route>

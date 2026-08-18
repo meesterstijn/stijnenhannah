@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   supabase,
+  type GameDifficulty,
   type GameNightGame,
   type GameResultMode,
 } from "@/lib/supabase";
@@ -48,6 +49,40 @@ export function useUpdateGameFlowConfig() {
       const { data, error } = await supabase
         .from("game_night_games")
         .update(input.config)
+        .eq("id", input.gameId)
+        .select("*")
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: GAMES_KEY });
+    },
+  });
+}
+
+export type GameInfo = {
+  min_players: number | null;
+  max_players: number | null;
+  duration_minutes: number | null;
+  difficulty: GameDifficulty | null;
+  tags: string[];
+};
+
+// "Spelinfo"-sectie (Game Night V4, sectie 25): min/max spelers, duur,
+// moeilijkheid en tags bestonden al als kolommen op game_night_games
+// (result-config-migratie/seed) maar hadden nog geen bewerk-UI — dit is
+// dus de eerste keer dat ze schrijfbaar worden, geen nieuwe velden.
+export function useUpdateGameInfo() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      gameId: string;
+      info: GameInfo;
+    }): Promise<GameNightGame> => {
+      const { data, error } = await supabase
+        .from("game_night_games")
+        .update(input.info)
         .eq("id", input.gameId)
         .select("*")
         .single();

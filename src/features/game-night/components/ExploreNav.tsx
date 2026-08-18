@@ -2,9 +2,8 @@ import { Link } from "react-router-dom";
 import { Boxes, History, Trophy, Users, type LucideIcon } from "lucide-react";
 
 // Rechterkolom (section 10): vier compacte fysieke menuplaquettes i.p.v.
-// grote dashboardcards. "Spelers" heeft (nog) geen eigen pagina/route, dus
-// staat als informatief plaquette i.p.v. een link — de overige drie zijn
-// echte navigatie naar bestaande routes.
+// grote dashboardcards. Alle vier zijn sinds Game Night V5 echte navigatie
+// naar bestaande routes ("Spelers" kreeg toen zijn eigen /game-night/spelers).
 export function ExploreNav({
   gamesCount,
   playersCount,
@@ -18,7 +17,12 @@ export function ExploreNav({
     value: string;
     to?: string;
   }[] = [
-    { icon: Users, label: "Spelers", value: `${playersCount} actief` },
+    {
+      icon: Users,
+      label: "Spelers",
+      value: `${playersCount} actief`,
+      to: "/game-night/spelers",
+    },
     {
       icon: Trophy,
       label: "Hall of Fame",

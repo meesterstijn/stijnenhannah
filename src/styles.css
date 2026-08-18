@@ -2861,3 +2861,317 @@ a.gn-plaque-mini:hover {
   font-size: 0.8rem;
   text-align: center;
 }
+
+/* ── "Kies voor ons" + Game Roulette (Game Night V4) ─────────────────── */
+
+/* Selecteerbare voorkeurchip (duur/stemming/moeilijkheid) — zelfde
+   fysieke taal als .gn-plaque-action maar compact genoeg voor een rij
+   chips, met een duidelijke "ingedrukt"-staat i.p.v. een kale
+   kleurverandering, ruim boven de 48px-richtlijn voor tablet. */
+.gamenight-theme .gn-choice-chip {
+  display: inline-flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid var(--gn-border);
+  background: var(--gn-bg-elevated);
+  color: var(--gn-text-muted);
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 0 1.1rem;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.gamenight-theme .gn-choice-chip:hover {
+  border-color: var(--gn-brass);
+}
+
+.gamenight-theme .gn-choice-chip:active {
+  transform: scale(0.97);
+}
+
+.gamenight-theme .gn-choice-chip-selected {
+  border-color: var(--gn-brass);
+  background: var(--gn-brass-soft);
+  color: var(--gn-text);
+  box-shadow: 0 0 0 1px oklch(0.76 0.11 78 / 0.35);
+}
+
+/* Matchpercentage-plaquette op een aanbevolen spelkaart — een echt,
+   herleidbaar getal uit rankGameNightGames, dus bewust als messing
+   "label" i.p.v. willekeurige marketingtekst. */
+.gamenight-theme .gn-match-badge {
+  display: inline-flex;
+  min-width: 3rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--gn-brass-strong), var(--gn-brass));
+  color: var(--gn-brass-contrast);
+  font-family: var(--gn-font-display);
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 0.3rem 0.7rem;
+  box-shadow: 0 8px 16px -8px oklch(0.76 0.11 78 / 0.55);
+}
+
+/* Game Roulette: een venster met overflow-hidden waarin een rij fysieke
+   mini-kaarten voorbij "rijdt" en vertraagt tot stilstand onder de
+   messing wijzer — bewust geen casino-wiel/gokkast, dezelfde
+   hout/messing kaartentaal als de rest van het bord. */
+.gamenight-theme .gn-roulette-track-wrap {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border-radius: var(--gn-radius);
+  border: 1px solid var(--gn-border);
+  background: linear-gradient(
+    180deg,
+    oklch(0.2 0.017 52 / 0.6),
+    oklch(0.14 0.014 55 / 0.6)
+  );
+  padding: 1.15rem 0;
+}
+
+.gamenight-theme .gn-roulette-track {
+  position: relative;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  will-change: transform;
+}
+
+.gamenight-theme .gn-roulette-track-spinning {
+  transition: transform 2.2s cubic-bezier(0.1, 0.82, 0.12, 1);
+}
+
+.gamenight-theme .gn-roulette-card {
+  display: flex;
+  height: 8rem;
+  width: 6.25rem;
+  flex-shrink: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 0.6rem;
+  border: 1px solid var(--gn-border);
+  background: var(--gn-surface);
+  box-shadow: 0 10px 22px -12px rgba(0, 0, 0, 0.75);
+}
+
+.gamenight-theme .gn-roulette-card-winner {
+  border-color: var(--gn-brass);
+  box-shadow:
+    0 0 0 2px oklch(0.76 0.11 78 / 0.5),
+    0 14px 26px -12px rgba(0, 0, 0, 0.8);
+}
+
+.gamenight-theme .gn-roulette-pointer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  background: var(--gn-brass);
+  box-shadow: 0 0 10px 1px oklch(0.76 0.11 78 / 0.6);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gamenight-theme .gn-roulette-track-spinning {
+    transition: transform 0.35s ease !important;
+  }
+}
+
+/* Speldetail-rivaliteit (Game Night V6, sectie 35) — messing "VS"-medaillon
+   tussen twee naamplaten, dezelfde materiaaltaal als de rest van het bord. */
+.gamenight-theme .gn-rivalry-vs-badge {
+  display: inline-flex;
+  height: 2.25rem;
+  width: 2.25rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--gn-brass-strong), var(--gn-brass));
+  color: var(--gn-brass-contrast);
+  font-family: var(--gn-font-display);
+  font-size: 0.7rem;
+  font-weight: 700;
+  box-shadow: 0 8px 16px -8px oklch(0.76 0.11 78 / 0.55);
+}
+
+/* Finale (Game Night V7, sectie 26-27) — lichte, fysieke reveal per
+   ceremony-scherm: geen SaaS-modal, geen confetti-library, gewoon een
+   zachte schaal/vervaag-intro op de plaquette zelf, alsof hij net op tafel
+   gelegd wordt. Nieuw scherm = nieuwe key = nieuwe animatie. */
+@keyframes gn-finale-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.gamenight-theme .gn-finale-reveal {
+  animation: gn-finale-in 0.45s cubic-bezier(0.16, 0.8, 0.24, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gamenight-theme .gn-finale-reveal {
+    animation: none !important;
+  }
+}
+
+/* Stapindicator onderaan de finale — kleine messing stippen, actieve stap
+   voller/lichter dan de rest. */
+.gamenight-theme .gn-finale-dot {
+  height: 0.4rem;
+  width: 0.4rem;
+  border-radius: 999px;
+  background: var(--gn-border-strong);
+  transition:
+    background-color 0.2s ease,
+    width 0.2s ease;
+}
+
+.gamenight-theme .gn-finale-dot-active {
+  width: 1.1rem;
+  background: var(--gn-brass);
+}
+
+/* Actieve speelmodus, opschoning (sectie 2/10 van de opdracht) — een
+   ronde, brassen icoonknop van precies 48px voor de "•••"-meer-menu-
+   trigger naast "Stand opslaan", ruim boven de vereiste minimale
+   touch-target voor secundaire acties tijdens het spelen. Bewust groter
+   dan .gn-topnav-icon-btn (32px, alleen voor de koptekst-context). */
+.gamenight-theme .gn-round-icon-btn {
+  display: inline-flex;
+  height: 3rem;
+  width: 3rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid var(--gn-border);
+  background: var(--gn-bg-elevated);
+  color: var(--gn-text-muted);
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.gamenight-theme .gn-round-icon-btn:hover {
+  border-color: var(--gn-brass);
+  color: var(--gn-brass);
+}
+
+.gamenight-theme .gn-round-icon-btn:active {
+  transform: scale(0.95);
+}
+
+/* Pokertafel als centraal speelvlak tijdens actief spelen (UX-polish,
+   sectie 6-9) — vervangt het rechthoekige .gn-board specifiek tijdens de
+   "play"/"paused"-weergave van ActiveGameSessionPanel (checkpoint-
+   subschermen en het afrondscherm blijven bewust op het gewone .gn-board,
+   zie ActiveGameSessionPanel.tsx). Vaste beeldverhouding van de
+   aangeleverde asset (1672:941) zodat hij nooit vervormd/uitgerekt wordt.
+   `background-size: contain` i.p.v. 100%/100%: blijft correct ook als een
+   browser aspect-ratio ooit anders afrondt dan de intrinsieke ratio. */
+.gamenight-theme .gn-poker-table {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1672 / 941;
+  background-image: url("/game-night/assets/poker-table.webp");
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  filter: drop-shadow(0 22px 38px rgba(0, 0, 0, 0.55));
+}
+
+/* Veilige content-zone (correctieronde, sectie 3) — herberekend door de
+   groen-vilt-pixels van de asset daadwerkelijk te scannen op meerdere
+   x-posities (niet blind geschat):
+     x=16%/84%:  vilt loopt van ±22% tot ±69% verticaal
+     x=50%:      vilt loopt van ±15% tot ±74% verticaal
+   `left/right:16%` + `top:17%/bottom:20%` blijft daarmee ruim op het vilt
+   voor de daadwerkelijk gerenderde (gecentreerde, smallere-dan-de-box)
+   inhoud — de vorige top:24%/bottom:32% liet maar 44% van de hoogte over,
+   veel te weinig voor 4 winnaarknoppen (root cause van de onzichtbare
+   knoppen). Intern scrollbaar blijft aanwezig als noodoplossing (sectie
+   4/12), maar is bij 4 spelers op 1280×800 niet meer nodig. */
+.gamenight-theme .gn-poker-table-content {
+  position: absolute;
+  top: 17%;
+  right: 16%;
+  bottom: 20%;
+  left: 16%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* Zachte tekstschaduw: het vilt is een foto-achtige, licht getextureerde
+     achtergrond i.p.v. .gn-board's vlakke gradient — dit houdt tekst
+     leesbaar zonder een kaart/kader achter elke regel te zetten. Erft
+     door naar alle kinderen; de winnaarknoppen hebben toch al hun eigen
+     ondergrond, dus die profiteren hier neutraal van mee. */
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+}
+
+@media (max-width: 1200px) {
+  /* Sectie 11: 1180×820/1024×768 hebben iets minder breedte over voor de
+     middenkolom (dezelfde vaste zijkolommen wegen relatief zwaarder) —
+     iets ruimere horizontale marge zodat de content-box niet net over de
+     leren rand komt op een smallere gerenderde tafel. */
+  .gamenight-theme .gn-poker-table-content {
+    right: 18%;
+    left: 18%;
+  }
+}
+
+/* Game Night V2.2 — "+1"-microfeedback op een WIN-kaart (sectie 9).
+   Eén keer, ~700ms, stijgt licht op en vervaagt — geen modal, geen confetti.
+   Wordt getriggerd door React via een remounting `key` (WinPlayPanel), dus
+   het keyframe hoeft zelf geen state bij te houden. */
+@keyframes gn-win-flash {
+  0% {
+    transform: translateY(4px) scale(0.9);
+    opacity: 0;
+  }
+  20% {
+    transform: translateY(-2px) scale(1.05);
+    opacity: 1;
+  }
+  75% {
+    transform: translateY(-10px) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-18px) scale(1);
+    opacity: 0;
+  }
+}
+
+.gamenight-theme .gn-win-flash {
+  animation: gn-win-flash 750ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gamenight-theme .gn-win-flash {
+    animation: none !important;
+    opacity: 0 !important;
+  }
+}

@@ -59,6 +59,13 @@ export function useGameNightSessionPlayers(sessionId: string | undefined) {
 // blijft er een sessie zonder spelers staan; dat is een acceptabele
 // edge case in dit fundament, consistent met hoe de rest van de site
 // meerstaps-writes behandelt (geen RPC/transactie-wrapper elders ook).
+//
+// Game Night V2.4 (sectie 22-23): `players` mag nu een lege lijst zijn —
+// "Start Game Night" maakt meteen een lege sessie aan, de lobby vult 'm
+// daarna live (drag/QR). `generateGameNightName([])` levert een nette
+// datum-only naam; de players-insert wordt bij een lege lijst overgeslagen
+// (een `.insert([])` naar een tabel zonder rijen is op zijn best een no-op,
+// op sommige clientversies een fout — hier expliciet vermeden).
 export function useStartGameNightSession() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -74,15 +81,17 @@ export function useStartGameNightSession() {
         .single();
       if (sessionError) throw sessionError;
 
-      const { error: playersError } = await supabase
-        .from("game_night_session_players")
-        .insert(
-          players.map((player) => ({
-            session_id: session.id,
-            player_id: player.id,
-          })),
-        );
-      if (playersError) throw playersError;
+      if (players.length > 0) {
+        const { error: playersError } = await supabase
+          .from("game_night_session_players")
+          .insert(
+            players.map((player) => ({
+              session_id: session.id,
+              player_id: player.id,
+            })),
+          );
+        if (playersError) throw playersError;
+      }
 
       return session;
     },
@@ -111,6 +120,12 @@ export function useCompleteGameNight() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ACTIVE_SESSION_KEY });
+      // Sectie 49 (V7): homepage-kampioen/Hall of Fame/finale moeten direct
+      // de zojuist afgesloten avond meetellen, zonder handmatige refresh —
+      // dezelfde cache-key als useGameNightAnalytics.
+      queryClient.invalidateQueries({
+        queryKey: ["game-night", "analytics-raw"],
+      });
     },
   });
 }

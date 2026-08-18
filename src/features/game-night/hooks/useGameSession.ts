@@ -189,6 +189,15 @@ export function useCompleteGameSession() {
       if (error) throw error;
       return data as GameNightGameSession;
     },
-    onSuccess: (session) => invalidateGameSession(queryClient, session),
+    onSuccess: (session) => {
+      invalidateGameSession(queryClient, session);
+      // "Kies voor ons"-recency (Game Night V4) moet een zojuist afgeronde
+      // spelsessie meteen meewegen, ook binnen dezelfde avond — anders zou
+      // een net gespeeld spel bij de volgende spelkeuze nog als "nooit
+      // gespeeld" scoren tot de staleTime van useGameHistoryStats verloopt.
+      queryClient.invalidateQueries({
+        queryKey: ["game-night", "game-history-stats"],
+      });
+    },
   });
 }

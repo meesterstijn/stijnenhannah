@@ -1,10 +1,9 @@
-import { GameNightComingSoon } from "@/features/game-night/components/GameNightComingSoon";
+import { Navigate } from "react-router-dom";
 
+// De spelkeuze-modi ("Kies voor ons"/"Game Roulette", Game Night V4) leven
+// nu inline op het bord (GameNightStartedPanel/GameChooserPanel), niet meer
+// op deze aparte route. Een oude bookmark/terugknop naar dit pad stuurt
+// gewoon door naar de Game Night-home i.p.v. verouderde tekst te tonen.
 export default function GameNightPicker() {
-  return (
-    <GameNightComingSoon
-      title="Laat een spel kiezen"
-      description="Wie speelt er mee, hoeveel tijd is er en welke sfeer past bij vanavond? Straks stelt Game Night op basis daarvan drie spellen voor — inclusief matchpercentage en een Game Roulette."
-    />
-  );
+  return <Navigate to="/game-night" replace />;
 }

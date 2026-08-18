@@ -524,6 +524,10 @@ export type GameResultMode = "winner" | "score" | "ranking" | "team" | "coop";
 export type GameNightGame = {
   id: string;
   name: string;
+  // Stabiele, naam-onafhankelijke sleutel voor spel-specifieke Hall of
+  // Fame-titels (20260912110000_game_night_history_and_awards.sql) — null
+  // voor spellen zonder gekoppelde titelconfiguratie.
+  slug: string | null;
   cover_storage_path: string | null;
   min_players: number | null;
   max_players: number | null;
@@ -536,6 +540,9 @@ export type GameNightGame = {
   has_session_winner: boolean;
   result_mode: GameResultMode;
   archived_at: string | null;
+  // Game Night V2.1 (20260912130000) — optioneel per-spel-thema-accent uit
+  // GameNightColorPaletteEntry. Nog zonder UI.
+  accent_color_id: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -547,8 +554,26 @@ export type GameNightPlayer = {
   color: string | null;
   sort_order: number;
   archived_at: string | null;
+  // Game Night V2.1 (20260912130000) — fundamentvelden voor het telefoon-
+  // profiel/gecureerd kleurenpalet. Alle drie nullable en nog zonder UI of
+  // RLS-betekenis; `name` blijft de echte/weergavenaam zolang `nickname`
+  // leeg is.
+  nickname: string | null;
+  auth_user_id: string | null;
+  color_id: string | null;
   created_at: string;
   updated_at: string;
+};
+
+// Game Night V2.1 (20260912130000_game_night_identity_foundations.sql) —
+// gecureerd kleurenpalet, owner-beheerd, nog zonder UI.
+export type GameNightColorPaletteEntry = {
+  id: string;
+  hex: string;
+  label: string | null;
+  sort_order: number;
+  active: boolean;
+  created_at: string;
 };
 
 export type GameNightSessionStatus = "active" | "paused" | "completed";
@@ -564,10 +589,32 @@ export type GameNightSession = {
   updated_at: string;
 };
 
+export type GameNightSessionPlayerSource = "manual" | "qr_join";
+
 export type GameNightSessionPlayer = {
   session_id: string;
   player_id: string;
   joined_at: string;
+  // Game Night V2.4 (20260912170000) — party-status bovenop de bestaande
+  // attendance-rij. `active_at_table` bepaalt alleen wie NU aan tafel zit;
+  // attendance-statistiek blijft gebaseerd op het bestaan van de rij zelf.
+  active_at_table: boolean;
+  left_at: string | null;
+  source: GameNightSessionPlayerSource;
+  seat_index: number | null;
+};
+
+// Game Night V2.4 (20260912180000_game_night_join_tokens.sql) — alleen
+// owner leest deze tabel rechtstreeks (RLS); overige interactie loopt via
+// de generate/revoke/validate-RPC's.
+export type GameNightJoinToken = {
+  id: string;
+  game_night_session_id: string;
+  token: string;
+  created_at: string;
+  expires_at: string;
+  revoked_at: string | null;
+  created_by: string | null;
 };
 
 export type GameNightGameSession = {
@@ -591,8 +638,28 @@ export type GameNightGameSession = {
   track_round_results: boolean;
   has_session_winner: boolean;
   result_mode: GameResultMode;
+  // Game Night V2.1 (20260912120000) — expliciete snapshot van welke tabel
+  // de WinRecords van DEZE spelsessie levert. 'legacy' voor alle bestaande
+  // sessies en (tot een V2.2-wijziging van het start-RPC) ook alle nieuwe
+  // sessies; 'win_events' pas zodra V2.2 dat expliciet laat starten. Zie
+  // normalizeWinRecords() in gameNightStats.ts.
+  win_source: GameNightWinSource;
   created_at: string;
   updated_at: string;
+};
+
+export type GameNightWinSource = "legacy" | "win_events";
+
+// Game Night V2.1 (20260912120000_game_night_win_events.sql) — één rij per
+// WIN-gebeurtenis. Wordt in V2.1 nog door niets geschreven; V2.2 introduceert
+// de RPC's die deze tabel vullen. undone_at = soft-delete voor undo, nooit
+// hard verwijderen.
+export type GameNightWinEvent = {
+  id: string;
+  game_session_id: string;
+  player_id: string;
+  created_at: string;
+  undone_at: string | null;
 };
 
 export type GameNightGameSessionPlayer = {

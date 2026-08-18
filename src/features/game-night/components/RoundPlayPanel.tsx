@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Camera, Flag, Pause, Undo2 } from "lucide-react";
+import { Camera, Flag, Images, MoreHorizontal } from "lucide-react";
 import type { GameNightPlayer } from "@/lib/supabase";
 import {
   useCurrentRound,
@@ -11,53 +11,158 @@ import {
   useEndRound,
   useStartNextRound,
 } from "@/features/game-night/hooks/useGameNightRounds";
-import { WinnerPickerGrid } from "@/features/game-night/components/WinnerPickerGrid";
 
-type Mode = "idle" | "picking" | "correcting" | "confirm-finish";
+type Mode = "idle" | "correcting" | "confirm-finish";
 
-// Handmatige rondeflow (ongewijzigd t.o.v. de vorige correctieronde): drie
-// duidelijk gescheiden fases, allemaal afleidbaar uit de database —
-// round-active (useCurrentRound), between-rounds (geen currentRound, wel
-// useLastEndedRound), en de puur lokale "picking"-modus voor het kiezen van
-// een winnaar (de ronde blijft in de database open tot dat moment, dus een
-// refresh halverwege valt gewoon terug op round-active).
-//
-// Deze correctie: alle belangrijke acties zijn nu echte tablet-knoppen
-// (≥48px, primair 56-64px) i.p.v. tekstlinkjes — Ronde afronden/Volgende
-// ronde starten blijven primair, Stand opslaan/Pauzeer/Spel afronden/
-// Laatste resultaat aanpassen zijn duidelijke secundaire plaques.
-function UtilityRow({
-  onSaveCheckpoint,
-  onPause,
-  pausePending,
+// Compacte winnaarknoppen, specifiek voor het vilt (correctieronde, sectie
+// 6): een nette 2-koloms grid van naam-only plaqueknoppen i.p.v. de
+// grotere avatar-fiches van WinnerPickerGrid (die blijft ongewijzigd voor
+// CompleteGameSessionPanel, waar wél ruimte is). ≥56px hoog, dezelfde
+// messing/plaque-styling (.gn-plaque-action) als de rest van Game Night —
+// bewust géén nieuwe visuele taal, alleen compacter.
+function FeltWinnerGrid({
+  players,
+  onPick,
+  disabled,
 }: {
-  onSaveCheckpoint: () => void;
-  onPause: () => void;
-  pausePending: boolean;
+  players: GameNightPlayer[];
+  onPick: (playerId: string) => void;
+  disabled?: boolean;
 }) {
   return (
-    <div className="grid w-full max-w-xs grid-cols-2 gap-2.5">
+    <div className="grid w-full grid-cols-2 gap-2">
+      {players.map((player) => (
+        <button
+          key={player.id}
+          type="button"
+          disabled={disabled}
+          onClick={() => onPick(player.id)}
+          className="gn-plaque-action flex min-h-[60px] w-full items-center justify-center px-2.5 py-2"
+        >
+          <span className="gn-display text-center text-sm font-semibold leading-tight tracking-wide sm:text-base">
+            {player.name}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// Opschoning actieve speelmodus (sectie 1-13 van de opdracht): tijdens het
+// spelen zelf is er maar plek voor drie dingen — welk spel, welke ronde,
+// wat nu registreren. Pauzeren is volledig uit deze flow verdwenen (sectie
+// 1) — nieuwe spelsessies pauzeren dus nooit meer handmatig; de RPC/hook
+// blijft intact voor eventuele al-gepauzeerde historische sessies (zie
+// ActiveGameSessionPanel's paused-status-tak, ongewijzigd). "Stand
+// opslaan" (camera) en de "•••"-knop vormen samen de enige permanente
+// secundaire rij — "Spel afsluiten" (en, indien aanwezig, "Spelstanden
+// bekijken") zitten daarachter i.p.v. als losse grote knoppen.
+function MoreMenu({
+  checkpointCount,
+  onViewCheckpoints,
+  onFinishSession,
+}: {
+  checkpointCount: number;
+  onViewCheckpoints: () => void;
+  onFinishSession: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label="Meer opties"
+        className="gn-round-icon-btn"
+      >
+        <MoreHorizontal className="h-4 w-4" />
+      </button>
+
+      {open && (
+        <div
+          className="gn-sheet-backdrop"
+          onClick={() => setOpen(false)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="gn-sheet-card flex flex-col gap-2.5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {checkpointCount > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  onViewCheckpoints();
+                }}
+                className="gn-plaque-action flex min-h-[52px] w-full items-center justify-center gap-2 px-6"
+              >
+                <Images
+                  className="h-4 w-4"
+                  style={{ color: "var(--gn-brass)" }}
+                />
+                <span className="gn-display text-sm font-semibold tracking-wide">
+                  Spelstanden bekijken · {checkpointCount}
+                </span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                onFinishSession();
+              }}
+              className="gn-plaque-action flex min-h-[52px] w-full items-center justify-center gap-2 px-6"
+            >
+              <Flag className="h-4 w-4" style={{ color: "var(--gn-brass)" }} />
+              <span className="gn-display text-sm font-semibold tracking-wide">
+                Spel afsluiten
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="gn-muted min-h-[44px] px-4 py-2 text-xs underline"
+            >
+              Sluiten
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function SecondaryRow({
+  onSaveCheckpoint,
+  checkpointCount,
+  onViewCheckpoints,
+  onFinishSession,
+}: {
+  onSaveCheckpoint: () => void;
+  checkpointCount: number;
+  onViewCheckpoints: () => void;
+  onFinishSession: () => void;
+}) {
+  return (
+    <div className="flex w-full max-w-xs items-center gap-2.5">
       <button
         type="button"
         onClick={onSaveCheckpoint}
-        className="gn-plaque-action flex min-h-[52px] w-full flex-row items-center justify-center gap-1.5 px-3 py-2"
+        className="gn-plaque-action flex min-h-[52px] flex-1 items-center justify-center gap-1.5 px-3"
       >
         <Camera className="h-4 w-4" style={{ color: "var(--gn-brass)" }} />
         <span className="gn-display text-xs font-semibold tracking-wide">
           Stand opslaan
         </span>
       </button>
-      <button
-        type="button"
-        onClick={onPause}
-        disabled={pausePending}
-        className="gn-plaque-action flex min-h-[52px] w-full flex-row items-center justify-center gap-1.5 px-3 py-2"
-      >
-        <Pause className="h-4 w-4" style={{ color: "var(--gn-brass)" }} />
-        <span className="gn-display text-xs font-semibold tracking-wide">
-          Pauzeer
-        </span>
-      </button>
+      <MoreMenu
+        checkpointCount={checkpointCount}
+        onViewCheckpoints={onViewCheckpoints}
+        onFinishSession={onFinishSession}
+      />
     </div>
   );
 }
@@ -68,16 +173,16 @@ export function RoundPlayPanel({
   trackRoundResults,
   onFinishSession,
   onSaveCheckpoint,
-  onPause,
-  pausePending,
+  checkpointCount,
+  onViewCheckpoints,
 }: {
   gameSessionId: string;
   participants: GameNightPlayer[];
   trackRoundResults: boolean;
   onFinishSession: (openRoundId?: string) => void;
   onSaveCheckpoint: () => void;
-  onPause: () => void;
-  pausePending: boolean;
+  checkpointCount: number;
+  onViewCheckpoints: () => void;
 }) {
   const { data: currentRound } = useCurrentRound(gameSessionId);
   const { data: lastEndedRound } = useLastEndedRound(gameSessionId);
@@ -93,6 +198,9 @@ export function RoundPlayPanel({
   const [mode, setMode] = useState<Mode>("idle");
 
   const playerById = new Map(participants.map((p) => [p.id, p]));
+  // Sectie 5: spelers met 0 overwinningen nemen geen ruimte in — een
+  // fysiek scorebord toont ook niet iedereen op nul.
+  const nonZeroTally = tally.filter((entry) => entry.wins > 0);
 
   async function handlePickWinner(playerId: string) {
     if (!currentRound || recordWinner.isPending) return;
@@ -126,7 +234,7 @@ export function RoundPlayPanel({
     }
   }
 
-  // ── Tussenscherm: er ligt nog een onafgeronde ronde ─────────────────────
+  // ── Tussenscherm: er ligt nog een onafgeronde ronde (sectie 9) ─────────
   if (mode === "confirm-finish") {
     return (
       <div className="flex h-full min-h-0 w-full flex-col items-center justify-center gap-3 text-center">
@@ -140,7 +248,7 @@ export function RoundPlayPanel({
             className="gn-plaque-action gn-plaque-action-primary flex min-h-[56px] w-full items-center justify-center px-6 py-3"
           >
             <span className="gn-display text-sm font-semibold tracking-wide">
-              Ronde eerst afronden
+              Ronde afronden
             </span>
           </button>
           <button
@@ -149,7 +257,7 @@ export function RoundPlayPanel({
             className="gn-plaque-action flex min-h-[56px] w-full items-center justify-center px-6 py-3"
           >
             <span className="gn-display text-sm font-semibold tracking-wide">
-              Onafgeronde ronde niet meetellen & spel stoppen
+              Spel stoppen zonder deze ronde
             </span>
           </button>
           <button
@@ -157,128 +265,98 @@ export function RoundPlayPanel({
             onClick={() => setMode("idle")}
             className="gn-muted min-h-[44px] px-4 py-2 text-xs underline"
           >
-            Annuleren
+            Terug
           </button>
         </div>
       </div>
     );
   }
 
-  // ── Winnaar kiezen / laatste resultaat corrigeren ───────────────────────
-  if (mode === "picking" || mode === "correcting") {
-    const round = mode === "correcting" ? lastEndedRound : currentRound;
+  // ── Laatste resultaat corrigeren (los van de live ronde, sectie 3) ──────
+  if (mode === "correcting") {
     return (
-      <div className="flex h-full min-h-0 w-full flex-col items-center gap-3">
-        <p className="gn-display text-lg font-semibold tracking-wide sm:text-xl">
-          {mode === "correcting"
-            ? `WIE WON RONDE ${round?.round_number}?`
-            : "WIE WON DEZE RONDE?"}
+      <div className="flex h-full min-h-0 w-full flex-col items-center gap-2">
+        <p className="gn-display text-base font-semibold tracking-wide sm:text-lg">
+          WIE WON RONDE {lastEndedRound?.round_number}?
         </p>
-        <div className="gn-player-grid-scroll">
-          <WinnerPickerGrid
-            players={participants}
-            onPick={mode === "correcting" ? handleCorrect : handlePickWinner}
-            disabled={recordWinner.isPending || correctResult.isPending}
-          />
-        </div>
-        <div className="flex items-center gap-4">
-          <button
-            type="button"
-            onClick={() => setMode("idle")}
-            className="gn-muted min-h-[44px] px-4 py-2 text-xs underline"
-          >
-            Annuleren
-          </button>
-          {mode === "picking" && (
-            <button
-              type="button"
-              onClick={handleTapFinishSession}
-              className="gn-muted min-h-[44px] px-4 py-2 text-xs underline"
-            >
-              Spel afronden
-            </button>
-          )}
-        </div>
+        <FeltWinnerGrid
+          players={participants}
+          onPick={handleCorrect}
+          disabled={correctResult.isPending}
+        />
+        <button
+          type="button"
+          onClick={() => setMode("idle")}
+          className="gn-muted min-h-[44px] px-4 py-2 text-xs underline"
+        >
+          Annuleren
+        </button>
       </div>
     );
   }
 
-  // ── Ronde actief ─────────────────────────────────────────────────────────
+  // ── Ronde actief (sectie 2/5) ────────────────────────────────────────────
+  // Bij track_round_results=true verschijnen de winnaarknoppen meteen —
+  // één tik = ronde afgerond + winnaar opgeslagen via de bestaande
+  // useRecordRoundWinner-RPC, geen tussenliggende "Ronde afronden"-stap en
+  // geen uitlegzin meer (de knoppen spreken voor zich). Zonder
+  // resultaatregistratie (sectie 4) blijft de eenvoudige "Ronde afronden"-
+  // knop, want er is dan niets om aan te tikken.
   if (currentRound) {
     return (
-      <div className="flex h-full min-h-0 w-full flex-col items-center justify-center gap-2.5">
-        <div className="text-center">
-          <p className="gn-eyebrow">Bezig</p>
-          <p className="gn-display text-2xl font-semibold tracking-wide sm:text-3xl">
-            RONDE {currentRound.round_number}
-          </p>
-        </div>
+      <div className="flex h-full min-h-0 w-full flex-col items-center justify-center gap-2">
+        <p className="gn-display text-2xl font-semibold tracking-wide sm:text-3xl">
+          RONDE {currentRound.round_number}
+        </p>
 
-        {trackRoundResults && tally.length > 0 && (
-          <div className="flex flex-col items-center gap-0.5">
-            {tally.map((entry) => (
-              <p key={entry.playerId} className="gn-muted text-sm">
-                {playerById.get(entry.playerId)?.name ?? "?"} — {entry.wins}
-              </p>
-            ))}
-          </div>
+        {trackRoundResults ? (
+          <FeltWinnerGrid
+            players={participants}
+            onPick={handlePickWinner}
+            disabled={recordWinner.isPending}
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={handleEndRoundWithoutResult}
+            disabled={endRound.isPending}
+            className="gn-plaque-action gn-plaque-action-primary flex min-h-[60px] w-full max-w-xs items-center justify-center px-6 py-3.5"
+          >
+            <span className="gn-display text-lg font-semibold tracking-wide">
+              Ronde afronden
+            </span>
+          </button>
         )}
 
-        <button
-          type="button"
-          onClick={() =>
-            trackRoundResults
-              ? setMode("picking")
-              : handleEndRoundWithoutResult()
-          }
-          disabled={endRound.isPending}
-          className="gn-plaque-action gn-plaque-action-primary flex min-h-[60px] w-full max-w-xs items-center justify-center px-6 py-3.5"
-        >
-          <span className="gn-display text-lg font-semibold tracking-wide">
-            Ronde afronden
-          </span>
-        </button>
-
-        <UtilityRow
+        <SecondaryRow
           onSaveCheckpoint={onSaveCheckpoint}
-          onPause={onPause}
-          pausePending={pausePending}
+          checkpointCount={checkpointCount}
+          onViewCheckpoints={onViewCheckpoints}
+          onFinishSession={handleTapFinishSession}
         />
-
-        <button
-          type="button"
-          onClick={handleTapFinishSession}
-          className="gn-plaque-action flex min-h-[56px] w-full max-w-xs items-center justify-center gap-2 px-6 py-3"
-        >
-          <Flag className="h-4 w-4" style={{ color: "var(--gn-brass)" }} />
-          <span className="gn-display text-sm font-semibold tracking-wide">
-            Spel afronden
-          </span>
-        </button>
       </div>
     );
   }
 
   // ── Tussen rondes ────────────────────────────────────────────────────────
   return (
-    <div className="flex h-full min-h-0 w-full flex-col items-center justify-center gap-2.5">
+    <div className="flex h-full min-h-0 w-full flex-col items-center justify-center gap-2">
       <div className="text-center">
-        <p className="gn-eyebrow">
-          Ronde {lastEndedRound?.round_number} afgerond
+        <p className="gn-display text-2xl font-semibold tracking-wide sm:text-3xl">
+          RONDE {lastEndedRound?.round_number}
         </p>
         {trackRoundResults && lastRoundWinner && (
-          <p className="gn-display mt-0.5 text-xl font-semibold tracking-wide sm:text-2xl">
-            {lastRoundWinner.playerName.toUpperCase()} WINT RONDE{" "}
-            {lastEndedRound?.round_number}
+          <p className="gn-muted mt-0.5 text-sm">
+            {lastRoundWinner.playerName} won
           </p>
         )}
       </div>
 
-      {trackRoundResults && tally.length > 0 && (
+      {trackRoundResults && nonZeroTally.length > 0 && (
         <div className="flex flex-col items-center gap-0.5">
-          {tally.map((entry) => (
+          {nonZeroTally.map((entry) => (
             <p key={entry.playerId} className="gn-muted text-sm">
-              {playerById.get(entry.playerId)?.name ?? "?"} — {entry.wins}
+              {playerById.get(entry.playerId)?.name ?? "?"} · {entry.wins}
             </p>
           ))}
         </div>
@@ -291,39 +369,26 @@ export function RoundPlayPanel({
         className="gn-plaque-action gn-plaque-action-primary flex min-h-[60px] w-full max-w-xs items-center justify-center px-6 py-3.5"
       >
         <span className="gn-display text-lg font-semibold tracking-wide">
-          {startNextRound.isPending ? "Bezig..." : "Volgende ronde starten"}
+          {startNextRound.isPending ? "Bezig..." : "Volgende ronde"}
         </span>
       </button>
-
-      <UtilityRow
-        onSaveCheckpoint={onSaveCheckpoint}
-        onPause={onPause}
-        pausePending={pausePending}
-      />
 
       {trackRoundResults && lastEndedRound && (
         <button
           type="button"
           onClick={() => setMode("correcting")}
-          className="gn-plaque-action flex min-h-[48px] w-full max-w-xs items-center justify-center gap-2 px-6 py-2.5"
+          className="gn-muted min-h-[44px] px-4 py-2 text-xs underline"
         >
-          <Undo2 className="h-3.5 w-3.5" style={{ color: "var(--gn-brass)" }} />
-          <span className="gn-display text-xs font-semibold tracking-wide">
-            Laatste resultaat aanpassen
-          </span>
+          Resultaat aanpassen
         </button>
       )}
 
-      <button
-        type="button"
-        onClick={handleTapFinishSession}
-        className="gn-plaque-action flex min-h-[56px] w-full max-w-xs items-center justify-center gap-2 px-6 py-3"
-      >
-        <Flag className="h-4 w-4" style={{ color: "var(--gn-brass)" }} />
-        <span className="gn-display text-sm font-semibold tracking-wide">
-          Spel afronden
-        </span>
-      </button>
+      <SecondaryRow
+        onSaveCheckpoint={onSaveCheckpoint}
+        checkpointCount={checkpointCount}
+        onViewCheckpoints={onViewCheckpoints}
+        onFinishSession={handleTapFinishSession}
+      />
     </div>
   );
 }

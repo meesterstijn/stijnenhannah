@@ -1,14 +1,15 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Loader2, PlayCircle, Settings } from "lucide-react";
+import { ArrowLeft, Info, Loader2, PlayCircle, Settings } from "lucide-react";
 import type { GameNightGame } from "@/lib/supabase";
 import { useGameNightGames } from "@/features/game-night/hooks/useGameNightGames";
 import { useActiveGameNightSession } from "@/features/game-night/hooks/useGameNightSession";
 import { useLatestGameSession } from "@/features/game-night/hooks/useGameSession";
-import { useGameNightSessionPlayers } from "@/features/game-night/hooks/useGameNightSession";
+import { useActivePartyPlayers } from "@/features/game-night/hooks/useGameNightParty";
 import { GameCard } from "@/features/game-night/components/GameCard";
 import { GameParticipantSheet } from "@/features/game-night/components/GameParticipantSheet";
 import { GameFlowSettingsSheet } from "@/features/game-night/components/GameFlowSettingsSheet";
+import { gameDetailPath } from "@/features/game-night/lib/gameNightStats";
 
 // Sectie 3/4: de Spellenkast blijft ook zonder actieve Game Night gewoon
 // zichzelf (kaarten zijn dan puur informatief, zoals nu). Zodra er een
@@ -23,9 +24,9 @@ import { GameFlowSettingsSheet } from "@/features/game-night/components/GameFlow
 export default function GameNightGames() {
   const { data: games = [], isLoading } = useGameNightGames();
   const { data: activeGameNight } = useActiveGameNightSession();
-  const { data: attendees = [] } = useGameNightSessionPlayers(
-    activeGameNight?.id,
-  );
+  // Sectie 26 (V2.4): alleen spelers die NU actief aan tafel zitten, niet
+  // de volledige avond-attendance.
+  const { data: attendees = [] } = useActivePartyPlayers(activeGameNight?.id);
   const { data: latestGameSession } = useLatestGameSession(activeGameNight?.id);
   const [pickingGame, setPickingGame] = useState<GameNightGame | null>(null);
   const [configuringGame, setConfiguringGame] = useState<GameNightGame | null>(
@@ -88,15 +89,34 @@ export default function GameNightGames() {
             return (
               <div key={game.id} className="relative h-full">
                 {selectionMode ? (
-                  <button
-                    type="button"
-                    onClick={() => setPickingGame(game)}
-                    className="h-full w-full text-left transition-transform active:scale-[0.98]"
-                  >
-                    <GameCard game={game} badge={badge} />
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setPickingGame(game)}
+                      className="h-full w-full text-left transition-transform active:scale-[0.98]"
+                    >
+                      <GameCard game={game} badge={badge} />
+                    </button>
+                    {/* Sectie 3 (Game Night V6): tijdens spelselectie blijft de
+                        hoofdtik op de kaart "spel kiezen" — speldetail krijgt
+                        hier een eigen, niet-geneste knop i.p.v. de kaart zelf
+                        te laten linken. */}
+                    <Link
+                      to={gameDetailPath(game)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="gn-topnav-icon-btn absolute left-2 top-2 z-10"
+                      aria-label={`Meer info over ${game.name}`}
+                      title="Speldetail"
+                    >
+                      <Info className="h-3.5 w-3.5" />
+                    </Link>
+                  </>
                 ) : (
-                  <GameCard game={game} badge={badge} />
+                  <GameCard
+                    game={game}
+                    badge={badge}
+                    to={gameDetailPath(game)}
+                  />
                 )}
                 <button
                   type="button"

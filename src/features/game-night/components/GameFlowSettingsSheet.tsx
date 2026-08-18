@@ -1,10 +1,17 @@
 import { useState } from "react";
 import { X } from "lucide-react";
-import type { GameNightGame, GameResultMode } from "@/lib/supabase";
+import type {
+  GameDifficulty,
+  GameNightGame,
+  GameResultMode,
+} from "@/lib/supabase";
 import {
   useUpdateGameFlowConfig,
+  useUpdateGameInfo,
   type GameFlowConfig,
+  type GameInfo,
 } from "@/features/game-night/hooks/useGameNightGames";
+import { GAME_TAGS, gameTagLabel } from "@/features/game-night/lib/gameTags";
 
 const RESULT_MODE_LABELS: Record<GameResultMode, string> = {
   winner: "Winnaar",
@@ -13,6 +20,45 @@ const RESULT_MODE_LABELS: Record<GameResultMode, string> = {
   team: "Teams",
   coop: "Coöperatief",
 };
+
+const DIFFICULTY_SELECT_OPTIONS: {
+  value: GameDifficulty | "";
+  label: string;
+}[] = [
+  { value: "", label: "Niet ingesteld" },
+  { value: "licht", label: "Licht" },
+  { value: "gemiddeld", label: "Gemiddeld" },
+  { value: "zwaar", label: "Zwaar" },
+];
+
+function NumberField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number | null;
+  onChange: (next: number | null) => void;
+}) {
+  return (
+    <label className="flex flex-col gap-1">
+      <span className="gn-faint text-[11px] uppercase tracking-wide">
+        {label}
+      </span>
+      <input
+        type="number"
+        min={0}
+        inputMode="numeric"
+        value={value ?? ""}
+        onChange={(e) => {
+          const raw = e.target.value;
+          onChange(raw === "" ? null : Math.max(0, Number(raw)));
+        }}
+        className="w-full px-3 py-2 text-sm"
+      />
+    </label>
+  );
+}
 
 function ToggleRow({
   label,
@@ -44,11 +90,11 @@ function ToggleRow({
   );
 }
 
-// "Spelverloop"-instellingen (Spellenkast-correctie, sectie 3-8/32) — puur
-// gedragsconfiguratie, geen databasetermen zichtbaar. Dit is bewust GEEN
-// algemeen "spel bewerken"-formulier (naam/spelers/cover bestonden al niet
-// als bewerkbare UI en zijn hier niet toegevoegd) — alleen het stuk dat
-// deze opdracht vraagt.
+// "Spelverloop"-instellingen (Spellenkast-correctie, sectie 3-8/32), nu
+// uitgebreid met "Spelinfo" (Game Night V4, sectie 25) — nog steeds GEEN
+// algemeen "spel bewerken"-formulier (naam/cover blijven niet bewerkbaar
+// hier); Spelinfo voegt alleen bewerk-UI toe voor kolommen die al bestonden
+// (min/max spelers, duur, moeilijkheid, tags) maar nog geen UI hadden.
 export function GameFlowSettingsSheet({
   game,
   onClose,
@@ -57,11 +103,19 @@ export function GameFlowSettingsSheet({
   onClose: () => void;
 }) {
   const updateConfig = useUpdateGameFlowConfig();
+  const updateInfo = useUpdateGameInfo();
   const [config, setConfig] = useState<GameFlowConfig>({
     uses_rounds: game.uses_rounds,
     track_round_results: game.track_round_results,
     has_session_winner: game.has_session_winner,
     result_mode: game.result_mode,
+  });
+  const [info, setInfo] = useState<GameInfo>({
+    min_players: game.min_players,
+    max_players: game.max_players,
+    duration_minutes: game.duration_minutes,
+    difficulty: game.difficulty,
+    tags: game.tags,
   });
 
   function handleUsesRoundsChange(next: boolean) {
@@ -75,10 +129,24 @@ export function GameFlowSettingsSheet({
     }));
   }
 
+  function toggleTag(tag: string) {
+    setInfo((i) => ({
+      ...i,
+      tags: i.tags.includes(tag)
+        ? i.tags.filter((t) => t !== tag)
+        : [...i.tags, tag],
+    }));
+  }
+
   async function handleSave() {
-    await updateConfig.mutateAsync({ gameId: game.id, config });
+    await Promise.all([
+      updateConfig.mutateAsync({ gameId: game.id, config }),
+      updateInfo.mutateAsync({ gameId: game.id, info }),
+    ]);
     onClose();
   }
+
+  const saving = updateConfig.isPending || updateInfo.isPending;
 
   return (
     <div className="gn-sheet-backdrop" role="dialog" aria-modal="true">
@@ -147,16 +215,90 @@ export function GameFlowSettingsSheet({
               ))}
             </select>
           </div>
+
+          <div
+            className="border-t pt-4"
+            style={{ borderColor: "var(--gn-border)" }}
+          >
+            <p className="gn-eyebrow mb-3">Spelinfo</p>
+            <div className="grid grid-cols-2 gap-3">
+              <NumberField
+                label="Min. spelers"
+                value={info.min_players}
+                onChange={(v) => setInfo((i) => ({ ...i, min_players: v }))}
+              />
+              <NumberField
+                label="Max. spelers"
+                value={info.max_players}
+                onChange={(v) => setInfo((i) => ({ ...i, max_players: v }))}
+              />
+            </div>
+
+            <div className="mt-3">
+              <NumberField
+                label="Gemiddelde duur (minuten)"
+                value={info.duration_minutes}
+                onChange={(v) =>
+                  setInfo((i) => ({ ...i, duration_minutes: v }))
+                }
+              />
+            </div>
+
+            <div className="mt-3">
+              <p className="gn-faint text-[11px] uppercase tracking-wide">
+                Moeilijkheid
+              </p>
+              <select
+                value={info.difficulty ?? ""}
+                onChange={(e) =>
+                  setInfo((i) => ({
+                    ...i,
+                    difficulty: (e.target.value ||
+                      null) as GameDifficulty | null,
+                  }))
+                }
+                className="mt-1.5 w-full px-3 py-2 text-sm"
+              >
+                {DIFFICULTY_SELECT_OPTIONS.map((opt) => (
+                  <option key={opt.label} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="mt-3">
+              <p className="gn-faint mb-1.5 text-[11px] uppercase tracking-wide">
+                Tags
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {GAME_TAGS.map((tag) => {
+                  const selected = info.tags.includes(tag);
+                  return (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => toggleTag(tag)}
+                      className={`gn-choice-chip ${selected ? "gn-choice-chip-selected" : ""}`}
+                      style={{ minHeight: 36, padding: "0 0.75rem" }}
+                    >
+                      {gameTagLabel(tag)}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         </div>
 
         <button
           type="button"
           onClick={handleSave}
-          disabled={updateConfig.isPending}
+          disabled={saving}
           className="gn-plaque-action gn-plaque-action-primary mt-5 w-full px-6 py-3.5"
         >
           <span className="gn-display text-lg font-semibold tracking-wide">
-            {updateConfig.isPending ? "Bezig..." : "Opslaan"}
+            {saving ? "Bezig..." : "Opslaan"}
           </span>
         </button>
       </div>

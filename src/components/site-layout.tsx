@@ -24,8 +24,11 @@ export function SiteLayout() {
   // Een r6_player komt (via RequireAppAccess) sowieso nooit buiten
   // /rainbow-six-siege — de "Ons Huisje"-link zou 'm alleen maar terugsturen
   // naar waar hij toch niet mag komen. Geen algemene link naar privépagina's
-  // tonen aan die rol, zie ook de gebruikersrollen-opdracht sectie 7.
-  const { isR6Player } = useAuth();
+  // tonen aan die rol, zie ook de gebruikersrollen-opdracht sectie 7. Game
+  // Night V2.3 (sectie 18): een game_night_member zit in dezelfde situatie
+  // op elke /game-night/*-pagina — "Ons Huisje" zou 'm alleen terugsturen
+  // naar "/", waar RequireAppAccess 'm toch weer naar /game-night/me stuurt.
+  const { isR6Player, isGameNightMember } = useAuth();
   const isTuinieren = pathname === "/tuinieren";
   // Rainbow Six-pagina's hebben hun eigen, donkere gaming-vormgeving en
   // willen geen volle navbalk die daaroverheen hangt — alleen een manier om
@@ -129,7 +132,7 @@ export function SiteLayout() {
           </Link>
         </div>
       )}
-      {isGameNight && (
+      {isGameNight && !isGameNightMember && (
         <div className="gamenight-theme fixed left-3 top-3 z-50 flex max-w-[calc(100vw-1.5rem)] items-center gap-2 overflow-x-auto">
           <Link
             to="/"

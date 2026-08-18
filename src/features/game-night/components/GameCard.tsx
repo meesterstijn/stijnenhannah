@@ -7,6 +7,7 @@ import {
   placeholderCoverGradient,
 } from "@/features/game-night/lib/gameCoverPlaceholder";
 import { getGameCoverUrl } from "@/features/game-night/lib/gameCoverStorage";
+import { gameTagLabel } from "@/features/game-night/lib/gameTags";
 
 const DIFFICULTY_LABEL: Record<GameDifficulty, string> = {
   licht: "Licht",
@@ -93,7 +94,7 @@ export function GameCard({
           <div className="mt-auto flex flex-wrap gap-1.5 pt-1">
             {game.tags.slice(0, 3).map((tag) => (
               <span key={tag} className="gn-chip">
-                {tag}
+                {gameTagLabel(tag)}
               </span>
             ))}
           </div>

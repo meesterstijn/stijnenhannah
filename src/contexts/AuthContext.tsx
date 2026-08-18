@@ -2,7 +2,16 @@ import { createContext, useContext, useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 
-export type AppRole = "owner" | "r6_player" | "cocktail_guest";
+export type AppRole =
+  | "owner"
+  | "r6_player"
+  | "cocktail_guest"
+  | "game_night_member"
+  // Game Night V2.3-correctie: veilige "geen toegang"-rol waar een account
+  // naartoe gaat zodra een owner een Game Night-koppeling verbreekt (zie
+  // game_night_unlink_player_account) — nooit automatisch een andere echte
+  // rol (zoals r6_player) toegekend.
+  | "no_access";
 
 export type Profile = {
   id: string;
@@ -18,6 +27,7 @@ type AuthContextType = {
   isOwner: boolean;
   isR6Player: boolean;
   isCocktailGuest: boolean;
+  isGameNightMember: boolean;
   isLoadingRole: boolean;
 };
 
@@ -29,6 +39,7 @@ const AuthContext = createContext<AuthContextType>({
   isOwner: false,
   isR6Player: false,
   isCocktailGuest: false,
+  isGameNightMember: false,
   isLoadingRole: true,
 });
 
@@ -44,7 +55,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
     });
 
@@ -108,6 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isOwner: appRole === "owner",
         isR6Player: appRole === "r6_player",
         isCocktailGuest: appRole === "cocktail_guest",
+        isGameNightMember: appRole === "game_night_member",
         isLoadingRole: loading || isLoadingRole,
       }}
     >
