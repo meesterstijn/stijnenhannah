@@ -10,7 +10,6 @@ import {
   useStartGameNightSession,
   useCompleteGameNight,
 } from "@/features/game-night/hooks/useGameNightSession";
-import { useActivePartyPlayers } from "@/features/game-night/hooks/useGameNightParty";
 import {
   useLatestGameSession,
   useGameSessionParticipants,
@@ -24,8 +23,8 @@ import { ChampionPlaque } from "@/features/game-night/components/ChampionPlaque"
 import { ExploreNav } from "@/features/game-night/components/ExploreNav";
 import { CandleLayer } from "@/features/game-night/components/CandleLayer";
 import { ScatteredTableObjects } from "@/features/game-night/components/ScatteredTableObjects";
-import { GameNightLobby } from "@/features/game-night/components/GameNightLobby";
-import { GameNightStartedPanel } from "@/features/game-night/components/GameNightStartedPanel";
+import { GameNightV2Lobby } from "@/features/game-night/v2/GameNightV2Lobby";
+import { GameNightV2GameSelect } from "@/features/game-night/v2/GameNightV2GameSelect";
 import { ActiveGameSessionPanel } from "@/features/game-night/components/ActiveGameSessionPanel";
 import { GameSessionCompletedPanel } from "@/features/game-night/components/GameSessionCompletedPanel";
 import { GameNightNowPlaying } from "@/features/game-night/components/GameNightNowPlaying";
@@ -99,11 +98,11 @@ const BOARD_PIECES: {
 // vervangen door de lobby: "Start Game Night" maakt meteen een lege sessie
 // aan, en de tafel vult zich daarna live (slepen + QR). `lobbySubView`
 // onderscheidt binnen diezelfde "started, nog geen spel gekozen"-toestand
-// alleen nog client-side of de party-zone of de bestaande "HOE ZULLEN WE
-// KIEZEN?"-chooser zichtbaar is — geen van beide heeft ooit een eigen
+// alleen nog client-side of de party-zone (V2.5) of de fullscreen Game
+// Select-scene (V2.6) zichtbaar is — geen van beide heeft ooit een eigen
 // databasestatus nodig gehad.
 type FlowState = "idle" | "started";
-type LobbySubView = "party" | "choosing";
+type LobbySubView = "party" | "select";
 
 export default function GameNightHome() {
   const navigate = useNavigate();
@@ -133,9 +132,6 @@ export default function GameNightHome() {
     }
   }, [activeSession, flow, currentSession]);
 
-  // Sectie 26: "Wie speelt mee" bij spelkeuze preselecteert voortaan de
-  // ACTIEVE tafel, niet de volledige avond-attendance.
-  const { data: partyPlayers = [] } = useActivePartyPlayers(currentSession?.id);
   const { data: latestGameSession } = useLatestGameSession(currentSession?.id);
   const { data: gameSessionParticipants = [] } = useGameSessionParticipants(
     latestGameSession?.id,
@@ -190,16 +186,34 @@ export default function GameNightHome() {
     !!currentSession &&
     !!latestGameSession &&
     latestGameSession.status !== "completed";
-  // Game Night V2.4: de lobby (sectie 22, twee sleepzones) heeft net als
-  // actief spelen meer breedte nodig dan de smalle idle/chooser-schermen —
-  // los van isActivePlay, want de lobby gebruikt bewust NIET het
-  // pokertafel-vilt (sectie 8: "geen visuele tafel tekenen").
-  const isLobbyPartyView =
-    flow === "started" &&
-    !!currentSession &&
-    !latestGameSession &&
-    lobbySubView === "party";
-  const isWideContent = isActivePlay || isLobbyPartyView;
+  const isWideContent = isActivePlay;
+
+  // Game Night V2.5/V2.6 (sectie 21 V2.6: "Lobby, Game Select, Game Reveal
+  //... vormen samen de nieuwe fullscreen V2-app") — zowel de lobby als de
+  // volledige spelkeuze-flow VERVANGEN de oude .gn-tabletop-weergave
+  // (topnav, kampioen, bord, menu) zodra een Game Night gestart is en er
+  // nog geen spel actief is: één ononderbroken ervaring, geen terugval op
+  // GameNightStartedPanel/GameChooserPanel meer (V2.6-root-cause-fix — zie
+  // opleverrapport). Pas zodra latestGameSession bestaat (een spel is echt
+  // gestart) valt de app terug op de bestaande .gn-tabletop-flow voor Live
+  // Play — die schermen redesignt V2.6 nog niet (sectie 25).
+  if (flow === "started" && currentSession && !latestGameSession) {
+    if (lobbySubView === "party") {
+      return (
+        <GameNightV2Lobby
+          session={currentSession}
+          onChooseGame={() => setLobbySubView("select")}
+          onCloseGameNight={handleCloseGameNight}
+        />
+      );
+    }
+    return (
+      <GameNightV2GameSelect
+        session={currentSession}
+        onBack={() => setLobbySubView("party")}
+      />
+    );
+  }
 
   return (
     <div className="gn-tabletop gn-tabletop-fit">
@@ -280,23 +294,11 @@ export default function GameNightHome() {
               </div>
             )}
 
-            {flow === "started" &&
-              currentSession &&
-              !latestGameSession &&
-              (lobbySubView === "choosing" ? (
-                <GameNightStartedPanel
-                  session={currentSession}
-                  players={partyPlayers}
-                  games={games}
-                  gameNightSessionId={currentSession.id}
-                />
-              ) : (
-                <GameNightLobby
-                  session={currentSession}
-                  onChooseGame={() => setLobbySubView("choosing")}
-                />
-              ))}
-
+            {/* flow==="started" && !latestGameSession wordt nu altijd al
+                hierboven afgehandeld door de vroege return naar
+                GameNightV2Lobby/GameNightV2GameSelect — dit deel van de
+                boom is dus alleen nog bereikbaar zodra latestGameSession
+                bestaat. */}
             {flow === "started" &&
               currentSession &&
               latestGameSession &&
