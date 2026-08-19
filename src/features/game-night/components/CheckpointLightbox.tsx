@@ -45,46 +45,50 @@ export function CheckpointLightbox({
 
   return (
     <div
-      className="gn-sheet-backdrop"
+      className="gnv2-sheet-backdrop"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
     >
-      <div className="gn-lightbox-card" onClick={(e) => e.stopPropagation()}>
+      <div className="gnv2-lightbox-card" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
-          <p className="gn-eyebrow">
+          <p className="gnv2-dialog-eyebrow">
             {PHOTO_TYPE_LABELS[photo.photo_type]}
             {player ? ` · ${player.name}` : ""}
           </p>
           <button
             type="button"
             onClick={onClose}
-            className="gn-topnav-icon-btn"
+            className="gnv2-icon-btn"
             aria-label="Sluiten"
           >
             <X className="h-3.5 w-3.5" />
           </button>
         </div>
 
-        <div className="gn-lightbox-image-wrap">
+        <div className="gnv2-lightbox-image-wrap">
           {shouldHide ? (
             <button
               type="button"
               onClick={() => setRevealed(true)}
-              className="gn-lightbox-hidden-warning"
+              className="gnv2-lightbox-hidden-warning"
             >
               <EyeOff className="h-6 w-6" />
               <span>Verborgen kaarten — tik om te bekijken</span>
             </button>
           ) : photo.url ? (
-            <img src={photo.url} alt="" className="gn-lightbox-image" />
+            <img src={photo.url} alt="" className="gnv2-lightbox-image" />
           ) : (
-            <p className="gn-faint text-sm">Foto kan niet worden geladen.</p>
+            <p className="gnv2-dialog-faint text-sm">
+              Foto kan niet worden geladen.
+            </p>
           )}
         </div>
 
         {photo.caption && !shouldHide && (
-          <p className="gn-muted text-center text-sm">{photo.caption}</p>
+          <p className="gnv2-dialog-muted text-center text-sm">
+            {photo.caption}
+          </p>
         )}
 
         <div className="flex items-center justify-between">
@@ -92,19 +96,19 @@ export function CheckpointLightbox({
             type="button"
             onClick={() => goTo(index - 1)}
             disabled={index <= 0}
-            className="gn-nowplaying-btn"
+            className="gnv2-nav-btn"
             aria-label="Vorige foto"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
-          <p className="gn-faint text-xs">
+          <p className="gnv2-dialog-faint text-xs">
             {index + 1} / {photos.length}
           </p>
           <button
             type="button"
             onClick={() => goTo(index + 1)}
             disabled={index >= photos.length - 1}
-            className="gn-nowplaying-btn"
+            className="gnv2-nav-btn"
             aria-label="Volgende foto"
           >
             <ChevronRight className="h-4 w-4" />

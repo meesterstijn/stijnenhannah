@@ -15,22 +15,20 @@ export function CheckpointHistoryPanel({
   return (
     <div className="flex h-full min-h-0 w-full flex-col gap-2.5">
       <div className="flex items-center justify-between">
-        <p className="gn-display text-lg font-semibold tracking-wide">
-          Spelstanden
-        </p>
+        <p className="gnv2-dialog-title text-lg">Spelstanden</p>
         <button
           type="button"
           onClick={onClose}
-          className="gn-topnav-icon-btn"
+          className="gnv2-icon-btn"
           aria-label="Sluiten"
         >
           <X className="h-3.5 w-3.5" />
         </button>
       </div>
 
-      <div className="gn-checkpoint-scroll flex min-h-0 flex-1 flex-col gap-2">
+      <div className="gnv2-dialog-scroll flex min-h-0 flex-1 flex-col gap-2">
         {checkpoints.length === 0 && (
-          <p className="gn-faint text-center text-sm">
+          <p className="gnv2-dialog-faint text-center text-sm">
             Nog geen spelstanden opgeslagen.
           </p>
         )}
@@ -39,11 +37,11 @@ export function CheckpointHistoryPanel({
             key={c.id}
             type="button"
             onClick={() => onSelect(c.id)}
-            className="gn-plaque-mini min-h-[52px] px-3.5 py-3 text-left"
+            className="gnv2-history-row"
           >
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold">{c.title}</p>
-              <p className="gn-faint truncate text-xs">
+              <p className="gnv2-dialog-faint truncate text-xs">
                 {new Date(c.created_at).toLocaleString("nl-NL", {
                   day: "numeric",
                   month: "long",

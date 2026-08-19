@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Users } from "lucide-react";
 import { useGameNightGames } from "@/features/game-night/hooks/useGameNightGames";
 import { usePlayers } from "@/features/game-night/hooks/usePlayers";
 import { useGameNightAnalytics } from "@/features/game-night/hooks/useGameNightAnalytics";
@@ -18,70 +17,20 @@ import {
 import type { GameNightSession } from "@/lib/supabase";
 import { TopNav } from "@/features/game-night/components/TopNav";
 import { TitleBlock } from "@/features/game-night/components/TitleBlock";
-import { ActionPlaque } from "@/features/game-night/components/ActionPlaque";
 import { ChampionPlaque } from "@/features/game-night/components/ChampionPlaque";
 import { ExploreNav } from "@/features/game-night/components/ExploreNav";
 import { CandleLayer } from "@/features/game-night/components/CandleLayer";
 import { ScatteredTableObjects } from "@/features/game-night/components/ScatteredTableObjects";
+import { GnV2Loading } from "@/features/game-night/v2/GnV2Loading";
+import { GameNightV2Start } from "@/features/game-night/v2/GameNightV2Start";
 import { GameNightV2Lobby } from "@/features/game-night/v2/GameNightV2Lobby";
 import { GameNightV2GameSelect } from "@/features/game-night/v2/GameNightV2GameSelect";
+import { GameNightV2Arena } from "@/features/game-night/v2/GameNightV2Arena";
+import { GameNightV2GameRecap } from "@/features/game-night/v2/GameNightV2GameRecap";
+import { GameNightV2NightRecap } from "@/features/game-night/v2/GameNightV2NightRecap";
 import { ActiveGameSessionPanel } from "@/features/game-night/components/ActiveGameSessionPanel";
 import { GameSessionCompletedPanel } from "@/features/game-night/components/GameSessionCompletedPanel";
 import { GameNightNowPlaying } from "@/features/game-night/components/GameNightNowPlaying";
-
-// Losse stukken die letterlijk OP het speelbord liggen (correctieronde
-// sectie 6) — individuele fotoassets, asymmetrisch, alsof er net gespeeld
-// is en de twee Game Night-keuzes er bovenop zijn gelegd. Bewust geen volle
-// asset-sheet-rij (zie ScatteredTableObjects.tsx voor waarom).
-const BOARD_PIECES: {
-  src: string;
-  style: string;
-  width: string;
-  shadow: "chip" | "pawn" | "dice";
-}[] = [
-  {
-    src: "chip-red",
-    style: "-top-2 left-[13%] -rotate-[6deg] scale-y-[0.82]",
-    width: "w-5",
-    shadow: "chip",
-  },
-  {
-    src: "chip-red",
-    style: "-top-2.5 left-[19%] rotate-[13deg] scale-y-[0.85]",
-    width: "w-5",
-    shadow: "chip",
-  },
-  {
-    src: "chip-yellow",
-    style: "-top-1.5 left-[35%] -rotate-[9deg] scale-y-[0.85]",
-    width: "w-5",
-    shadow: "chip",
-  },
-  {
-    src: "chip-red",
-    style: "-top-2 left-[76%] rotate-[8deg] scale-y-[0.82]",
-    width: "w-[1.35rem]",
-    shadow: "chip",
-  },
-  {
-    src: "pawn-blue",
-    style: "top-[40%] -left-3 -rotate-[7deg]",
-    width: "w-9",
-    shadow: "pawn",
-  },
-  {
-    src: "die-single",
-    style: "-bottom-3 right-[15%] rotate-[16deg]",
-    width: "w-8",
-    shadow: "dice",
-  },
-  {
-    src: "chip-yellow",
-    style: "bottom-[22%] -right-2.5 rotate-[6deg] scale-y-[0.85]",
-    width: "w-5",
-    shadow: "chip",
-  },
-];
 
 // "Database als state machine" (opdracht sectie 34): "idle" is de enige
 // stap die nog niets in Supabase heeft — zodra een Game Night bestaat,
@@ -121,6 +70,16 @@ export default function GameNightHome() {
   const [currentSession, setCurrentSession] = useState<GameNightSession | null>(
     null,
   );
+  // Game Night V2.7C (sectie 5) — de zojuist voltooide avond, puur lokale
+  // view-state: Supabase blijft bron van waarheid voor de daadwerkelijke
+  // completion (`closed` komt rechtstreeks terug van de bestaande
+  // completeGameNight-RPC), dit bewaart uitsluitend WELKE sessie we net
+  // hebben afgesloten zodat GameNightV2NightRecap kan blijven staan nadat
+  // useActiveGameNightSession al naar null is omgeslagen. Een harde
+  // refresh verliest deze state bewust (sectie 5: "dat is prima en zelfs
+  // gewenst") — dan toont /game-night gewoon GameNightV2Start.
+  const [completedNightSession, setCompletedNightSession] =
+    useState<GameNightSession | null>(null);
 
   // Sectie 33/35/36: na reload/opnieuw binnenkomen moet een actieve Game
   // Night direct hervat worden — geen extra tik nodig, geen "Start Game
@@ -131,6 +90,15 @@ export default function GameNightHome() {
       setFlow("started");
     }
   }, [activeSession, flow, currentSession]);
+
+  // Game Night V2.7C (sectie 6) — dezelfde voorwaarde als de effect
+  // hierboven: als die net op het punt staat te vuren (activeSession is al
+  // binnen, maar `flow`/`currentSession` zijn nog niet bijgewerkt), zou een
+  // render daartussenin per ongeluk kortstondig GameNightV2Start tonen
+  // terwijl er in werkelijkheid al een actieve avond is. Behandel dat ene
+  // tussenframe als "nog aan het laden" i.p.v. als "geen actieve avond".
+  const stillSyncingActiveSession =
+    !!activeSession && flow === "idle" && !currentSession;
 
   const { data: latestGameSession } = useLatestGameSession(currentSession?.id);
   const { data: gameSessionParticipants = [] } = useGameSessionParticipants(
@@ -163,8 +131,24 @@ export default function GameNightHome() {
     ) {
       return;
     }
+    // Game Night V2.7C (root cause "GAME NIGHT VOLTOOID"): navigeerde
+    // hiervoor naar de losse, houten finale-route — die route blijft
+    // bestaan voor historische replay vanuit Geschiedenis, maar de NORMALE
+    // afsluitflow toont voortaan meteen GameNightV2NightRecap, binnen
+    // dezelfde GNV2-scene.
     const closed = await completeGameNight.mutateAsync(currentSession.id);
-    navigate(`/game-night/geschiedenis/${closed.id}/finale`);
+    setCompletedNightSession(closed);
+  }
+
+  // Game Night V2.7C (sectie 5) — "Nieuwe Game Night" in de Night Recap
+  // start NIET automatisch een nieuwe avond, het verlaat alleen de
+  // recap-view-state zodat de normale routing (geen actieve Game Night)
+  // vanzelf GameNightV2Start toont.
+  function handleReturnToStart() {
+    setCompletedNightSession(null);
+    setCurrentSession(null);
+    setFlow("idle");
+    setLobbySubView("party");
   }
 
   // Peripherale elementen (kampioen, titel, rechter menu) dimmen/trekken
@@ -173,7 +157,6 @@ export default function GameNightHome() {
   // functionele UI eromheen wijkt.
   const dimmed = flow !== "idle";
   const dimClass = dimmed ? "gn-peripheral-dim" : "";
-  const showBoardDecoration = flow === "idle" && !activeSessionLoading;
 
   // UX-polish pokertafel (sectie 6): tijdens de daadwerkelijke speelweergave
   // (ActiveGameSessionPanel's "play"/"paused"-staat) vervangt de pokertafel-
@@ -188,29 +171,108 @@ export default function GameNightHome() {
     latestGameSession.status !== "completed";
   const isWideContent = isActivePlay;
 
-  // Game Night V2.5/V2.6 (sectie 21 V2.6: "Lobby, Game Select, Game Reveal
-  //... vormen samen de nieuwe fullscreen V2-app") — zowel de lobby als de
-  // volledige spelkeuze-flow VERVANGEN de oude .gn-tabletop-weergave
-  // (topnav, kampioen, bord, menu) zodra een Game Night gestart is en er
-  // nog geen spel actief is: één ononderbroken ervaring, geen terugval op
-  // GameNightStartedPanel/GameChooserPanel meer (V2.6-root-cause-fix — zie
-  // opleverrapport). Pas zodra latestGameSession bestaat (een spel is echt
-  // gestart) valt de app terug op de bestaande .gn-tabletop-flow voor Live
-  // Play — die schermen redesignt V2.6 nog niet (sectie 25).
-  if (flow === "started" && currentSession && !latestGameSession) {
-    if (lobbySubView === "party") {
+  // Game Night V2.7C (sectie 7) — definitieve routingvolgorde. De eerste
+  // twee checks MOETEN vóór de "started"-substate-routing staan:
+  // - Nog aan het laden (of het ene tussenframe van de resume-effect
+  //   hierboven, sectie 6) → nooit een gok wagen, gewoon een GNV2-rustpunt.
+  // - `completedNightSession` is gezet zodra handleCloseGameNight klaar is
+  //   — op dat moment staan `flow`/`currentSession`/`latestGameSession` nog
+  //   op hun oude waarden (bewust niet aangeraakt, zie handleCloseGameNight)
+  //   en zouden ANDERS de "started"-tak hieronder in laten lopen (die zou
+  //   op basis van de nu-afgeronde latestGameSession per ongeluk
+  //   GameNightV2GameRecap tonen i.p.v. de Night Recap).
+  if (activeSessionLoading || stillSyncingActiveSession) {
+    return <GnV2Loading />;
+  }
+
+  if (completedNightSession) {
+    return (
+      <GameNightV2NightRecap
+        session={completedNightSession}
+        onNewGameNight={handleReturnToStart}
+      />
+    );
+  }
+
+  // Game Night V2.5/V2.6/V2.7B (sectie 33-34 V2.7B: "Lobby, Game Select,
+  // Game Reveal, Live Play, Game Recap vormen samen de nieuwe fullscreen
+  // V2-app") — de lobby, de volledige spelkeuze-flow, ÉN (voor
+  // win_events-sessies) Live Play/Recap VERVANGEN de oude .gn-tabletop-
+  // weergave (topnav, kampioen, bord, menu, hout) volledig: één
+  // ononderbroken ervaring. `lobbySubView` wordt hier bewust hergebruikt
+  // voor twee routeerdoelen die elkaar nooit overlappen: "party"/"select"
+  // vóórdat een spel gekozen is, én — zodra de laatste win_events-sessie
+  // net is afgerond — "select" laat "Ander spel" terug naar Game Select
+  // gaan zonder een nieuwe lobbySubView-status te hoeven verzinnen.
+  //
+  // Alleen een LEGACY-sessie (win_source !== 'win_events', dus altijd van
+  // vóór V2.2) valt nog terug op de bestaande .gn-tabletop-flow hieronder
+  // — bewust behouden als fallback (sectie 43 V2.7B), nooit meer bereikt
+  // door een nieuwe sessie (die worden altijd met win_source='win_events'
+  // gestart).
+  if (flow === "started" && currentSession) {
+    if (!latestGameSession) {
+      if (lobbySubView === "party") {
+        return (
+          <GameNightV2Lobby
+            session={currentSession}
+            onChooseGame={() => setLobbySubView("select")}
+            onCloseGameNight={handleCloseGameNight}
+          />
+        );
+      }
       return (
-        <GameNightV2Lobby
+        <GameNightV2GameSelect
           session={currentSession}
-          onChooseGame={() => setLobbySubView("select")}
-          onCloseGameNight={handleCloseGameNight}
+          onBack={() => setLobbySubView("party")}
         />
       );
     }
+
+    if (latestGameSession.win_source === "win_events") {
+      if (latestGameSession.status === "completed") {
+        if (lobbySubView === "select") {
+          return (
+            <GameNightV2GameSelect
+              session={currentSession}
+              onBack={() => setLobbySubView("party")}
+            />
+          );
+        }
+        return (
+          <GameNightV2GameRecap
+            session={currentSession}
+            gameSession={latestGameSession}
+            participants={gameSessionParticipants}
+            onRematch={handleRematch}
+            onOtherGame={() => setLobbySubView("select")}
+            onCloseGameNight={handleCloseGameNight}
+            rematchPending={startGameSession.isPending}
+          />
+        );
+      }
+      return (
+        <GameNightV2Arena
+          session={currentSession}
+          gameSession={latestGameSession}
+          participants={gameSessionParticipants}
+        />
+      );
+    }
+  }
+
+  // Game Night V2.7C (root cause "houten START GAME NIGHT-homepage") — de
+  // idle-staat (geen actieve Game Night) is voortaan altijd GNV2. De oude
+  // .gn-tabletop-boom hieronder is na deze return uitsluitend nog
+  // bereikbaar via het `flow==="started"`-blok hierboven NIET geretourneerd
+  // te hebben — dat kan alleen gebeuren voor een genuine legacy-sessie
+  // (win_source !== 'win_events'). Een owner zonder actieve Game Night is
+  // GEEN legacy-situatie.
+  if (flow === "idle") {
     return (
-      <GameNightV2GameSelect
-        session={currentSession}
-        onBack={() => setLobbySubView("party")}
+      <GameNightV2Start
+        onStart={handleStartGameNight}
+        startPending={startGameNightSession.isPending}
       />
     );
   }
@@ -259,46 +321,16 @@ export default function GameNightHome() {
                 : "gn-board relative w-full px-4 py-4 sm:px-7 sm:py-5 lg:-mt-1"
             }
           >
-            {showBoardDecoration &&
-              BOARD_PIECES.map((piece, i) => (
-                <img
-                  key={i}
-                  src={`/game-night/assets/${piece.src}.webp`}
-                  alt=""
-                  aria-hidden
-                  className={`gn-tableobj gn-tableobj-${piece.shadow} pointer-events-none absolute hidden ${piece.width} ${piece.style} sm:block`}
-                />
-              ))}
-
-            {activeSessionLoading && flow === "idle" && (
-              <div className="flex h-32 items-center justify-center">
-                <div className="gn-faint text-xs">Even geduld...</div>
-              </div>
-            )}
-
-            {/* Sectie 22-23 (V2.4): "Start Game Night" maakt meteen een
-                lege sessie aan en toont de lobby — geen aparte spelerkeuze-
-                stap meer vooraf (PlayerSelectionBoard.tsx blijft als
-                bestand staan, maar wordt hier niet meer gebruikt, zie het
-                opleverrapport). "Hoe kiezen we?" is nu een stap BINNEN de
-                lobby ("Wat spelen we?"), geen los toegangspunt meer. */}
-            {!activeSessionLoading && flow === "idle" && (
-              <div className="relative mx-auto flex max-w-sm flex-col gap-2.5">
-                <ActionPlaque
-                  onClick={handleStartGameNight}
-                  icon={Users}
-                  title="Start Game Night"
-                  subtitle="Begin een nieuwe avond"
-                  primary
-                />
-              </div>
-            )}
-
-            {/* flow==="started" && !latestGameSession wordt nu altijd al
-                hierboven afgehandeld door de vroege return naar
-                GameNightV2Lobby/GameNightV2GameSelect — dit deel van de
-                boom is dus alleen nog bereikbaar zodra latestGameSession
-                bestaat. */}
+            {/* Dit deel van de boom is (V2.7B/V2.7C) uitsluitend nog
+                bereikbaar voor een LEGACY spelsessie (win_source !==
+                'win_events') — elke andere combinatie (geen actieve avond,
+                of een win_events-sessie in elke status) wordt al hierboven
+                afgehandeld door de vroege return naar
+                GameNightV2Start/GameNightV2Lobby/GameNightV2GameSelect/
+                GameNightV2Arena/GameNightV2GameRecap/GameNightV2NightRecap.
+                De idle-decoratie (losse speelstukken/ActionPlaque) hoort
+                daarom niet meer hier — die leeft nu in
+                GameNightV2Start.tsx. */}
             {flow === "started" &&
               currentSession &&
               latestGameSession &&

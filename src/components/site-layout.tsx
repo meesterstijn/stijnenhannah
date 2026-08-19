@@ -220,26 +220,29 @@ export function SiteLayout() {
         className={
           isHome
             ? "flex-1 w-full"
-            : `flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 ${
-                isR6SessionDetail
-                  ? "r6-theme py-8 sm:py-12"
-                  : isR6
-                    ? "r6-theme pt-16 pb-8 sm:pb-12"
-                    : isCocktailBar
-                      ? "cocktail-theme pt-16 pb-8 sm:pb-12"
-                      : isGameNightHome
-                        ? // Op lg: neemt .gn-tabletop-fit zelf de volledige
-                          // 100dvh + eigen padding voor z'n rekening (zie
-                          // styles.css) — main's eigen pt/pb zouden daar
-                          // bovenop een niet-zichtbare scrollbar opleveren.
-                          // Onder lg: (mobiel) blijft dit gewoon een normale
-                          // scrollbare pagina met dezelfde spacing als de
-                          // rest van Game Night.
-                          "pt-16 pb-8 sm:pb-12 lg:pt-0 lg:pb-0 lg:min-h-0 lg:overflow-hidden"
+            : isGameNightHome
+              ? // Game Night V2.7B root-cause-fix: de gedeelde
+                // `max-w-6xl mx-auto px-4 sm:px-6` hieronder liet op een
+                // 1280px-tablet aan weerszijden van de volledig-breedte
+                // .gnv2-scene een leeg gat over — daar scheen de houten
+                // body-achtergrond (body:has(.gamenight-theme)) doorheen,
+                // ook al renderde de V2-scene zelf al 100% "houtloos". De
+                // .gnv2-scene is zelf al een volledig zelfvoorzienende,
+                // volledig-breedte achtergrond (zie styles.css) — <main>
+                // mag hier dus geen eigen max-width/centrering/padding meer
+                // opleggen, op geen enkel breakpoint (niet alleen lg:).
+                "flex-1 w-full pt-16 pb-8 sm:pb-12 lg:pt-0 lg:pb-0 lg:min-h-0 lg:overflow-hidden"
+              : `flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 ${
+                  isR6SessionDetail
+                    ? "r6-theme py-8 sm:py-12"
+                    : isR6
+                      ? "r6-theme pt-16 pb-8 sm:pb-12"
+                      : isCocktailBar
+                        ? "cocktail-theme pt-16 pb-8 sm:pb-12"
                         : isGitaar || isGameNight
                           ? "pt-16 pb-8 sm:pb-12"
                           : "py-8 sm:py-12"
-              }`
+                }`
         }
       >
         <ErrorBoundary>

@@ -521,6 +521,37 @@ export type GuitarAlbumWithSongCount = GuitarAlbum & { song_count: number };
 export type GameDifficulty = "licht" | "gemiddeld" | "zwaar";
 export type GameResultMode = "winner" | "score" | "ranking" | "team" | "coop";
 
+// Game Night V2.7A (20260912200000_game_night_arena_config.sql) — vaste
+// preset-allowlists voor de toekomstige Game Arena (V2.7B). De database
+// bewaart uitsluitend deze preset-id's, nooit CSS/HTML/animatiecode; welk
+// icoon/welke animatie bij een preset hoort bepaalt de frontend later (zie
+// gameNightArena.ts). Zelfde allowlist als de CHECK-constraints in die
+// migratie — bewust hier ook als TS-union zodat een onbekende/corrupte
+// runtime-waarde nooit stilzwijgend als geldige preset wordt behandeld.
+export type GameNightArenaStyle =
+  | "warm"
+  | "dark"
+  | "neon"
+  | "playful"
+  | "classic";
+export type GameNightArenaSymbol =
+  | "hex"
+  | "skull"
+  | "music"
+  | "cards"
+  | "dice"
+  | "crown"
+  | "burst"
+  | "star"
+  | "none";
+export type GameNightCelebrationStyle =
+  | "burst"
+  | "pulse"
+  | "spark"
+  | "slam"
+  | "glitch"
+  | "confetti";
+
 export type GameNightGame = {
   id: string;
   name: string;
@@ -543,6 +574,21 @@ export type GameNightGame = {
   // Game Night V2.1 (20260912130000) — optioneel per-spel-thema-accent uit
   // GameNightColorPaletteEntry. Nog zonder UI.
   accent_color_id: string | null;
+  // Game Night V2.7A (20260912200000) — Game Arena-configuratiebasis, alle
+  // zes nullable/backwards-compatible (bestaande spellen: allemaal null,
+  // zie gameNightArena.ts voor de veilige fallback-resolutie). Kleuren zijn
+  // altijd genormaliseerd naar lowercase "#rrggbb" door de database-trigger,
+  // maar worden hier bewust als `string` (niet een striktere template-
+  // literal-type) getypeerd — de TS-laag valideert defensief opnieuw via
+  // isValidHexColor() i.p.v. blind op deze compile-time-only garantie te
+  // vertrouwen (runtime-data uit Supabase is nooit type-afgedwongen).
+  setup_storage_path: string | null;
+  arena_primary_color: string | null;
+  arena_secondary_color: string | null;
+  arena_style: GameNightArenaStyle | null;
+  arena_symbol: GameNightArenaSymbol | null;
+  arena_tagline: string | null;
+  celebration_style: GameNightCelebrationStyle | null;
   created_at: string;
   updated_at: string;
 };

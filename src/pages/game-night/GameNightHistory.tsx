@@ -1,126 +1,266 @@
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useGameNightAnalytics } from "@/features/game-night/hooks/useGameNightAnalytics";
 import {
+  buildGameNightDetail,
   buildGameNightSummaries,
+  type GameNightGameSessionDetail,
   type GameNightSummary,
 } from "@/features/game-night/lib/gameNightStats";
 import { formatDuration } from "@/features/game-night/lib/gameTimer";
-import { getGameCoverUrl } from "@/features/game-night/lib/gameCoverStorage";
-import { placeholderCoverGradient } from "@/features/game-night/lib/gameCoverPlaceholder";
+import { getPlayerDisplayName } from "@/features/game-night/lib/playerIdentity";
+import { GnV2Scene } from "@/features/game-night/v2/GnV2Scene";
+import { GnV2Loading } from "@/features/game-night/v2/GnV2Loading";
 
-function GameNightCard({ summary }: { summary: GameNightSummary }) {
-  const date = new Date(summary.session.started_at).toLocaleDateString(
-    "nl-NL",
-    { day: "numeric", month: "long", year: "numeric" },
-  );
+type HistoryTab = "nights" | "sessions" | "finales";
 
+function nightDateLabel(iso: string) {
+  return new Date(iso)
+    .toLocaleDateString("nl-NL", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    })
+    .toUpperCase();
+}
+
+function NightCard({ summary }: { summary: GameNightSummary }) {
   return (
-    <Link
-      to={`/game-night/geschiedenis/${summary.session.id}`}
-      className="gn-panel-elevated block px-5 py-4 transition-colors hover:border-[var(--gn-brass)]"
-    >
-      <div className="flex items-start justify-between gap-3">
+    <div className="gnv2-history-card">
+      <div className="gnv2-history-card-top">
         <div className="min-w-0">
-          <p className="gn-eyebrow">{date.toUpperCase()}</p>
-          <p className="mt-1 truncate text-sm font-medium">
-            {summary.attendees.map((p) => p.name).join(" · ") || "Geen spelers"}
+          <p className="gnv2-history-card-date">
+            {nightDateLabel(summary.session.started_at)}
+          </p>
+          <p className="gnv2-history-card-title truncate">
+            {summary.session.name}
           </p>
         </div>
         {summary.isActive && (
-          <span className="gn-chip gn-chip-felt shrink-0">BEZIG</span>
+          <span className="gnv2-history-card-badge">Bezig</span>
         )}
       </div>
 
-      <p className="gn-muted mt-2.5 text-xs">
+      {summary.attendees.length > 0 && (
+        <p className="gnv2-history-card-players">
+          {summary.attendees.map((p) => getPlayerDisplayName(p)).join(" · ")}
+        </p>
+      )}
+
+      <p className="gnv2-history-card-meta">
         {summary.gameSessionCount}{" "}
         {summary.gameSessionCount === 1 ? "spel" : "spellen"}
-        {summary.roundCount > 0 && ` · ${summary.roundCount} rondes`}
         {` · ${summary.attendees.length} ${summary.attendees.length === 1 ? "speler" : "spelers"}`}
         {summary.totalActiveSeconds > 0 &&
           ` · ${formatDuration(summary.totalActiveSeconds)}`}
       </p>
 
-      {summary.gamesPlayed.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-2">
-          {summary.gamesPlayed.map((game) => {
-            const coverUrl = game.cover_storage_path
-              ? getGameCoverUrl(game.cover_storage_path)
-              : null;
-            return (
-              <span
-                key={game.id}
-                className="gn-chip inline-flex items-center gap-1.5"
-              >
-                <span
-                  className="h-4 w-4 shrink-0 overflow-hidden rounded-full"
-                  style={{
-                    background: coverUrl
-                      ? undefined
-                      : placeholderCoverGradient(game.id),
-                  }}
-                >
-                  {coverUrl && (
-                    <img
-                      src={coverUrl}
-                      alt=""
-                      className="h-full w-full object-cover"
-                    />
-                  )}
-                </span>
-                {game.name}
-              </span>
-            );
-          })}
-        </div>
-      )}
-    </Link>
+      <div className="flex flex-wrap gap-x-5 gap-y-1">
+        <Link
+          to={`/game-night/geschiedenis/${summary.session.id}`}
+          className="gnv2-history-card-link"
+        >
+          Bekijk avond
+        </Link>
+        {summary.session.status === "completed" && (
+          <Link
+            to={`/game-night/geschiedenis/${summary.session.id}/finale`}
+            className="gnv2-history-card-link"
+          >
+            Bekijk finale opnieuw
+          </Link>
+        )}
+      </div>
+    </div>
   );
 }
 
-// "Geschiedenis" (Game Night V5, sectie 4-5): een echte chronologische
-// lijst uit game_night_sessions, nieuwste eerst. Actieve/gepauzeerde
-// avonden krijgen een "BEZIG"-label en worden niet als afgeronde
-// eindstatistiek gepresenteerd (sectie 5) — de cijfers die wél getoond
-// worden zijn puur wat er tot nu toe echt is opgeslagen.
-export default function GameNightHistory() {
-  const { data, isLoading } = useGameNightAnalytics();
-  const summaries = data ? buildGameNightSummaries(data) : [];
-
+function SessionCard({
+  night,
+  detail,
+}: {
+  night: GameNightSummary;
+  detail: GameNightGameSessionDetail;
+}) {
+  const winner = detail.results.find((r) => r.isWinner);
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <Link
-        to="/game-night"
-        className="gn-muted inline-flex items-center gap-1.5 text-xs transition-colors hover:text-[var(--gn-brass)]"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" /> Terug naar Game Night
-      </Link>
-
-      <div>
-        <p className="gn-eyebrow mb-1.5">Game Night</p>
-        <h1 className="gn-display text-2xl font-semibold sm:text-3xl">
-          Geschiedenis
-        </h1>
-        <p className="gn-muted mt-1.5 text-sm">
-          {isLoading
-            ? "Wordt geladen…"
-            : `${summaries.length} ${summaries.length === 1 ? "avond" : "avonden"}`}
-        </p>
+    <div className="gnv2-history-card">
+      <div className="gnv2-history-card-top">
+        <div className="min-w-0">
+          <p className="gnv2-history-card-date">
+            {nightDateLabel(detail.gameSession.started_at)}
+          </p>
+          <p className="gnv2-history-card-title truncate">{detail.game.name}</p>
+        </div>
       </div>
 
-      {isLoading ? (
-        <div className="flex justify-center py-14">
-          <Loader2 className="gn-faint h-5 w-5 animate-spin" />
-        </div>
-      ) : summaries.length === 0 ? (
-        <p className="gn-faint text-sm">Nog geen Game Nights gespeeld.</p>
-      ) : (
-        <div className="space-y-3">
-          {summaries.map((summary) => (
-            <GameNightCard key={summary.session.id} summary={summary} />
-          ))}
-        </div>
+      {detail.participants.length > 0 && (
+        <p className="gnv2-history-card-players">
+          {detail.participants.map((p) => getPlayerDisplayName(p)).join(" · ")}
+        </p>
       )}
+
+      {(detail.durationSeconds != null || winner) && (
+        <p className="gnv2-history-card-meta">
+          {detail.durationSeconds != null &&
+            formatDuration(detail.durationSeconds)}
+          {detail.durationSeconds != null && winner && " · "}
+          {winner && `Winnaar: ${getPlayerDisplayName(winner.player)}`}
+        </p>
+      )}
+
+      <Link
+        to={`/game-night/geschiedenis/${night.session.id}`}
+        className="gnv2-history-card-link"
+      >
+        Bekijk avond
+      </Link>
     </div>
+  );
+}
+
+// Game Night V2.7D (sectie 5/6) — vervangt de houten Geschiedenis-lijst
+// door dezelfde GNV2-wereld als Lobby/Game Select/Arena (GnV2Scene). Drie
+// tabs i.p.v. één platte lijst, uitsluitend samengesteld uit bestaande,
+// al-geteste stats-helpers (buildGameNightSummaries/buildGameNightDetail)
+// — geen nieuwe database-query's, geen verzonnen cijfers. De detailpagina
+// (per avond) en de finale-ceremonie blijven bewust ongewijzigd bereikbaar
+// (sectie 7/8) — alleen dit overzicht wordt vervangen.
+export default function GameNightHistory() {
+  const { data, isLoading } = useGameNightAnalytics();
+  const [tab, setTab] = useState<HistoryTab>("nights");
+
+  const nights = useMemo(
+    () => (data ? buildGameNightSummaries(data) : []),
+    [data],
+  );
+
+  const sessions = useMemo(() => {
+    if (!data) return [];
+    const rows: {
+      night: GameNightSummary;
+      detail: GameNightGameSessionDetail;
+    }[] = [];
+    for (const night of nights) {
+      const detail = buildGameNightDetail(data, night.session.id);
+      if (!detail) continue;
+      for (const gs of detail.gameSessions) rows.push({ night, detail: gs });
+    }
+    return rows.sort(
+      (a, b) =>
+        new Date(b.detail.gameSession.started_at).getTime() -
+        new Date(a.detail.gameSession.started_at).getTime(),
+    );
+  }, [data, nights]);
+
+  const finales = useMemo(
+    () => nights.filter((n) => n.session.status === "completed"),
+    [nights],
+  );
+
+  if (isLoading) return <GnV2Loading />;
+
+  return (
+    <GnV2Scene className="gnv2-history-scene">
+      <header className="gnv2-topbar">
+        <Link
+          to="/game-night"
+          className="gnv2-nav-btn"
+          aria-label="Terug naar Game Night"
+          title="Terug"
+        >
+          <ArrowLeft className="h-[18px] w-[18px]" />
+        </Link>
+        <div className="gnv2-identity gnv2-identity-center">
+          <p className="gnv2-identity-eyebrow">Game Night</p>
+          <p className="gnv2-identity-date">Geschiedenis</p>
+        </div>
+        <div className="gnv2-topbar-spacer" aria-hidden />
+      </header>
+
+      <main className="gnv2-history-main">
+        <div className="gnv2-history-intro">
+          <h1 className="gnv2-history-heading">Geschiedenis</h1>
+          <p className="gnv2-history-sub">
+            Game Nights &amp; sessies — {nights.length}{" "}
+            {nights.length === 1 ? "avond" : "avonden"} gespeeld.
+          </p>
+        </div>
+
+        <div
+          className="gnv2-segmented"
+          role="tablist"
+          aria-label="Geschiedenis"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === "nights"}
+            onClick={() => setTab("nights")}
+            className={`gnv2-segmented-btn ${tab === "nights" ? "gnv2-segmented-btn-active" : ""}`}
+          >
+            Alle avonden
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === "sessions"}
+            onClick={() => setTab("sessions")}
+            className={`gnv2-segmented-btn ${tab === "sessions" ? "gnv2-segmented-btn-active" : ""}`}
+          >
+            Spelsessies
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === "finales"}
+            onClick={() => setTab("finales")}
+            className={`gnv2-segmented-btn ${tab === "finales" ? "gnv2-segmented-btn-active" : ""}`}
+          >
+            Finales
+          </button>
+        </div>
+
+        {tab === "nights" &&
+          (nights.length === 0 ? (
+            <p className="gnv2-history-empty">Nog geen Game Nights gespeeld.</p>
+          ) : (
+            <div className="gnv2-history-list">
+              {nights.map((n) => (
+                <NightCard key={n.session.id} summary={n} />
+              ))}
+            </div>
+          ))}
+
+        {tab === "sessions" &&
+          (sessions.length === 0 ? (
+            <p className="gnv2-history-empty">Nog geen spellen gespeeld.</p>
+          ) : (
+            <div className="gnv2-history-list">
+              {sessions.map((row) => (
+                <SessionCard
+                  key={row.detail.gameSession.id}
+                  night={row.night}
+                  detail={row.detail}
+                />
+              ))}
+            </div>
+          ))}
+
+        {tab === "finales" &&
+          (finales.length === 0 ? (
+            <p className="gnv2-history-empty">
+              Nog geen afgeronde Game Night met finale.
+            </p>
+          ) : (
+            <div className="gnv2-history-list">
+              {finales.map((n) => (
+                <NightCard key={n.session.id} summary={n} />
+              ))}
+            </div>
+          ))}
+      </main>
+    </GnV2Scene>
   );
 }

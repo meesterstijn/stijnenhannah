@@ -51,12 +51,23 @@ export function CheckpointSavePanel({
   gameSessionId,
   roundId,
   attendees,
+  initialCategory = null,
+  initialCaptureMode,
   onClose,
   onSaved,
 }: {
   gameSessionId: string;
   roundId?: string | null;
   attendees: GameNightPlayer[];
+  // Sectie 3 (V2.7D): laat de Arena rechtstreeks naar één categorie
+  // springen (bv. "board" voor het SPEELBORD-snelmenu) zonder het
+  // 6-categorieën-grid over te slaan als functionaliteit — "Annuleren"
+  // in PhotoCaptureFlow zet activeCategory terug op null en toont het
+  // volledige grid gewoon nog steeds.
+  initialCategory?: GameNightCheckpointPhotoType | null;
+  // Sectie 2 (V2.7D): opent bij die initiële categorie meteen de camera-
+  // of galerij-picker (zie PhotoCaptureFlow.autoTrigger).
+  initialCaptureMode?: "camera" | "gallery";
   onClose: () => void;
   onSaved?: () => void;
 }) {
@@ -65,7 +76,7 @@ export function CheckpointSavePanel({
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
   const [activeCategory, setActiveCategory] =
-    useState<GameNightCheckpointPhotoType | null>(null);
+    useState<GameNightCheckpointPhotoType | null>(initialCategory);
   const [pendingUploads, setPendingUploads] = useState<PendingUpload[]>([]);
   const [lightboxPhotoId, setLightboxPhotoId] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -215,6 +226,9 @@ export function CheckpointSavePanel({
       <PhotoCaptureFlow
         photoType={activeCategory}
         attendees={attendees}
+        autoTrigger={
+          activeCategory === initialCategory ? initialCaptureMode : undefined
+        }
         onConfirm={handleConfirmPhoto}
         onCancel={() => setActiveCategory(null)}
       />
@@ -237,13 +251,10 @@ export function CheckpointSavePanel({
   if (saved) {
     return (
       <div className="flex h-full min-h-0 w-full flex-col items-center justify-center gap-1.5 text-center">
-        <p
-          className="gn-display text-xl font-semibold"
-          style={{ color: "var(--gn-brass)" }}
-        >
+        <p className="gnv2-dialog-title gnv2-dialog-title-accent text-xl">
           Spelstand opgeslagen
         </p>
-        <p className="gn-muted text-sm">
+        <p className="gnv2-dialog-muted text-sm">
           {totalPhotoCount} {totalPhotoCount === 1 ? "foto" : "foto's"} ·{" "}
           {new Date().toLocaleTimeString("nl-NL", {
             hour: "2-digit",
@@ -259,34 +270,32 @@ export function CheckpointSavePanel({
   return (
     <div className="flex h-full min-h-0 w-full flex-col gap-2.5">
       <div className="flex items-center justify-between">
-        <p className="gn-display text-lg font-semibold tracking-wide">
-          Spelstand opslaan
-        </p>
+        <p className="gnv2-dialog-title text-lg">Spelstand opslaan</p>
         <button
           type="button"
           onClick={handleClose}
-          className="gn-topnav-icon-btn"
+          className="gnv2-icon-btn"
           aria-label="Sluiten"
         >
           <X className="h-3.5 w-3.5" />
         </button>
       </div>
 
-      <div className="gn-checkpoint-scroll flex min-h-0 flex-1 flex-col items-center gap-3">
+      <div className="gnv2-dialog-scroll flex min-h-0 flex-1 flex-col items-center gap-3">
         <div className="flex w-full max-w-sm flex-col gap-2">
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder={timePlaceholder}
             maxLength={60}
-            className="w-full px-3 py-2.5 text-sm"
+            className="gnv2-input"
           />
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Notitie (optioneel) — bv. 'We stoppen voor vandaag.'"
             rows={2}
-            className="w-full resize-none px-3 py-2.5 text-sm"
+            className="gnv2-textarea"
           />
         </div>
 
@@ -298,13 +307,9 @@ export function CheckpointSavePanel({
                 key={type}
                 type="button"
                 onClick={() => setActiveCategory(type)}
-                className="gn-checkpoint-category-btn"
+                className="gnv2-category-btn"
               >
-                <Icon
-                  className="h-5 w-5"
-                  style={{ color: "var(--gn-brass)" }}
-                  strokeWidth={1.7}
-                />
+                <Icon className="h-5 w-5" strokeWidth={1.7} />
                 <span>{PHOTO_TYPE_LABELS[type]}</span>
               </button>
             );
@@ -321,7 +326,7 @@ export function CheckpointSavePanel({
           }
           return (
             <div key={type} className="w-full max-w-sm">
-              <p className="gn-eyebrow mb-1.5">
+              <p className="gnv2-dialog-eyebrow mb-1.5">
                 {PHOTO_TYPE_LABELS[type]} ·{" "}
                 {typePhotos.length + typePending.length}
               </p>
@@ -359,11 +364,9 @@ export function CheckpointSavePanel({
         type="button"
         onClick={handleSave}
         disabled={!canSave}
-        className="gn-plaque-action gn-plaque-action-primary flex min-h-[60px] w-full items-center justify-center px-6 py-3.5 disabled:cursor-not-allowed disabled:opacity-40"
+        className="gnv2-btn gnv2-btn-primary w-full"
       >
-        <span className="gn-display text-lg font-semibold tracking-wide">
-          {isUploading ? "Foto's worden opgeslagen..." : "Spelstand opslaan"}
-        </span>
+        {isUploading ? "Foto's worden opgeslagen..." : "Spelstand opslaan"}
       </button>
     </div>
   );

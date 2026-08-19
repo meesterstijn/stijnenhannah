@@ -56,16 +56,14 @@ export function CheckpointViewer({
     <div className="flex h-full min-h-0 w-full flex-col gap-2.5">
       <div className="flex items-start justify-between">
         <div>
-          <p className="gn-eyebrow">Spelstand</p>
-          <p className="gn-display text-lg font-semibold tracking-wide">
-            {checkpoint.title}
-          </p>
-          <p className="gn-faint text-xs">{formattedDate}</p>
+          <p className="gnv2-dialog-eyebrow">Spelstand</p>
+          <p className="gnv2-dialog-title text-lg">{checkpoint.title}</p>
+          <p className="gnv2-dialog-faint text-xs">{formattedDate}</p>
         </div>
         <button
           type="button"
           onClick={onClose}
-          className="gn-topnav-icon-btn"
+          className="gnv2-icon-btn"
           aria-label="Sluiten"
         >
           <X className="h-3.5 w-3.5" />
@@ -73,14 +71,14 @@ export function CheckpointViewer({
       </div>
 
       {checkpoint.notes && (
-        <p className="gn-muted text-center text-sm italic">
+        <p className="gnv2-dialog-muted text-center text-sm italic">
           {checkpoint.notes}
         </p>
       )}
 
-      <div className="gn-checkpoint-scroll min-h-0 flex-1">
+      <div className="gnv2-dialog-scroll min-h-0 flex-1">
         {photos.length === 0 && (
-          <p className="gn-faint text-center text-sm">
+          <p className="gnv2-dialog-faint text-center text-sm">
             Geen foto&apos;s bij deze spelstand.
           </p>
         )}
@@ -95,7 +93,9 @@ export function CheckpointViewer({
             ];
             return (
               <div key={type} className="mb-3 w-full max-w-sm">
-                <p className="gn-eyebrow mb-1.5">{PHOTO_TYPE_LABELS[type]}</p>
+                <p className="gnv2-dialog-eyebrow mb-1.5">
+                  {PHOTO_TYPE_LABELS[type]}
+                </p>
                 {playerIds.map((playerId) => {
                   const playerPhotos = typePhotos.filter(
                     (p) => (p.player_id ?? "none") === playerId,
@@ -105,7 +105,9 @@ export function CheckpointViewer({
                     "Geen specifieke speler";
                   return (
                     <div key={playerId} className="mb-2">
-                      <p className="mb-1 text-xs font-medium">{playerName}</p>
+                      <p className="gnv2-dialog-muted mb-1 text-xs font-medium">
+                        {playerName}
+                      </p>
                       <div className="flex flex-wrap gap-2">
                         {playerPhotos.map((photo) => (
                           <CheckpointPhotoThumbnail
@@ -126,7 +128,9 @@ export function CheckpointViewer({
 
           return (
             <div key={type} className="mb-3 w-full max-w-sm">
-              <p className="gn-eyebrow mb-1.5">{PHOTO_TYPE_LABELS[type]}</p>
+              <p className="gnv2-dialog-eyebrow mb-1.5">
+                {PHOTO_TYPE_LABELS[type]}
+              </p>
               <div className="flex flex-wrap gap-2">
                 {typePhotos.map((photo) => (
                   <CheckpointPhotoThumbnail
@@ -151,12 +155,10 @@ export function CheckpointViewer({
               hasOlder && onNavigateCheckpoint(checkpoints[index + 1].id)
             }
             disabled={!hasOlder}
-            className="gn-plaque-action flex min-h-[48px] flex-1 items-center justify-center gap-1.5 px-3 py-2 disabled:opacity-30"
+            className="gnv2-btn gnv2-btn-ghost flex-1"
           >
             <ChevronLeft className="h-3.5 w-3.5" />
-            <span className="gn-display text-xs font-semibold tracking-wide">
-              Vorige stand
-            </span>
+            Vorige stand
           </button>
           <button
             type="button"
@@ -164,11 +166,9 @@ export function CheckpointViewer({
               hasNewer && onNavigateCheckpoint(checkpoints[index - 1].id)
             }
             disabled={!hasNewer}
-            className="gn-plaque-action flex min-h-[48px] flex-1 items-center justify-center gap-1.5 px-3 py-2 disabled:opacity-30"
+            className="gnv2-btn gnv2-btn-ghost flex-1"
           >
-            <span className="gn-display text-xs font-semibold tracking-wide">
-              Volgende stand
-            </span>
+            Volgende stand
             <ChevronRight className="h-3.5 w-3.5" />
           </button>
         </div>

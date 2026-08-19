@@ -18,11 +18,17 @@ import {
 export function PhotoCaptureFlow({
   photoType,
   attendees,
+  autoTrigger,
   onConfirm,
   onCancel,
 }: {
   photoType: GameNightCheckpointPhotoType;
   attendees: GameNightPlayer[];
+  // Sectie 2 (V2.7D): laat "Foto maken"/"Uit galerij kiezen" in het
+  // ···-menu direct de bijbehorende native picker openen i.p.v. eerst
+  // deze twee-knoppen-stap te tonen — klikt éénmalig op de al-bestaande
+  // hidden file-input, geen nieuwe camera-/uploadlogica.
+  autoTrigger?: "camera" | "gallery";
   onConfirm: (input: {
     file: File;
     caption: string;
@@ -36,6 +42,12 @@ export function PhotoCaptureFlow({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [caption, setCaption] = useState("");
   const [playerId, setPlayerId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (autoTrigger === "camera") cameraInputRef.current?.click();
+    if (autoTrigger === "gallery") galleryInputRef.current?.click();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!selectedFile) {
@@ -91,32 +103,32 @@ export function PhotoCaptureFlow({
           }}
         />
 
-        <p className="gn-eyebrow">{PHOTO_TYPE_LABELS[photoType]}</p>
+        <p className="gnv2-dialog-eyebrow">{PHOTO_TYPE_LABELS[photoType]}</p>
 
         <button
           type="button"
           onClick={() => cameraInputRef.current?.click()}
-          className="gn-plaque-action gn-plaque-action-primary flex min-h-[60px] w-full max-w-xs items-center justify-center gap-2 px-6 py-3.5"
+          className="gnv2-capture-btn gnv2-capture-btn-camera"
         >
-          <Camera className="h-5 w-5" style={{ color: "var(--gn-brass)" }} />
-          <span className="gn-display text-base font-semibold tracking-wide">
-            Foto maken
+          <span className="gnv2-capture-icon">
+            <Camera className="h-5 w-5" />
           </span>
+          <span className="gnv2-capture-label">Foto maken</span>
         </button>
         <button
           type="button"
           onClick={() => galleryInputRef.current?.click()}
-          className="gn-plaque-action flex min-h-[56px] w-full max-w-xs items-center justify-center gap-2 px-6 py-3"
+          className="gnv2-capture-btn gnv2-capture-btn-gallery"
         >
-          <ImageIcon className="h-4 w-4" style={{ color: "var(--gn-brass)" }} />
-          <span className="gn-display text-sm font-semibold tracking-wide">
-            Uit galerij kiezen
+          <span className="gnv2-capture-icon">
+            <ImageIcon className="h-5 w-5" />
           </span>
+          <span className="gnv2-capture-label">Uit galerij kiezen</span>
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="gn-muted min-h-[44px] px-4 py-2 text-xs underline"
+          className="gnv2-dialog-cancel-link"
         >
           Annuleren
         </button>
@@ -126,20 +138,18 @@ export function PhotoCaptureFlow({
 
   // ── Stap 2: preview + optionele speler/caption + bevestigen ─────────────
   return (
-    <div className="gn-checkpoint-scroll flex h-full min-h-0 w-full flex-col items-center gap-2.5">
-      <p className="gn-eyebrow">{PHOTO_TYPE_LABELS[photoType]}</p>
+    <div className="gnv2-dialog-scroll flex h-full min-h-0 w-full flex-col items-center gap-2.5">
+      <p className="gnv2-dialog-eyebrow">{PHOTO_TYPE_LABELS[photoType]}</p>
 
       {previewUrl && (
-        <img
-          src={previewUrl}
-          alt=""
-          className="max-h-36 w-auto rounded-lg object-contain"
-        />
+        <img src={previewUrl} alt="" className="gnv2-capture-preview" />
       )}
 
       {showPlayerPicker && attendees.length > 0 && (
         <div className="w-full max-w-xs">
-          <p className="gn-faint mb-1 text-[11px] font-medium">Van wie?</p>
+          <p className="gnv2-dialog-faint mb-1 text-[11px] font-medium">
+            Van wie?
+          </p>
           <div className="flex flex-wrap gap-1.5">
             {attendees.map((p) => (
               <button
@@ -148,7 +158,7 @@ export function PhotoCaptureFlow({
                 onClick={() =>
                   setPlayerId((current) => (current === p.id ? null : p.id))
                 }
-                className={`gn-chip min-h-[36px] ${playerId === p.id ? "gn-chip-felt" : ""}`}
+                className={`gnv2-chip-toggle min-h-[36px] ${playerId === p.id ? "gnv2-chip-toggle-selected" : ""}`}
               >
                 {p.name}
               </button>
@@ -162,30 +172,28 @@ export function PhotoCaptureFlow({
         onChange={(e) => setCaption(e.target.value)}
         placeholder="Korte beschrijving (optioneel)"
         maxLength={80}
-        className="w-full max-w-xs px-3 py-2.5 text-sm"
+        className="gnv2-input max-w-xs"
       />
 
       <button
         type="button"
         onClick={handleUse}
-        className="gn-plaque-action gn-plaque-action-primary flex min-h-[56px] w-full max-w-xs items-center justify-center px-6 py-3"
+        className="gnv2-btn gnv2-btn-primary w-full max-w-xs"
       >
-        <span className="gn-display text-base font-semibold tracking-wide">
-          Gebruiken
-        </span>
+        Gebruiken
       </button>
       <div className="flex items-center gap-4">
         <button
           type="button"
           onClick={handleRetry}
-          className="gn-muted min-h-[44px] px-4 py-2 text-xs underline"
+          className="gnv2-dialog-cancel-link"
         >
           Opnieuw
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="gn-muted min-h-[44px] px-4 py-2 text-xs underline"
+          className="gnv2-dialog-cancel-link"
         >
           Annuleren
         </button>

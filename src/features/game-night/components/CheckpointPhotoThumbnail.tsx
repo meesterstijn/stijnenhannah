@@ -39,27 +39,27 @@ export function CheckpointPhotoThumbnail({
   canMoveRight?: boolean;
 }) {
   return (
-    <div className="gn-checkpoint-thumb">
+    <div className="gnv2-thumb">
       <button
         type="button"
         onClick={status === "done" ? onClick : undefined}
-        className="gn-checkpoint-thumb-img"
+        className="gnv2-thumb-img"
         disabled={status !== "done"}
       >
         {url ? (
           <img src={url} alt="" loading="lazy" />
         ) : (
-          <div className="gn-checkpoint-thumb-placeholder" />
+          <div className="gnv2-thumb-placeholder" />
         )}
 
         {status === "uploading" && (
-          <div className="gn-checkpoint-thumb-overlay">
+          <div className="gnv2-thumb-overlay">
             <Loader2 className="h-5 w-5 animate-spin text-white" />
           </div>
         )}
 
         {status === "error" && (
-          <div className="gn-checkpoint-thumb-overlay gn-checkpoint-thumb-overlay-error">
+          <div className="gnv2-thumb-overlay gnv2-thumb-overlay-error">
             <button
               type="button"
               onClick={(e) => {
@@ -75,7 +75,7 @@ export function CheckpointPhotoThumbnail({
       </button>
 
       {caption && (
-        <p className="gn-faint mt-1 truncate text-center text-[10px]">
+        <p className="gnv2-dialog-faint mt-1 truncate text-center text-[10px]">
           {caption}
         </p>
       )}
@@ -87,7 +87,7 @@ export function CheckpointPhotoThumbnail({
             onClick={onMoveLeft}
             disabled={!canMoveLeft}
             aria-label="Naar links verplaatsen"
-            className="gn-checkpoint-thumb-btn"
+            className="gnv2-thumb-btn"
           >
             <ChevronLeft className="h-3.5 w-3.5" />
           </button>
@@ -95,7 +95,7 @@ export function CheckpointPhotoThumbnail({
             type="button"
             onClick={onDelete}
             aria-label="Foto verwijderen"
-            className="gn-checkpoint-thumb-btn gn-checkpoint-thumb-btn-delete"
+            className="gnv2-thumb-btn gnv2-thumb-btn-delete"
           >
             <Trash2 className="h-3.5 w-3.5" />
           </button>
@@ -104,7 +104,7 @@ export function CheckpointPhotoThumbnail({
             onClick={onMoveRight}
             disabled={!canMoveRight}
             aria-label="Naar rechts verplaatsen"
-            className="gn-checkpoint-thumb-btn"
+            className="gnv2-thumb-btn"
           >
             <ChevronRight className="h-3.5 w-3.5" />
           </button>

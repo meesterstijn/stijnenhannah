@@ -3562,7 +3562,11 @@ a.gn-plaque-mini:hover {
   font-weight: 600;
   font-size: 1.6rem;
   color: var(--gnv2-text);
-  background: linear-gradient(160deg, var(--gnv2-bg-elevated), var(--gnv2-surface-strong));
+  background: linear-gradient(
+    160deg,
+    var(--gnv2-bg-elevated),
+    var(--gnv2-surface-strong)
+  );
   box-shadow:
     0 0 0 3px var(--gnv2-ring, var(--gnv2-border-strong)),
     0 0 24px -6px var(--gnv2-ring, transparent),
@@ -3730,7 +3734,11 @@ a.gn-plaque-mini:hover {
   min-height: 56px;
   padding: 0 2.3rem;
   font-size: 1.05rem;
-  background: linear-gradient(135deg, var(--gnv2-accent-warm-strong), var(--gnv2-accent-warm));
+  background: linear-gradient(
+    135deg,
+    var(--gnv2-accent-warm-strong),
+    var(--gnv2-accent-warm)
+  );
   color: var(--gnv2-accent-warm-contrast);
   box-shadow: 0 16px 32px -14px oklch(0.7 0.15 55 / 0.55);
 }
@@ -3768,7 +3776,11 @@ a.gn-plaque-mini:hover {
   gap: 1rem;
   padding: 2.5rem 2rem 2.25rem;
   border-radius: var(--gnv2-radius-lg);
-  background: linear-gradient(165deg, var(--gnv2-bg-elevated), var(--gnv2-surface-strong));
+  background: linear-gradient(
+    165deg,
+    var(--gnv2-bg-elevated),
+    var(--gnv2-surface-strong)
+  );
   border: 1px solid var(--gnv2-border-strong);
   box-shadow: 0 44px 90px -32px rgba(0, 0, 0, 0.75);
   text-align: center;
@@ -3992,11 +4004,19 @@ a.gn-plaque-mini:hover {
 }
 
 .gnv2-hero-tile-smart {
-  background: linear-gradient(150deg, oklch(0.34 0.09 200 / 0.55), var(--gnv2-surface-strong));
+  background: linear-gradient(
+    150deg,
+    oklch(0.34 0.09 200 / 0.55),
+    var(--gnv2-surface-strong)
+  );
 }
 
 .gnv2-hero-tile-roulette {
-  background: linear-gradient(150deg, oklch(0.42 0.13 45 / 0.5), var(--gnv2-surface-strong));
+  background: linear-gradient(
+    150deg,
+    oklch(0.42 0.13 45 / 0.5),
+    var(--gnv2-surface-strong)
+  );
 }
 
 .gnv2-hero-tile-icon {
@@ -4102,7 +4122,11 @@ a.gn-plaque-mini:hover {
 .gnv2-lib-card-scrim {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, transparent 45%, oklch(0.08 0.02 300 / 0.88));
+  background: linear-gradient(
+    180deg,
+    transparent 45%,
+    oklch(0.08 0.02 300 / 0.88)
+  );
 }
 
 .gnv2-lib-card-name {
@@ -4475,8 +4499,45 @@ a.gn-plaque-mini:hover {
   position: relative;
   width: 100%;
   max-width: 46rem;
+  height: 132px;
   overflow: hidden;
   padding: 0.5rem 0;
+}
+
+/* Sectie 38 (V2.7B-correctie) — puur decoratieve, altijd-doorlopende
+   achtergrondband: nooit door de winnaarslogica aangeraakt, dus mag zonder
+   enig risico oneindig loopen. De content staat twee keer achter elkaar in
+   de DOM (zie GameRoulette.tsx) zodat translateX(0) -> translateX(-50%)
+   naadloos aansluit. */
+.gnv2-roulette-ambient {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  opacity: 0.45;
+  mask-image: linear-gradient(
+    90deg,
+    transparent,
+    black 12%,
+    black 88%,
+    transparent
+  );
+}
+
+.gnv2-roulette-ambient-track {
+  display: flex;
+  gap: 18px;
+  width: max-content;
+  animation: gnv2-roulette-ambient-scroll 16s linear infinite;
+}
+
+@keyframes gnv2-roulette-ambient-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
 }
 
 .gnv2-roulette-pointer {
@@ -4493,6 +4554,8 @@ a.gn-plaque-mini:hover {
 }
 
 .gnv2-roulette-track {
+  position: relative;
+  z-index: 2;
   display: flex;
   gap: 18px;
   will-change: transform;
@@ -4500,6 +4563,14 @@ a.gn-plaque-mini:hover {
 
 .gnv2-roulette-track-spinning {
   transition: transform 2.4s cubic-bezier(0.12, 0.72, 0.18, 1);
+}
+
+/* Sectie 38: zodra de winnaar zich als los .gnv2-roulette-lifted-element
+   heeft "getild", vervaagt de nu overbodige voorgrondtrack — de ambient-band
+   erachter blijft gewoon zichtbaar doorbewegen. */
+.gnv2-roulette-track-settling {
+  transition: opacity 400ms ease 250ms;
+  opacity: 0;
 }
 
 .gnv2-roulette-card {
@@ -4534,11 +4605,34 @@ a.gn-plaque-mini:hover {
   color: oklch(1 0 0 / 0.75);
 }
 
-.gnv2-roulette-card-winner {
+/* De "uit de track getilde" winnaar (sectie 38): los, groter, gecentreerd
+   exact op de markerpositie, met een korte opkomst-animatie. Geen
+   'both'/'forwards'-conflict-risico hier (in tegenstelling tot de
+   dnd-kit-kaarten in V2.5): dit element krijgt nooit een eigen inline
+   transform van elders, dus mag zijn eindstand na de animatie gewoon
+   vasthouden. */
+.gnv2-roulette-lifted {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) scale(1.3);
+  filter: drop-shadow(0 18px 32px rgba(0, 0, 0, 0.55))
+    drop-shadow(0 0 22px var(--gnv2-accent-warm));
+  animation: gnv2-roulette-lift 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.gnv2-roulette-lifted .gnv2-roulette-card {
   border-color: var(--gnv2-accent-warm);
-  box-shadow:
-    0 0 0 3px var(--gnv2-accent-warm),
-    0 0 34px -6px var(--gnv2-accent-warm);
+}
+
+@keyframes gnv2-roulette-lift {
+  from {
+    transform: translate(-50%, -50%) scale(1);
+  }
+  to {
+    transform: translate(-50%, -50%) scale(1.3);
+  }
 }
 
 .gnv2-roulette-cta {
@@ -4595,7 +4689,11 @@ a.gn-plaque-mini:hover {
 .gnv2-reveal-scrim {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, oklch(0.1 0.02 300 / 0.55), oklch(0.07 0.02 300 / 0.9) 72%);
+  background: linear-gradient(
+    180deg,
+    oklch(0.1 0.02 300 / 0.55),
+    oklch(0.07 0.02 300 / 0.9) 72%
+  );
   z-index: 1;
 }
 
@@ -4810,7 +4908,10 @@ a.gn-plaque-mini:hover {
   .gnv2-view-enter,
   .gnv2-view-enter-dramatic,
   .gnv2-revealing-pulse,
-  .gnv2-roulette-track-spinning {
+  .gnv2-roulette-track-spinning,
+  .gnv2-roulette-ambient-track,
+  .gnv2-roulette-lifted,
+  .gnv2-roulette-track-settling {
     animation: none !important;
     transition: none !important;
   }
@@ -4823,5 +4924,1801 @@ a.gn-plaque-mini:hover {
   .gnv2-lib-card:hover,
   .gnv2-rec-card:hover {
     transform: none !important;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ * Game Night V2.7B — Game Arena + Game Recap (.gnv2-*, vervolg op V2.5/
+ * V2.6/V2.7A). Zelfde GNV2-wereld (GnV2Scene hergebruikt), rijker en
+ * levendiger: de spelerzone = de WIN-knop, een prominent character per
+ * speler, een korte Mario Party-achtige celebratie, en per-spel theming
+ * via resolveGameArenaTheme() (primaire/secundaire kleur, stijl, symbool).
+ * Geen hout/vilt/messing — dezelfde visuele lijn als de rest van V2.
+ * ══════════════════════════════════════════════════════════════════════ */
+
+.gnv2-avatar-lg {
+  width: 6.5rem;
+  height: 6.5rem;
+  font-size: 2.5rem;
+}
+
+/* ── Arena-topbar-variant: 3 toolbar-knoppen i.p.v. 1 spacer ── */
+
+.gnv2-arena-topbar {
+  grid-template-columns: 2.75rem 1fr auto;
+}
+
+.gnv2-arena-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-self: end;
+}
+
+/* ── Arena-root + per-spel achtergrondwas (sectie 3/20) ── */
+
+.gnv2-arena-root {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.gnv2-arena-root::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      ellipse 900px 520px at 12% -4%,
+      color-mix(
+        in oklch,
+        var(--gnv2-arena-primary, var(--gnv2-accent-warm)) 32%,
+        transparent
+      ),
+      transparent 62%
+    ),
+    radial-gradient(
+      ellipse 820px 520px at 90% 104%,
+      color-mix(
+        in oklch,
+        var(--gnv2-arena-secondary, var(--gnv2-accent-cool)) 24%,
+        transparent
+      ),
+      transparent 62%
+    );
+  opacity: 0.8;
+}
+
+/* arena_style beïnvloedt uitsluitend presentation-presets (sectie 20) —
+   zelfde componenten/posities, alleen toon/contrast/vorm schuiven mee. */
+.gnv2-arena-root[data-arena-style="warm"]::before {
+  opacity: 0.95;
+}
+
+.gnv2-arena-root[data-arena-style="dark"]::before {
+  opacity: 0.4;
+  filter: saturate(0.85);
+}
+
+.gnv2-arena-root[data-arena-style="neon"]::before {
+  opacity: 1;
+  filter: saturate(1.4) brightness(1.05);
+}
+
+.gnv2-arena-root[data-arena-style="playful"] .gnv2-character-head,
+.gnv2-arena-root[data-arena-style="playful"] .gnv2-setup-photo-frame,
+.gnv2-arena-root[data-arena-style="playful"] .gnv2-player-zone {
+  border-radius: 1.75rem;
+}
+
+.gnv2-arena-root[data-arena-style="classic"]::before {
+  opacity: 0.3;
+  filter: saturate(0.6);
+}
+
+.gnv2-arena-root[data-arena-style="classic"] .gnv2-character-head {
+  box-shadow:
+    0 0 0 2px var(--gnv2-ring, var(--gnv2-border-strong)),
+    inset 0 1px 0 oklch(1 0 0 / 0.1);
+}
+
+/* ── Achtergrond-symboolmotief (sectie 21) — een of twee grote, bijna
+   onzichtbare vormen, geen casino-look. ── */
+
+.gnv2-arena-symbols {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.gnv2-arena-symbol {
+  position: absolute;
+  color: var(--gnv2-arena-primary, var(--gnv2-accent-warm));
+  opacity: 0.05;
+}
+
+.gnv2-arena-symbol-1 {
+  top: -3rem;
+  left: -2rem;
+  width: 13rem;
+  height: 13rem;
+  transform: rotate(-10deg);
+}
+
+.gnv2-arena-symbol-2 {
+  bottom: -3.5rem;
+  right: -2.5rem;
+  width: 14.5rem;
+  height: 14.5rem;
+  transform: rotate(12deg);
+}
+
+/* ── TE VERSLAAN-intro / competitive-moment-banner (sectie 12-19) ── */
+
+.gnv2-arena-intro,
+.gnv2-moment-banner {
+  position: absolute;
+  top: 5.25rem;
+  left: 50%;
+  z-index: 20;
+  transform: translateX(-50%);
+  max-width: min(90vw, 34rem);
+  text-align: center;
+  padding: 0.65rem 1.5rem;
+  border-radius: 999px;
+  background: var(--gnv2-surface-strong);
+  box-shadow: 0 20px 44px -20px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(12px);
+  animation: gnv2-view-fade 240ms ease-out;
+}
+
+.gnv2-arena-intro {
+  border: 1px solid oklch(0.74 0.11 200 / 0.5);
+}
+
+.gnv2-arena-intro-headline {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gnv2-accent-cool);
+}
+
+.gnv2-arena-intro-subtitle {
+  font-size: 0.85rem;
+  margin-top: 0.2rem;
+  color: var(--gnv2-text);
+}
+
+.gnv2-moment-banner {
+  border: 1px solid var(--gnv2-accent-warm);
+}
+
+.gnv2-moment-headline {
+  font-family: var(--gnv2-font-display);
+  font-weight: 700;
+  font-size: 1.1rem;
+  letter-spacing: 0.01em;
+  color: var(--gnv2-text);
+}
+
+.gnv2-moment-subtitle {
+  font-size: 0.8rem;
+  color: var(--gnv2-text-muted);
+  margin-top: 0.15rem;
+}
+
+/* ── Hoofd-arena: spelers rondom de centrale gamefoto (sectie 3/4/35) ── */
+
+.gnv2-arena-main {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1.5rem;
+  overflow: hidden;
+}
+
+.gnv2-arena-layout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.1rem;
+  width: 100%;
+  max-width: 80rem;
+  height: 100%;
+}
+
+.gnv2-arena-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.35rem;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.gnv2-arena-slot {
+  display: flex;
+}
+
+.gnv2-arena-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin: 0.25rem 0;
+}
+
+/* Bij 5/6 spelers iets compactere zones (sectie 35: "geen overlap"). */
+.gnv2-arena-layout[data-count="5"] .gnv2-player-zone,
+.gnv2-arena-layout[data-count="6"] .gnv2-player-zone {
+  min-width: 108px;
+  padding: 0.75rem 0.8rem;
+}
+
+.gnv2-arena-layout[data-count="5"] .gnv2-character-head,
+.gnv2-arena-layout[data-count="6"] .gnv2-character-head {
+  width: 3.75rem;
+  height: 3.75rem;
+}
+
+/* ── Centrale setupfoto: het hart van de arena (sectie 3) — 25-40% van
+   het scherm, niet fullscreen. ── */
+
+.gnv2-setup-photo {
+  position: relative;
+  width: clamp(170px, 27vw, 320px);
+}
+
+.gnv2-setup-photo-glow {
+  position: absolute;
+  inset: -22%;
+  z-index: -1;
+  background: radial-gradient(
+    circle,
+    var(--gnv2-arena-primary, var(--gnv2-accent-warm)),
+    transparent 65%
+  );
+  opacity: 0.4;
+  filter: blur(34px);
+}
+
+.gnv2-setup-photo-frame {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--gnv2-radius-lg);
+  overflow: hidden;
+  border: 1px solid oklch(1 0 0 / 0.14);
+  box-shadow:
+    0 30px 60px -24px rgba(0, 0, 0, 0.6),
+    0 0 0 1px
+      color-mix(
+        in oklch,
+        var(--gnv2-arena-primary, var(--gnv2-accent-warm)) 40%,
+        transparent
+      );
+}
+
+.gnv2-setup-photo-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.gnv2-setup-photo-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gnv2-setup-photo-fallback span {
+  font-family: var(--gnv2-font-display);
+  font-size: 3rem;
+  font-weight: 600;
+  color: oklch(1 0 0 / 0.8);
+}
+
+.gnv2-setup-photo-caption {
+  text-align: center;
+  margin-top: 0.75rem;
+}
+
+.gnv2-setup-photo-name {
+  font-family: var(--gnv2-font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--gnv2-text);
+}
+
+.gnv2-setup-photo-tagline {
+  font-size: 0.78rem;
+  color: var(--gnv2-text-muted);
+  font-style: italic;
+  margin-top: 0.2rem;
+  max-width: 22rem;
+  margin-inline: auto;
+}
+
+/* ── Character (sectie 5/6/37) — extensible basis, geen cosmetics-data. ── */
+
+.gnv2-character {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  pointer-events: none;
+}
+
+.gnv2-character-body {
+  position: absolute;
+  bottom: -0.35rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60%;
+  height: 42%;
+  border-radius: 50% 50% 42% 42% / 62% 62% 32% 32%;
+  background: color-mix(
+    in oklch,
+    var(--gnv2-ring, var(--gnv2-border-strong)) 32%,
+    var(--gnv2-bg-elevated)
+  );
+  opacity: 0.55;
+  z-index: 0;
+}
+
+.gnv2-character-head {
+  position: relative;
+  z-index: 1;
+  width: 4.75rem;
+  height: 4.75rem;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(
+    160deg,
+    var(--gnv2-bg-elevated),
+    var(--gnv2-surface-strong)
+  );
+  box-shadow:
+    0 0 0 3px var(--gnv2-ring, var(--gnv2-border-strong)),
+    0 0 26px -4px var(--gnv2-ring, transparent),
+    inset 0 1px 0 oklch(1 0 0 / 0.12);
+}
+
+.gnv2-character-initial {
+  font-family: var(--gnv2-font-display);
+  font-weight: 700;
+  font-size: 1.85rem;
+  color: var(--gnv2-text);
+}
+
+.gnv2-character-name {
+  font-family: var(--gnv2-font-display);
+  font-weight: 600;
+  font-size: 1.02rem;
+  margin-top: 0.55rem;
+  max-width: 8rem;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--gnv2-text);
+}
+
+.gnv2-character-title {
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: var(--gnv2-accent-warm-strong);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ── WIN-celebratie (sectie 8/9) — ~700-900ms, geen modal/confetti-marathon. ── */
+
+.gnv2-character-celebrate .gnv2-character-head {
+  animation-duration: 750ms;
+  animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.gnv2-celebrate-burst .gnv2-character-head,
+.gnv2-celebrate-confetti .gnv2-character-head,
+.gnv2-celebrate-default .gnv2-character-head {
+  animation-name: gnv2-celebrate-burst;
+}
+
+.gnv2-celebrate-pulse .gnv2-character-head {
+  animation-name: gnv2-celebrate-pulse;
+}
+
+.gnv2-celebrate-spark .gnv2-character-head {
+  animation-name: gnv2-celebrate-spark;
+}
+
+.gnv2-celebrate-slam .gnv2-character-head {
+  animation-name: gnv2-celebrate-slam;
+}
+
+.gnv2-celebrate-glitch .gnv2-character-head {
+  animation-name: gnv2-celebrate-glitch;
+}
+
+@keyframes gnv2-celebrate-burst {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.22);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes gnv2-celebrate-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 3px var(--gnv2-ring, var(--gnv2-border-strong)),
+      0 0 26px -4px var(--gnv2-ring, transparent);
+  }
+  50% {
+    box-shadow:
+      0 0 0 5px var(--gnv2-ring, var(--gnv2-border-strong)),
+      0 0 42px 6px var(--gnv2-ring, transparent);
+  }
+}
+
+@keyframes gnv2-celebrate-spark {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.55);
+  }
+}
+
+@keyframes gnv2-celebrate-slam {
+  0% {
+    transform: translateY(0) scale(1);
+  }
+  30% {
+    transform: translateY(5px) scale(0.92);
+  }
+  60% {
+    transform: translateY(-9px) scale(1.08);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes gnv2-celebrate-glitch {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-3px);
+  }
+  40% {
+    transform: translateX(3px);
+  }
+  60% {
+    transform: translateX(-2px);
+  }
+  80% {
+    transform: translateX(2px);
+  }
+}
+
+/* Confetti-preset: klein, LOKAAL deeltjeseffect rond het character, geen
+   fullscreen/minutenlange confetti (sectie 9). */
+.gnv2-celebrate-confetti .gnv2-character-head::after {
+  content: "";
+  position: absolute;
+  inset: -35%;
+  background-image:
+    radial-gradient(circle, var(--gnv2-accent-warm) 2px, transparent 2.5px),
+    radial-gradient(circle, var(--gnv2-accent-cool) 2px, transparent 2.5px);
+  background-size:
+    14px 14px,
+    18px 18px;
+  background-position:
+    12% 18%,
+    72% 62%;
+  opacity: 0;
+  animation: gnv2-confetti-burst 700ms ease-out both;
+}
+
+@keyframes gnv2-confetti-burst {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+}
+
+/* ── Spelerzone = WIN-knop (sectie 6/7/42) ── */
+
+.gnv2-player-zone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 130px;
+  min-height: 150px;
+  padding: 1rem 1.1rem;
+  border-radius: var(--gnv2-radius-lg);
+  background: var(--gnv2-surface);
+  border: 1px solid var(--gnv2-border);
+  transition:
+    transform 0.12s ease,
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.gnv2-player-zone:hover {
+  border-color: var(--gnv2-border-strong);
+}
+
+.gnv2-player-zone:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.gnv2-player-zone:disabled {
+  opacity: 0.75;
+  cursor: default;
+}
+
+.gnv2-player-zone-celebrate {
+  border-color: var(--gnv2-ring, var(--gnv2-accent-warm));
+  background: color-mix(
+    in oklch,
+    var(--gnv2-ring, var(--gnv2-accent-warm)) 14%,
+    var(--gnv2-surface)
+  );
+}
+
+.gnv2-player-zone-wins {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--gnv2-text-muted);
+  letter-spacing: 0.03em;
+}
+
+/* ── Action-feed sheet (sectie 23/24/26) ── */
+
+.gnv2-feed-card {
+  max-height: 72vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.gnv2-feed-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.gnv2-feed-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  overflow-y: auto;
+}
+
+.gnv2-feed-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.6rem 0.85rem;
+  border-radius: 0.85rem;
+  background: var(--gnv2-surface);
+  border: 1px solid var(--gnv2-border);
+}
+
+.gnv2-feed-row-label {
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--gnv2-text);
+}
+
+.gnv2-feed-row-undo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 44px;
+  padding: 0 0.75rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--gnv2-accent-warm-strong);
+  transition: background-color 0.15s ease;
+}
+
+.gnv2-feed-row-undo:hover {
+  background: oklch(0.34 0.07 55 / 0.22);
+}
+
+.gnv2-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 999px;
+  color: var(--gnv2-text-muted);
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.gnv2-icon-btn:hover {
+  color: var(--gnv2-text);
+  background: var(--gnv2-surface);
+}
+
+/* ── Meer-menu (sectie 28) ── */
+
+.gnv2-more-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.gnv2-more-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 52px;
+  padding: 0 1rem;
+  border-radius: 0.85rem;
+  background: var(--gnv2-surface);
+  border: 1px solid var(--gnv2-border);
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--gnv2-text);
+  transition: border-color 0.15s ease;
+}
+
+.gnv2-more-menu-item:hover {
+  border-color: var(--gnv2-border-strong);
+}
+
+.gnv2-more-menu-item-danger {
+  color: var(--gnv2-accent-warm-strong);
+}
+
+/* ── Checkpoint-overlay (sectie 26) — nieuwe GNV2-omlijsting, de
+   checkpoint-content ZELF blijft bewust in haar bestaande .gn-*-stijl. ── */
+
+.gnv2-checkpoint-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: oklch(0.08 0.02 300 / 0.78);
+  backdrop-filter: blur(8px);
+}
+
+.gnv2-checkpoint-card {
+  width: min(580px, 100%);
+  max-height: 88vh;
+  overflow-y: auto;
+  border-radius: var(--gnv2-radius-lg);
+  background: linear-gradient(
+    165deg,
+    var(--gnv2-bg-elevated),
+    var(--gnv2-surface-strong)
+  );
+  border: 1px solid var(--gnv2-border-strong);
+  box-shadow: 0 44px 90px -32px rgba(0, 0, 0, 0.75);
+  padding: 1.5rem;
+}
+
+/* ── Spotify floating panel (sectie 27) ── */
+
+.gnv2-spotify-panel {
+  position: fixed;
+  top: 5.25rem;
+  right: 1.5rem;
+  z-index: 45;
+  width: min(320px, calc(100vw - 2rem));
+  padding: 1rem;
+  border-radius: var(--gnv2-radius-lg);
+  background: var(--gnv2-surface-strong);
+  border: 1px solid var(--gnv2-border-strong);
+  box-shadow: 0 30px 60px -24px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(14px);
+  animation: gnv2-view-fade 220ms ease-out;
+}
+
+.gnv2-spotify-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.gnv2-spotify-panel-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 1rem 0;
+  text-align: center;
+}
+
+.gnv2-spotify-track {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.gnv2-spotify-track img {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 0.6rem;
+  object-fit: cover;
+}
+
+.gnv2-spotify-track-fallback {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 0.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gnv2-bg-elevated);
+  color: var(--gnv2-text-faint);
+}
+
+.gnv2-spotify-track-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.gnv2-spotify-track-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--gnv2-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gnv2-spotify-track-artist {
+  font-size: 0.78rem;
+  color: var(--gnv2-text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gnv2-spotify-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+}
+
+.gnv2-spotify-play {
+  background: var(--gnv2-accent-warm);
+  color: var(--gnv2-accent-warm-contrast);
+  border-color: transparent;
+}
+
+/* ── Game Recap (sectie 30-32) ── */
+
+.gnv2-recap-root {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 2rem 1.5rem;
+  text-align: center;
+  overflow-y: auto;
+}
+
+.gnv2-recap-eyebrow {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gnv2-text-faint);
+}
+
+.gnv2-recap-game {
+  font-family: var(--gnv2-font-display);
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--gnv2-text-muted);
+}
+
+.gnv2-recap-winner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+}
+
+.gnv2-recap-winner-name {
+  font-family: var(--gnv2-font-display);
+  font-size: clamp(1.8rem, 4vw, 2.4rem);
+  font-weight: 700;
+  margin-top: 0.4rem;
+  color: var(--gnv2-text);
+}
+
+.gnv2-recap-winner-wins {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--gnv2-accent-warm-strong);
+}
+
+.gnv2-recap-standings {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  width: 100%;
+  max-width: 20rem;
+  margin-top: 0.5rem;
+}
+
+.gnv2-recap-standing-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  color: var(--gnv2-text-muted);
+  padding: 0.3rem 0.5rem;
+}
+
+.gnv2-recap-highlights {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-top: 0.75rem;
+  max-width: 26rem;
+}
+
+.gnv2-recap-highlight {
+  font-size: 0.85rem;
+  color: var(--gnv2-text-muted);
+}
+
+.gnv2-recap-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  width: 100%;
+  max-width: 20rem;
+}
+
+.gnv2-recap-action {
+  width: 100%;
+}
+
+.gnv2-recap-close-link {
+  min-height: 44px;
+  padding: 0 1rem;
+  font-size: 0.8rem;
+  color: var(--gnv2-text-faint);
+  text-decoration: underline;
+}
+
+.gnv2-recap-session-name {
+  font-size: 0.72rem;
+  color: var(--gnv2-text-faint);
+  margin-top: 1rem;
+}
+
+/* ── Responsive: 1180×820 / 1024×768 (sectie 36) ── */
+
+@media (max-width: 1180px) {
+  .gnv2-setup-photo {
+    width: clamp(150px, 24vw, 260px);
+  }
+  .gnv2-character-head {
+    width: 4.1rem;
+    height: 4.1rem;
+  }
+  .gnv2-player-zone {
+    min-width: 112px;
+    padding: 0.85rem 0.9rem;
+  }
+}
+
+@media (max-width: 1024px) {
+  .gnv2-arena-main {
+    padding: 0.5rem 1rem;
+  }
+  .gnv2-arena-row {
+    gap: 0.9rem;
+  }
+  .gnv2-spotify-panel {
+    right: 1rem;
+    top: 4.75rem;
+  }
+}
+
+/* ── Reduced motion (sectie 8/42) — celebraties worden een korte statische
+   gloed i.p.v. bounce/scale/translate; confetti/moment-fades verdwijnen. ── */
+
+@media (prefers-reduced-motion: reduce) {
+  .gnv2-character-celebrate .gnv2-character-head {
+    animation: none !important;
+    box-shadow:
+      0 0 0 4px var(--gnv2-ring, var(--gnv2-border-strong)),
+      0 0 32px 2px var(--gnv2-ring, transparent) !important;
+  }
+  .gnv2-celebrate-confetti .gnv2-character-head::after {
+    animation: none !important;
+    opacity: 0 !important;
+  }
+  .gnv2-player-zone {
+    transition: none !important;
+  }
+  .gnv2-player-zone:active {
+    transform: none !important;
+  }
+  .gnv2-moment-banner,
+  .gnv2-arena-intro,
+  .gnv2-spotify-panel {
+    animation: none !important;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ * Game Night V2.7C — GNV2 Start + Night Recap + loading (.gnv2-*, gerichte
+ * correctie: sluit het laatste gat waardoor de normale flow terugviel op
+ * de houten idle-/completionschermen). Zelfde wereld als alle voorgaande
+ * V2-schermen (GnV2Scene), geen nieuwe visuele taal.
+ * ══════════════════════════════════════════════════════════════════════ */
+
+/* ── GNV2-laadstatus (sectie 6) — vervangt elke "Even geduld..."-flits van
+   de oude houten boom. ── */
+
+.gnv2-loading {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gnv2-loading-pulse {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, var(--gnv2-accent-warm), transparent 70%);
+  animation: gnv2-pulse 1.1s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gnv2-loading-pulse {
+    animation: none !important;
+    opacity: 0.7;
+  }
+}
+
+/* ── GameNightV2Start (sectie 2) ── */
+
+.gnv2-start-main {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.gnv2-start-eyebrow {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--gnv2-accent-warm-strong);
+}
+
+.gnv2-start-headline {
+  font-family: var(--gnv2-font-display);
+  font-size: clamp(2.1rem, 5vw, 3.2rem);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--gnv2-text);
+  max-width: 34rem;
+  text-wrap: balance;
+}
+
+.gnv2-start-tagline {
+  font-size: 0.98rem;
+  color: var(--gnv2-text-muted);
+  max-width: 26rem;
+}
+
+.gnv2-start-cta {
+  margin-top: 0.75rem;
+  min-height: 56px;
+  min-width: 16rem;
+  font-size: 1.05rem;
+}
+
+.gnv2-start-context {
+  margin-top: 1.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem 1.25rem;
+  font-size: 0.82rem;
+  color: var(--gnv2-text-faint);
+}
+
+/* ── GameNightV2NightRecap (sectie 3/4) — hergebruikt bewust zoveel
+   mogelijk bestaande .gnv2-recap-*-klassen uit GameNightV2GameRecap. ── */
+
+.gnv2-nightrecap-root {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  padding: 2rem 1.5rem;
+  text-align: center;
+  overflow-y: auto;
+}
+
+.gnv2-nightrecap-date {
+  font-family: var(--gnv2-font-display);
+  font-size: clamp(1.6rem, 3.5vw, 2.1rem);
+  font-weight: 700;
+  color: var(--gnv2-text);
+}
+
+.gnv2-nightrecap-tagline {
+  font-size: 0.95rem;
+  color: var(--gnv2-text-muted);
+  font-style: italic;
+  margin-bottom: 0.5rem;
+}
+
+.gnv2-nightrecap-stats {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  margin-top: 0.5rem;
+}
+
+.gnv2-nightrecap-stat p:first-child {
+  font-family: var(--gnv2-font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--gnv2-text);
+}
+
+.gnv2-nightrecap-stat p:last-child {
+  font-size: 0.7rem;
+  color: var(--gnv2-text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.gnv2-nightrecap-mvp {
+  margin-top: 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--gnv2-accent-warm-strong);
+}
+
+.gnv2-nightrecap-games {
+  font-size: 0.82rem;
+  color: var(--gnv2-text-muted);
+  max-width: 28rem;
+}
+
+/* ── Responsive: 1180×820 / 1024×768 ── */
+
+@media (max-width: 1180px) {
+  .gnv2-start-cta {
+    min-width: 14rem;
+  }
+}
+
+@media (max-width: 1024px) {
+  .gnv2-start-main,
+  .gnv2-nightrecap-root {
+    padding: 1.25rem 1rem;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ * Game Night V2.7D — Arena-acties rechtsboven, nieuw ···-menu, volledige
+ * GNV2-restyle van de checkpoint/foto-UI, en een nieuwe GNV2-Geschiedenis.
+ * Geen nieuwe visuele taal: alleen bestaande GNV2-tokens/patronen verder
+ * doorgetrokken naar de laatste stukken die nog in de oude .gn-*-stijl
+ * zaten. De checkpoint-/foto-BUSINESSLOGICA (upload, opslag, database)
+ * blijft volledig ongewijzigd — uitsluitend presentatie.
+ * ══════════════════════════════════════════════════════════════════════ */
+
+/* ── Losse dialoog-primitives, hergebruikt door alle checkpoint-panelen
+   en de nieuwe History-pagina (i.p.v. de oude .gn-eyebrow/.gn-display/
+   .gn-muted/.gn-faint per component te herhalen). ── */
+
+.gnv2-dialog-title {
+  font-family: var(--gnv2-font-display);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--gnv2-text);
+}
+
+.gnv2-dialog-title-accent {
+  color: var(--gnv2-accent-warm-strong);
+}
+
+.gnv2-dialog-eyebrow {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gnv2-accent-cool);
+}
+
+.gnv2-dialog-muted {
+  color: var(--gnv2-text-muted);
+}
+
+.gnv2-dialog-faint {
+  color: var(--gnv2-text-faint);
+}
+
+.gnv2-dialog-scroll {
+  width: 100%;
+  overflow-y: auto;
+  padding-bottom: 0.25rem;
+}
+
+.gnv2-dialog-cancel-link {
+  min-height: 44px;
+  padding: 0 1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.78rem;
+  color: var(--gnv2-text-faint);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color 0.15s ease;
+}
+
+.gnv2-dialog-cancel-link:hover {
+  color: var(--gnv2-text-muted);
+}
+
+.gnv2-input,
+.gnv2-textarea {
+  width: 100%;
+  border-radius: 0.85rem;
+  padding: 0.7rem 0.9rem;
+  font-size: 0.9rem;
+  background: var(--gnv2-surface);
+  border: 1px solid var(--gnv2-border);
+  color: var(--gnv2-text);
+  transition: border-color 0.15s ease;
+}
+
+.gnv2-input::placeholder,
+.gnv2-textarea::placeholder {
+  color: var(--gnv2-text-faint);
+}
+
+.gnv2-input:focus,
+.gnv2-textarea:focus {
+  outline: none;
+  border-color: var(--gnv2-accent-cool);
+}
+
+.gnv2-textarea {
+  resize: none;
+}
+
+.gnv2-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.gnv2-nav-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* ── "Spel afsluiten" — permanent losstaande, subtiele danger-knop naast
+   de ronde toolbar-iconen (sectie 1: nooit onder ··· verstopt). ── */
+
+.gnv2-btn-danger-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  padding: 0 1.1rem;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--gnv2-accent-warm) 10%, transparent);
+  border: 1px solid
+    color-mix(in oklch, var(--gnv2-accent-warm) 45%, transparent);
+  color: var(--gnv2-accent-warm-strong);
+  font-size: 0.82rem;
+  font-weight: 600;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    transform 0.12s ease;
+}
+
+.gnv2-btn-danger-ghost:hover:not(:disabled) {
+  background: color-mix(in oklch, var(--gnv2-accent-warm) 18%, transparent);
+  border-color: var(--gnv2-accent-warm-strong);
+}
+
+.gnv2-btn-danger-ghost:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.gnv2-btn-danger-ghost:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── Compact zwevend actiemenu (GnV2ActionMenu, sectie 2) — anker t.o.v.
+   de ···-knop zelf, geen fullscreen backdrop. ── */
+
+.gnv2-action-menu-anchor {
+  position: relative;
+}
+
+.gnv2-action-menu {
+  position: absolute;
+  top: calc(100% + 0.6rem);
+  right: 0;
+  z-index: 55;
+  width: min(280px, calc(100vw - 2rem));
+  max-height: min(70vh, calc(100vh - 6rem));
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.85rem;
+  border-radius: var(--gnv2-radius-md);
+  background: linear-gradient(
+    165deg,
+    var(--gnv2-bg-elevated),
+    var(--gnv2-surface-strong)
+  );
+  border: 1px solid var(--gnv2-border-strong);
+  box-shadow: 0 30px 60px -22px rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(14px);
+  animation: gnv2-action-menu-in 140ms ease-out;
+}
+
+@keyframes gnv2-action-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gnv2-action-menu {
+    animation: none !important;
+  }
+}
+
+.gnv2-action-menu-eyebrow {
+  padding: 0.15rem 0.5rem 0.4rem;
+}
+
+.gnv2-action-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 48px;
+  padding: 0 0.75rem;
+  border-radius: 0.7rem;
+  font-size: 0.86rem;
+  font-weight: 500;
+  color: var(--gnv2-text);
+  transition: background-color 0.15s ease;
+}
+
+.gnv2-action-menu-item:hover {
+  background: var(--gnv2-surface);
+}
+
+.gnv2-action-menu-item svg {
+  color: var(--gnv2-text-muted);
+  flex-shrink: 0;
+}
+
+.gnv2-action-menu-divider {
+  height: 1px;
+  margin: 0.15rem 0.25rem;
+  background: var(--gnv2-border);
+}
+
+/* ── Foto maken / uit galerij kiezen — twee accenttegels (sectie 3):
+   cyaan voor camera, warm voor galerij, subtiel gehouden. ── */
+
+.gnv2-capture-btn {
+  display: flex;
+  min-height: 64px;
+  width: 100%;
+  max-width: 20rem;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.85rem 1.15rem;
+  border-radius: var(--gnv2-radius-md);
+  background: var(--gnv2-surface);
+  border: 1px solid var(--gnv2-border);
+  transition:
+    border-color 0.15s ease,
+    transform 0.1s ease,
+    background-color 0.15s ease;
+}
+
+.gnv2-capture-btn:hover {
+  background: var(--gnv2-surface-strong);
+}
+
+.gnv2-capture-btn:active {
+  transform: scale(0.98);
+}
+
+.gnv2-capture-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.gnv2-capture-btn-camera .gnv2-capture-icon {
+  background: color-mix(in oklch, var(--gnv2-accent-cool) 22%, transparent);
+  color: var(--gnv2-accent-cool);
+}
+
+.gnv2-capture-btn-camera:hover {
+  border-color: var(--gnv2-accent-cool);
+}
+
+.gnv2-capture-btn-gallery .gnv2-capture-icon {
+  background: color-mix(in oklch, var(--gnv2-accent-warm) 22%, transparent);
+  color: var(--gnv2-accent-warm-strong);
+}
+
+.gnv2-capture-btn-gallery:hover {
+  border-color: var(--gnv2-accent-warm);
+}
+
+.gnv2-capture-label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--gnv2-text);
+  text-align: left;
+}
+
+.gnv2-capture-preview {
+  max-height: 9rem;
+  width: auto;
+  border-radius: 0.85rem;
+  border: 1px solid var(--gnv2-border);
+  object-fit: contain;
+}
+
+/* ── Categorie-grid in "Spelstand opslaan" (vervangt .gn-checkpoint-
+   category-btn) ── */
+
+.gnv2-category-btn {
+  display: flex;
+  min-height: 64px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  border-radius: 0.85rem;
+  background: var(--gnv2-surface);
+  border: 1px solid var(--gnv2-border);
+  padding: 0.5rem 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--gnv2-text-muted);
+  text-align: center;
+  transition:
+    border-color 0.15s ease,
+    transform 0.1s ease;
+}
+
+.gnv2-category-btn:hover {
+  border-color: var(--gnv2-accent-cool);
+  color: var(--gnv2-text);
+}
+
+.gnv2-category-btn:active {
+  transform: scale(0.97);
+}
+
+/* ── Thumbnails (vervangt .gn-checkpoint-thumb*) ── */
+
+.gnv2-thumb {
+  width: 4.75rem;
+}
+
+.gnv2-thumb-img {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 0.6rem;
+  border: 1px solid var(--gnv2-border-strong);
+  background: var(--gnv2-bg-elevated);
+  padding: 0;
+}
+
+.gnv2-thumb-img img {
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+}
+
+.gnv2-thumb-placeholder {
+  height: 100%;
+  width: 100%;
+  background: var(--gnv2-bg-elevated);
+}
+
+.gnv2-thumb-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: oklch(0.08 0.02 300 / 0.55);
+}
+
+.gnv2-thumb-overlay-error {
+  background: oklch(0.32 0.11 25 / 0.78);
+}
+
+.gnv2-thumb-btn {
+  display: flex;
+  height: 1.7rem;
+  width: 1.7rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid var(--gnv2-border);
+  background: var(--gnv2-surface);
+  color: var(--gnv2-text-muted);
+}
+
+.gnv2-thumb-btn:disabled {
+  opacity: 0.3;
+}
+
+.gnv2-thumb-btn-delete {
+  border-color: color-mix(in oklch, var(--gnv2-accent-warm) 45%, transparent);
+  color: var(--gnv2-accent-warm-strong);
+}
+
+/* ── Spelstanden-lijst (vervangt .gn-plaque-mini) ── */
+
+.gnv2-history-row {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  padding: 0.65rem 0.9rem;
+  border-radius: 0.85rem;
+  background: var(--gnv2-surface);
+  border: 1px solid var(--gnv2-border);
+  text-align: left;
+  transition: border-color 0.15s ease;
+}
+
+.gnv2-history-row:hover {
+  border-color: var(--gnv2-border-strong);
+}
+
+/* ── Fullscreen lightbox (vervangt .gn-lightbox-*) ── */
+
+.gnv2-lightbox-card {
+  display: flex;
+  width: 100%;
+  max-width: 32rem;
+  max-height: 88vh;
+  flex-direction: column;
+  gap: 0.75rem;
+  border-radius: var(--gnv2-radius-lg);
+  background: linear-gradient(
+    165deg,
+    var(--gnv2-bg-elevated),
+    var(--gnv2-surface-strong)
+  );
+  border: 1px solid var(--gnv2-border-strong);
+  box-shadow: 0 44px 90px -32px rgba(0, 0, 0, 0.75);
+  padding: 1.25rem;
+}
+
+.gnv2-lightbox-image-wrap {
+  display: flex;
+  min-height: 12rem;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+  border-radius: 0.65rem;
+  background: oklch(0.08 0.02 300 / 0.45);
+}
+
+.gnv2-lightbox-image {
+  max-height: 60vh;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+.gnv2-lightbox-hidden-warning {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 2rem 1.5rem;
+  color: var(--gnv2-text-muted);
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.gnv2-lightbox-hidden-warning:hover {
+  color: var(--gnv2-text);
+}
+
+/* ── Checkpoint-overlay-kaart mag nu ook binnenin scrollen zonder dat de
+   buitenste kaart zelf een tweede scrollbalk krijgt (sectie 3/4: de
+   restylede content bepaalt zelf zijn hoogte via flex). ── */
+
+.gnv2-checkpoint-card {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Responsive: 1280×800 / 1180×820 / 1024×768 ── */
+
+@media (max-width: 1180px) {
+  .gnv2-action-menu {
+    width: min(260px, calc(100vw - 2rem));
+  }
+}
+
+@media (max-width: 1024px) {
+  .gnv2-btn-danger-ghost {
+    padding: 0 0.85rem;
+    font-size: 0.76rem;
+    gap: 0.4rem;
+  }
+  .gnv2-arena-toolbar {
+    gap: 0.4rem;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ * Game Night V2.7D — GNV2 Geschiedenis (.gnv2-*): vervangt de houten
+ * Geschiedenis-lijst voor de normale V2-flow. Zelfde wereld (GnV2Scene),
+ * uitsluitend bestaande data (buildGameNightSummaries/buildGameNightDetail).
+ * ══════════════════════════════════════════════════════════════════════ */
+
+.gnv2-history-main {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 0 1.75rem 2rem;
+  overflow-y: auto;
+}
+
+.gnv2-history-intro {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.gnv2-history-heading {
+  font-family: var(--gnv2-font-display);
+  font-size: clamp(1.6rem, 3vw, 2rem);
+  font-weight: 700;
+  color: var(--gnv2-text);
+}
+
+.gnv2-history-sub {
+  font-size: 0.88rem;
+  color: var(--gnv2-text-muted);
+}
+
+.gnv2-segmented {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 0.3rem;
+  border-radius: 999px;
+  background: var(--gnv2-surface);
+  border: 1px solid var(--gnv2-border);
+  gap: 0.2rem;
+}
+
+.gnv2-segmented-btn {
+  min-height: 40px;
+  padding: 0 1.1rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--gnv2-text-muted);
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.gnv2-segmented-btn:hover {
+  color: var(--gnv2-text);
+}
+
+.gnv2-segmented-btn-active {
+  background: var(--gnv2-accent-warm);
+  color: var(--gnv2-accent-warm-contrast);
+}
+
+.gnv2-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.gnv2-history-card {
+  display: block;
+  padding: 1.1rem 1.3rem;
+  border-radius: var(--gnv2-radius-md);
+  background: var(--gnv2-surface);
+  border: 1px solid var(--gnv2-border);
+  transition: border-color 0.15s ease;
+}
+
+a.gnv2-history-card:hover {
+  border-color: var(--gnv2-accent-cool);
+}
+
+.gnv2-history-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.gnv2-history-card-date {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gnv2-accent-cool);
+}
+
+.gnv2-history-card-title {
+  margin-top: 0.15rem;
+  font-family: var(--gnv2-font-display);
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--gnv2-text);
+}
+
+.gnv2-history-card-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 0.65rem;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--gnv2-accent-warm) 25%, transparent);
+  color: var(--gnv2-accent-warm-strong);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.gnv2-history-card-meta {
+  margin-top: 0.5rem;
+  font-size: 0.82rem;
+  color: var(--gnv2-text-muted);
+}
+
+.gnv2-history-card-players {
+  margin-top: 0.15rem;
+  font-size: 0.8rem;
+  color: var(--gnv2-text-faint);
+}
+
+.gnv2-history-card-link {
+  display: inline-flex;
+  margin-top: 0.6rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--gnv2-accent-cool);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.gnv2-history-empty {
+  padding: 2.5rem 0;
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--gnv2-text-faint);
+}
+
+@media (max-width: 1024px) {
+  .gnv2-history-main {
+    padding: 0 1.15rem 1.5rem;
   }
 }

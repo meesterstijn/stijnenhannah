@@ -33,8 +33,8 @@ function GameSessionCheckpointsModal({
   const [viewingId, setViewingId] = useState<string | null>(null);
 
   return (
-    <div className="gn-sheet-backdrop" role="dialog" aria-modal="true">
-      <div className="gn-sheet-card">
+    <div className="gnv2-checkpoint-overlay" role="dialog" aria-modal="true">
+      <div className="gnv2-checkpoint-card">
         {viewingId ? (
           <CheckpointViewer
             checkpoint={
