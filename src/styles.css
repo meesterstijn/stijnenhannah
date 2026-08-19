@@ -5457,6 +5457,12 @@ a.gn-plaque-mini:hover {
   height: 100%;
   object-fit: contain;
   pointer-events: none;
+  /* Game Night V2.9E — de nieuwe assets zijn 128×128 pixel-art; zonder dit
+     vervaagt elke browser ze bij het opschalen naar de veel grotere
+     character-canvas (bilineaire interpolatie), wat de crisp pixel-look
+     stukmaakt. Legacy WebP-lagen (V2.9B) zijn ongevoelig voor dit veld op
+     hun eigen resolutie/stijl, dus geen aparte opt-out nodig. */
+  image-rendering: pixelated;
 }
 
 /* ── Grootte-varianten (V2.8 sectie 8, vergroot in V2.9 sectie 13: characters
@@ -7006,6 +7012,65 @@ a.gnv2-history-card:hover {
   max-width: 20rem;
 }
 
+/* Game Night V2.9E — "Lichaamsbouw"-picker: alleen zichtbaar zodra een
+   female-body-shape base actief is (zie showBodyShapePicker in
+   GameNightCharacterCreator.tsx). Bewust GEEN cupmaten in de labels — puur
+   Klein/Gemiddeld/Groot. */
+.gnv2-creator-bodyshape {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0 1.5rem 0.5rem;
+}
+
+.gnv2-creator-bodyshape-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--gnv2-text-faint);
+}
+
+.gnv2-creator-bodyshape-options {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.gnv2-creator-bodyshape-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--gnv2-text-muted);
+  background: var(--gnv2-surface);
+  border: 1px solid var(--gnv2-border);
+}
+
+.gnv2-creator-bodyshape-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.gnv2-creator-bodyshape-btn-active {
+  color: var(--gnv2-text);
+  border-color: var(--gnv2-ring, var(--gnv2-accent-warm));
+  background: var(--gnv2-surface-strong);
+}
+
+.gnv2-creator-bodyshape-soon {
+  font-size: 0.6rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--gnv2-text-faint);
+}
+
 /* Horizontaal scrollbare categoriebar (sectie 3) — geen 8 dichtgeknepen
    tabs, gewoon een rij die verder scrolt. */
 .gnv2-creator-tabs {
@@ -7157,6 +7222,9 @@ a.gnv2-history-card:hover {
   width: 88%;
   height: 88%;
   object-fit: contain;
+  /* V2.9E: 128×128 pixel-art tegels mogen niet vervagen bij opschaling naar
+     64px-preview; legacy WebP-tegels zijn hier ongevoelig voor. */
+  image-rendering: pixelated;
 }
 
 .gnv2-part-tile-fallback-icon {

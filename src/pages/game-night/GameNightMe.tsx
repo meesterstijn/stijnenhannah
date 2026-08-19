@@ -80,8 +80,11 @@ export default function GameNightMe() {
       colorId,
       // Read-only hier sinds V2.9C (zie bestandscommentaar) — de RPC
       // vereist dit veld altijd, dus de HUIDIGE waarde ongewijzigd
-      // meesturen i.p.v.'m via deze pagina te laten wijzigen.
+      // meesturen i.p.v.'m via deze pagina te laten wijzigen. Zelfde
+      // redenering geldt sinds V2.9E voor bodyShape — deze pagina bewerkt
+      // "Lichaamsbouw" niet (dat gebeurt in de Character Creator).
       characterId: myPlayer.character_id,
+      bodyShape: myPlayer.body_shape,
     });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);

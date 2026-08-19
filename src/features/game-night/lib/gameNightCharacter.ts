@@ -1,10 +1,13 @@
 import type {
+  GameNightBodyShape,
   GameNightCharacterPart,
   GameNightCharacterSlot,
   GameNightPlayer,
   GameNightPlayerCharacterEquipment,
   GameNightPlayerCharacterUnlock,
 } from "@/lib/supabase";
+
+export type { GameNightBodyShape };
 
 // Game Night V2.9B (sectie 9) — de ENE bron van waarheid voor "hoe wordt
 // een samengesteld character opgebouwd/geautoriseerd". De UI (CharacterVisual/
@@ -22,6 +25,7 @@ import type {
 // veel latere migratie mag character_id ooit laten vervallen.
 
 export const CHARACTER_SLOTS: readonly GameNightCharacterSlot[] = [
+  // V2.9B — legacy 8-slot systeem, blijft volledig geldig.
   "base",
   "face",
   "hair",
@@ -30,6 +34,18 @@ export const CHARACTER_SLOTS: readonly GameNightCharacterSlot[] = [
   "accessory",
   "effect",
   "badge",
+  // Game Night V2.9E (20260915000000) — nieuwe 128×128 pixel-art slots.
+  // "base"/"hair"/"headwear" hierboven worden HERGEBRUIKT door de nieuwe
+  // catalogus (zelfde slotnaam, nieuwe content) — zie het V2.9E-opleverrapport.
+  "clothing",
+  "eyes",
+  "eyebrows",
+  "mouth",
+  "facial-hair",
+  "glasses",
+  "arms",
+  "props",
+  "foreground-effects",
 ];
 
 // Nederlandse UI-labels (V2.9C sectie 3) — ÉÉN plek, zodat de Creator-tabs
@@ -43,6 +59,15 @@ export const CHARACTER_SLOT_LABELS: Record<GameNightCharacterSlot, string> = {
   accessory: "Accessoire",
   effect: "Effect",
   badge: "Badge",
+  clothing: "Kleding",
+  eyes: "Ogen",
+  eyebrows: "Wenkbrauwen",
+  mouth: "Mond",
+  "facial-hair": "Gezichtsbeharing",
+  glasses: "Bril",
+  arms: "Armen",
+  props: "Voorwerp",
+  "foreground-effects": "Effect (voorgrond)",
 };
 
 export function isCharacterSlot(
@@ -58,16 +83,33 @@ export function isCharacterSlot(
 // layer_order-veld, nooit van deze tabel, zodat een uitzondering (bv. een
 // "effect" dat voorAAN moet liggen) altijd mogelijk blijft zonder dit
 // bestand te hoeven aanpassen.
+// Nieuwe slots (V2.9E) zijn bewust in een eigen, tussenliggende numerieke
+// band gekozen zodat ze correct interleaven met de HERGEBRUIKTE bestaande
+// anchors (base=20, hair=50, headwear=60) volgens de voorgeschreven
+// volgorde: base → clothing → eyes → eyebrows → mouth → facial-hair → hair
+// → glasses → headwear → arms → props → foreground-effects. Overlap in
+// getal met een ongebruikt legacy-slot (bv. props=75 vs. geen legacy-slot
+// op 75) is onschadelijk: legacy- en V2.9E-content komen nooit samen op
+// hetzelfde character voor.
 export const DEFAULT_SLOT_LAYER_ORDER: Record<GameNightCharacterSlot, number> =
   {
     effect: 10,
     base: 20,
+    clothing: 25,
     outfit: 30,
+    eyes: 32,
+    eyebrows: 34,
+    mouth: 36,
+    "facial-hair": 38,
     face: 40,
     hair: 50,
+    glasses: 55,
     headwear: 60,
+    arms: 65,
     accessory: 70,
+    props: 75,
     badge: 80,
+    "foreground-effects": 95,
   };
 
 // De basis-laag mag nooit leeg zijn (sectie 12, zie ook de
@@ -92,6 +134,137 @@ export type ResolvedCharacter =
   | { mode: "modular"; layers: ResolvedCharacterLayer[] }
   | { mode: "legacy"; characterId: string }
   | { mode: "empty" };
+
+// ── Lichaamsbouw (V2.9E) ─────────────────────────────────────────────────
+//
+// GEEN cupmaten in de UI — deze drie waarden zijn de enige toegestane
+// interne representatie, gepresenteerd in de Creator als "Klein"/
+// "Gemiddeld"/"Groot" onder "Lichaamsbouw". "medium" is de vaste default
+// voor bestaande spelers zonder keuze (nooit een kolomdefault die dat
+// verhult — expliciet hier, op de ENE plek die dat bepaalt).
+export const DEFAULT_BODY_SHAPE: GameNightBodyShape = "medium";
+
+export const BODY_SHAPE_LABELS: Record<GameNightBodyShape, string> = {
+  small: "Klein",
+  medium: "Gemiddeld",
+  large: "Groot",
+};
+
+export function resolveBodyShape(
+  player: Pick<GameNightPlayer, "body_shape">,
+): GameNightBodyShape {
+  return player.body_shape ?? DEFAULT_BODY_SHAPE;
+}
+
+// Eén part kan dienen voor meerdere lichaamsvormen via `body_shape_variants`
+// terwijl de speler in de UI nog altijd maar ÉÉN tegel kiest (bv. "Groene
+// hoodie"). Ontbrekende sleutel voor de gekozen vorm = needs_asset_revision
+// voor die combinatie; val dan terug op de medium-variant, en anders op het
+// part's eigen asset_path — kleding verdwijnt hierdoor nooit stilzwijgend,
+// en er is GEEN CSS-scaling-hack nodig om één asset kunstmatig passend te
+// maken voor een vorm waar geen echte art voor is.
+export function resolveBodyShapeAssetPath(
+  part: Pick<GameNightCharacterPart, "asset_path" | "body_shape_variants">,
+  bodyShape: GameNightBodyShape,
+): string {
+  const variants = part.body_shape_variants;
+  if (!variants) return part.asset_path;
+  return variants[bodyShape] ?? variants.medium ?? part.asset_path;
+}
+
+// De 3 direct selecteerbare female-base-tegels voor de "Lichaamsbouw"-
+// picker — elke tegel is een APART catalogus-item (eigen `id`/`key`) met
+// een gezette `body_shape`, niet drie varianten van ÉÉN item (dat is
+// voorbehouden aan kleding/armen via body_shape_variants hierboven).
+//
+// Bewust GEEN `active`-filter hier: small/large staan vandaag inactief
+// (needs_asset_revision, nog geen echte art) maar moeten wél als
+// (uitgegrijsde) optie in de picker verschijnen, anders lijkt "Lichaamsbouw"
+// een keuze uit slechts één optie. canEquipPart() blijft de daadwerkelijke
+// selecteerbaarheid bepalen — de caller combineert deze lijst daarmee.
+export function getBodyShapeBaseParts(
+  parts: GameNightCharacterPart[],
+): GameNightCharacterPart[] {
+  return parts
+    .filter((p) => p.slot === "base" && p.body_shape != null)
+    .sort((a, b) => a.sort_order - b.sort_order);
+}
+
+// ── Pose/prop-compatibiliteit (V2.9E) ────────────────────────────────────
+//
+// Een prop die aan een pose gebonden is (bv. prop-mug-01 →
+// requires_pose_key "pose-hold-mug") mag nooit los voor het character
+// "zweven" — de speler kiest ÉÉN voorwerp-tegel, en de arm/hand-laag wordt
+// hier automatisch meegekozen, zonder dat de speler de arms-slot apart
+// hoeft te bedienen. Een prop zonder `requires_pose_key` is decoratief en
+// pose-onafhankelijk (bv. een controller/headphones-icoon zonder bijpassende
+// hand-sprite in de brondata — zie het opleverrapport).
+// Arm-sprites zijn base-specifiek (andere mouw/huid dan de female-arm-
+// sprite) — `requires_pose_key` op een prop is daarom een GENDER-NEUTRALE
+// pose-id (bv. "hold-mug"), terwijl elke arms-rij zijn eigen gender-
+// specifieke `pose_key` draagt (bv. "hold-mug-f"/"hold-mug-m"). Het
+// geslacht wordt afgeleid uit de key van de momenteel actieve base-laag
+// (bevat "female" of "male") — geen aparte state nodig.
+function genderMarkerFromBaseKey(
+  baseKey: string | undefined,
+): "f" | "m" | null {
+  if (!baseKey) return null;
+  if (baseKey.includes("female")) return "f";
+  if (baseKey.includes("male")) return "m";
+  return null;
+}
+
+export function resolveCompatibleArmsPart(
+  propPart: Pick<GameNightCharacterPart, "requires_pose_key"> | undefined,
+  parts: GameNightCharacterPart[],
+  baseKey?: string,
+): GameNightCharacterPart | null {
+  if (!propPart?.requires_pose_key) return null;
+  const gender = genderMarkerFromBaseKey(baseKey);
+  if (!gender) return null;
+  const wantedPoseKey = `${propPart.requires_pose_key}-${gender}`;
+  return (
+    parts.find(
+      (p) => p.slot === "arms" && p.active && p.pose_key === wantedPoseKey,
+    ) ?? null
+  );
+}
+
+// Past de pose/prop-override toe op een reeds opgebouwde laag-set: als er
+// een `props`-laag actief is die een `pose_key` vereist, wordt de
+// bestaande `arms`-laag (indien aanwezig) vervangen door de bijpassende
+// arm/hand-laag — de speler bedient in de UI dus effectief nog maar één
+// keuze voor "voorwerp + houding" samen. Geen match gevonden (asset nog
+// needs_asset_revision of ontbrekende pose_key) → arms-laag blijft
+// ongewijzigd, nooit een crash of lege gok.
+function applyPoseOverride(
+  layers: ResolvedCharacterLayer[],
+  allParts: GameNightCharacterPart[],
+  bodyShape: GameNightBodyShape,
+): ResolvedCharacterLayer[] {
+  const propsLayer = layers.find((l) => l.slot === "props");
+  if (!propsLayer) return layers;
+  const propPart = allParts.find((p) => p.id === propsLayer.partId);
+  const baseLayer = layers.find((l) => l.slot === "base");
+  const armsPart = resolveCompatibleArmsPart(
+    propPart,
+    allParts,
+    baseLayer?.key,
+  );
+  if (!armsPart) return layers;
+
+  const withoutArms = layers.filter((l) => l.slot !== "arms");
+  const armsLayer: ResolvedCharacterLayer = {
+    slot: "arms",
+    partId: armsPart.id,
+    key: armsPart.key,
+    assetPath: resolveBodyShapeAssetPath(armsPart, bodyShape),
+    layerOrder: armsPart.layer_order,
+  };
+  return [...withoutArms, armsLayer].sort(
+    (a, b) => a.layerOrder - b.layerOrder,
+  );
+}
 
 // ── Groeperen/lookups (pure, geen Supabase) ──────────────────────────────
 
@@ -181,6 +354,7 @@ export function resolvePlayerCharacter(
   partsById: Map<string, GameNightCharacterPart>,
 ): ResolvedCharacter {
   const ownEquipment = equipment.filter((e) => e.player_id === player.id);
+  const bodyShape = resolveBodyShape(player);
 
   if (ownEquipment.length > 0) {
     const bySlot = new Map<GameNightCharacterSlot, ResolvedCharacterLayer>();
@@ -191,12 +365,14 @@ export function resolvePlayerCharacter(
         slot: row.slot,
         partId: part.id,
         key: part.key,
-        assetPath: part.asset_path,
+        assetPath: resolveBodyShapeAssetPath(part, bodyShape),
         layerOrder: part.layer_order,
       });
     }
-    const layers = [...bySlot.values()].sort(
-      (a, b) => a.layerOrder - b.layerOrder,
+    const layers = applyPoseOverride(
+      [...bySlot.values()].sort((a, b) => a.layerOrder - b.layerOrder),
+      [...partsById.values()],
+      bodyShape,
     );
     if (layers.length > 0) {
       return { mode: "modular", layers };
@@ -292,6 +468,7 @@ export function hasUnsavedCharacterChanges(
 export function resolveDraftLayers(
   draft: CharacterSlotMap,
   partsById: Map<string, GameNightCharacterPart>,
+  bodyShape: GameNightBodyShape = DEFAULT_BODY_SHAPE,
 ): ResolvedCharacterLayer[] {
   const layers: ResolvedCharacterLayer[] = [];
   for (const slot of CHARACTER_SLOTS) {
@@ -303,11 +480,15 @@ export function resolveDraftLayers(
       slot,
       partId: part.id,
       key: part.key,
-      assetPath: part.asset_path,
+      assetPath: resolveBodyShapeAssetPath(part, bodyShape),
       layerOrder: part.layer_order,
     });
   }
-  return layers.sort((a, b) => a.layerOrder - b.layerOrder);
+  return applyPoseOverride(
+    layers.sort((a, b) => a.layerOrder - b.layerOrder),
+    [...partsById.values()],
+    bodyShape,
+  );
 }
 
 // V2.9D (sectie 16/25-F) — pure tegenhanger van CharacterVisual.tsx's

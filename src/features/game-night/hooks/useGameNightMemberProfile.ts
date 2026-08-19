@@ -43,12 +43,19 @@ export function useUpdateMyProfile() {
     mutationFn: async (input: {
       nickname: string;
       colorId: string | null;
-      // Verplicht (niet optioneel): de RPC zet character_id onvoorwaardelijk
-      // op deze waarde — een aanroep die dit veld "vergeet" zou een al
-      // gekozen character stilzwijgend wissen. Elke caller moet dus altijd
-      // de HUIDIGE (of nieuw gekozen) waarde meesturen, ook als alleen
-      // nickname/kleur wijzigen.
+      // Verplicht (niet optioneel): de RPC zet character_id/body_shape
+      // onvoorwaardelijk op deze waarden — een aanroep die een van deze
+      // velden "vergeet" zou een al gekozen character/lichaamsbouw
+      // stilzwijgend wissen. Elke caller moet dus altijd de HUIDIGE (of
+      // nieuw gekozen) waarde meesturen, ook als alleen nickname/kleur
+      // wijzigen.
       characterId: string | null;
+      // Game Night V2.9E (20260915020000) — "Lichaamsbouw", alleen
+      // betekenisvol bij een female base. Optioneel (default undefined ->
+      // niet meegestuurd -> RPC-default null) zodat bestaande callers die
+      // dit veld niet kennen niet per se hoeven te breken; nieuwe callers
+      // sturen altijd de huidige waarde mee, zie hierboven.
+      bodyShape?: string | null;
     }): Promise<GameNightPlayer> => {
       const { data, error } = await supabase.rpc(
         "game_night_update_my_profile",
@@ -56,6 +63,7 @@ export function useUpdateMyProfile() {
           p_nickname: input.nickname,
           p_color_id: input.colorId,
           p_character_id: input.characterId,
+          p_body_shape: input.bodyShape ?? null,
         },
       );
       if (error) throw error;

@@ -2,9 +2,15 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Check, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import type { GameNightCharacterSlot } from "@/lib/supabase";
+import type {
+  GameNightBodyShape,
+  GameNightCharacterSlot,
+} from "@/lib/supabase";
 import { useGameNightAnalytics } from "@/features/game-night/hooks/useGameNightAnalytics";
-import { useGameNightColorPalette } from "@/features/game-night/hooks/useGameNightMemberProfile";
+import {
+  useGameNightColorPalette,
+  useUpdateMyProfile,
+} from "@/features/game-night/hooks/useGameNightMemberProfile";
 import {
   useCharacterEquipmentForPlayers,
   useCharacterParts,
@@ -14,16 +20,20 @@ import {
 } from "@/features/game-night/hooks/useCharacterCatalog";
 import { resolvePlayerColorHex } from "@/features/game-night/lib/playerIdentity";
 import {
+  BODY_SHAPE_LABELS,
   CHARACTER_SLOTS,
   CHARACTER_SLOT_LABELS,
+  DEFAULT_BODY_SHAPE,
   LOCKED_SLOT,
   buildInitialDraft,
   canEquipPart,
   derivePartTileStatus,
   diffCharacterSlots,
   equipmentToSlotMap,
+  getBodyShapeBaseParts,
   groupPartsBySlot,
   hasUnsavedCharacterChanges,
+  resolveBodyShape,
   resolveDraftLayers,
   type CharacterSlotMap,
 } from "@/features/game-night/lib/gameNightCharacter";
@@ -64,11 +74,20 @@ export default function GameNightCharacterCreator() {
 
   const equipMutation = useEquipCharacterPart();
   const unequipMutation = useUnequipCharacterPart();
+  const updateProfileMutation = useUpdateMyProfile();
 
   const [activeSlot, setActiveSlot] = useState<GameNightCharacterSlot>("base");
   const [draft, setDraft] = useState<CharacterSlotMap | null>(null);
+  // Game Night V2.9E (sectie "Lichaamsbouw") — puur UI-draftstaat, net als
+  // `draft` hierboven: pas bij "Opslaan" daadwerkelijk naar de speler-rij
+  // geschreven (via useUpdateMyProfile, want body_shape leeft op
+  // game_night_players, niet in de parts-catalogus). Geïnitialiseerd vanuit
+  // myPlayer.body_shape zodra die bekend is (zie de init-effect hieronder).
+  const [draftBodyShape, setDraftBodyShape] =
+    useState<GameNightBodyShape>(DEFAULT_BODY_SHAPE);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [failedSlots, setFailedSlots] = useState<GameNightCharacterSlot[]>([]);
+  const [bodyShapeSaveFailed, setBodyShapeSaveFailed] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
   // Puur UI: heeft de speler al zelf iets aangetikt in DEZE sessie? Los van
   // `dirty` (dat vergelijkt tegen de echte server-staat en is dus al true
@@ -95,6 +114,7 @@ export default function GameNightCharacterCreator() {
     if (equipmentQuery.isLoading) return;
     initializedRef.current = true;
     setDraft(buildInitialDraft(equipment, parts));
+    setDraftBodyShape(resolveBodyShape(myPlayer));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [myPlayer, parts, equipmentQuery.isLoading]);
 
@@ -105,9 +125,39 @@ export default function GameNightCharacterCreator() {
   const partsBySlot = useMemo(() => groupPartsBySlot(parts), [parts]);
 
   const colorHex = myPlayer ? resolvePlayerColorHex(myPlayer, palette) : null;
-  const dirty = draft ? hasUnsavedCharacterChanges(savedMap, draft) : false;
+  const dirty = draft
+    ? hasUnsavedCharacterChanges(savedMap, draft) ||
+      (!!myPlayer && draftBodyShape !== resolveBodyShape(myPlayer))
+    : false;
 
-  const previewLayers = draft ? resolveDraftLayers(draft, partsById) : [];
+  const previewLayers = draft
+    ? resolveDraftLayers(draft, partsById, draftBodyShape)
+    : [];
+
+  // Game Night V2.9E — de "Lichaamsbouw"-picker verschijnt zodra de
+  // momenteel gekozen basis een van de female-body-shape-tegels is (elke
+  // tegel draagt zijn eigen `body_shape`, zie getBodyShapeBaseParts()) —
+  // voor male blijft dit onderdeel verborgen, exact zoals gevraagd.
+  const bodyShapeBaseParts = useMemo(
+    () => getBodyShapeBaseParts(parts),
+    [parts],
+  );
+  const selectedBasePart = draft?.base ? partsById.get(draft.base) : null;
+  const showBodyShapePicker =
+    !!selectedBasePart?.body_shape && bodyShapeBaseParts.length > 0;
+
+  function selectBodyShape(shape: GameNightBodyShape) {
+    if (!draft) return;
+    const basePart = bodyShapeBaseParts.find((p) => p.body_shape === shape);
+    // Een (nog) niet-actieve variant (small/large zonder echte art,
+    // needs_asset_revision) is bewust niet kiesbaar — canEquipPart weigert
+    // 'm net als overal elders in de Creator, geen aparte uitzondering.
+    if (!basePart || !canEquipPart(basePart, "base", unlocks)) return;
+    setDraft({ ...draft, base: basePart.id });
+    setDraftBodyShape(shape);
+    setHasInteracted(true);
+    if (saveState !== "idle") setSaveState("idle");
+  }
   // Sectie 13: alleen tonen als de speler ECHT nog geen modulaire equipment
   // heeft opgeslagen (anders zou een speler die eerder al heeft opgeslagen
   // bij een volgend bezoek weer even zijn oude legacy character zien i.p.v.
@@ -153,13 +203,15 @@ export default function GameNightCharacterCreator() {
   async function handleSave() {
     if (!draft || !myPlayer) return;
     const changes = diffCharacterSlots(savedMap, draft);
-    if (changes.length === 0) return;
+    const bodyShapeChanged = draftBodyShape !== resolveBodyShape(myPlayer);
+    if (changes.length === 0 && !bodyShapeChanged) return;
 
     setSaveState("saving");
     setFailedSlots([]);
+    setBodyShapeSaveFailed(false);
 
-    const results = await Promise.allSettled(
-      changes.map((change) =>
+    const results = await Promise.allSettled([
+      ...changes.map((change) =>
         change.action === "equip"
           ? equipMutation.mutateAsync({
               slot: change.slot,
@@ -167,17 +219,37 @@ export default function GameNightCharacterCreator() {
             })
           : unequipMutation.mutateAsync(change.slot),
       ),
-    );
+      // Lichaamsbouw leeft op de speler-rij, niet in de parts-catalogus —
+      // via dezelfde self-service-RPC als nickname/kleur/character, met de
+      // HUIDIGE waarden van die velden ongewijzigd meegestuurd (de RPC zet
+      // ze onvoorwaardelijk, zie useGameNightMemberProfile.ts).
+      ...(bodyShapeChanged
+        ? [
+            updateProfileMutation.mutateAsync({
+              nickname: myPlayer.nickname ?? myPlayer.name,
+              colorId: myPlayer.color_id,
+              characterId: myPlayer.character_id,
+              bodyShape: draftBodyShape,
+            }),
+          ]
+        : []),
+    ]);
 
     const failed = changes
       .filter((_, i) => results[i].status === "rejected")
       .map((c) => c.slot);
+    // De bodyShape-mutatie staat altijd op de LAATSTE index (na alle
+    // slot-changes) — apart afgevangen omdat "Lichaamsbouw" geen
+    // GameNightCharacterSlot is en dus niet in `failedSlots` past.
+    const bodyShapeFailed =
+      bodyShapeChanged && results[changes.length]?.status === "rejected";
 
     const refetched = await equipmentQuery.refetch();
     setDraft(buildInitialDraft(refetched.data ?? [], parts));
 
-    if (failed.length > 0) {
+    if (failed.length > 0 || bodyShapeFailed) {
       setFailedSlots(failed);
+      setBodyShapeSaveFailed(bodyShapeFailed);
       setSaveState("partial-error");
     } else {
       setSaveState("success");
@@ -261,6 +333,43 @@ export default function GameNightCharacterCreator() {
         )}
       </div>
 
+      {showBodyShapePicker && (
+        <div className="gnv2-creator-bodyshape" aria-label="Lichaamsbouw">
+          <p className="gnv2-creator-bodyshape-label">Lichaamsbouw</p>
+          <div
+            className="gnv2-creator-bodyshape-options"
+            role="radiogroup"
+            aria-label="Lichaamsbouw"
+          >
+            {(["small", "medium", "large"] as const).map((shape) => {
+              const part = bodyShapeBaseParts.find(
+                (p) => p.body_shape === shape,
+              );
+              const disabled = !part || !canEquipPart(part, "base", unlocks);
+              const selected = selectedBasePart?.body_shape === shape;
+              return (
+                <button
+                  key={shape}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  disabled={disabled}
+                  onClick={() => selectBodyShape(shape)}
+                  className={`gnv2-creator-bodyshape-btn ${selected ? "gnv2-creator-bodyshape-btn-active" : ""}`}
+                >
+                  {BODY_SHAPE_LABELS[shape]}
+                  {disabled && (
+                    <span className="gnv2-creator-bodyshape-soon">
+                      binnenkort
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div
         className="gnv2-creator-tabs"
         role="tablist"
@@ -325,8 +434,11 @@ export default function GameNightCharacterCreator() {
           {saveState === "partial-error" && (
             <p className="gnv2-creator-status-error">
               Niet alles is opgeslagen (
-              {failedSlots.map((s) => CHARACTER_SLOT_LABELS[s]).join(", ")}) —
-              probeer het opnieuw.
+              {[
+                ...failedSlots.map((s) => CHARACTER_SLOT_LABELS[s]),
+                ...(bodyShapeSaveFailed ? ["Lichaamsbouw"] : []),
+              ].join(", ")}
+              ) — probeer het opnieuw.
             </p>
           )}
         </div>

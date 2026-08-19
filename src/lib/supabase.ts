@@ -610,6 +610,12 @@ export type GameNightPlayer = {
   // Game Night V2.8 (20260913000000) — gekozen character-preset-id (vaste
   // allowlist, zie characterPresets.ts). Null = nog geen character gekozen.
   character_id: string | null;
+  // Game Night V2.9E (20260915000000) — structurele lichaamsbouw-keuze,
+  // alleen betekenisvol bij een female base. Null = nog geen bewuste keuze;
+  // de applicatielaag valt dan terug op "medium"
+  // (zie resolveBodyShape() in gameNightCharacter.ts), nooit hier een
+  // kolomdefault die dat verhult.
+  body_shape: GameNightBodyShape | null;
   created_at: string;
   updated_at: string;
 };
@@ -789,6 +795,7 @@ export type GameNightCheckpointPhoto = {
 // fundament. Zie src/features/game-night/lib/gameNightCharacter.ts voor de
 // pure domain-laag (types/resolvers) die deze rijen consumeert.
 export type GameNightCharacterSlot =
+  // V2.9B — blijven volledig geldig, bestaande data breekt niet.
   | "base"
   | "face"
   | "hair"
@@ -796,7 +803,23 @@ export type GameNightCharacterSlot =
   | "headwear"
   | "accessory"
   | "effect"
-  | "badge";
+  | "badge"
+  // Game Night V2.9E (20260915000000) — nieuwe 128×128 pixel-art
+  // assetstandaard. "clothing" is de opvolger van "outfit", "glasses" van
+  // "accessory"; "eyes"/"eyebrows"/"mouth" splitsen het oude "face" op.
+  | "clothing"
+  | "eyes"
+  | "eyebrows"
+  | "mouth"
+  | "facial-hair"
+  | "glasses"
+  | "arms"
+  | "props"
+  | "foreground-effects";
+
+// Game Night V2.9E — structurele lichaamsbouw, alleen voor de female base.
+// Bewust GEEN cupmaten: puur neutrale, visuele groottes.
+export type GameNightBodyShape = "small" | "medium" | "large";
 
 export type GameNightCharacterPart = {
   id: string;
@@ -811,6 +834,24 @@ export type GameNightCharacterPart = {
   sort_order: number;
   created_at: string;
   updated_at: string;
+  // Game Night V2.9E (20260915000000) — alleen gezet op BASE-rijen die zelf
+  // een aparte, direct selecteerbare lichaamsvorm-tegel zijn (de 3 female
+  // bases). Null voor alle overige rijen.
+  body_shape: GameNightBodyShape | null;
+  // Optioneel: { small?, medium?, large?: asset_path } voor kleding/arm-
+  // items die per lichaamsvorm een andere pasvorm nodig hebben terwijl de
+  // speler nog altijd maar ÉÉN tegel kiest. Ontbrekende sleutel =
+  // needs_asset_revision voor die vorm (zie resolveBodyShapeAssetPath()).
+  body_shape_variants: Partial<Record<GameNightBodyShape, string>> | null;
+  // Game Night V2.9E — pose/prop-koppeling (sectie "Pose/prop-compatibiliteit").
+  // `pose_key`: alleen gezet op een `arms`-rij — de stabiele identifier
+  // waarnaar een `props`-rij verwijst. `requires_pose_key`: alleen gezet op
+  // een `props`-rij die NIET los kan zweven en dus een specifieke arm/hand-
+  // laag vereist (bv. prop-mug-01 → requires_pose_key "pose-hold-mug").
+  // Een prop zonder `requires_pose_key` is decoratief en pose-onafhankelijk
+  // (bv. foreground-effects).
+  pose_key: string | null;
+  requires_pose_key: string | null;
 };
 
 export type GameNightCharacterUnlockSource =
