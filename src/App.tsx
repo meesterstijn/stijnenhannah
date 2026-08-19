@@ -118,6 +118,12 @@ const GameNightPlayerProfile = lazy(
   () => import("@/pages/game-night/GameNightPlayerProfile"),
 );
 const GameNightMe = lazy(() => import("@/pages/game-night/GameNightMe"));
+const GameNightCharacterCreator = lazy(
+  () => import("@/features/game-night/v2/GameNightCharacterCreator"),
+);
+const CharacterAssetQaGrid = lazy(
+  () => import("@/features/game-night/v2/CharacterAssetQaGrid"),
+);
 const GameNightJoin = lazy(() => import("@/pages/game-night/GameNightJoin"));
 
 const queryClient = new QueryClient();
@@ -270,6 +276,17 @@ function AppRoutes() {
             <Route path="/game-night" element={<GameNightLayout />}>
               <Route index element={<GameNightHome />} />
               <Route path="me" element={<GameNightMe />} />
+              <Route
+                path="me/character"
+                element={<GameNightCharacterCreator />}
+              />
+              {/* Sectie 17 (V2.9D) — dev-only asset-QA, bewust NERGENS in
+                  de navigatie gelinkt, alleen bereikbaar via de directe
+                  URL en owner-gated (zie het component zelf). */}
+              <Route
+                path="dev/character-qa"
+                element={<CharacterAssetQaGrid />}
+              />
               {/* Ook bereikbaar terwijl al ingelogd — bestaand account dat
                   opnieuw scant (sectie 15), of owner die zelf test. */}
               <Route path="join/:token" element={<GameNightJoin />} />

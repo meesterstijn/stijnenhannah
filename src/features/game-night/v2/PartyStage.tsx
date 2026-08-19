@@ -3,6 +3,7 @@ import { SortableContext, rectSortingStrategy } from "@dnd-kit/sortable";
 import { QrCode } from "lucide-react";
 import type { GameNightPlayer } from "@/lib/supabase";
 import type { PartySeat } from "@/features/game-night/hooks/useGameNightParty";
+import type { ResolvedCharacter } from "@/features/game-night/lib/gameNightCharacter";
 import { PartyPlayerCard } from "@/features/game-night/v2/PartyPlayerCard";
 
 export const PARTY_ZONE_ID = "gnv2-party-zone";
@@ -14,12 +15,14 @@ export function PartyStage({
   seats,
   colorHex,
   lifetimeWins,
+  characterFor,
   onRemove,
   onOpenQr,
 }: {
   seats: PartySeat[];
   colorHex: (player: GameNightPlayer) => string | null;
   lifetimeWins: (playerId: string) => number | null;
+  characterFor?: (player: GameNightPlayer) => ResolvedCharacter;
   onRemove: (playerId: string) => void;
   onOpenQr: () => void;
 }) {
@@ -57,6 +60,7 @@ export function PartyStage({
                 player={seat.player}
                 colorHex={colorHex(seat.player)}
                 lifetimeWins={lifetimeWins(seat.player_id)}
+                resolvedCharacter={characterFor?.(seat.player)}
                 onRemove={() => onRemove(seat.player_id)}
               />
             ))}

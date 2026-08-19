@@ -19,19 +19,31 @@ export function GnV2ActionMenu({
   children: ReactNode;
 }) {
   const menuRef = useRef<HTMLDivElement>(null);
+  // `onClose` is doorgaans een inline arrow function bij de caller (nieuwe
+  // referentie op elke render van GameNightV2Arena, bv. door een toast/
+  // query-refetch terwijl het menu open staat). Via een ref opgeslagen i.p.v.
+  // in de effect-dependency-array voorkomt dat de listeners hieronder bij
+  // elke parent-render worden afgebroken en opnieuw aangesloten — puur
+  // robuustheid, niet de hoofdoorzaak van de klik-bug (zie styles.css).
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!open) return;
 
+    // pointerdown (niet click) zodat we VÓÓR een eventuele click op een
+    // menu-item kunnen bepalen of dit een outside-click is — een klik
+    // BINNEN het menu (of op de ···-trigger zelf) sluit hier nooit, zodat
+    // de click/Enter/Space van dat item daarna gewoon nog kan vuren.
     function handlePointerDown(e: PointerEvent) {
       const target = e.target as Node;
       if (menuRef.current?.contains(target)) return;
       if (triggerRef?.current?.contains(target)) return;
-      onClose();
+      onCloseRef.current();
     }
 
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") onCloseRef.current();
     }
 
     document.addEventListener("pointerdown", handlePointerDown);
@@ -40,7 +52,7 @@ export function GnV2ActionMenu({
       document.removeEventListener("pointerdown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [open, onClose, triggerRef]);
+  }, [open, triggerRef]);
 
   if (!open) return null;
 

@@ -187,6 +187,59 @@ export function useCheckpointCountsForGameSessions(gameSessionIds: string[]) {
   });
 }
 
+// Game Night V2.8 (sectie 13) — de meest recente ECHTE speelbordfoto van
+// deze spelsessie, voor de optionele "live tafelfoto"-toggle in de Arena.
+// Betrouwbaar af te leiden: photo_type = 'board' is een expliciete,
+// bewuste keuze van de gebruiker bij het opslaan van een checkpoint (zie
+// checkpointPhotoTypes.ts), geen gok. Checkpoints zijn al aflopend
+// gesorteerd (useCheckpointsForSession); binnen het NIEUWSTE checkpoint met
+// minstens één board-foto wordt de eerste (sort_order) gebruikt. Nooit de
+// hoofd-/setupfoto-fallbackketen uit resolveGameArenaTheme() overschrijven
+// — puur een apart, optioneel gegeven dat de Arena zelf laat kiezen om te
+// tonen.
+export function useLatestBoardPhoto(gameSessionId: string | undefined) {
+  return useQuery({
+    queryKey: ["game-night", "latest-board-photo", gameSessionId] as const,
+    queryFn: async (): Promise<CheckpointPhotoWithUrl | null> => {
+      if (!gameSessionId) return null;
+
+      const { data: checkpoints, error: checkpointError } = await supabase
+        .from("game_night_checkpoints")
+        .select("id")
+        .eq("game_session_id", gameSessionId)
+        .order("created_at", { ascending: false });
+      if (checkpointError) throw checkpointError;
+      if (!checkpoints || checkpoints.length === 0) return null;
+
+      const { data: photos, error: photoError } = await supabase
+        .from("game_night_checkpoint_photos")
+        .select("*")
+        .in(
+          "checkpoint_id",
+          checkpoints.map((c) => c.id),
+        )
+        .eq("photo_type", "board")
+        .order("sort_order", { ascending: true });
+      if (photoError) throw photoError;
+      if (!photos || photos.length === 0) return null;
+
+      // `checkpoints` staat al nieuwste-eerst — de eerste board-foto die bij
+      // het nieuwste checkpoint hoort is dus de meest recente.
+      const checkpointRank = new Map(checkpoints.map((c, i) => [c.id, i]));
+      const newest = [...photos].sort(
+        (a, b) =>
+          (checkpointRank.get(a.checkpoint_id) ?? Infinity) -
+          (checkpointRank.get(b.checkpoint_id) ?? Infinity),
+      )[0];
+
+      const urls = await getCheckpointPhotoSignedUrls([newest.storage_path]);
+      return { ...newest, url: urls[newest.storage_path] ?? null };
+    },
+    enabled: !!gameSessionId,
+    staleTime: 60 * 1000,
+  });
+}
+
 // "Momenten van de avond" (Game Night V7, sectie 22-25): twee queries
 // totaal voor de HELE finale — alle checkpoints van de gegeven spelsessies
 // in één `.in(...)`, dan hun foto's in één tweede `.in(...)` — nooit een

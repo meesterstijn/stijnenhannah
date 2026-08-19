@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, Crown, Loader2, Link2, Unlink } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -9,11 +9,21 @@ import {
   useProfileRoleLookup,
 } from "@/features/game-night/hooks/useGameNightMemberProfile";
 import {
+  useCharacterEquipmentForPlayers,
+  useCharacterParts,
+} from "@/features/game-night/hooks/useCharacterCatalog";
+import {
   buildPlayerStats,
   gameDetailPath,
 } from "@/features/game-night/lib/gameNightStats";
 import { titlesForPlayer } from "@/features/game-night/lib/gameNightTitles";
 import { formatDuration } from "@/features/game-night/lib/gameTimer";
+import {
+  characterVisualPropsFor,
+  resolvePlayerCharacter,
+} from "@/features/game-night/lib/gameNightCharacter";
+import { CharacterVisual } from "@/features/game-night/v2/CharacterVisual";
+import type { GameNightPlayer } from "@/lib/supabase";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -120,6 +130,54 @@ function AccountLinkSection({
   );
 }
 
+// Game Night V2.9C (sectie 22) — vervangt de V2.8/V2.9-editeerbare legacy-
+// character-selector: die kon "onzichtbaar" worden zodra een speler
+// daarnaast ook modulaire equipment had (character_id blijft dan wel
+// aanpasbaar via deze sectie, maar de weergave overal elders zou 'm
+// negeren — verwarrend, zie caller/UX-review in het opleverrapport). V2.9C
+// geeft de owner uitsluitend een READ-ONLY preview van het ECHTE huidige
+// (modulair-voorrang, anders legacy) character — bewerken van andermans
+// (mogelijk locked) cosmetics komt pas in een latere fase.
+function CharacterPreviewSection({ player }: { player: GameNightPlayer }) {
+  const { data: parts = [] } = useCharacterParts();
+  const { data: equipment = [] } = useCharacterEquipmentForPlayers([player.id]);
+  const partsById = useMemo(
+    () => new Map(parts.map((p) => [p.id, p])),
+    [parts],
+  );
+  const resolved = resolvePlayerCharacter(player, equipment, partsById);
+  const visualProps = characterVisualPropsFor(resolved);
+
+  return (
+    <div className="gn-panel-elevated flex items-center gap-4 px-5 py-4">
+      <span
+        className="gn-player-avatar gn-player-avatar-lg shrink-0"
+        style={
+          player.color && resolved.mode === "empty"
+            ? { background: player.color }
+            : undefined
+        }
+      >
+        <CharacterVisual
+          player={player}
+          characterId={visualProps.characterId}
+          layers={visualProps.layers}
+        />
+      </span>
+      <div className="min-w-0">
+        <p className="gn-eyebrow mb-1">Character</p>
+        <p className="gn-muted text-xs">
+          {resolved.mode === "modular"
+            ? "Samengesteld character"
+            : resolved.mode === "legacy"
+              ? "Legacy character"
+              : "Nog geen character gekozen"}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 // Spelerprofiel (Game Night V5, sectie 11-16): echte, herleidbare cijfers
 // per speler. Gearchiveerde spelers blijven volledig bereikbaar (sectie
 // 33), alleen subtiel gelabeld — hun historie wordt nooit verborgen.
@@ -215,6 +273,10 @@ export default function GameNightPlayerProfile() {
               playerId={playerId}
               authUserId={stats.player.auth_user_id}
             />
+          )}
+
+          {isOwner && playerId && (
+            <CharacterPreviewSection player={stats.player} />
           )}
 
           {titles.length > 1 && (

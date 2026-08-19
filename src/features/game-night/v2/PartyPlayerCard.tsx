@@ -2,28 +2,34 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { X } from "lucide-react";
 import type { GameNightPlayer } from "@/lib/supabase";
+import { getPlayerDisplayName } from "@/features/game-night/lib/playerIdentity";
 import {
-  getPlayerDisplayName,
-  getPlayerInitial,
-} from "@/features/game-night/lib/playerIdentity";
+  characterVisualPropsFor,
+  type ResolvedCharacter,
+} from "@/features/game-night/lib/gameNightCharacter";
+import { CharacterVisual } from "@/features/game-night/v2/CharacterVisual";
 
-// Game Night V2.5 (sectie 6/7/8/9/10) — de nieuwe speler-identiteit voor
+// Game Night V2.5/V2.9C (sectie 6/7/8/9/10/18) — de speler-identiteit voor
 // "aan tafel": nickname voorop, echte naam subtiel eronder, eigen kleur als
-// gloeiende ring i.p.v. een volledig gekleurde kaart (sectie 8: "niet de
-// hele kaart knalrood/blauw/geel"). Extensible basis voor V2.6+ (avatar/
-// cosmetics) — vandaag alleen een gekleurde initiaal-placeholder, bewust
-// geen verzonnen cosmetics-data.
+// gloeiende ring i.p.v. een volledig gekleurde kaart. `resolvedCharacter`
+// (V2.9C) laat GameNightV2Lobby.tsx de al-batchgeladen modulaire/legacy
+// character tonen via dezelfde CharacterVisual als Arena/Creator (sectie
+// 18: "GEEN tweede character-preview renderer") — zonder character valt
+// dit gewoon terug op de bestaande initiaal.
 export function PartyPlayerCard({
   player,
   colorHex,
   lifetimeWins,
+  resolvedCharacter,
   onRemove,
 }: {
   player: GameNightPlayer;
   colorHex: string | null;
   lifetimeWins: number | null;
+  resolvedCharacter?: ResolvedCharacter;
   onRemove: () => void;
 }) {
+  const visualProps = characterVisualPropsFor(resolvedCharacter);
   const {
     attributes,
     listeners,
@@ -77,7 +83,11 @@ export function PartyPlayerCard({
           className="gnv2-avatar"
           style={{ ["--gnv2-ring" as string]: ringColor }}
         >
-          {getPlayerInitial(player)}
+          <CharacterVisual
+            player={player}
+            characterId={visualProps.characterId}
+            layers={visualProps.layers}
+          />
         </span>
         <span className="gnv2-party-card-name">{displayName}</span>
         {showRealName && (

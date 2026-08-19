@@ -2516,6 +2516,15 @@ a.gn-plaque-mini:hover {
   font-size: 1.15rem;
 }
 
+/* V2.9 (sectie 12) — hero-preview op GameNightMe.tsx, groot genoeg voor een
+   herkenbare character-portrait (of de bestaande initiaal-fallback). */
+.gamenight-theme .gn-player-avatar-xl {
+  height: 5rem;
+  width: 5rem;
+  font-size: 2rem;
+  overflow: hidden;
+}
+
 /* "Vanavond"-blokje (sectie 11) — compact, onder de actieve speelmodus. */
 .gamenight-theme .gn-tonight-stats {
   width: 100%;
@@ -2900,6 +2909,71 @@ a.gn-plaque-mini:hover {
   background: var(--gn-brass-soft);
   color: var(--gn-text);
   box-shadow: 0 0 0 1px oklch(0.76 0.11 78 / 0.35);
+}
+
+/* ── Character-selector (V2.9 sectie 11/12/17/18) — grid van echte
+   portrait-tegels i.p.v. de V2.8-icoon+labelchips. `.gn-*`-gestyled: deze
+   staat op GameNightMe.tsx/GameNightPlayerProfile.tsx, bewust geen deel van
+   de GNV2-redesign, dus geen --gnv2-*-tokens hier — CharacterVisual's
+   iconen/initiaal krijgen daarom een lokale kleur-override hieronder i.p.v.
+   op hun ongedefinieerde --gnv2-ring/--gnv2-text-fallback te vertrouwen. ── */
+
+.gamenight-theme .gn-character-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  gap: 0.65rem;
+}
+
+.gamenight-theme .gn-character-tile {
+  display: flex;
+  min-height: 108px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border-radius: 1rem;
+  border: 1px solid var(--gn-border);
+  background: var(--gn-bg-elevated);
+  padding: 0.65rem 0.4rem;
+  transition:
+    border-color 0.15s ease,
+    transform 0.1s ease;
+}
+
+.gamenight-theme .gn-character-tile:hover {
+  border-color: var(--gn-brass);
+}
+
+.gamenight-theme .gn-character-tile:active {
+  transform: scale(0.97);
+}
+
+.gamenight-theme .gn-character-tile-selected {
+  background: var(--gn-brass-soft);
+}
+
+.gamenight-theme .gn-character-tile-portrait {
+  display: flex;
+  width: 3rem;
+  height: 3rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--gn-surface);
+  overflow: hidden;
+}
+
+.gamenight-theme .gn-character-tile-portrait .gnv2-character-icon,
+.gamenight-theme .gn-character-tile-portrait .gnv2-character-initial {
+  color: var(--gn-text-muted);
+}
+
+.gamenight-theme .gn-character-tile-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--gn-text-muted);
+  text-align: center;
+  line-height: 1.15;
 }
 
 /* Matchpercentage-plaquette op een aanbevolen spelkaart — een echt,
@@ -4946,6 +5020,19 @@ a.gn-plaque-mini:hover {
 
 .gnv2-arena-topbar {
   grid-template-columns: 2.75rem 1fr auto;
+  /* Bugfix (V2.8-bugfix sectie root cause): .gnv2-topbar en .gnv2-arena-main
+     zijn beide "position:relative; z-index:2" — twee GELIJKE stacking-
+     contexts als directe kinderen van .gnv2-arena-root. Bij een z-index-
+     gelijkspel wint DOM-volgorde, en <main> staat ná <header> in de JSX, dus
+     <main>'s eigen (onzichtbare maar wél klikbare) doos won die tie-break en
+     lag realtime BOVEN het ···-dropdownmenu overal waar het menu, dat als
+     position:absolute ONDER de ···-knop uitklapt, het gebied van <main>
+     overlapt — het menu bleef zichtbaar (transparant venster) maar Ving
+     iedere klik af. Fix: alleen de Arena-topbar (niet de gedeelde
+     .gnv2-topbar-basisklasse elders in V2) krijgt een hogere z-index dan
+     .gnv2-arena-main, zodat de HELE header-stackingcontext — en dus ook het
+     daarin geneste dropdownmenu — altijd boven het speelveld ligt. */
+  z-index: 6;
 }
 
 .gnv2-arena-toolbar {
@@ -5130,57 +5217,80 @@ a.gn-plaque-mini:hover {
   overflow: hidden;
 }
 
-.gnv2-arena-layout {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1.1rem;
-  width: 100%;
-  max-width: 80rem;
-  height: 100%;
+/* Game Night V2.8 (sectie 1/7/25/29) — "spel centraal, spelers eromheen":
+   een vierkant/4:3 anker-vlak waarbinnen .gnv2-arena-board altijd het
+   natuurlijke midden inneemt (gewone flex-centrering, geen eigen absolute
+   positie nodig) en elke .gnv2-arena-seat via resolveArenaSeatPositions()
+   een top/left-percentage van DEZE container krijgt (inline style, zie
+   ArenaPlayerLayout.tsx) + translate(-50%, -50%) om op dat punt te
+   centreren. Percentages schalen automatisch mee als de ring zelf op een
+   kleiner scherm krimpt (sectie 23) — geen aparte media-query-logica nodig
+   voor "characters bewegen dichter naar het bord". */
+.gnv2-arena-ring {
+  position: relative;
+  width: min(100%, calc(78vh * 4 / 3));
+  max-width: 78rem;
+  aspect-ratio: 4 / 3;
+  margin: 0 auto;
 }
 
-.gnv2-arena-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 1.35rem;
-  flex-wrap: wrap;
-  width: 100%;
+.gnv2-arena-board {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1;
 }
 
-.gnv2-arena-slot {
-  display: flex;
-}
-
-.gnv2-arena-center {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  margin: 0.25rem 0;
+.gnv2-arena-seat {
+  position: absolute;
+  z-index: 2;
+  transform: translate(-50%, -50%);
 }
 
 /* Bij 5/6 spelers iets compactere zones (sectie 35: "geen overlap"). */
-.gnv2-arena-layout[data-count="5"] .gnv2-player-zone,
-.gnv2-arena-layout[data-count="6"] .gnv2-player-zone {
-  min-width: 108px;
-  padding: 0.75rem 0.8rem;
+.gnv2-arena-ring[data-count="5"] .gnv2-player-zone,
+.gnv2-arena-ring[data-count="6"] .gnv2-player-zone {
+  min-width: 84px;
+  padding: 0.4rem 0.5rem;
 }
 
-.gnv2-arena-layout[data-count="5"] .gnv2-character-head,
-.gnv2-arena-layout[data-count="6"] .gnv2-character-head {
-  width: 3.75rem;
-  height: 3.75rem;
+.gnv2-arena-ring[data-count="5"] .gnv2-character-head,
+.gnv2-arena-ring[data-count="6"] .gnv2-character-head {
+  width: 2.9rem;
+  height: 2.9rem;
 }
 
-/* ── Centrale setupfoto: het hart van de arena (sectie 3) — 25-40% van
-   het scherm, niet fullscreen. ── */
+/* ── Centrale setupfoto: het hart van de arena (sectie 2) — 40-55% van de
+   bruikbare Arena-breedte, niet fullscreen (V2.8, was 25-40% in V2.7B). ── */
 
 .gnv2-setup-photo {
   position: relative;
-  width: clamp(170px, 27vw, 320px);
+  width: clamp(200px, 46%, 460px);
+}
+
+.gnv2-setup-photo-live-toggle {
+  position: absolute;
+  right: 0.6rem;
+  bottom: 0.6rem;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 32px;
+  padding: 0 0.7rem;
+  border-radius: 999px;
+  background: oklch(0.1 0.02 300 / 0.68);
+  border: 1px solid oklch(1 0 0 / 0.16);
+  backdrop-filter: blur(6px);
+  color: var(--gnv2-text);
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.gnv2-setup-photo-live-toggle[aria-pressed="true"] {
+  border-color: var(--gnv2-accent-cool);
+  color: var(--gnv2-accent-cool);
 }
 
 .gnv2-setup-photo-glow {
@@ -5300,6 +5410,9 @@ a.gn-plaque-mini:hover {
     0 0 0 3px var(--gnv2-ring, var(--gnv2-border-strong)),
     0 0 26px -4px var(--gnv2-ring, transparent),
     inset 0 1px 0 oklch(1 0 0 / 0.12);
+  transition:
+    box-shadow 0.2s ease,
+    opacity 0.2s ease;
 }
 
 .gnv2-character-initial {
@@ -5307,6 +5420,73 @@ a.gn-plaque-mini:hover {
   font-weight: 700;
   font-size: 1.85rem;
   color: var(--gnv2-text);
+}
+
+.gnv2-character-icon {
+  width: 45%;
+  height: 45%;
+  color: var(--gnv2-ring, var(--gnv2-text));
+}
+
+/* Sectie 15 (V2.9) — de echte portrait-asset: vaste aspect-ratio via de
+   afmeting van .gnv2-character-head zelf (breedte/hoogte staan al vast per
+   grootte-variant, dus nooit layout shift zodra de WebP binnenkomt),
+   object-fit:contain zodat een bust-portrait nooit bijgesneden wordt. */
+.gnv2-character-visual-img {
+  width: 92%;
+  height: 92%;
+  object-fit: contain;
+}
+
+/* Sectie 10 (V2.9B) — gestapelde modulaire lagen: één vast vlak (zelfde
+   92%-canvas als de single-asset variant hierboven), elke laag exact
+   inset:0 daarbinnen, pointer-events:none (puur decoratief, de WIN-klik
+   blijft op .gnv2-player-zone/.gnv2-character zelf), volgorde bepaald door
+   de DOM-volgorde die resolvePlayerCharacter al op layerOrder sorteerde. */
+.gnv2-character-layers {
+  position: relative;
+  display: block;
+  width: 92%;
+  height: 92%;
+}
+
+.gnv2-character-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+/* ── Grootte-varianten (V2.8 sectie 8, vergroot in V2.9 sectie 13: characters
+   moeten meer visueel gewicht hebben nu er echte art in past — de setupfoto
+   blijft dominant via zijn eigen 40-55%-breedte, dit raakt alleen de
+   spelerzones eromheen). "md" blijft het vorige formaat (bv. een grotere
+   preview elders); "lg" is de character-selector-preview (V2.9 sectie 11). ── */
+
+.gnv2-character-sm .gnv2-character-head {
+  width: 4rem;
+  height: 4rem;
+}
+
+.gnv2-character-sm .gnv2-character-initial {
+  font-size: 1.3rem;
+}
+
+.gnv2-character-sm .gnv2-character-name {
+  margin-top: 0.35rem;
+  font-size: 0.82rem;
+  max-width: 6rem;
+}
+
+.gnv2-character-lg .gnv2-character-head {
+  width: 6.5rem;
+  height: 6.5rem;
+}
+
+.gnv2-character-lg .gnv2-character-initial {
+  font-size: 2.5rem;
 }
 
 .gnv2-character-name {
@@ -5330,9 +5510,33 @@ a.gn-plaque-mini:hover {
   letter-spacing: 0.05em;
 }
 
+/* ── Spelerstaten (V2.8 sectie 9) — "normal" heeft geen eigen regel (de
+   basisstijl hierboven IS de normale staat). "highlighted"/"winner"/
+   "dimmed" hebben in V2.8 nog geen caller in de Arena (geen turnsysteem/
+   bekende matchwinnaar), maar zijn al volledig gestyled zodat een latere
+   fase alleen de state-prop hoeft door te geven. ── */
+
+.gnv2-character-highlighted .gnv2-character-head {
+  box-shadow:
+    0 0 0 3px var(--gnv2-accent-cool),
+    0 0 30px -2px var(--gnv2-accent-cool),
+    inset 0 1px 0 oklch(1 0 0 / 0.12);
+}
+
+.gnv2-character-winner .gnv2-character-head {
+  box-shadow:
+    0 0 0 3px var(--gnv2-accent-warm-strong),
+    0 0 34px 0px var(--gnv2-accent-warm-strong),
+    inset 0 1px 0 oklch(1 0 0 / 0.12);
+}
+
+.gnv2-character-dimmed {
+  opacity: 0.45;
+}
+
 /* ── WIN-celebratie (sectie 8/9) — ~700-900ms, geen modal/confetti-marathon. ── */
 
-.gnv2-character-celebrate .gnv2-character-head {
+.gnv2-character-celebrating .gnv2-character-head {
   animation-duration: 750ms;
   animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
@@ -5462,24 +5666,27 @@ a.gn-plaque-mini:hover {
   }
 }
 
-/* ── Spelerzone = WIN-knop (sectie 6/7/42) ── */
+/* ── Spelerzone = WIN-knop (V2.7B/V2.8 sectie 6/7/8/42) — compact: het
+   speelbord moet domineren, dit is geen dashboardkaart meer (V2.8 sectie
+   8). ── */
 
 .gnv2-player-zone {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
-  min-width: 130px;
-  min-height: 150px;
-  padding: 1rem 1.1rem;
+  gap: 0.3rem;
+  min-width: 96px;
+  min-height: 44px;
+  padding: 0.5rem 0.6rem;
   border-radius: var(--gnv2-radius-lg);
   background: var(--gnv2-surface);
   border: 1px solid var(--gnv2-border);
   transition:
     transform 0.12s ease,
     border-color 0.15s ease,
-    background-color 0.15s ease;
+    background-color 0.15s ease,
+    opacity 0.2s ease;
 }
 
 .gnv2-player-zone:hover {
@@ -5495,7 +5702,19 @@ a.gn-plaque-mini:hover {
   cursor: default;
 }
 
-.gnv2-player-zone-celebrate {
+.gnv2-player-zone-highlighted {
+  border-color: var(--gnv2-accent-cool);
+}
+
+.gnv2-player-zone-winner {
+  border-color: var(--gnv2-accent-warm-strong);
+}
+
+.gnv2-player-zone-dimmed {
+  opacity: 0.5;
+}
+
+.gnv2-player-zone-celebrating {
   border-color: var(--gnv2-ring, var(--gnv2-accent-warm));
   background: color-mix(
     in oklch,
@@ -5851,19 +6070,22 @@ a.gn-plaque-mini:hover {
   margin-top: 1rem;
 }
 
-/* ── Responsive: 1180×820 / 1024×768 (sectie 36) ── */
+/* ── Responsive: 1180×820 / 1024×768 (sectie 23/36) — characters worden
+   compacter/dichter naar het bord i.p.v. groter; de ring zelf schaalt al
+   automatisch mee via zijn eigen vh/%-formule (geen aparte breedte-regel
+   hier nodig, V2.8). ── */
 
 @media (max-width: 1180px) {
   .gnv2-setup-photo {
-    width: clamp(150px, 24vw, 260px);
-  }
-  .gnv2-character-head {
-    width: 4.1rem;
-    height: 4.1rem;
+    width: clamp(170px, 42%, 360px);
   }
   .gnv2-player-zone {
-    min-width: 112px;
-    padding: 0.85rem 0.9rem;
+    min-width: 84px;
+    padding: 0.4rem 0.5rem;
+  }
+  .gnv2-character-sm .gnv2-character-head {
+    width: 2.9rem;
+    height: 2.9rem;
   }
 }
 
@@ -5871,8 +6093,20 @@ a.gn-plaque-mini:hover {
   .gnv2-arena-main {
     padding: 0.5rem 1rem;
   }
-  .gnv2-arena-row {
-    gap: 0.9rem;
+  .gnv2-setup-photo {
+    width: clamp(150px, 40%, 300px);
+  }
+  .gnv2-player-zone {
+    min-width: 72px;
+    padding: 0.35rem 0.4rem;
+  }
+  .gnv2-character-sm .gnv2-character-head {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+  .gnv2-character-sm .gnv2-character-name {
+    font-size: 0.72rem;
+    max-width: 4.5rem;
   }
   .gnv2-spotify-panel {
     right: 1rem;
@@ -5880,11 +6114,12 @@ a.gn-plaque-mini:hover {
   }
 }
 
-/* ── Reduced motion (sectie 8/42) — celebraties worden een korte statische
-   gloed i.p.v. bounce/scale/translate; confetti/moment-fades verdwijnen. ── */
+/* ── Reduced motion (sectie 8/10/23/42) — celebraties worden een korte
+   statische gloed i.p.v. bounce/scale/translate; confetti/moment-fades
+   verdwijnen. ── */
 
 @media (prefers-reduced-motion: reduce) {
-  .gnv2-character-celebrate .gnv2-character-head {
+  .gnv2-character-celebrating .gnv2-character-head {
     animation: none !important;
     box-shadow:
       0 0 0 4px var(--gnv2-ring, var(--gnv2-border-strong)),
@@ -6720,5 +6955,285 @@ a.gnv2-history-card:hover {
 @media (max-width: 1024px) {
   .gnv2-history-main {
     padding: 0 1.15rem 1.5rem;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+ * Game Night V2.9C — mobiele Character Creator (.gnv2-*). Zelfde GNV2-
+ * wereld (GnV2Scene), iets speelser: de spelerkleur als persoonlijk accent
+ * (--gnv2-ring op de scene), character centraal, geen hout/messing/
+ * klassieke formulieren. Mobiel-primair: header/preview/tabs/footer vast,
+ * alleen het onderdelen-grid scrollt (sectie 15).
+ * ══════════════════════════════════════════════════════════════════════ */
+
+.gnv2-creator-preview {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  min-height: 34vh;
+  max-height: 46vh;
+  padding: 0.5rem 1.5rem 0.75rem;
+}
+
+.gnv2-creator-preview-frame {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: min(58vw, 230px);
+  aspect-ratio: 1;
+  border-radius: 999px;
+  background: linear-gradient(
+    160deg,
+    var(--gnv2-bg-elevated),
+    var(--gnv2-surface-strong)
+  );
+  box-shadow:
+    0 0 0 4px var(--gnv2-ring, var(--gnv2-accent-warm)),
+    0 0 50px -10px var(--gnv2-ring, transparent),
+    inset 0 1px 0 oklch(1 0 0 / 0.12);
+}
+
+.gnv2-creator-legacy-note {
+  font-size: 0.75rem;
+  color: var(--gnv2-text-faint);
+  text-align: center;
+  max-width: 20rem;
+}
+
+/* Horizontaal scrollbare categoriebar (sectie 3) — geen 8 dichtgeknepen
+   tabs, gewoon een rij die verder scrolt. */
+.gnv2-creator-tabs {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 0.5rem;
+  padding: 0 1.5rem 0.25rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.gnv2-creator-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.gnv2-creator-tab {
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 0 1.15rem;
+  border-radius: 999px;
+  background: var(--gnv2-surface);
+  border: 1px solid var(--gnv2-border);
+  color: var(--gnv2-text-muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.gnv2-creator-tab-active {
+  background: var(--gnv2-accent-warm);
+  color: var(--gnv2-accent-warm-contrast);
+  border-color: transparent;
+}
+
+.gnv2-creator-grid-wrap {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 1rem 1.5rem 1.5rem;
+}
+
+.gnv2-creator-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 0.75rem;
+}
+
+.gnv2-creator-empty-slot {
+  padding: 2rem 0;
+  color: var(--gnv2-text-faint);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.gnv2-creator-footer {
+  position: relative;
+  z-index: 2;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.75rem 1.5rem calc(1rem + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--gnv2-border);
+  background: var(--gnv2-bg-elevated);
+}
+
+.gnv2-creator-status {
+  min-height: 1.1rem;
+  font-size: 0.78rem;
+  text-align: center;
+  color: var(--gnv2-accent-cool);
+}
+
+.gnv2-creator-status-error {
+  color: var(--gnv2-accent-warm-strong);
+}
+
+.gnv2-creator-save {
+  width: 100%;
+}
+
+.gnv2-creator-empty {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 2rem;
+  text-align: center;
+  color: var(--gnv2-text-muted);
+}
+
+/* ── Onderdeel-tegel (CharacterPartTile, sectie 10) — ≥64px touch target
+   (hier ruim: 108px hoog), echte button/radio-semantiek. ── */
+
+.gnv2-part-tile {
+  display: flex;
+  min-height: 108px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.6rem 0.4rem;
+  border-radius: 1rem;
+  background: var(--gnv2-surface);
+  border: 1px solid var(--gnv2-border);
+  transition:
+    border-color 0.15s ease,
+    transform 0.1s ease,
+    opacity 0.15s ease;
+}
+
+.gnv2-part-tile:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.gnv2-part-tile:disabled {
+  cursor: not-allowed;
+}
+
+.gnv2-part-tile-locked {
+  opacity: 0.5;
+}
+
+.gnv2-part-tile-preview {
+  position: relative;
+  display: flex;
+  width: 64px;
+  height: 64px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  background: var(--gnv2-bg-elevated);
+  overflow: hidden;
+}
+
+.gnv2-part-tile-img {
+  width: 88%;
+  height: 88%;
+  object-fit: contain;
+}
+
+.gnv2-part-tile-fallback-icon {
+  width: 40%;
+  height: 40%;
+  color: var(--gnv2-text-faint);
+}
+
+.gnv2-part-tile-lock {
+  position: absolute;
+  bottom: 0.2rem;
+  right: 0.2rem;
+  width: 1.1rem;
+  height: 1.1rem;
+  padding: 0.15rem;
+  border-radius: 999px;
+  background: oklch(0.08 0.02 300 / 0.75);
+  color: var(--gnv2-text-muted);
+}
+
+.gnv2-part-tile-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--gnv2-text-muted);
+  text-align: center;
+  line-height: 1.2;
+}
+
+.gnv2-part-tile-none-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--gnv2-text-faint);
+}
+
+/* ── Reduced motion (sectie 28) — character-preview alleen een fade bij
+   part-wissel, geen bounce/rotatie. ── */
+
+@media (prefers-reduced-motion: reduce) {
+  .gnv2-part-tile,
+  .gnv2-creator-tab {
+    transition: none !important;
+  }
+  .gnv2-part-tile:active {
+    transform: none !important;
+  }
+}
+
+/* ── Responsive: 375×812 / 390×844 / 430×932 primair, tablet/desktop
+   bruikbaar maar begrensd (sectie 15/16). ── */
+
+@media (min-width: 640px) {
+  /* Alleen de in-flow scherm-secties krijgen een max-breedte (sectie 16:
+     "niet gigantisch uitrekken") — bewust NIET via een generieke `> *`-
+     selector, dat zou ook de fixed-position confirm-dialog (die het hele
+     viewport moet blijven overspannen) per ongeluk versmallen. */
+  .gnv2-creator-scene {
+    align-items: center;
+  }
+  .gnv2-creator-scene > .gnv2-topbar,
+  .gnv2-creator-scene > .gnv2-creator-preview,
+  .gnv2-creator-scene > .gnv2-creator-tabs,
+  .gnv2-creator-scene > .gnv2-creator-grid-wrap,
+  .gnv2-creator-scene > .gnv2-creator-footer {
+    width: 100%;
+    max-width: 30rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .gnv2-creator-grid {
+    grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  }
+  .gnv2-part-tile {
+    min-height: 92px;
+  }
+  .gnv2-part-tile-preview {
+    width: 52px;
+    height: 52px;
   }
 }

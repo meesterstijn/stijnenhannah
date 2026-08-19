@@ -33,8 +33,9 @@ export function useGameNightColorPalette() {
   });
 }
 
-// Eigen nickname/kleur bijwerken (sectie 12). De RPC zoekt de rij zelf op
-// via auth_user_id = auth.uid() — er wordt hier bewust geen player-id
+// Eigen nickname/kleur/character bijwerken (sectie 12, V2.8 sectie 5/14
+// uitgebreid met character_id). De RPC zoekt de rij zelf op via
+// auth_user_id = auth.uid() — er wordt hier bewust geen player-id
 // meegegeven, dat zou spoofbare input zijn (sectie 25).
 export function useUpdateMyProfile() {
   const queryClient = useQueryClient();
@@ -42,10 +43,20 @@ export function useUpdateMyProfile() {
     mutationFn: async (input: {
       nickname: string;
       colorId: string | null;
+      // Verplicht (niet optioneel): de RPC zet character_id onvoorwaardelijk
+      // op deze waarde — een aanroep die dit veld "vergeet" zou een al
+      // gekozen character stilzwijgend wissen. Elke caller moet dus altijd
+      // de HUIDIGE (of nieuw gekozen) waarde meesturen, ook als alleen
+      // nickname/kleur wijzigen.
+      characterId: string | null;
     }): Promise<GameNightPlayer> => {
       const { data, error } = await supabase.rpc(
         "game_night_update_my_profile",
-        { p_nickname: input.nickname, p_color_id: input.colorId },
+        {
+          p_nickname: input.nickname,
+          p_color_id: input.colorId,
+          p_character_id: input.characterId,
+        },
       );
       if (error) throw error;
       return data as GameNightPlayer;

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   DndContext,
@@ -20,8 +20,13 @@ import {
 import { usePlayers } from "@/features/game-night/hooks/usePlayers";
 import { useGameNightColorPalette } from "@/features/game-night/hooks/useGameNightMemberProfile";
 import { useGameNightAnalytics } from "@/features/game-night/hooks/useGameNightAnalytics";
+import {
+  useCharacterEquipmentForPlayers,
+  useCharacterParts,
+} from "@/features/game-night/hooks/useCharacterCatalog";
 import { buildPlayerStats } from "@/features/game-night/lib/gameNightStats";
 import { resolvePlayerColorHex } from "@/features/game-night/lib/playerIdentity";
+import { resolvePlayerCharacter } from "@/features/game-night/lib/gameNightCharacter";
 import { formatEveningIdentity } from "@/features/game-night/lib/gameNightName";
 import { GnV2Scene } from "@/features/game-night/v2/GnV2Scene";
 import { PartyStage, PARTY_ZONE_ID } from "@/features/game-night/v2/PartyStage";
@@ -51,6 +56,15 @@ export function GameNightV2Lobby({
   const { data: allPlayers = [] } = usePlayers();
   const { data: palette = [] } = useGameNightColorPalette();
   const { data: analyticsData } = useGameNightAnalytics();
+  // V2.9C (sectie 18/23): ÉÉN batched query voor de catalogus + ÉÉN
+  // batched query voor de equipment van alle spelers "aan tafel" — nooit
+  // een losse query per speler. Unlocks van andere spelers worden bewust
+  // niet geladen (sectie 23: privé, en hier ook niet nodig — alleen
+  // EQUIPPED items tellen voor de weergave).
+  const { data: characterParts = [] } = useCharacterParts();
+  const { data: characterEquipment = [] } = useCharacterEquipmentForPlayers(
+    atTable.map((s) => s.player_id),
+  );
   const addToParty = useAddToParty(session.id);
   const removeFromParty = useRemoveFromParty(session.id);
   const setPartyOrder = useSetPartyOrder(session.id);
@@ -101,6 +115,12 @@ export function GameNightV2Lobby({
     (analyticsData &&
       buildPlayerStats(analyticsData, playerId)?.canonicalWins) ??
     null;
+  const characterPartsById = useMemo(
+    () => new Map(characterParts.map((p) => [p.id, p])),
+    [characterParts],
+  );
+  const characterFor = (player: GameNightPlayer) =>
+    resolvePlayerCharacter(player, characterEquipment, characterPartsById);
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
@@ -201,6 +221,7 @@ export function GameNightV2Lobby({
             seats={atTable}
             colorHex={colorHex}
             lifetimeWins={lifetimeWins}
+            characterFor={characterFor}
             onRemove={(playerId) => removeFromParty.mutate(playerId)}
             onOpenQr={() => setShowQr(true)}
           />

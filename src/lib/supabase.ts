@@ -607,6 +607,9 @@ export type GameNightPlayer = {
   nickname: string | null;
   auth_user_id: string | null;
   color_id: string | null;
+  // Game Night V2.8 (20260913000000) — gekozen character-preset-id (vaste
+  // allowlist, zie characterPresets.ts). Null = nog geen character gekozen.
+  character_id: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -780,4 +783,56 @@ export type GameNightCheckpointPhoto = {
   // Optioneel: van welke speler is deze foto (kaarten/hand) —
   // 20260912090000_game_night_checkpoint_photo_ux.
   player_id: string | null;
+};
+
+// Game Night V2.9B (20260914000000) — modulaire Character Creator-
+// fundament. Zie src/features/game-night/lib/gameNightCharacter.ts voor de
+// pure domain-laag (types/resolvers) die deze rijen consumeert.
+export type GameNightCharacterSlot =
+  | "base"
+  | "face"
+  | "hair"
+  | "outfit"
+  | "headwear"
+  | "accessory"
+  | "effect"
+  | "badge";
+
+export type GameNightCharacterPart = {
+  id: string;
+  key: string;
+  slot: GameNightCharacterSlot;
+  label: string;
+  asset_path: string;
+  layer_order: number;
+  is_starter: boolean;
+  rarity: string;
+  active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type GameNightCharacterUnlockSource =
+  | "starter"
+  | "wins"
+  | "game_achievement"
+  | "attendance"
+  | "title"
+  | "special"
+  | "owner_grant";
+
+export type GameNightPlayerCharacterUnlock = {
+  player_id: string;
+  part_id: string;
+  unlocked_at: string;
+  source: GameNightCharacterUnlockSource;
+  source_ref: string | null;
+};
+
+export type GameNightPlayerCharacterEquipment = {
+  player_id: string;
+  slot: GameNightCharacterSlot;
+  part_id: string;
+  equipped_at: string;
 };

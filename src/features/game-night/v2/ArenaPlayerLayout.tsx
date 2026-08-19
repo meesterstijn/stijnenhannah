@@ -1,20 +1,14 @@
 import type { ReactNode } from "react";
 import type { GameNightPlayer } from "@/lib/supabase";
+import { resolveArenaSeatPositions } from "@/features/game-night/lib/arenaSeatLayout";
 
-// Game Night V2.7B (sectie 4/35) — verdeelt de deelnemers rondom de
-// centrale gamefoto op basis van hun ORDINALE positie in de meegegeven
-// lijst (bestaande seat_order-volgorde uit useGameSessionParticipants,
-// sectie 4: "gebruik ordinale participantpositie, niet nieuwe database-
-// coördinaten") — geen aparte layout-tabel, geen x/y-opslag.
-//
-// 3 spelers krijgt bewust een top-count van 1 (één boven, twee onder) voor
-// een "triangular balance"-gevoel (sectie 35); alle andere aantallen
-// splitsen zo gelijk mogelijk, top >= bottom.
-function topCountFor(total: number): number {
-  if (total === 3) return 1;
-  return Math.ceil(total / 2);
-}
-
+// Game Night V2.8 (sectie 1/7/25/29) — "spel centraal, spelers eromheen":
+// vervangt de vorige top/bottom-rijenlayout (V2.7B) door een ring van
+// expliciet gepositioneerde zetels rond het bord, op basis van de pure
+// resolveArenaSeatPositions()-config (1-6 spelers, testbaar los van React/
+// DOM). Nog altijd de ORDINALE positie van de meegegeven deelnemerslijst
+// (bestaande seat_order-volgorde uit useGameSessionParticipants) — geen
+// nieuwe database-coördinaten, geen aparte layout-tabel.
 export function ArenaPlayerLayout({
   participants,
   center,
@@ -24,29 +18,25 @@ export function ArenaPlayerLayout({
   center: ReactNode;
   renderPlayer: (player: GameNightPlayer, index: number) => ReactNode;
 }) {
-  const topCount = topCountFor(participants.length);
-  const top = participants.slice(0, topCount);
-  const bottom = participants.slice(topCount);
+  const positions = resolveArenaSeatPositions(participants.length);
 
   return (
-    <div className="gnv2-arena-layout" data-count={participants.length}>
-      <div className="gnv2-arena-row gnv2-arena-row-top">
-        {top.map((p, i) => (
-          <div key={p.id} className="gnv2-arena-slot">
+    <div className="gnv2-arena-ring" data-count={participants.length}>
+      <div className="gnv2-arena-board">{center}</div>
+
+      {participants.map((p, i) => {
+        const pos = positions[i];
+        if (!pos) return null;
+        return (
+          <div
+            key={p.id}
+            className="gnv2-arena-seat"
+            style={{ top: `${pos.top}%`, left: `${pos.left}%` }}
+          >
             {renderPlayer(p, i)}
           </div>
-        ))}
-      </div>
-
-      <div className="gnv2-arena-center">{center}</div>
-
-      <div className="gnv2-arena-row gnv2-arena-row-bottom">
-        {bottom.map((p, i) => (
-          <div key={p.id} className="gnv2-arena-slot">
-            {renderPlayer(p, topCount + i)}
-          </div>
-        ))}
-      </div>
+        );
+      })}
     </div>
   );
 }

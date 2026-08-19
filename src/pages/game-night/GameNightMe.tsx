@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Crown, LogOut, Check, Loader2 } from "lucide-react";
+import { Crown, LogOut, Check, Loader2, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { useGameNightAnalytics } from "@/features/game-night/hooks/useGameNightAnalytics";
@@ -8,8 +8,17 @@ import {
   useGameNightColorPalette,
   useUpdateMyProfile,
 } from "@/features/game-night/hooks/useGameNightMemberProfile";
+import {
+  useCharacterEquipmentForPlayers,
+  useCharacterParts,
+} from "@/features/game-night/hooks/useCharacterCatalog";
 import { buildPlayerStats } from "@/features/game-night/lib/gameNightStats";
 import { titlesForPlayer } from "@/features/game-night/lib/gameNightTitles";
+import {
+  characterVisualPropsFor,
+  resolvePlayerCharacter,
+} from "@/features/game-night/lib/gameNightCharacter";
+import { CharacterVisual } from "@/features/game-night/v2/CharacterVisual";
 
 const NICKNAME_MAX_LENGTH = 40;
 
@@ -20,15 +29,34 @@ const NICKNAME_MAX_LENGTH = 40;
 // de vaste tabletop-viewport van GameNightHome (dit is een telefoonpagina).
 // Alle cijfers komen uit de bestaande analytics-laag (useGameNightAnalytics/
 // buildPlayerStats/titlesForPlayer) — geen tweede stats-engine.
+//
+// V2.9C (sectie 2/22): character kiezen/samenstellen verhuisde volledig
+// naar de eigen /game-night/me/character-Creator — deze pagina toont hier
+// alleen nog een read-only preview van het HUIDIGE (modulair-voorrang,
+// anders legacy) character + een duidelijke "Mijn character"-actie. Geen
+// tweede editor meer hier (was de V2.8/V2.9-CharacterSelector-chipgrid).
 export default function GameNightMe() {
   const { session, isOwner } = useAuth();
   const { data, isLoading } = useGameNightAnalytics();
   const { data: palette = [] } = useGameNightColorPalette();
+  const { data: parts = [] } = useCharacterParts();
   const updateProfile = useUpdateMyProfile();
 
   const myPlayer = data?.players.find(
     (p) => p.auth_user_id === session?.user.id,
   );
+
+  const { data: equipment = [] } = useCharacterEquipmentForPlayers(
+    myPlayer ? [myPlayer.id] : [],
+  );
+  const partsById = useMemo(
+    () => new Map(parts.map((p) => [p.id, p])),
+    [parts],
+  );
+  const resolvedCharacter = myPlayer
+    ? resolvePlayerCharacter(myPlayer, equipment, partsById)
+    : undefined;
+  const visualProps = characterVisualPropsFor(resolvedCharacter);
 
   const [nickname, setNickname] = useState("");
   const [colorId, setColorId] = useState<string | null>(null);
@@ -44,9 +72,17 @@ export default function GameNightMe() {
   }, [myPlayer]);
 
   async function handleSave() {
+    if (!myPlayer) return;
     const trimmed = nickname.trim();
     if (!trimmed || trimmed.length > NICKNAME_MAX_LENGTH) return;
-    await updateProfile.mutateAsync({ nickname: trimmed, colorId });
+    await updateProfile.mutateAsync({
+      nickname: trimmed,
+      colorId,
+      // Read-only hier sinds V2.9C (zie bestandscommentaar) — de RPC
+      // vereist dit veld altijd, dus de HUIDIGE waarde ongewijzigd
+      // meesturen i.p.v.'m via deze pagina te laten wijzigen.
+      characterId: myPlayer.character_id,
+    });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }
@@ -109,6 +145,7 @@ export default function GameNightMe() {
   const stats = data ? buildPlayerStats(data, myPlayer.id) : null;
   const titles = data ? titlesForPlayer(data, myPlayer.id) : [];
   const activeColor = palette.find((c) => c.id === colorId);
+  const ringColor = activeColor?.hex ?? myPlayer.color;
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -130,16 +167,24 @@ export default function GameNightMe() {
 
       <div className="gn-panel-elevated px-6 py-6 text-center">
         <span
-          className="gn-player-avatar gn-player-avatar-lg mx-auto"
-          style={
-            activeColor
-              ? { background: activeColor.hex }
-              : myPlayer.color
-                ? { background: myPlayer.color }
-                : undefined
-          }
+          className="gn-player-avatar gn-player-avatar-xl mx-auto"
+          style={{
+            background:
+              visualProps.characterId || visualProps.layers
+                ? "var(--gn-bg-elevated)"
+                : (ringColor ?? undefined),
+            boxShadow:
+              (visualProps.characterId || visualProps.layers) && ringColor
+                ? `0 0 0 3px ${ringColor}`
+                : undefined,
+          }}
         >
-          {(myPlayer.nickname ?? myPlayer.name).charAt(0).toUpperCase()}
+          <CharacterVisual
+            player={myPlayer}
+            characterId={visualProps.characterId}
+            layers={visualProps.layers}
+            loading="eager"
+          />
         </span>
         <h2 className="gn-display mt-3 text-2xl font-semibold sm:text-3xl">
           {(myPlayer.nickname ?? myPlayer.name).toUpperCase()}
@@ -153,6 +198,16 @@ export default function GameNightMe() {
             <Crown className="h-3.5 w-3.5" /> {titles[0].title}
           </p>
         )}
+
+        {/* V2.9C (sectie 2/21): character samenstellen gebeurt volledig in
+            de eigen Creator — hier alleen de duidelijke actie ernaartoe. */}
+        <Link
+          to="/game-night/me/character"
+          className="gn-plaque-action mt-4 flex min-h-[48px] items-center justify-center gap-2 px-6 text-sm font-semibold"
+        >
+          <Sparkles className="h-4 w-4" />
+          Mijn character
+        </Link>
       </div>
 
       {/* Sectie 12: profiel aanpassen — nickname + kleur uit het actieve

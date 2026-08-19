@@ -20,8 +20,17 @@ import {
 } from "@/features/game-night/hooks/useGameNightWinEvents";
 import { useGameNightColorPalette } from "@/features/game-night/hooks/useGameNightMemberProfile";
 import { useGameNightAnalytics } from "@/features/game-night/hooks/useGameNightAnalytics";
+import { useLatestBoardPhoto } from "@/features/game-night/hooks/useCheckpoints";
+import {
+  useCharacterEquipmentForPlayers,
+  useCharacterParts,
+} from "@/features/game-night/hooks/useCharacterCatalog";
 import { useGameArenaSound } from "@/features/game-night/hooks/useGameArenaSound";
-import { resolvePlayerColorHex } from "@/features/game-night/lib/playerIdentity";
+import {
+  getPlayerDisplayName,
+  resolvePlayerColorHex,
+} from "@/features/game-night/lib/playerIdentity";
+import { resolvePlayerCharacter } from "@/features/game-night/lib/gameNightCharacter";
 import { resolveGameArenaTheme } from "@/features/game-night/lib/gameNightArena";
 import {
   buildCompetitiveMoment,
@@ -82,6 +91,13 @@ export function GameNightV2Arena({
   const { data: events = [] } = useGameSessionWinEvents(gameSession.id);
   const { data: palette = [] } = useGameNightColorPalette();
   const { data: analyticsData } = useGameNightAnalytics();
+  const { data: liveBoardPhoto } = useLatestBoardPhoto(gameSession.id);
+  // V2.9C (sectie 19): ÉÉN batched equipmentquery voor alle participants
+  // van DEZE spelsessie — nooit een query per speler.
+  const { data: characterParts = [] } = useCharacterParts();
+  const { data: characterEquipment = [] } = useCharacterEquipmentForPlayers(
+    participants.map((p) => p.id),
+  );
   const recordWin = useRecordWin(gameSession.id);
   const undoWinEvent = useUndoWinEvent(gameSession.id);
   const completeWinSession = useCompleteWinSession();
@@ -107,6 +123,10 @@ export function GameNightV2Arena({
     captureMode: "camera" | "gallery";
   } | null>(null);
   const [confirmFinishOpen, setConfirmFinishOpen] = useState(false);
+  // Sectie 13 (V2.8) — puur presentatie, wisselt NOOIT automatisch: de
+  // setupfoto blijft standaard zichtbaar totdat iemand zelf op de
+  // "Live tafelfoto"-toggle tikt (alleen zichtbaar als die echt bestaat).
+  const [showLivePhoto, setShowLivePhoto] = useState(false);
   const [toasts, setToasts] = useState<{ id: string; text: string }[]>([]);
 
   const moreMenuTriggerRef = useRef<HTMLButtonElement>(null);
@@ -132,6 +152,17 @@ export function GameNightV2Arena({
     () => new Map(participants.map((p) => [p.id, p])),
     [participants],
   );
+  const characterPartsById = useMemo(
+    () => new Map(characterParts.map((p) => [p.id, p])),
+    [characterParts],
+  );
+  function characterFor(player: GameNightPlayer) {
+    return resolvePlayerCharacter(
+      player,
+      characterEquipment,
+      characterPartsById,
+    );
+  }
   const activeEvents = useMemo(
     () => events.filter((e) => e.undone_at == null),
     [events],
@@ -186,6 +217,14 @@ export function GameNightV2Arena({
       setTimeout(() => {
         setMoment((cur) => (cur === nextMoment ? null : cur));
       }, MOMENT_MS);
+    } else {
+      // Sectie 22 (V2.8): de meeste WINs krijgen bewust GEEN competitive
+      // moment ("niet elke WIN heeft een grap nodig") — zonder moment zou
+      // een screenreader-gebruiker dan helemaal geen bevestiging krijgen.
+      // Hergebruikt de bestaande toast/aria-live-mechaniek (kort, niet
+      // permanent) i.p.v. een nieuwe feedbacklaag te bouwen.
+      const player = participantsById.get(playerId);
+      if (player) pushToast(`${getPlayerDisplayName(player)} pakt de WIN`);
     }
   }
 
@@ -312,14 +351,24 @@ export function GameNightV2Arena({
           <ArenaPlayerLayout
             participants={participants}
             center={
-              <ArenaSetupPhoto gameName={gameSession.game.name} theme={theme} />
+              <ArenaSetupPhoto
+                gameName={gameSession.game.name}
+                theme={theme}
+                liveBoardPhotoUrl={liveBoardPhoto?.url ?? null}
+                showLive={showLivePhoto}
+                onToggleLive={() => setShowLivePhoto((v) => !v)}
+              />
             }
             renderPlayer={(player) => (
               <ArenaPlayerZone
                 player={player}
                 colorHex={colorHex(player)}
+                characterId={player.character_id}
+                resolvedCharacter={characterFor(player)}
                 wins={activeWinsByPlayer.get(player.id) ?? 0}
-                celebrating={celebratingPlayerId === player.id}
+                state={
+                  celebratingPlayerId === player.id ? "celebrating" : "normal"
+                }
                 celebrationStyle={theme.celebrationStyle}
                 disabled={recordWin.isPending}
                 onTap={() => handleTap(player.id)}
