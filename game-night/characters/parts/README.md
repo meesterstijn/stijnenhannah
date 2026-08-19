@@ -127,3 +127,88 @@ Alle 14 bestanden hierboven ontbreken nog fysiek — geverifieerd via
 `scripts`/test-run (`existsSync` per pad, zie het V2.9D-opleverrapport).
 Zodra ze hier geplaatst zijn, werkt de Creator/Lobby/Arena zonder verdere
 wijziging.
+
+---
+
+# V2.9E — pixel-art assetstandaard (128×128), aanvullend systeem
+
+Dit vervangt de V2.9D-spec hierboven NIET — beide systemen bestaan naast
+elkaar (zie `CHARACTER_SLOTS` in `gameNightCharacter.ts`: de 8 oude slots
+blijven volledig geldig). De V2.9E-onderdelen staan onder `parts/v2/` in
+plaats van rechtstreeks onder `parts/`, en gebruiken een deel van dezelfde
+slotnamen (`base`, `hair`, `headwear`) plús 9 nieuwe slots.
+
+## Art direction
+
+Modern Clean Pixel — warme, cozy RPG-sfeer (Stardew-achtig, gemoderniseerd),
+front-facing bust, crisp pixel art. **Geen** smoothing/blur bij schalen:
+`image-rendering: pixelated` staat op elke `.gnv2-character-layer` en
+`.gnv2-part-tile-img` (`src/styles.css`).
+
+## Canvas- en anchor-spec (harde eis, ongewijzigd voor élk onderdeel)
+
+- **128×128px**, transparante PNG, voor ELK onderdeel — ook een bril of mond
+  is een volledig 128×128 canvas met het zichtbare element op de juiste
+  positie, nooit een klein bijgesneden sprite'je.
+- **Geen automatische per-asset scaling/cropping tijdens het renderen** —
+  alle schaal-/positielogica gebeurt ÉÉNMALIG bij het genereren van de
+  assets (zie `ANCHORS` in het extractie-script, niet in de React/CSS-laag).
+  De render-laag zelf is bewust dom: `inset:0; object-fit:contain`.
+- **Twee bases**: `male` en `female` — expliciet GEEN derde neutrale/unisex
+  base.
+
+## Mapstructuur
+
+```
+public/game-night/characters/parts/v2/
+  base/  clothing/  eyes/  eyebrows/  mouth/  facial-hair/
+  hair/  glasses/  headwear/  arms/  props/  foreground-effects/
+```
+
+## Slots en laagvolgorde
+
+`base(20) → clothing(25) → eyes(32) → eyebrows(34) → mouth(36) →
+facial-hair(38) → hair(50) → glasses(55) → headwear(60) → arms(65) →
+props(75) → foreground-effects(95)` — zie `DEFAULT_SLOT_LAYER_ORDER` in
+`gameNightCharacter.ts`. `base`/`hair`/`headwear` zijn HERGEBRUIKTE
+slotnamen uit het V2.9D-systeem; het daadwerkelijke `layer_order`-veld per
+part (niet deze tabel) bepaalt de uiteindelijke stapelvolgorde.
+
+## Lichaamsbouw (female-only)
+
+`game_night_players.body_shape` (`small`/`medium`/`large`, default in de
+UI: `medium`, GEEN cupmaten) bepaalt welke female-base-tegel en welke
+kleding-/armvariant renderen. Drie mechanismen, gescheiden per doel:
+
+- **Base**: 3 aparte catalogusrijen (`base-female-small/medium/large`),
+  elk met een eigen `body_shape`-kolom — dit zijn de tegels die de
+  "Lichaamsbouw"-picker toont.
+- **Kleding/armen die op meerdere vormen moeten passen**: ÉÉN rij met
+  `body_shape_variants` (`{small?, medium?, large?: asset_path}`) — de
+  speler kiest ÉÉN tegel, `resolveBodyShapeAssetPath()` kiest de asset.
+- Ontbrekende sleutel in `body_shape_variants` = needs_asset_revision voor
+  die vorm; valt terug op `medium`, dan op `asset_path` — kleding verdwijnt
+  nooit stilzwijgend.
+
+## Pose/prop-compatibiliteit
+
+Een prop met `requires_pose_key` (bv. `prop-mug` → `"hold-mug"`) koppelt
+automatisch aan de bijpassende `arms`-rij (`pose_key` `"hold-mug-f"` of
+`"hold-mug-m"`, geslacht afgeleid uit de actieve base-key) — zie
+`resolveCompatibleArmsPart()`/`applyPoseOverride()` in
+`gameNightCharacter.ts`. De speler kiest in de UI maar ÉÉN voorwerp-tegel;
+de arm-laag wisselt automatisch mee. Props zonder `requires_pose_key`
+(controller/headphones) zijn bewust decoratief — de brondata bevat geen
+bijpassende hand-sprite voor die twee.
+
+## Status (V2.9E)
+
+Uitgesneden en genormaliseerd uit de aangeleverde "Game Night Character
+Assets V1"-spritesheet. Zie
+`supabase/migrations/20260915010000_game_night_character_v2_seed.sql` en de
+TS-spiegel `src/features/game-night/lib/characterV2Manifest.ts` voor de
+exacte, geseedde lijst. Secties die GEEN enkele bruikbare rij opleverden
+(huidskleur, wenkbrauwen, gezichtsbeharing) staan NIET in de seed — geen
+geforceerde slechte crops, zie het V2.9E-opleverrapport voor de volledige
+tally en `V2_NEEDS_ASSET_REVISION_SLOTS` in `characterV2Manifest.ts` voor de
+machine-leesbare samenvatting.
