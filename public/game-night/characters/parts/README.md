@@ -43,9 +43,15 @@ referentiemateriaal** (art-direction-taal, canvas-/anchor-conventies,
 laagvolgorde) — de harde technische eisen (128×128, transparant, exacte
 laagvolgorde/anchors) gelden onverkort ook voor de nieuwe Photoshop-assets.
 De V2.9D-14-onderdelen-set (`parts/base/`, `parts/face/`, enz., zónder
-`/v2/`- of `/custom/`-segment) is losstaand or ongewijzigd: die bestanden
-bestonden nooit fysiek en blijven een legacy-fallback-pad, hier niet bij
-betrokken.
+`/v2/`- of `/custom/`-segment) bestond nooit fysiek — dit veroorzaakte
+zichtbare broken-image-tegels ("Basis 1"/"Basis 2" en de overige 12) in de
+speler-facing Character Creator, inclusief een kapotte stille default-keuze
+voor nieuwe spelers. Alle 14 rijen zijn daarom gedeactiveerd (`active =
+false`, zelfde patroon als de V2.9E-deactivering hierboven, zie
+`supabase/migrations/20260920000000_game_night_character_legacy_starter_deactivate.sql`)
+— niet hard verwijderd, equipment-/unlock-historie blijft intact. Ze
+verschijnen niet meer in de echte Creator, maar wel (gelabeld "inactief")
+in de QA-pagina.
 
 ---
 

@@ -22,26 +22,45 @@ const WASM_BASE_URL =
   "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.0.1/wasm";
 const MODEL_ASSET_PATH = "/game-night/models/selfie_segmenter.tflite";
 
-// Segmentatie-input-resolutie (opdracht sectie 12): we voeren NIET de ruwe
-// camera-foto (soms 4000x3000+) rechtstreeks in, maar hergebruiken de
-// AL BESTAANDE, met optimizeGameNightFacePhoto() op 1600px langste zijde
-// gecapte foto — diezelfde foto die toch al als "origineel" naar Storage
-// gaat. Twee redenen om dat te hergebruiken i.p.v. een aparte, nieuwe
-// downscale-stap te bouwen: (1) het model zelf verwerkt intern sowieso op
-// een vast 256x256-grid, dus een véél grotere input levert geen betere
-// maskerkwaliteit op, alleen tragere canvas-decodering/-compositing op
-// mobiel; (2) 1600px is al de bewezen, bestaande grens voor "verstandige
-// maximale resolutie" in dit project (zelfde constante als
-// growth-photos/checkpoint-foto's).
+// Versie-string voor face_crop.segmentationVersion (zie GameNightFaceCrop
+// in src/lib/supabase.ts) — bump zodra de segmentatie-implementatie of, zoals
+// hier, de vorm van de INPUT (volledige foto -> head-crop) wijzigt, zodat een
+// toekomstige sessie selectief kan herverwerken (bv. "alle faces met een
+// oudere versie liepen nog over de volledige foto, niet over een head-crop").
+export const SEGMENTATION_VERSION = "mediapipe-selfie-segmenter-v2-headcrop";
+
+// Segmentatie-input-resolutie (opdracht sectie 6/12): de input is NIET meer
+// de volledige (tot 1600px) foto en ook niet de ruwe camera-opname, maar een
+// vooraf uitgesneden HOOFDGEBIED — zie computeHeadCropSourceRect()/
+// drawRegionToCanvas() in gameNightFaceCanvas.ts, die dat gebied naar
+// hoogstens HEAD_CROP.maxOutputSidePx (640px) schalen vóórdat het hier
+// binnenkomt. Twee redenen om zo'n head-crop te bouwen i.p.v. de hele foto
+// te segmenteren: (1) shirt/borst/schouders zitten al zoveel mogelijk
+// BUITEN de input, dus MediaPipe hoeft ze niet eens als "geen persoon" te
+// classificeren; (2) het model verwerkt intern sowieso op een vast
+// 256x256-grid, dus een grotere input levert toch geen scherpere
+// maskerrand op, alleen tragere canvas-compositing op mobiel — 640px zit
+// ruim boven die interne modelresolutie (voorkomt zichtbare blokkerigheid
+// na terugschalen naar de uiteindelijke 512x512-export) maar ruim onder de
+// volledige foto.
 export type SegmentationResult = {
   /** Canvas met alpha-transparante achtergrond, zelfde afmetingen als de
-   *  ingevoerde afbeelding (dus GEEN 256x256 — het masker wordt naar de
+   *  ingevoerde head-crop (dus GEEN 256x256 — het masker wordt naar de
    *  volledige inputresolutie geschaald tijdens het compositen). */
   canvas: HTMLCanvasElement;
   /** "gpu" of "cpu" — puur voor diagnose/QA, geen functioneel verschil in
    *  het resultaat. */
   delegate: "gpu" | "cpu";
 };
+
+function readImageDimensions(image: HTMLImageElement | HTMLCanvasElement): {
+  width: number;
+  height: number;
+} {
+  return "naturalWidth" in image
+    ? { width: image.naturalWidth, height: image.naturalHeight }
+    : { width: image.width, height: image.height };
+}
 
 let segmenterPromise: Promise<{
   segmenter: import("@mediapipe/tasks-vision").ImageSegmenter;
@@ -114,7 +133,7 @@ export function preloadFaceSegmenter(): void {
  * een alpha-waarde uit het confidence-masker.
  */
 export async function removeSelfieBackground(
-  image: HTMLImageElement,
+  image: HTMLImageElement | HTMLCanvasElement,
 ): Promise<SegmentationResult> {
   const { segmenter, delegate } = await getSegmenter();
 
@@ -131,8 +150,7 @@ export async function removeSelfieBackground(
     const maskWidth = mask.width;
     const maskHeight = mask.height;
 
-    const width = image.naturalWidth;
-    const height = image.naturalHeight;
+    const { width, height } = readImageDimensions(image);
 
     const canvas = document.createElement("canvas");
     canvas.width = width;

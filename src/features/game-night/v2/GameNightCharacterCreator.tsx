@@ -130,8 +130,25 @@ export default function GameNightCharacterCreator() {
       (!!myPlayer && draftBodyShape !== resolveBodyShape(myPlayer))
     : false;
 
+  // Bugfix (root cause getraceerd, niet aangenomen): deze aanroep miste het
+  // optionele 4e argument, waardoor de Creator's eigen live-preview de
+  // speler's ingestelde face_asset_path nooit meekreeg — resolveDraftLayers
+  // bouwt de face-laag alleen als dit expliciet wordt doorgegeven (zie
+  // gameNightCharacter.ts). Bij een speler zonder enige andere modulaire
+  // equipment (vandaag de realiteit: er bestaat nog geen fysiek base-asset,
+  // zie sectie 13 van het opleverrapport) bleef `previewLayers` daardoor
+  // volledig leeg, en viel CharacterVisual terug op de initiaal-placeholder
+  // — terwijl Lobby/GameNightMe (die via resolvePlayerCharacter() al wél
+  // altijd personalFaceLayer() injecteren) het gezicht gewoon toonden. De
+  // waarde is de kale storage-PAD (geen URL, private bucket) — CharacterVisual
+  // herkent partId "personal-face" en lost zelf een getekende URL op.
   const previewLayers = draft
-    ? resolveDraftLayers(draft, partsById, draftBodyShape)
+    ? resolveDraftLayers(
+        draft,
+        partsById,
+        draftBodyShape,
+        myPlayer?.face_asset_path ?? null,
+      )
     : [];
 
   // Game Night V2.9E — de "Lichaamsbouw"-picker verschijnt zodra de

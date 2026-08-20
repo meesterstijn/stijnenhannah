@@ -6,41 +6,83 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useGameNightAnalytics } from "@/features/game-night/hooks/useGameNightAnalytics";
 import { useCharacterParts } from "@/features/game-night/hooks/useCharacterCatalog";
 import { useUpdateMyFace } from "@/features/game-night/hooks/useGameNightFace";
-import { optimizeGameNightFacePhoto } from "@/features/game-night/lib/optimizeGameNightFacePhoto";
+import {
+  optimizeGameNightFacePhoto,
+  type OptimizedPhoto,
+} from "@/features/game-night/lib/optimizeGameNightFacePhoto";
 import {
   uploadPlayerFaceAsset,
   uploadPlayerFaceOriginal,
 } from "@/features/game-night/lib/gameNightFaceStorage";
 import {
+  computeHeadCropSourceRect,
+  drawRegionToCanvas,
+  HEAD_CROP,
   loadImageFromUrl,
+  mapRectIntoRegion,
+  NECK_CUTOFF_VERSION,
   renderCanonicalFaceCanvas,
+  type FaceSourceRect,
 } from "@/features/game-night/lib/gameNightFaceCanvas";
 import {
   preloadFaceSegmenter,
   removeSelfieBackground,
+  SEGMENTATION_VERSION,
 } from "@/features/game-night/lib/gameNightFaceSegmentation";
 import { FaceCropper } from "@/features/game-night/components/FaceCropper";
-import { personalFaceLayer } from "@/features/game-night/lib/gameNightCharacter";
+import {
+  DEFAULT_BODY_SHAPE,
+  personalFaceLayer,
+  resolveBodyShapeAssetPath,
+} from "@/features/game-night/lib/gameNightCharacter";
 import { GnV2Scene } from "@/features/game-night/v2/GnV2Scene";
 import { CharacterVisual } from "@/features/game-night/v2/CharacterVisual";
 
-const SEGMENTATION_VERSION = "mediapipe-selfie-segmenter-v1";
+type Step =
+  | "pick"
+  | "preparing"
+  | "positioning"
+  | "processing"
+  | "preview"
+  | "saving"
+  | "error";
+type ErrorStage = "prepare" | "segmentation" | "save";
 
-type Step = "pick" | "segmenting" | "cropping" | "saving" | "error";
-type ErrorStage = "segmentation" | "save";
-
-// Game Night — "Maak je Game Night-character": foto maken/kiezen →
-// achtergrond verwijderen (client-side segmentatie) → canonical crop →
-// opslag → face-layer. Bewust EIGEN, kleine route (/game-night/me/face)
-// i.p.v. een stap in GameNightCharacterCreator.tsx: dit is functioneel een
-// volledig andere flow (camera/crop/segmentatie) dan de bestaande
-// onderdelen-kiezer-grid, geen reden om die twee te vermengen.
+// Game Night — "Maak je Game Night-character": foto maken/kiezen → hoofd
+// positioneren (ovale guide, op de RUWE foto) → head-crop → achtergrond
+// verwijderen (client-side segmentatie, alléén op dat head-crop-gebied) →
+// nek-cutoff → canonical 512x512-compositie → preview → opslag → face-laag.
+// Bewust EIGEN, kleine route (/game-night/me/face) i.p.v. een stap in
+// GameNightCharacterCreator.tsx: dit is functioneel een volledig andere flow
+// (camera/crop/segmentatie) dan de bestaande onderdelen-kiezer-grid.
 //
-// Foto-aanlevering hergebruikt bewust het bestaande, bewezen patroon uit
-// PhotoCaptureFlow.tsx/GrowthPhotoInput.tsx (twee verborgen file-inputs,
-// één met `capture`) i.p.v. een eigen WebRTC-camera-overlay te bouwen —
-// hier met `capture="user"` (voorkant/selfiecamera) i.p.v. "environment",
-// want dit is een portret van de speler zelf, geen omgevingsfoto.
+// Belangrijkste wijziging t.o.v. de vorige versie van dit bestand: de
+// volgorde crop/segmentatie is OMGEDRAAID (opdracht sectie 1/6). Voorheen
+// segmenteerde dit bestand eerst de VOLLEDIGE foto en liet de speler daarna
+// pas croppen (om tijdens het positioneren al een transparant resultaat te
+// tonen). Nu positioneert de speler eerst zijn hoofd op de ruwe foto, en
+// wordt uitsluitend een (ruim bemeten) hoofdgebied daaromheen aan MediaPipe
+// aangeboden — met als expliciet doel dat shirt/borst/schouders al zoveel
+// mogelijk BUITEN de segmentatie-input vallen, i.p.v. te vertrouwen op
+// MediaPipe om ze correct als "geen persoon" te classificeren over de hele
+// foto. De "zie meteen transparant resultaat"-eigenschap van de vorige
+// volgorde is vervangen door de nieuwe, expliciete preview-stap ná
+// verwerking (opdracht sectie 9).
+//
+// Camera-implementatie (opdracht sectie 2): bewust nog altijd `capture=
+// "user"` (verborgen file-input, hergebruikt PhotoCaptureFlow.tsx/
+// GrowthPhotoInput.tsx-patroon) i.p.v. een eigen getUserMedia()-camera-
+// overlay. Een live MediaStream-overlay met een ovale kader-tekening zou
+// een volledig nieuwe camera-subsystem betekenen (permissies, stream-
+// lifecycle/cleanup, front-camera-selectie op wisselende apparaten, iOS-
+// Safari-eigenaardigheden, geen garantie dat getUserMedia op elk toestel
+// even soepel werkt als de systeemcamera-app) — dat risico weegt niet op
+// tegen het optionele karakter van deze eis ("mag alleen als dat robuust
+// kan zonder de bestaande galerij-upload te breken"). De ovale guide wordt
+// in plaats daarvan getoond in het positioneringsscherm НА het maken/kiezen
+// van de foto (FaceCropper.tsx) — functioneel hetzelfde resultaat (de
+// speler ziet en gebruikt de ovale guide om zijn hoofd te centreren) zonder
+// het robuustheidsrisico van een eigen cameralaag.
 export default function GameNightFaceSetup() {
   const navigate = useNavigate();
   const { session } = useAuth();
@@ -53,12 +95,11 @@ export default function GameNightFaceSetup() {
     (p) => p.auth_user_id === session?.user.id,
   );
 
-  // Opdracht sectie 9: live body-preview áchter de gesegmenteerde foto in
-  // de cropper. Vandaag bestaat er nog geen production-ready custom
-  // 512x512 body (parts/custom/ is leeg, zie de vorige opleverrapporten) —
-  // deze lookup levert dan simpelweg `undefined` op en FaceCropper toont
-  // gewoon geen body-laag. Zodra een echte body-asset actief wordt
-  // geregistreerd, pakt dit 'm automatisch op, zonder verdere codewijziging.
+  // Opdracht sectie 9: live body-preview in de NIEUWE preview-stap (niet
+  // meer tijdens het positioneren, zie FaceCropper.tsx). Vandaag bestaat er
+  // nog geen production-ready custom 512x512 body (parts/custom/ is leeg) —
+  // deze lookup levert dan simpelweg `undefined` op en de preview toont
+  // gewoon geen body-laag, GEEN placeholder-artwork.
   const bodyPreviewPart = characterParts.find((p) => p.slot === "base");
 
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -66,72 +107,110 @@ export default function GameNightFaceSetup() {
 
   const [step, setStep] = useState<Step>("pick");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [rawPreviewUrl, setRawPreviewUrl] = useState<string | null>(null);
-  const [segmentedImageUrl, setSegmentedImageUrl] = useState<string | null>(
-    null,
-  );
+  const [rawImageUrl, setRawImageUrl] = useState<string | null>(null);
+  const [previewFaceUrl, setPreviewFaceUrl] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [errorStage, setErrorStage] = useState<ErrorStage | null>(null);
-  const cropAreaRef = useRef<Area | null>(null);
-  // Bewaard tussen de segmentatie- en opslagstap: de al-geoptimaliseerde
-  // (grootte-beperkte) foto is zowel de segmentatie-INPUT als het
-  // uiteindelijk als "origineel" te uploaden bestand — één keer berekend,
-  // niet twee keer.
-  const optimizedOriginalRef = useRef<Awaited<
-    ReturnType<typeof optimizeGameNightFacePhoto>
-  > | null>(null);
 
-  // Opdracht sectie 11: vast alvast (optimistisch, fouten genegeerd) de
-  // ~9.4MB WASM-runtime laden zodra deze pagina opent, zodat de
-  // "Achtergrond verwijderen…"-stap na foto-keuze niet ook nog op die
-  // download hoeft te wachten.
+  const cropAreaRef = useRef<Area | null>(null);
+  const optimizedOriginalRef = useRef<OptimizedPhoto | null>(null);
+  const pendingFaceBlobRef = useRef<Blob | null>(null);
+  // De ORIGINELE (strakke, niet-vergrote) crop-rechthoek — dit is wat in
+  // face_crop wordt opgeslagen (zelfde contract als voorheen: "genoeg om
+  // face_asset later opnieuw te genereren vanuit face_original"), NIET het
+  // vergrote hoofdgebied dat alleen als segmentatie-input dient.
+  const pendingCropRectRef = useRef<FaceSourceRect | null>(null);
+
+  // Opdracht sectie 11 (dit bestand behoudt dit gedrag): vast alvast
+  // (optimistisch, fouten genegeerd) de ~9.4MB WASM-runtime laden zodra
+  // deze pagina opent.
   useEffect(() => {
     preloadFaceSegmenter();
   }, []);
 
   useEffect(() => {
-    if (!selectedFile) {
-      setRawPreviewUrl(null);
-      return;
-    }
-    const url = URL.createObjectURL(selectedFile);
-    setRawPreviewUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [selectedFile]);
+    return () => {
+      if (rawImageUrl) URL.revokeObjectURL(rawImageUrl);
+    };
+  }, [rawImageUrl]);
 
   useEffect(() => {
     return () => {
-      if (segmentedImageUrl) URL.revokeObjectURL(segmentedImageUrl);
+      if (previewFaceUrl) URL.revokeObjectURL(previewFaceUrl);
     };
-  }, [segmentedImageUrl]);
+  }, [previewFaceUrl]);
 
-  async function runSegmentation(file: File) {
-    setStep("segmenting");
+  async function prepareFile(file: File) {
+    setStep("preparing");
     setErrorMessage(null);
     setErrorStage(null);
     try {
-      // Segmentatie-input (opdracht sectie 12): de AL BESTAANDE, op 1600px
-      // langste zijde gecapte "origineel"-foto — zie
-      // gameNightFaceSegmentation.ts voor de volledige motivatie om geen
-      // aparte, tweede downscale-stap te bouwen.
       const optimized = await optimizeGameNightFacePhoto(file);
       optimizedOriginalRef.current = optimized;
-      const optimizedUrl = URL.createObjectURL(optimized.blob);
-      try {
-        const sourceImage = await loadImageFromUrl(optimizedUrl);
-        const { canvas } = await removeSelfieBackground(sourceImage);
-        const blob = await new Promise<Blob>((resolve, reject) => {
-          canvas.toBlob((b) => {
-            if (b) resolve(b);
-            else reject(new Error("Kan gesegmenteerde foto niet exporteren."));
-          }, "image/png");
-        });
-        cropAreaRef.current = null;
-        setSegmentedImageUrl(URL.createObjectURL(blob));
-        setStep("cropping");
-      } finally {
-        URL.revokeObjectURL(optimizedUrl);
-      }
+      cropAreaRef.current = null;
+      setRawImageUrl(URL.createObjectURL(optimized.blob));
+      setStep("positioning");
+    } catch (err) {
+      setErrorMessage(
+        err instanceof Error
+          ? err.message
+          : "Foto verwerken is mislukt. Probeer het opnieuw.",
+      );
+      setErrorStage("prepare");
+      setStep("error");
+    }
+  }
+
+  function handlePicked(fileList: FileList | null) {
+    const file = fileList?.[0];
+    if (!file) return;
+    setSelectedFile(file);
+    void prepareFile(file);
+  }
+
+  async function runProcessing(cropArea: Area) {
+    if (!rawImageUrl) return;
+    setStep("processing");
+    setErrorMessage(null);
+    setErrorStage(null);
+    try {
+      const rawImage = await loadImageFromUrl(rawImageUrl);
+      const cropRect: FaceSourceRect = {
+        sourceX: cropArea.x,
+        sourceY: cropArea.y,
+        sourceWidth: cropArea.width,
+        sourceHeight: cropArea.height,
+      };
+      // Head-crop-vóór-segmentatie (opdracht sectie 6): ruimer gebied rondom
+      // de bevestigde crop, alleen dát gaat naar MediaPipe — zie
+      // gameNightFaceCanvas.ts (HEAD_CROP) voor de gekozen marge/resolutie.
+      const headRegion = computeHeadCropSourceRect(
+        cropRect,
+        rawImage.naturalWidth,
+        rawImage.naturalHeight,
+      );
+      const { canvas: headCanvas, scale } = drawRegionToCanvas(
+        rawImage,
+        headRegion,
+        HEAD_CROP.maxOutputSidePx,
+      );
+      const { canvas: segmentedCanvas } =
+        await removeSelfieBackground(headCanvas);
+      const cropInHeadSpace = mapRectIntoRegion(cropRect, headRegion, scale);
+      // renderCanonicalFaceCanvas tekent de gesegmenteerde head-crop op het
+      // canonieke 512x512-canvas EN past daarna de nek-cutoff-fade toe (zie
+      // NECK_CUTOFF in gameNightFaceCanvas.ts) — geen aparte stap hier nodig.
+      const faceBlob = await renderCanonicalFaceCanvas(
+        segmentedCanvas,
+        cropInHeadSpace,
+      );
+      pendingFaceBlobRef.current = faceBlob;
+      pendingCropRectRef.current = cropRect;
+      setPreviewFaceUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return URL.createObjectURL(faceBlob);
+      });
+      setStep("preview");
     } catch (err) {
       setErrorMessage(
         err instanceof Error
@@ -143,43 +222,61 @@ export default function GameNightFaceSetup() {
     }
   }
 
-  function handlePicked(fileList: FileList | null) {
-    const file = fileList?.[0];
-    if (!file) return;
-    setSelectedFile(file);
-    void runSegmentation(file);
+  function handleConfirmPositioning() {
+    const cropArea = cropAreaRef.current;
+    if (!cropArea) return; // react-easy-crop nog niet geïnitialiseerd — knop staat dan disabled
+    void runProcessing(cropArea);
   }
 
-  function handleBackToPick() {
+  function handleAdjustAgain() {
+    setErrorMessage(null);
+    setErrorStage(null);
+    setStep("positioning");
+  }
+
+  function handleAnotherPhoto() {
     setSelectedFile(null);
-    setSegmentedImageUrl(null);
+    setRawImageUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    setPreviewFaceUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
     optimizedOriginalRef.current = null;
+    pendingFaceBlobRef.current = null;
+    pendingCropRectRef.current = null;
+    cropAreaRef.current = null;
     setErrorMessage(null);
     setErrorStage(null);
     setStep("pick");
   }
 
   function handleRetry() {
-    if (!selectedFile) {
-      handleBackToPick();
+    if (errorStage === "prepare") {
+      if (selectedFile) void prepareFile(selectedFile);
+      else handleAnotherPhoto();
       return;
     }
     if (errorStage === "segmentation") {
-      void runSegmentation(selectedFile);
-    } else {
-      void handleConfirmCrop();
+      const cropArea = cropAreaRef.current;
+      if (cropArea) void runProcessing(cropArea);
+      else setStep("positioning");
+      return;
     }
+    void handleUsePreview();
   }
 
   function handleBackToProfile() {
     navigate("/game-night/me");
   }
 
-  async function handleConfirmCrop() {
+  async function handleUsePreview() {
     const optimizedOriginal = optimizedOriginalRef.current;
-    if (!optimizedOriginal || !myPlayer || !segmentedImageUrl) return;
-    const cropArea = cropAreaRef.current;
-    if (!cropArea) return; // react-easy-crop nog niet geïnitialiseerd — knop staat dan disabled
+    const faceBlob = pendingFaceBlobRef.current;
+    const cropRect = pendingCropRectRef.current;
+    if (!optimizedOriginal || !faceBlob || !cropRect || !myPlayer) return;
 
     setStep("saving");
     setErrorMessage(null);
@@ -187,8 +284,7 @@ export default function GameNightFaceSetup() {
     try {
       // 1. Origineel: de al-geoptimaliseerde (grootte-beperkte, nog NIET
       //    gecropte of gesegmenteerde) foto — bewaard voor toekomstige
-      //    herverwerking (bv. een beter segmentatiemodel later), zie het
-      //    opleverrapport.
+      //    herverwerking.
       const uploadedOriginal = await uploadPlayerFaceOriginal(
         myPlayer.id,
         optimizedOriginal.blob,
@@ -196,22 +292,8 @@ export default function GameNightFaceSetup() {
         optimizedOriginal.extension,
       );
 
-      // 2. Afgeleide canonieke 512x512 face-laag: getekend uit de
-      //    GESEGMENTEERDE (transparante-achtergrond) foto, op de door de
-      //    speler gekozen crop-positie. renderCanonicalFaceCanvas vult het
-      //    canvas nergens met een achtergrondkleur — het alfakanaal van de
-      //    segmentatie blijft volledig behouden tot en met de PNG-export.
-      const segmentedImage = await loadImageFromUrl(segmentedImageUrl);
-      const cropRect = {
-        sourceX: cropArea.x,
-        sourceY: cropArea.y,
-        sourceWidth: cropArea.width,
-        sourceHeight: cropArea.height,
-      };
-      const faceBlob = await renderCanonicalFaceCanvas(
-        segmentedImage,
-        cropRect,
-      );
+      // 2. Afgeleide canonieke 512x512 face-laag (al berekend, zie
+      //    runProcessing) — alpha-transparant, nek-cutoff al toegepast.
       const uploadedFace = await uploadPlayerFaceAsset(myPlayer.id, faceBlob);
 
       await updateFace.mutateAsync({
@@ -220,6 +302,7 @@ export default function GameNightFaceSetup() {
         faceCrop: {
           ...cropRect,
           segmentationVersion: SEGMENTATION_VERSION,
+          neckCutoffVersion: NECK_CUTOFF_VERSION,
           processedAt: new Date().toISOString(),
         },
       });
@@ -263,12 +346,19 @@ export default function GameNightFaceSetup() {
     );
   }
 
+  const backAction =
+    step === "pick"
+      ? handleBackToProfile
+      : step === "preview"
+        ? handleAdjustAgain
+        : handleAnotherPhoto;
+
   return (
     <GnV2Scene className="gnv2-creator-scene">
       <header className="gnv2-topbar gnv2-topbar-compact">
         <button
           type="button"
-          onClick={step === "pick" ? handleBackToProfile : handleBackToPick}
+          onClick={backAction}
           className="gnv2-nav-btn"
           aria-label="Terug"
           title="Terug"
@@ -307,8 +397,9 @@ export default function GameNightFaceSetup() {
               }}
             />
             <p className="gnv2-dialog-muted text-center text-sm">
-              Maak een foto van je gezicht of kies een bestaande foto — we
-              verwijderen daarna automatisch de achtergrond.
+              Maak een foto van je gezicht of kies een bestaande foto — je
+              positioneert daarna je hoofd, en we verwijderen automatisch de
+              achtergrond.
             </p>
             <button
               type="button"
@@ -333,11 +424,45 @@ export default function GameNightFaceSetup() {
           </div>
         )}
 
-        {step === "segmenting" && (
+        {step === "preparing" && (
+          <div className="flex flex-col items-center gap-3 text-white/80">
+            <Loader2 className="h-6 w-6 animate-spin" />
+            <p className="text-sm">Foto verwerken…</p>
+          </div>
+        )}
+
+        {step === "positioning" && rawImageUrl && (
+          <div className="flex w-full flex-col items-center gap-4">
+            <FaceCropper
+              imageUrl={rawImageUrl}
+              onCropAreaChange={(area) => {
+                cropAreaRef.current = area;
+              }}
+            />
+            <div className="flex w-full max-w-sm gap-2.5">
+              <button
+                type="button"
+                onClick={handleAnotherPhoto}
+                className="gnv2-btn gnv2-btn-ghost flex-1"
+              >
+                Andere foto
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmPositioning}
+                className="gnv2-btn gnv2-btn-primary flex-1"
+              >
+                Doorgaan
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === "processing" && (
           <div className="relative flex w-full max-w-sm flex-col items-center gap-4">
-            {rawPreviewUrl && (
+            {rawImageUrl && (
               <img
-                src={rawPreviewUrl}
+                src={rawImageUrl}
                 alt=""
                 className="aspect-square w-full rounded-2xl object-cover opacity-30 blur-sm"
               />
@@ -353,30 +478,66 @@ export default function GameNightFaceSetup() {
           </div>
         )}
 
-        {step === "cropping" && segmentedImageUrl && (
+        {step === "preview" && previewFaceUrl && (
           <div className="flex w-full flex-col items-center gap-4">
-            <FaceCropper
-              imageUrl={segmentedImageUrl}
-              bodyPreviewUrl={bodyPreviewPart?.asset_path}
-              onCropAreaChange={(area) => {
-                cropAreaRef.current = area;
+            <p className="gnv2-dialog-muted text-center text-sm font-semibold">
+              Zo ziet je character eruit
+            </p>
+            <div
+              className="relative mx-auto flex aspect-square w-full max-w-xs items-center justify-center overflow-hidden rounded-2xl bg-black/20"
+              style={{
+                backgroundImage:
+                  "conic-gradient(#8a8a8a 90deg, #bdbdbd 90deg 180deg, #8a8a8a 180deg 270deg, #bdbdbd 270deg)",
+                backgroundSize: "20px 20px",
               }}
-            />
-            <div className="flex w-full max-w-sm gap-2.5">
+            >
+              <span className="gnv2-character-layers">
+                {bodyPreviewPart && (
+                  <img
+                    src={resolveBodyShapeAssetPath(
+                      bodyPreviewPart,
+                      DEFAULT_BODY_SHAPE,
+                    )}
+                    alt=""
+                    className="gnv2-character-layer"
+                  />
+                )}
+                <img
+                  src={previewFaceUrl}
+                  alt=""
+                  className="gnv2-character-layer"
+                />
+              </span>
+            </div>
+            <p className="gnv2-dialog-faint max-w-sm text-center text-xs">
+              Klopt de hoofdgrootte, sluit je kin netjes aan, en is de
+              achtergrond/je shirt volledig verdwenen? Zo niet, pas de
+              positionering aan.
+            </p>
+            <div className="flex w-full max-w-sm flex-col gap-2.5">
               <button
                 type="button"
-                onClick={handleBackToPick}
-                className="gnv2-btn gnv2-btn-ghost flex-1"
+                onClick={handleUsePreview}
+                className="gnv2-btn gnv2-btn-primary"
               >
-                Andere foto
+                Deze gebruiken
               </button>
-              <button
-                type="button"
-                onClick={handleConfirmCrop}
-                className="gnv2-btn gnv2-btn-primary flex-1"
-              >
-                Gebruiken
-              </button>
+              <div className="flex gap-2.5">
+                <button
+                  type="button"
+                  onClick={handleAdjustAgain}
+                  className="gnv2-btn gnv2-btn-ghost flex-1"
+                >
+                  Opnieuw aanpassen
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAnotherPhoto}
+                  className="gnv2-btn gnv2-btn-ghost flex-1"
+                >
+                  Andere foto
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -394,7 +555,7 @@ export default function GameNightFaceSetup() {
             <div className="flex w-full gap-2.5">
               <button
                 type="button"
-                onClick={handleBackToPick}
+                onClick={handleAnotherPhoto}
                 className="gnv2-btn gnv2-btn-ghost flex-1"
               >
                 Andere foto kiezen

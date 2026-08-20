@@ -26,24 +26,21 @@ import {
 // zoomen kan alleen INzoomen, nooit een gat creëren. Proportioneel zoomen
 // is hiermee ook automatisch afgedwongen: react-easy-crop kent geen
 // aparte horizontale/verticale schaal.
+//
+// Nieuwe flow (opdracht sectie 1/6): dit component positioneert nu de RUWE,
+// nog niet gesegmenteerde foto — segmentatie gebeurt pas NA het bevestigen
+// van deze crop, op een uit deze positionering afgeleid hoofdgebied (zie
+// computeHeadCropSourceRect() in gameNightFaceCanvas.ts, aangeroepen door
+// GameNightFaceSetup.tsx). Er is hier dus geen zinvolle "body erachter"-
+// preview meer te tonen (de foto is nog ondoorzichtig) — die vergelijking
+// gebeurt voortaan in de nieuwe preview-stap ná verwerking (opdracht sectie
+// 9), niet meer hier.
 export function FaceCropper({
   imageUrl,
-  bodyPreviewUrl,
   onCropAreaChange,
 }: {
-  /** De AL GESEGMENTEERDE (transparante-achtergrond) foto — zie
-   *  gameNightFaceSegmentation.ts. Geen ruwe foto-met-achtergrond meer. */
+  /** De RUWE (nog niet gesegmenteerde) foto. */
   imageUrl: string;
-  /** Optioneel: pad naar een bestaande, actieve 512x512 "base"-catalogus-
-   *  asset (opdracht sectie 9) — rendert als live preview ACHTER de
-   *  gesegmenteerde foto, in exact dezelfde 512x512-coördinatenruimte, zodat
-   *  de speler kan zien of kin/hoofdgrootte/uitlijning kloppen t.o.v. de
-   *  echte body. `undefined`/`null` (vandaag de realiteit: nog geen
-   *  production-ready custom body in de repo) laat deze laag gewoon weg —
-   *  GEEN placeholder-artwork. Zodra er een echte body-asset bijkomt, hoeft
-   *  alleen de aanroeper (GameNightFaceSetup.tsx) een pad door te geven,
-   *  deze component zelf hoeft niet te wijzigen. */
-  bodyPreviewUrl?: string | null;
   /** Vuurt bij elke wijziging (drag/zoom) met de crop-rechthoek in pixels
    *  van de BRONafbeelding — de aanroeper bewaart alleen de laatste waarde,
    *  gebruikt bij bevestigen (zie GameNightFaceSetup.tsx). */
@@ -70,22 +67,6 @@ export function FaceCropper({
   return (
     <div className="w-full max-w-sm space-y-4">
       <div className="relative mx-auto aspect-square w-full overflow-hidden rounded-2xl bg-black">
-        {/* Laagvolgorde (opdracht sectie 10): body ONDER, gesegmenteerde
-            face BOVEN (via de Cropper hieronder, die zelf transparant is
-            buiten de foto), guides/UI HELEMAAL bovenop. Exact zoals de
-            uiteindelijke character-renderer (CharacterVisual: base
-            layer_order 20, personal-face 40). Cropper's eigen container
-            heeft standaard geen achtergrondkleur, dus de transparante delen
-            van de gesegmenteerde foto laten deze body-laag gewoon
-            doorschemeren. */}
-        {bodyPreviewUrl && (
-          <img
-            src={bodyPreviewUrl}
-            alt=""
-            aria-hidden
-            className="pointer-events-none absolute inset-0 h-full w-full object-contain"
-          />
-        )}
         <Cropper
           image={imageUrl}
           crop={crop}
@@ -101,17 +82,26 @@ export function FaceCropper({
           onCropComplete={handleCropComplete}
         />
 
-        {/* Subtiele donkere overlay buiten de head-zone (opdracht sectie 6)
-            — puur decoratief, geen invloed op de crop zelf. De head-zone
-            (top..chin) blijft volledig onbedekt zodat de speler zijn hele
-            hoofd goed kan zien. */}
+        {/* Ovale hoofd-guide (opdracht sectie 2/3): PUUR een positionerings-
+            hulp, geen masking — het is een gewone, doorzichtige cirkel-div
+            met een enorme box-shadow die al het overige (buiten het ovaal)
+            verduistert (de klassieke CSS-"spotlight"-truc). De daadwerkelijke
+            crop/export gebruikt uitsluitend de vierkante `croppedAreaPixels`
+            van de Cropper hierboven — dit ovaal beïnvloedt die rechthoek op
+            geen enkele manier, en haar/oren/hoofdcontour die buiten het
+            ovaal maar binnen de vierkante crop vallen blijven volledig
+            onderdeel van de MediaPipe-input (opdracht sectie 3: "ovaal is
+            een guide, geen ovale afbeelding" — MediaPipe, niet dit ovaal,
+            bepaalt uiteindelijk wat haar/oren/hoofdcontour is). */}
         <div
-          className="pointer-events-none absolute inset-x-0 top-0 bg-black/35"
-          style={{ height: `${topPct}%` }}
-        />
-        <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 bg-black/35"
-          style={{ height: `${100 - chinPct}%` }}
+          className="pointer-events-none absolute -translate-x-1/2 rounded-full border-2 border-emerald-400/80"
+          style={{
+            left: `${centerPct}%`,
+            top: `${topPct}%`,
+            width: `${(chinPct - topPct) * 0.72}%`,
+            height: `${chinPct - topPct}%`,
+            boxShadow: "0 0 0 9999px rgba(0,0,0,0.55)",
+          }}
         />
 
         <div className="pointer-events-none absolute inset-0">
@@ -151,8 +141,8 @@ export function FaceCropper({
       </div>
 
       <p className="text-center text-xs text-white/70">
-        Plaats de bovenkant van je hoofd op de bovenste lijn en je kin op de
-        onderste lijn. Centreer je gezicht op de verticale lijn.
+        Plaats de bovenkant van je haar op de bovenste lijn en je kin op de
+        onderste lijn. Centreer je hoofd in het ovaal.
       </p>
 
       {/* Zoom-slider (opdracht sectie 5: "eventueel een zoom-slider als

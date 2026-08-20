@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import type {
   GameNightBodyShape,
@@ -9,10 +9,14 @@ import {
   CHARACTER_STARTER_MANIFEST,
   starterManifestBySlot,
 } from "@/features/game-night/lib/characterStarterManifest";
-import { useAllCharacterPartsForQa } from "@/features/game-night/hooks/useCharacterCatalog";
+import {
+  useAllCharacterPartsForQa,
+  useCharacterEquipmentForPlayers,
+} from "@/features/game-night/hooks/useCharacterCatalog";
 import { useGameNightAnalytics } from "@/features/game-night/hooks/useGameNightAnalytics";
 import { useSignedFaceUrl } from "@/features/game-night/hooks/useSignedFaceUrl";
 import {
+  characterVisualPropsFor,
   CHARACTER_SLOTS,
   CHARACTER_SLOT_LABELS,
   DEFAULT_BODY_SHAPE,
@@ -20,14 +24,21 @@ import {
   personalFaceLayer,
   resolveBodyShapeAssetPath,
   resolveDraftLayers,
+  resolvePlayerCharacter,
   type CharacterSlotMap,
   type ResolvedCharacterLayer,
 } from "@/features/game-night/lib/gameNightCharacter";
 import {
   BODY_REFERENCE,
   CHARACTER_CANVAS,
+  computeHeadCropSourceRect,
+  drawRegionToCanvas,
   FACE_ANCHOR,
+  HEAD_CROP,
+  loadImageFromUrl,
+  NECK_CUTOFF,
 } from "@/features/game-night/lib/gameNightFaceCanvas";
+import { removeSelfieBackground } from "@/features/game-night/lib/gameNightFaceSegmentation";
 import { GnV2Scene } from "@/features/game-night/v2/GnV2Scene";
 import { CharacterVisual } from "@/features/game-night/v2/CharacterVisual";
 
@@ -320,6 +331,18 @@ function FaceGuideOverlay() {
   const bodyTopPct = (BODY_REFERENCE.topY / CHARACTER_CANVAS.height) * 100;
   const bodyBottomPct =
     (BODY_REFERENCE.bottomY / CHARACTER_CANVAS.height) * 100;
+  // Nek-cutoff fade-zone (opdracht sectie 19: "toon indien mogelijk visueel
+  // de cutoff/fade-zone in debugmodus") — de exacte band, in canonieke
+  // Y-coördinaten, waarbinnen renderCanonicalFaceCanvas de alfa geleidelijk
+  // naar 0 laat lopen (zie applyNeckCutoffFade/NECK_CUTOFF in
+  // gameNightFaceCanvas.ts). Alfa is HARD 0 vanaf de onderkant van deze band.
+  const neckSolidUntilPct =
+    ((FACE_ANCHOR.chinY + NECK_CUTOFF.allowancePx) / CHARACTER_CANVAS.height) *
+    100;
+  const neckFadeEndPct =
+    ((FACE_ANCHOR.chinY + NECK_CUTOFF.allowancePx + NECK_CUTOFF.fadePx) /
+      CHARACTER_CANVAS.height) *
+    100;
   return (
     <div className="pointer-events-none absolute inset-0">
       {/* BODY_REFERENCE-bbox (documentatie, niet afgedwongen) */}
@@ -333,6 +356,19 @@ function FaceGuideOverlay() {
         }}
       />
       <div
+        className="absolute inset-x-0 border-y border-dashed border-amber-400/70 bg-amber-400/10"
+        style={{
+          top: `${neckSolidUntilPct}%`,
+          height: `${neckFadeEndPct - neckSolidUntilPct}%`,
+        }}
+      />
+      <p
+        className="absolute left-1.5 text-[9px] font-semibold text-amber-300"
+        style={{ top: `${neckFadeEndPct}%` }}
+      >
+        nek-cutoff fade-zone
+      </p>
+      <div
         className="absolute inset-x-0 border-t-2 border-emerald-400"
         style={{ top: `${topPct}%` }}
       />
@@ -344,6 +380,160 @@ function FaceGuideOverlay() {
         className="absolute inset-y-0 border-l-2 border-emerald-400/70"
         style={{ left: `${centerPct}%` }}
       />
+    </div>
+  );
+}
+
+// Processing-QA (opdracht sectie 19: "Processing: head-crop vóór
+// segmentation; segmentation-resultaat") — herbouwt op verzoek (knop, niet
+// automatisch — MediaPipe opnieuw draaien is relatief zwaar) exact dezelfde
+// head-crop/segmentatiestappen als de echte flow (GameNightFaceSetup.tsx),
+// via dezelfde geëxporteerde helpers uit gameNightFaceCanvas.ts/
+// gameNightFaceSegmentation.ts — GEEN tweede, losse implementatie van die
+// pipeline. Werkt uitsluitend voor spelers met zowel face_original_path als
+// face_crop (nodig om het oorspronkelijke hoofdgebied te reconstrueren).
+function FaceProcessingDebugPanel({ player }: { player: GameNightPlayer }) {
+  const signedOriginal = useSignedFaceUrl(player.face_original_path);
+  const [status, setStatus] = useState<
+    "idle" | "loading" | "ready" | "error" | "no-data"
+  >("idle");
+  const [headCropUrl, setHeadCropUrl] = useState<string | null>(null);
+  const [segmentedUrl, setSegmentedUrl] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  async function generate() {
+    if (!signedOriginal.data || !player.face_crop) {
+      setStatus("no-data");
+      return;
+    }
+    setStatus("loading");
+    setErrorMsg(null);
+    try {
+      const image = await loadImageFromUrl(signedOriginal.data);
+      const cropRect = {
+        sourceX: player.face_crop.sourceX,
+        sourceY: player.face_crop.sourceY,
+        sourceWidth: player.face_crop.sourceWidth,
+        sourceHeight: player.face_crop.sourceHeight,
+      };
+      const headRegion = computeHeadCropSourceRect(
+        cropRect,
+        image.naturalWidth,
+        image.naturalHeight,
+      );
+      const { canvas: headCanvas } = drawRegionToCanvas(
+        image,
+        headRegion,
+        HEAD_CROP.maxOutputSidePx,
+      );
+      setHeadCropUrl(headCanvas.toDataURL("image/png"));
+      const { canvas: segmentedCanvas } =
+        await removeSelfieBackground(headCanvas);
+      setSegmentedUrl(segmentedCanvas.toDataURL("image/png"));
+      setStatus("ready");
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "Onbekende fout");
+      setStatus("error");
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <button
+        type="button"
+        onClick={() => void generate()}
+        disabled={status === "loading" || !signedOriginal.data}
+        className="gnv2-btn gnv2-btn-ghost px-3 py-1.5 text-xs"
+      >
+        {status === "loading" ? "Bezig…" : "Genereer processing-preview"}
+      </button>
+      {status === "no-data" && (
+        <p className="gn-faint text-[10px]">
+          Geen face_original_path/face_crop beschikbaar voor deze speler.
+        </p>
+      )}
+      {status === "error" && (
+        <p className="text-[10px] text-red-400">{errorMsg}</p>
+      )}
+      {(signedOriginal.data || headCropUrl || segmentedUrl) && (
+        <div className="flex flex-wrap gap-4">
+          {signedOriginal.data && (
+            <div className="w-28 text-center">
+              <p className="mb-1 text-[9px] uppercase tracking-wide text-white/40">
+                Input (origineel)
+              </p>
+              <img
+                src={signedOriginal.data}
+                alt=""
+                className="mx-auto aspect-square w-28 rounded-lg object-cover"
+              />
+            </div>
+          )}
+          {headCropUrl && (
+            <div className="w-28 text-center">
+              <p className="mb-1 text-[9px] uppercase tracking-wide text-white/40">
+                Head-crop (vóór segmentation)
+              </p>
+              <img
+                src={headCropUrl}
+                alt=""
+                className="mx-auto aspect-square w-28 rounded-lg object-cover"
+              />
+            </div>
+          )}
+          {segmentedUrl && (
+            <div className="w-28 text-center">
+              <p className="mb-1 text-[9px] uppercase tracking-wide text-white/40">
+                Segmentation-resultaat
+              </p>
+              <div
+                className="mx-auto aspect-square w-28 overflow-hidden rounded-lg"
+                style={CHECKERBOARD_BG_STYLE}
+              >
+                <img
+                  src={segmentedUrl}
+                  alt=""
+                  className="h-full w-full object-cover"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Composite-QA (opdracht sectie 19: "volledige character composite") — de
+// ECHTE, opgeslagen equipment van de geselecteerde speler (i.t.t. de
+// hiernaast al bestaande "Face + body"-panelen, die uitsluitend base+face
+// tonen) via resolvePlayerCharacter() — dezelfde functie als
+// GameNightMe.tsx/Lobby/Arena, geen aparte resolutielogica.
+function FullCharacterCompositePreview({
+  player,
+}: {
+  player: GameNightPlayer;
+}) {
+  const { data: allParts = [] } = useAllCharacterPartsForQa();
+  const { data: equipment = [] } = useCharacterEquipmentForPlayers([player.id]);
+  const partsById = useMemo(
+    () => new Map(allParts.map((p) => [p.id, p])),
+    [allParts],
+  );
+  const resolved = resolvePlayerCharacter(player, equipment, partsById);
+  const visualProps = characterVisualPropsFor(resolved);
+  return (
+    <div className="w-32 text-center">
+      <p className="mb-1 text-[10px] uppercase tracking-wide text-white/40">
+        Volledige character (opgeslagen equipment)
+      </p>
+      <div className="mx-auto flex aspect-square w-32 items-center justify-center overflow-hidden rounded-xl bg-black/30">
+        <CharacterVisual
+          player={player}
+          characterId={visualProps.characterId}
+          layers={visualProps.layers}
+        />
+      </div>
     </div>
   );
 }
@@ -497,6 +687,18 @@ function PersonalFaceQaSection({
                   </div>
                 </div>
               )}
+
+              {/* 4: volledige, ECHTE opgeslagen character-samenstelling
+                  (opdracht sectie 19 "Composite") — inclusief overige
+                  equipped onderdelen, niet alleen base+face. */}
+              <FullCharacterCompositePreview player={selected} />
+            </div>
+          )}
+
+          {selected && (
+            <div className="space-y-2">
+              <p className="gn-eyebrow">Processing (op verzoek)</p>
+              <FaceProcessingDebugPanel player={selected} />
             </div>
           )}
 
