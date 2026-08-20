@@ -65,7 +65,7 @@ export function FaceCropper({
   const eyeHintPct = topPct + (chinPct - topPct) * 0.4;
 
   return (
-    <div className="w-full max-w-sm space-y-4">
+    <div className="w-full max-w-sm space-y-4 sm:max-w-md lg:max-w-xl">
       <div className="relative mx-auto aspect-square w-full overflow-hidden rounded-2xl bg-black">
         <Cropper
           image={imageUrl}

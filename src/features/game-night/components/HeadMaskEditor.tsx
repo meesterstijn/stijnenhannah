@@ -263,7 +263,7 @@ export function HeadMaskEditor({
   }
 
   return (
-    <div className="w-full max-w-sm space-y-3">
+    <div className="w-full max-w-sm space-y-3 sm:max-w-md lg:max-w-xl">
       <div
         ref={containerRef}
         className="relative mx-auto aspect-square w-full touch-none overflow-hidden rounded-2xl bg-black"

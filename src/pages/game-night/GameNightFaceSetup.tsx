@@ -531,7 +531,7 @@ export default function GameNightFaceSetup() {
                 cropAreaRef.current = area;
               }}
             />
-            <div className="flex w-full max-w-sm gap-2.5">
+            <div className="flex w-full max-w-sm gap-2.5 sm:max-w-md lg:max-w-xl">
               <button
                 type="button"
                 onClick={handleAnotherPhoto}
@@ -597,7 +597,7 @@ export default function GameNightFaceSetup() {
               Zo ziet je character eruit
             </p>
             <div
-              className="relative mx-auto flex aspect-square w-full max-w-xs items-center justify-center overflow-hidden rounded-2xl bg-black/20"
+              className="relative mx-auto flex aspect-square w-full max-w-xs items-center justify-center overflow-hidden rounded-2xl bg-black/20 sm:max-w-sm lg:max-w-md"
               style={{
                 backgroundImage:
                   "conic-gradient(#8a8a8a 90deg, #bdbdbd 90deg 180deg, #8a8a8a 180deg 270deg, #bdbdbd 270deg)",
@@ -627,7 +627,7 @@ export default function GameNightFaceSetup() {
               zijn achtergrond/shirt/schouders volledig verdwenen? Zo niet, pas
               de positionering aan.
             </p>
-            <div className="flex w-full max-w-sm flex-col gap-2.5">
+            <div className="flex w-full max-w-sm flex-col gap-2.5 sm:max-w-sm lg:max-w-md">
               <button
                 type="button"
                 onClick={handleUsePreview}

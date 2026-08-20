@@ -168,18 +168,20 @@ export default function GameNightMe() {
         </button>
       </div>
 
-      <div className="gn-panel-elevated px-6 py-6 text-center">
-        <span
-          className="gn-player-avatar gn-player-avatar-xl mx-auto"
+      <div className="gn-panel-elevated px-4 py-6 text-center sm:px-6">
+        {/* Visuele consistentieronde (sectie 6): het character was hier
+            80px groot binnen een gn-player-avatar-xl-rondje — veel te
+            klein nu er echte, herkenbare characters bestaan. Hergebruikt
+            bewust de BESTAANDE V2-preview-ringframe uit de Character
+            Creator (.gnv2-creator-preview-frame, zelfde --gnv2-ring-
+            aanpak als daar) i.p.v. een nieuwe hero-component te bouwen —
+            zelfde primitief, geen tweede CSS-implementatie. Werkt hier
+            zonder een <GnV2Scene>-wrapper omdat de --gnv2-*-tokens sinds
+            deze ronde op .gamenight-theme zelf staan (zie styles.css). */}
+        <div
+          className="gnv2-creator-preview-frame mx-auto"
           style={{
-            background:
-              visualProps.characterId || visualProps.layers
-                ? "var(--gn-bg-elevated)"
-                : (ringColor ?? undefined),
-            boxShadow:
-              (visualProps.characterId || visualProps.layers) && ringColor
-                ? `0 0 0 3px ${ringColor}`
-                : undefined,
+            ["--gnv2-ring" as string]: ringColor ?? "var(--gnv2-accent-warm)",
           }}
         >
           <CharacterVisual
@@ -188,8 +190,8 @@ export default function GameNightMe() {
             layers={visualProps.layers}
             loading="eager"
           />
-        </span>
-        <h2 className="gn-display mt-3 text-2xl font-semibold sm:text-3xl">
+        </div>
+        <h2 className="gn-display mt-4 text-2xl font-semibold sm:text-3xl">
           {(myPlayer.nickname ?? myPlayer.name).toUpperCase()}
         </h2>
         <p className="gn-faint mt-1 text-xs">Echte naam: {myPlayer.name}</p>

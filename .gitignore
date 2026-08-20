@@ -2,3 +2,9 @@ node_modules
 dist
 .env
 .env.local
+
+# Game Night — automatisch gegenereerde custom-body-assetmanifest/SQL
+# (scripts/generate-custom-body-manifest.mjs, regenereert altijd via
+# predev/prebuild — nooit handmatig bewerken of committen).
+src/features/game-night/generated/
+supabase/generated/

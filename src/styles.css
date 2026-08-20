@@ -1555,6 +1555,37 @@ body:has(.guitar-theme) {
   --gn-felt-soft: oklch(0.32 0.05 155 / 0.28);
   --gn-radius: 0.9rem;
   --gn-font-display: "Cinzel", ui-serif, Georgia, serif;
+  /* Game Night V2 — visuele consistentieronde: deze --gnv2-*-tokens stonden
+     voorheen uitsluitend op .gnv2-scene, dus elke .gnv2-btn/.gnv2-part-tile/
+     enz. was onbruikbaar buiten een <GnV2Scene>-wrapper (de custom
+     properties waren dan simpelweg niet gedefinieerd, met een onzichtbaar/
+     gebroken resultaat tot gevolg). Hier op .gamenight-theme zelf gezet —
+     de gemeenschappelijke voorouder van ELKE Game Night-pagina, ook de
+     niet-GnV2Scene-pagina's zoals GameNightMe/GameNightJoin — zodat
+     bestaande V2-knoppen/tegels/inputs overal binnen Game Night herbruikt
+     kunnen worden zonder een pagina eerst in een volledige nieuwe
+     achtergrond-scene te hoeven wrappen. .gnv2-scene zelf blijft ongewijzigd
+     verantwoordelijk voor zijn EIGEN achtergrond/lay-out; alleen de
+     tokendefinities zijn hierheen verplaatst (identieke waarden, dus geen
+     visueel verschil op bestaande GnV2Scene-pagina's).
+     Zie ook: alle *waarden* hieronder zijn 1-op-1 ongewijzigd overgenomen
+     uit de vorige .gnv2-scene-regel. */
+  --gnv2-bg-base: oklch(0.15 0.032 300);
+  --gnv2-bg-elevated: oklch(0.21 0.038 300);
+  --gnv2-surface: oklch(0.26 0.035 300 / 0.55);
+  --gnv2-surface-strong: oklch(0.28 0.04 300 / 0.78);
+  --gnv2-border: oklch(1 0 0 / 0.09);
+  --gnv2-border-strong: oklch(1 0 0 / 0.18);
+  --gnv2-text: oklch(0.97 0.008 300);
+  --gnv2-text-muted: oklch(0.76 0.02 300);
+  --gnv2-text-faint: oklch(0.58 0.018 300);
+  --gnv2-accent-warm: oklch(0.76 0.15 55);
+  --gnv2-accent-warm-strong: oklch(0.82 0.16 58);
+  --gnv2-accent-warm-contrast: oklch(0.18 0.02 55);
+  --gnv2-accent-cool: oklch(0.74 0.11 200);
+  --gnv2-radius-lg: 1.75rem;
+  --gnv2-radius-md: 1.15rem;
+  --gnv2-font-display: var(--font-serif);
   color: var(--gn-text);
 }
 
@@ -3269,23 +3300,9 @@ a.gn-plaque-mini:hover {
  * ══════════════════════════════════════════════════════════════════════ */
 
 .gnv2-scene {
-  --gnv2-bg-base: oklch(0.15 0.032 300);
-  --gnv2-bg-elevated: oklch(0.21 0.038 300);
-  --gnv2-surface: oklch(0.26 0.035 300 / 0.55);
-  --gnv2-surface-strong: oklch(0.28 0.04 300 / 0.78);
-  --gnv2-border: oklch(1 0 0 / 0.09);
-  --gnv2-border-strong: oklch(1 0 0 / 0.18);
-  --gnv2-text: oklch(0.97 0.008 300);
-  --gnv2-text-muted: oklch(0.76 0.02 300);
-  --gnv2-text-faint: oklch(0.58 0.018 300);
-  --gnv2-accent-warm: oklch(0.76 0.15 55);
-  --gnv2-accent-warm-strong: oklch(0.82 0.16 58);
-  --gnv2-accent-warm-contrast: oklch(0.18 0.02 55);
-  --gnv2-accent-cool: oklch(0.74 0.11 200);
-  --gnv2-radius-lg: 1.75rem;
-  --gnv2-radius-md: 1.15rem;
-  --gnv2-font-display: var(--font-serif);
-
+  /* --gnv2-*-tokens staan nu op .gamenight-theme (zie aldaar) — deze regel
+     blijft uitsluitend verantwoordelijk voor de eigen scene-achtergrond/
+     -lay-out, niet meer voor de tokendefinities zelf. */
   position: relative;
   isolation: isolate;
   display: flex;
@@ -3387,7 +3404,14 @@ a.gn-plaque-mini:hover {
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
-  padding: 1.5rem 1.75rem 0;
+  /* Responsive i.p.v. vaste 1.5rem/1.75rem (visuele consistentieronde,
+     sectie 4: "voorkom dat navigatie al 25-30% van het scherm inneemt op
+     mobiel") — clamp() houdt 'm compact op een korte telefoon-viewport en
+     laat 'm rustig meegroeien op tablet/desktop, geen aparte breakpoint
+     nodig. `env(safe-area-inset-top)` erbovenop (niet in plaats van) zodat
+     een iPhone-notch de topbar nooit onder de systeem-UI duwt. */
+  padding: max(0.85rem, env(safe-area-inset-top))
+    clamp(1rem, 4vw, 1.75rem) 0;
 }
 
 .gnv2-identity {
@@ -3406,7 +3430,11 @@ a.gn-plaque-mini:hover {
 
 .gnv2-identity-date {
   font-family: var(--gnv2-font-display);
-  font-size: 1.6rem;
+  /* clamp i.p.v. vaste 1.6rem (sectie 10: grote titels niet absurd groot op
+     mobiel, maar duidelijke hiërarchie behouden) — 1.6rem blijft het
+     bovenste plafond (ongewijzigd op tablet/desktop), 1.3rem is de
+     ondergrens op de smalste telefoons. */
+  font-size: clamp(1.3rem, 5vw, 1.6rem);
   font-weight: 600;
   letter-spacing: -0.01em;
   text-transform: capitalize;
@@ -6806,12 +6834,17 @@ a.gn-plaque-mini:hover {
 }
 
 /* ══════════════════════════════════════════════════════════════════════
- * Game Night V2.7D — GNV2 Geschiedenis (.gnv2-*): vervangt de houten
- * Geschiedenis-lijst voor de normale V2-flow. Zelfde wereld (GnV2Scene),
- * uitsluitend bestaande data (buildGameNightSummaries/buildGameNightDetail).
+ * GNV2 content-pagina's (gnv2-content-main, gnv2-panel(-elevated),
+ * gnv2-list-row, enz.) — oorspronkelijk alleen voor Geschiedenis (V2.7D),
+ * tijdens de legacy-gn-migratieronde HERNOEMD van gnv2-history- naar het
+ * generieke gnv2-content- zodat Geschiedenis-detail/Spellen/Speldetail/
+ * Spelers/Spelerprofiel/Hall of Fame/Finale allemaal dezelfde bouwstenen
+ * delen i.p.v. elk hun eigen variant. Zelfde wereld (GnV2Scene),
+ * uitsluitend bestaande data — geen van deze klassen introduceert nieuwe
+ * queries/logica.
  * ══════════════════════════════════════════════════════════════════════ */
 
-.gnv2-history-main {
+.gnv2-content-main {
   position: relative;
   z-index: 2;
   flex: 1;
@@ -6823,20 +6856,20 @@ a.gn-plaque-mini:hover {
   overflow-y: auto;
 }
 
-.gnv2-history-intro {
+.gnv2-content-intro {
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
 }
 
-.gnv2-history-heading {
+.gnv2-content-heading {
   font-family: var(--gnv2-font-display);
   font-size: clamp(1.6rem, 3vw, 2rem);
   font-weight: 700;
   color: var(--gnv2-text);
 }
 
-.gnv2-history-sub {
+.gnv2-content-sub {
   font-size: 0.88rem;
   color: var(--gnv2-text-muted);
 }
@@ -6872,13 +6905,13 @@ a.gn-plaque-mini:hover {
   color: var(--gnv2-accent-warm-contrast);
 }
 
-.gnv2-history-list {
+.gnv2-content-list {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
 }
 
-.gnv2-history-card {
+.gnv2-content-card {
   display: block;
   padding: 1.1rem 1.3rem;
   border-radius: var(--gnv2-radius-md);
@@ -6887,18 +6920,18 @@ a.gn-plaque-mini:hover {
   transition: border-color 0.15s ease;
 }
 
-a.gnv2-history-card:hover {
+a.gnv2-content-card:hover {
   border-color: var(--gnv2-accent-cool);
 }
 
-.gnv2-history-card-top {
+.gnv2-content-card-top {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.75rem;
 }
 
-.gnv2-history-card-date {
+.gnv2-content-card-date {
   font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.14em;
@@ -6906,7 +6939,7 @@ a.gnv2-history-card:hover {
   color: var(--gnv2-accent-cool);
 }
 
-.gnv2-history-card-title {
+.gnv2-content-card-title {
   margin-top: 0.15rem;
   font-family: var(--gnv2-font-display);
   font-size: 1.05rem;
@@ -6914,7 +6947,7 @@ a.gnv2-history-card:hover {
   color: var(--gnv2-text);
 }
 
-.gnv2-history-card-badge {
+.gnv2-content-card-badge {
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
@@ -6929,19 +6962,19 @@ a.gnv2-history-card:hover {
   text-transform: uppercase;
 }
 
-.gnv2-history-card-meta {
+.gnv2-content-card-meta {
   margin-top: 0.5rem;
   font-size: 0.82rem;
   color: var(--gnv2-text-muted);
 }
 
-.gnv2-history-card-players {
+.gnv2-content-card-players {
   margin-top: 0.15rem;
   font-size: 0.8rem;
   color: var(--gnv2-text-faint);
 }
 
-.gnv2-history-card-link {
+.gnv2-content-card-link {
   display: inline-flex;
   margin-top: 0.6rem;
   font-size: 0.78rem;
@@ -6951,15 +6984,195 @@ a.gnv2-history-card:hover {
   text-underline-offset: 2px;
 }
 
-.gnv2-history-empty {
+.gnv2-content-empty {
   padding: 2.5rem 0;
   text-align: center;
   font-size: 0.9rem;
   color: var(--gnv2-text-faint);
 }
 
+/* ── Generieke tekst-/paneel-/tegel-primitieven — gnv2-tegenhangers van
+   .gn-panel(-elevated)/.gn-eyebrow/.gn-display/.gn-muted/.gn-faint/.gn-chip,
+   zodat contentpagina's niet meer op de warme .gn-*-tokens hoeven terug te
+   vallen. ── */
+
+.gnv2-panel {
+  background: var(--gnv2-surface);
+  border: 1px solid var(--gnv2-border);
+  border-radius: var(--gnv2-radius-md);
+}
+
+.gnv2-panel-elevated {
+  background: var(--gnv2-surface-strong);
+  border: 1px solid var(--gnv2-border-strong);
+  border-radius: var(--gnv2-radius-md);
+  box-shadow: 0 18px 40px -22px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+}
+
+.gnv2-display {
+  font-family: var(--gnv2-font-display);
+  letter-spacing: -0.01em;
+}
+
+/* .gnv2-eyebrow/.gnv2-muted/.gnv2-faint/.gnv2-chip: zie de al bestaande
+   .gnv2-identity-eyebrow/.gnv2-text-muted-achtige losse regels elders in
+   dit bestand voor het kleurenpatroon — hier als losse, herbruikbare
+   utility-classes (i.t.t. de tot nu toe alleen context-specifiek gebruikte
+   varianten). */
+.gnv2-eyebrow {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gnv2-accent-warm-strong);
+}
+
+.gnv2-muted {
+  color: var(--gnv2-text-muted);
+}
+
+.gnv2-faint {
+  color: var(--gnv2-text-faint);
+}
+
+.gnv2-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  background: var(--gnv2-surface);
+  border: 1px solid var(--gnv2-border);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--gnv2-text-muted);
+}
+
+/* Klikbare rij (spelerslijst, recent-gespeeld-lijst, enz.) — panel-elevated
+   met een vaste min-height voor een prettige touch-target. */
+.gnv2-list-row {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  min-height: 64px;
+  padding: 0.85rem 1.1rem;
+  border-radius: var(--gnv2-radius-md);
+  background: var(--gnv2-surface-strong);
+  border: 1px solid var(--gnv2-border-strong);
+  transition: border-color 0.15s ease;
+}
+
+a.gnv2-list-row:hover,
+button.gnv2-list-row:hover {
+  border-color: var(--gnv2-accent-cool);
+}
+
+.gnv2-stat-block {
+  padding: 0.9rem 1rem;
+  border-radius: var(--gnv2-radius-md);
+  background: var(--gnv2-surface-strong);
+  border: 1px solid var(--gnv2-border-strong);
+  text-align: center;
+}
+
+/* Award-/titelplaquette (GameDetail/Hall of Fame/Finale) — een eenvoudiger,
+   maar nog altijd duidelijk "trofee"-ogende kaart i.p.v. de oude vernagelde
+   messing-plaquette-CSS (.gn-plaque/.gn-plaque-tilt): amber gloed + rand
+   i.p.v. rivets/kanteling. */
+.gnv2-award-plaque {
+  position: relative;
+  padding: 1.4rem 1.3rem;
+  border-radius: var(--gnv2-radius-lg);
+  text-align: center;
+  background: linear-gradient(
+    160deg,
+    var(--gnv2-bg-elevated),
+    var(--gnv2-surface-strong)
+  );
+  border: 1px solid var(--gnv2-border-strong);
+  box-shadow:
+    inset 0 0 0 1px oklch(0.76 0.15 55 / 0.16),
+    0 18px 40px -22px rgba(0, 0, 0, 0.65);
+}
+
+.gnv2-cover {
+  position: relative;
+  border-radius: 0.85rem;
+  overflow: hidden;
+  background: var(--gnv2-bg-elevated);
+  border: 1px solid var(--gnv2-border);
+  box-shadow: 0 12px 26px -16px rgba(0, 0, 0, 0.6);
+}
+
+.gnv2-game-card {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: var(--gnv2-radius-md);
+  background: var(--gnv2-surface-strong);
+  border: 1px solid var(--gnv2-border-strong);
+  transition:
+    border-color 0.15s ease,
+    transform 0.12s ease;
+}
+
+.gnv2-game-card:active {
+  transform: scale(0.98);
+}
+
+/* "VS"-badge (rivaliteit-koppen, GameDetail) — gnv2-tegenhanger van
+   .gn-rivalry-vs-badge. */
+.gnv2-vs-badge {
+  display: inline-flex;
+  height: 2.25rem;
+  width: 2.25rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: linear-gradient(
+    180deg,
+    var(--gnv2-accent-warm-strong),
+    var(--gnv2-accent-warm)
+  );
+  color: var(--gnv2-accent-warm-contrast);
+  font-family: var(--gnv2-font-display);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+/* Finale (GameNightFinale) — gnv2-tegenhanger van .gn-finale-reveal/
+   -dot(-active). Hergebruikt de bestaande @keyframes gn-finale-in (niet
+   thema-gebonden) zodat er geen tweede identieke keyframe-set nodig is. */
+.gnv2-finale-reveal {
+  animation: gn-finale-in 0.45s cubic-bezier(0.16, 0.8, 0.24, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gnv2-finale-reveal {
+    animation: none !important;
+  }
+}
+
+.gnv2-finale-dot {
+  height: 0.4rem;
+  width: 0.4rem;
+  border-radius: 999px;
+  background: var(--gnv2-border-strong);
+  transition:
+    background-color 0.2s ease,
+    width 0.2s ease;
+}
+
+.gnv2-finale-dot-active {
+  width: 1.1rem;
+  background: var(--gnv2-accent-warm-strong);
+}
+
 @media (max-width: 1024px) {
-  .gnv2-history-main {
+  .gnv2-content-main {
     padding: 0 1.15rem 1.5rem;
   }
 }
@@ -7122,7 +7335,12 @@ a.gnv2-history-card:hover {
 
 .gnv2-creator-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  /* 112px-vloer (was 84px, visuele consistentieronde sectie 7: "2 kolommen
+     op kleine telefoons, eventueel 3 op bredere") — bij deze vloer geeft
+     auto-fill vanzelf precies 2 kolommen op 360-390px-brede telefoons en
+     3 vanaf ~412px, zonder aparte breakpoints: elke tegel blijft altijd
+     minstens 112px, `1fr` verdeelt de rest van de ruimte gelijk. */
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
   gap: 0.75rem;
 }
 
@@ -7179,7 +7397,11 @@ a.gnv2-history-card:hover {
 
 .gnv2-part-tile {
   display: flex;
-  min-height: 108px;
+  /* Was 108px vast — nu een vloer, laat 'm meegroeien met de bredere
+     kolommen die de 112px-grid-minmax hierboven oplevert (visuele
+     consistentieronde sectie 7/8: character-assets duidelijker zichtbaar,
+     geen half-lege ruimte rond een klein vast voorbeeld). */
+  min-height: 140px;
   flex-direction: column;
   align-items: center;
   justify-content: center;
@@ -7209,8 +7431,12 @@ a.gnv2-history-card:hover {
 .gnv2-part-tile-preview {
   position: relative;
   display: flex;
-  width: 64px;
-  height: 64px;
+  /* Was vast 64×64px — nu evenredig met de daadwerkelijke tegelbreedte
+     (aspect-ratio:1 houdt 'm altijd vierkant, zelfde canonical 512×512-
+     verhouding als de asset zelf), zodat een bredere grid-kolom ook
+     daadwerkelijk een groter, beter zichtbaar voorbeeld toont. */
+  width: 100%;
+  aspect-ratio: 1;
   align-items: center;
   justify-content: center;
   border-radius: 0.75rem;
@@ -7245,6 +7471,30 @@ a.gnv2-history-card:hover {
   color: var(--gnv2-text-muted);
 }
 
+/* Check-badge op een geequipte tegel (sectie 8: "niet alleen kleurverschil")
+   — vormgebaseerd signaal bovenop de bestaande kleurring, altijd zichtbaar
+   ongeacht spelerkleur. */
+.gnv2-part-tile-check {
+  position: absolute;
+  top: 0.3rem;
+  right: 0.3rem;
+  width: 1.35rem;
+  height: 1.35rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: var(--gnv2-accent-warm-contrast);
+  box-shadow:
+    0 0 0 2px oklch(0.08 0.02 300 / 0.85),
+    0 2px 6px -1px rgba(0, 0, 0, 0.5);
+}
+
+.gnv2-part-tile-check svg {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
 .gnv2-part-tile-label {
   font-size: 0.7rem;
   font-weight: 600;
@@ -7272,19 +7522,38 @@ a.gnv2-history-card:hover {
   }
 }
 
-/* ── Responsive: 375×812 / 390×844 / 430×932 primair, tablet/desktop
-   bruikbaar maar begrensd (sectie 15/16). ── */
+/* ── Responsive: 360×800 / 390×844 / 412×915 mobile-first primair, 800×1280
+   tablet-portret en 1280×800 (Samsung Tab S9) tablet-landschap krijgen een
+   echte 40/60-lay-out i.p.v. gewoon de mobiele kolom te centreren (visuele
+   consistentieronde sectie 7/14). ── */
 
-@media (min-width: 640px) {
-  /* Alleen de in-flow scherm-secties krijgen een max-breedte (sectie 16:
-     "niet gigantisch uitrekken") — bewust NIET via een generieke `> *`-
-     selector, dat zou ook de fixed-position confirm-dialog (die het hele
-     viewport moet blijven overspannen) per ongeluk versmallen. */
+/* `.gnv2-creator-body`/`-left`/`-right` zijn PUUR groeperende wrappers om
+   GameNightCharacterCreator.tsx's bestaande, ongewijzigde kind-elementen
+   (preview / lichaamsbouw-picker / tabs / grid / footer) heen — op mobiel
+   `display: contents` zodat ze zelf NIETS aan de bestaande, beproefde
+   verticale flex-stack-volgorde in .gnv2-creator-scene veranderen (de
+   kinderen renderen alsof de wrapper er niet is), pas vanaf de
+   tablet-breakpoint hieronder worden het echte flex-containers. */
+.gnv2-creator-body,
+.gnv2-creator-body-left,
+.gnv2-creator-body-right {
+  display: contents;
+}
+
+/* Middenband (grote telefoon/kleine tablet in portret, 640-799px): nog
+   steeds mobiele single-column-flow, alleen gecentreerd met een leesbare
+   max-breedte i.p.v. random tot de volle breedte uit te rekken — GEEN
+   verkleinde desktop-lay-out, gewoon dezelfde mobiele kolom een stukje
+   breder. Bewust NIET via een generieke `> *`-selector (zou ook de
+   fixed-position confirm-dialog, die het hele viewport moet overspannen,
+   per ongeluk versmallen). */
+@media (min-width: 640px) and (max-width: 799px) {
   .gnv2-creator-scene {
     align-items: center;
   }
   .gnv2-creator-scene > .gnv2-topbar,
   .gnv2-creator-scene > .gnv2-creator-preview,
+  .gnv2-creator-scene > .gnv2-creator-bodyshape,
   .gnv2-creator-scene > .gnv2-creator-tabs,
   .gnv2-creator-scene > .gnv2-creator-grid-wrap,
   .gnv2-creator-scene > .gnv2-creator-footer {
@@ -7293,15 +7562,108 @@ a.gnv2-history-card:hover {
   }
 }
 
-@media (max-width: 360px) {
-  .gnv2-creator-grid {
-    grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+/* Echte tablet-lay-out vanaf 800px (dekt zowel Tab S9 portret 800×1280 als
+   landschap 1280×800, sectie 7/14: "LEFT grote sticky preview, RIGHT
+   slot-tabs + asset-grid"). */
+@media (min-width: 800px) {
+  .gnv2-creator-scene {
+    align-items: stretch;
   }
-  .gnv2-part-tile {
-    min-height: 92px;
+  .gnv2-creator-scene > .gnv2-topbar {
+    width: 100%;
+    max-width: none;
   }
-  .gnv2-part-tile-preview {
-    width: 52px;
-    height: 52px;
+
+  .gnv2-creator-body {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    max-width: 72rem;
+    margin: 0 auto;
+    gap: clamp(1.5rem, 3vw, 3rem);
+    padding: 0 clamp(1.5rem, 4vw, 3rem) 1.5rem;
   }
+  .gnv2-creator-body-left {
+    flex: 0 0 clamp(200px, 32vw, 320px);
+    position: sticky;
+    top: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.25rem;
+    padding-top: 1rem;
+  }
+  /* Binnen de linkerkolom mag de preview zijn eigen ruimte volledig
+     gebruiken — de vh-gebaseerde grenzen van .gnv2-creator-preview bestaan
+     alleen om op mobiel boven de tabs/grid ruimte vrij te houden, hier is
+     de kolom er juist FÉÉN voor. */
+  .gnv2-creator-body-left .gnv2-creator-preview {
+    min-height: 0;
+    max-height: none;
+    padding: 0;
+  }
+  .gnv2-creator-body-left .gnv2-creator-preview-frame {
+    width: min(22vw, 320px);
+  }
+  .gnv2-creator-body-right {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .gnv2-creator-body-right .gnv2-creator-tabs,
+  .gnv2-creator-body-right .gnv2-creator-grid-wrap,
+  .gnv2-creator-body-right .gnv2-creator-footer {
+    padding-left: 0;
+    padding-right: 0;
+  }
+}
+
+/* ── Join-flow (GameNightJoin.tsx, visuele consistentieronde sectie 5) ──
+   Verving volledig generieke site-Tailwind (bg-primary/kale <input>) door
+   dezelfde gecentreerde-kaart-op-GnV2Scene-aanpak als de rest van V2 — geen
+   nieuw patroon, alleen de bestaande scene/knoppen/inputs op een nieuwe
+   pagina toegepast. */
+
+.gnv2-join-scene {
+  align-items: center;
+  justify-content: center;
+}
+
+.gnv2-join-center {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(1.5rem, 6vw, 3rem) clamp(1rem, 4vw, 2rem);
+}
+
+.gnv2-join-card {
+  width: 100%;
+  max-width: 26rem;
+  padding: clamp(1.5rem, 5vw, 2.25rem);
+  border-radius: var(--gnv2-radius-lg);
+  background: var(--gnv2-surface-strong);
+  border: 1px solid var(--gnv2-border-strong);
+  box-shadow: 0 24px 60px -24px rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(12px);
+}
+
+.gnv2-join-card-narrow {
+  max-width: 22rem;
+  text-align: center;
+}
+
+/* "JE ZIT AAN TAFEL" — het character mag hier duidelijk groter zijn dan de
+   standaard creator-preview-frame (230px-plafond), dit IS het hoofdelement
+   van het scherm. */
+.gnv2-join-success .gnv2-creator-preview-frame {
+  width: min(56vw, 240px);
 }

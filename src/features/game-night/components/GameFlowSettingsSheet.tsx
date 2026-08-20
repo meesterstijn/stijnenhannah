@@ -81,7 +81,7 @@ function NumberField({
 }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="gn-faint text-[11px] uppercase tracking-wide">
+      <span className="gnv2-faint text-[11px] uppercase tracking-wide">
         {label}
       </span>
       <input
@@ -114,7 +114,7 @@ function ToggleRow({
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
         <p className="text-sm font-medium">{label}</p>
-        {help && <p className="gn-faint mt-0.5 text-xs">{help}</p>}
+        {help && <p className="gnv2-faint mt-0.5 text-xs">{help}</p>}
       </div>
       <button
         type="button"
@@ -260,19 +260,19 @@ export function GameFlowSettingsSheet({
     setSetupPhoto.isPending;
 
   return (
-    <div className="gn-sheet-backdrop" role="dialog" aria-modal="true">
-      <div className="gn-sheet-card">
+    <div className="gnv2-sheet-backdrop" role="dialog" aria-modal="true">
+      <div className="gnv2-sheet-card">
         <div className="flex items-start justify-between">
           <div>
-            <p className="gn-eyebrow">{game.name}</p>
-            <p className="gn-display text-xl font-semibold tracking-wide">
+            <p className="gnv2-eyebrow">{game.name}</p>
+            <p className="gnv2-display text-xl font-semibold tracking-wide">
               Spelverloop
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="gn-topnav-icon-btn"
+            className="gnv2-nav-btn"
             aria-label="Sluiten"
           >
             <X className="h-3.5 w-3.5" />
@@ -329,9 +329,9 @@ export function GameFlowSettingsSheet({
 
           <div
             className="border-t pt-4"
-            style={{ borderColor: "var(--gn-border)" }}
+            style={{ borderColor: "var(--gnv2-border)" }}
           >
-            <p className="gn-eyebrow mb-3">Spelinfo</p>
+            <p className="gnv2-eyebrow mb-3">Spelinfo</p>
             <div className="grid grid-cols-2 gap-3">
               <NumberField
                 label="Min. spelers"
@@ -356,7 +356,7 @@ export function GameFlowSettingsSheet({
             </div>
 
             <div className="mt-3">
-              <p className="gn-faint text-[11px] uppercase tracking-wide">
+              <p className="gnv2-faint text-[11px] uppercase tracking-wide">
                 Moeilijkheid
               </p>
               <select
@@ -379,7 +379,7 @@ export function GameFlowSettingsSheet({
             </div>
 
             <div className="mt-3">
-              <p className="gn-faint mb-1.5 text-[11px] uppercase tracking-wide">
+              <p className="gnv2-faint mb-1.5 text-[11px] uppercase tracking-wide">
                 Tags
               </p>
               <div className="flex flex-wrap gap-1.5">
@@ -390,7 +390,7 @@ export function GameFlowSettingsSheet({
                       key={tag}
                       type="button"
                       onClick={() => toggleTag(tag)}
-                      className={`gn-choice-chip ${selected ? "gn-choice-chip-selected" : ""}`}
+                      className={`gnv2-chip-toggle ${selected ? "gnv2-chip-toggle-selected" : ""}`}
                       style={{ minHeight: 36, padding: "0 0.75rem" }}
                     >
                       {gameTagLabel(tag)}
@@ -407,20 +407,20 @@ export function GameFlowSettingsSheet({
               daadwerkelijk visueel gebruikt (zie gameNightArena.ts). */}
           <div
             className="border-t pt-4"
-            style={{ borderColor: "var(--gn-border)" }}
+            style={{ borderColor: "var(--gnv2-border)" }}
           >
-            <p className="gn-eyebrow mb-3">Game Arena</p>
+            <p className="gnv2-eyebrow mb-3">Game Arena</p>
 
             <div className="flex flex-col gap-3">
               <div>
-                <p className="gn-faint mb-1.5 text-[11px] uppercase tracking-wide">
+                <p className="gnv2-faint mb-1.5 text-[11px] uppercase tracking-wide">
                   Setup/bordfoto
                 </p>
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="gn-cover flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden"
+                    className="gnv2-cover flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden"
                   >
                     {setupPreviewUrl ? (
                       <img
@@ -429,7 +429,7 @@ export function GameFlowSettingsSheet({
                         className="h-full w-full object-cover"
                       />
                     ) : (
-                      <ImagePlus className="gn-faint h-5 w-5" />
+                      <ImagePlus className="gnv2-faint h-5 w-5" />
                     )}
                   </button>
                   <input
@@ -443,7 +443,7 @@ export function GameFlowSettingsSheet({
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className="gn-muted text-xs underline"
+                      className="gnv2-muted text-xs underline"
                     >
                       {setupPreviewUrl ? "Vervangen" : "Uploaden"}
                     </button>
@@ -451,14 +451,14 @@ export function GameFlowSettingsSheet({
                       <button
                         type="button"
                         onClick={handleRemoveSetupPhoto}
-                        className="gn-muted text-xs underline"
+                        className="gnv2-muted text-xs underline"
                       >
                         Verwijderen
                       </button>
                     )}
                   </div>
                 </div>
-                <p className="gn-faint mt-1.5 text-[11px]">
+                <p className="gnv2-faint mt-1.5 text-[11px]">
                   Zonder eigen setupfoto gebruikt de Game Arena later de
                   coverfoto.
                 </p>
@@ -493,7 +493,7 @@ export function GameFlowSettingsSheet({
                         }
                         className="h-8 w-10 cursor-pointer border-0 bg-transparent p-0"
                       />
-                      <span className="gn-faint font-mono text-xs">
+                      <span className="gnv2-faint font-mono text-xs">
                         {arena.arena_primary_color}
                       </span>
                     </div>
@@ -528,7 +528,7 @@ export function GameFlowSettingsSheet({
                         }
                         className="h-8 w-10 cursor-pointer border-0 bg-transparent p-0"
                       />
-                      <span className="gn-faint font-mono text-xs">
+                      <span className="gnv2-faint font-mono text-xs">
                         {arena.arena_secondary_color}
                       </span>
                     </div>
@@ -537,7 +537,7 @@ export function GameFlowSettingsSheet({
               </div>
 
               <div>
-                <p className="gn-faint mb-1.5 text-[11px] uppercase tracking-wide">
+                <p className="gnv2-faint mb-1.5 text-[11px] uppercase tracking-wide">
                   Arena-stijl
                 </p>
                 <div className="flex flex-wrap gap-1.5">
@@ -546,7 +546,7 @@ export function GameFlowSettingsSheet({
                     onClick={() =>
                       setArena((a) => ({ ...a, arena_style: null }))
                     }
-                    className={`gn-choice-chip ${arena.arena_style === null ? "gn-choice-chip-selected" : ""}`}
+                    className={`gnv2-chip-toggle ${arena.arena_style === null ? "gnv2-chip-toggle-selected" : ""}`}
                   >
                     Standaard
                   </button>
@@ -557,7 +557,7 @@ export function GameFlowSettingsSheet({
                       onClick={() =>
                         setArena((a) => ({ ...a, arena_style: style }))
                       }
-                      className={`gn-choice-chip ${arena.arena_style === style ? "gn-choice-chip-selected" : ""}`}
+                      className={`gnv2-chip-toggle ${arena.arena_style === style ? "gnv2-chip-toggle-selected" : ""}`}
                     >
                       {ARENA_STYLE_LABELS[style]}
                     </button>
@@ -566,7 +566,7 @@ export function GameFlowSettingsSheet({
               </div>
 
               <div>
-                <p className="gn-faint mb-1.5 text-[11px] uppercase tracking-wide">
+                <p className="gnv2-faint mb-1.5 text-[11px] uppercase tracking-wide">
                   Symbool
                 </p>
                 <div className="flex flex-wrap gap-1.5">
@@ -580,7 +580,7 @@ export function GameFlowSettingsSheet({
                         onClick={() =>
                           setArena((a) => ({ ...a, arena_symbol: symbol }))
                         }
-                        className={`gn-choice-chip inline-flex items-center gap-1.5 ${selected ? "gn-choice-chip-selected" : ""}`}
+                        className={`gnv2-chip-toggle inline-flex items-center gap-1.5 ${selected ? "gnv2-chip-toggle-selected" : ""}`}
                       >
                         <Icon className="h-3.5 w-3.5" />
                         {ARENA_SYMBOL_LABELS[symbol]}
@@ -591,7 +591,7 @@ export function GameFlowSettingsSheet({
               </div>
 
               <div>
-                <p className="gn-faint mb-1.5 text-[11px] uppercase tracking-wide">
+                <p className="gnv2-faint mb-1.5 text-[11px] uppercase tracking-wide">
                   WIN-effect
                 </p>
                 <div className="flex flex-wrap gap-1.5">
@@ -600,7 +600,7 @@ export function GameFlowSettingsSheet({
                     onClick={() =>
                       setArena((a) => ({ ...a, celebration_style: null }))
                     }
-                    className={`gn-choice-chip ${arena.celebration_style === null ? "gn-choice-chip-selected" : ""}`}
+                    className={`gnv2-chip-toggle ${arena.celebration_style === null ? "gnv2-chip-toggle-selected" : ""}`}
                   >
                     Standaard
                   </button>
@@ -614,20 +614,20 @@ export function GameFlowSettingsSheet({
                           celebration_style: style,
                         }))
                       }
-                      className={`gn-choice-chip ${arena.celebration_style === style ? "gn-choice-chip-selected" : ""}`}
+                      className={`gnv2-chip-toggle ${arena.celebration_style === style ? "gnv2-chip-toggle-selected" : ""}`}
                     >
                       {CELEBRATION_STYLE_LABELS[style]}
                     </button>
                   ))}
                 </div>
-                <p className="gn-faint mt-1.5 text-[11px]">
+                <p className="gnv2-faint mt-1.5 text-[11px]">
                   De animatie zelf volgt in een latere fase — dit kiest alleen
                   de stijl.
                 </p>
               </div>
 
               <div>
-                <p className="gn-faint mb-1.5 text-[11px] uppercase tracking-wide">
+                <p className="gnv2-faint mb-1.5 text-[11px] uppercase tracking-wide">
                   Live Play-tagline
                 </p>
                 <textarea
@@ -643,7 +643,7 @@ export function GameFlowSettingsSheet({
                   placeholder='Bijv. "Het eiland ligt open. De strijd kan beginnen."'
                   className="w-full px-3 py-2 text-sm"
                 />
-                <p className="gn-faint mt-1 text-right text-[10px]">
+                <p className="gnv2-faint mt-1 text-right text-[10px]">
                   {(arena.arena_tagline ?? "").length}/140
                 </p>
               </div>
@@ -661,11 +661,9 @@ export function GameFlowSettingsSheet({
           type="button"
           onClick={handleSave}
           disabled={saving}
-          className="gn-plaque-action gn-plaque-action-primary mt-5 w-full px-6 py-3.5"
+          className="gnv2-btn gnv2-btn-primary mt-5 w-full"
         >
-          <span className="gn-display text-lg font-semibold tracking-wide">
-            {saving ? "Bezig..." : "Opslaan"}
-          </span>
+          {saving ? "Bezig..." : "Opslaan"}
         </button>
       </div>
     </div>

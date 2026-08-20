@@ -10,7 +10,7 @@ export function PlayerLink({ player }: { player: GameNightPlayer }) {
   return (
     <Link
       to={`/game-night/spelers/${player.id}`}
-      className="underline decoration-dotted underline-offset-2 hover:text-[var(--gn-brass)]"
+      className="underline decoration-dotted underline-offset-2 hover:text-[var(--gnv2-accent-warm-strong)]"
     >
       {player.name}
     </Link>

@@ -1,11 +1,8 @@
-import { useMemo, type CSSProperties, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { Clock, Users } from "lucide-react";
 import type { GameDifficulty, GameNightGame } from "@/lib/supabase";
-import {
-  cardTilt,
-  placeholderCoverGradient,
-} from "@/features/game-night/lib/gameCoverPlaceholder";
+import { placeholderCoverGradient } from "@/features/game-night/lib/gameCoverPlaceholder";
 import { getGameCoverUrl } from "@/features/game-night/lib/gameCoverStorage";
 import { gameTagLabel } from "@/features/game-night/lib/gameTags";
 
@@ -43,18 +40,14 @@ export function GameCard({
   action?: ReactNode;
   to?: string;
 }) {
-  const tilt = useMemo(() => cardTilt(game.id), [game.id]);
   const coverUrl = game.cover_storage_path
     ? getGameCoverUrl(game.cover_storage_path)
     : null;
   const players = playersLabel(game);
 
   const card = (
-    <div
-      className="gn-card flex h-full flex-col overflow-hidden"
-      style={{ "--gn-tilt": `${tilt}deg` } as CSSProperties}
-    >
-      <div className="gn-cover relative aspect-[4/5] shrink-0">
+    <div className="gnv2-game-card flex h-full flex-col overflow-hidden">
+      <div className="gnv2-cover relative aspect-[4/5] shrink-0">
         {coverUrl ? (
           <img src={coverUrl} alt="" className="h-full w-full object-cover" />
         ) : (
@@ -63,7 +56,7 @@ export function GameCard({
             style={{ background: placeholderCoverGradient(game.id) }}
             aria-hidden
           >
-            <span className="gn-display text-3xl font-semibold text-white/75">
+            <span className="gnv2-display text-3xl font-semibold text-white/75">
               {game.name.charAt(0)}
             </span>
           </div>
@@ -73,7 +66,7 @@ export function GameCard({
 
       <div className="flex flex-1 flex-col gap-2 p-3.5">
         <p className="text-sm font-semibold leading-tight">{game.name}</p>
-        <div className="gn-faint flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+        <div className="gnv2-faint flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
           {players && (
             <span className="inline-flex items-center gap-1">
               <Users className="h-3 w-3" /> {players}
@@ -86,14 +79,14 @@ export function GameCard({
           )}
         </div>
         {game.difficulty && (
-          <p className="gn-faint text-xs">
+          <p className="gnv2-faint text-xs">
             Moeilijkheid: {DIFFICULTY_LABEL[game.difficulty]}
           </p>
         )}
         {game.tags.length > 0 && (
           <div className="mt-auto flex flex-wrap gap-1.5 pt-1">
             {game.tags.slice(0, 3).map((tag) => (
-              <span key={tag} className="gn-chip">
+              <span key={tag} className="gnv2-chip">
                 {gameTagLabel(tag)}
               </span>
             ))}

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { Camera, Crown, Loader2, Trophy } from "lucide-react";
+import { Camera, Crown, Trophy, X } from "lucide-react";
 import { useGameNightAnalytics } from "@/features/game-night/hooks/useGameNightAnalytics";
 import { useFinalePhotos } from "@/features/game-night/hooks/useCheckpoints";
 import {
@@ -19,7 +19,8 @@ import { formatDuration } from "@/features/game-night/lib/gameTimer";
 import { PlayerLink } from "@/features/game-night/components/PlayerLink";
 import { CheckpointLightbox } from "@/features/game-night/components/CheckpointLightbox";
 import { placeholderCoverGradient } from "@/features/game-night/lib/gameCoverPlaceholder";
-import { TopNav } from "@/features/game-night/components/TopNav";
+import { GnV2Scene } from "@/features/game-night/v2/GnV2Scene";
+import { GnV2Loading } from "@/features/game-night/v2/GnV2Loading";
 
 type Screen =
   | { kind: "intro" }
@@ -33,7 +34,7 @@ function GameLink({ game }: { game: GameNightGameSessionDetail["game"] }) {
   return (
     <Link
       to={gameDetailPath(game)}
-      className="underline decoration-dotted underline-offset-2 hover:text-[var(--gn-brass)]"
+      className="underline decoration-dotted underline-offset-2 hover:text-[var(--gnv2-accent-warm-strong)]"
     >
       {game.name}
     </Link>
@@ -45,15 +46,15 @@ function ResultLine({ detail }: { detail: GameNightGameSessionDetail }) {
   const isScoreMode = detail.gameSession.result_mode === "score";
 
   return (
-    <div className="gn-panel-elevated px-4 py-3">
+    <div className="gnv2-panel-elevated px-4 py-3">
       <p className="text-sm font-semibold">
         <GameLink game={detail.game} />
       </p>
       {detail.rounds.length > 0 ? (
-        <div className="gn-muted mt-1 text-xs">
+        <div className="gnv2-muted mt-1 text-xs">
           {detail.rounds.length} rondes
           {detail.rounds.length > 0 && (
-            <span className="gn-faint">
+            <span className="gnv2-faint">
               {" · "}
               {[
                 ...new Map(
@@ -73,17 +74,17 @@ function ResultLine({ detail }: { detail: GameNightGameSessionDetail }) {
           )}
         </div>
       ) : isScoreMode && detail.hasResult ? (
-        <p className="gn-muted mt-1 text-xs">
+        <p className="gnv2-muted mt-1 text-xs">
           {detail.results
             .map((r) => `${r.player.name} ${r.score ?? "–"}`)
             .join(" · ")}
         </p>
       ) : winner ? (
-        <p className="gn-muted mt-1 text-xs">
+        <p className="gnv2-muted mt-1 text-xs">
           <PlayerLink player={winner.player} /> won
         </p>
       ) : detail.gameSession.has_session_winner ? (
-        <p className="gn-faint mt-1 text-xs italic">
+        <p className="gnv2-faint mt-1 text-xs italic">
           Geen eindwinnaar geregistreerd
         </p>
       ) : null}
@@ -94,17 +95,20 @@ function ResultLine({ detail }: { detail: GameNightGameSessionDetail }) {
 function AwardPlaque({ event }: { event: FinaleEvent }) {
   const Icon = event.game ? Trophy : Crown;
   return (
-    <div className="gn-plaque gn-plaque-tilt gn-finale-reveal px-6 py-7 text-center">
+    <div className="gnv2-award-plaque gnv2-finale-reveal px-6 py-7">
       <div className="flex items-center justify-center gap-1.5">
-        <Icon className="h-4 w-4" style={{ color: "var(--gn-brass)" }} />
-        <p className="gn-eyebrow">{event.eyebrow}</p>
+        <Icon
+          className="h-4 w-4"
+          style={{ color: "var(--gnv2-accent-warm-strong)" }}
+        />
+        <p className="gnv2-eyebrow">{event.eyebrow}</p>
       </div>
-      <p className="gn-display mt-3 text-lg font-semibold tracking-wide">
+      <p className="gnv2-display mt-3 text-lg font-semibold tracking-wide">
         {event.title}
       </p>
       <p
-        className="gn-display mt-1.5 text-3xl font-semibold"
-        style={{ color: "var(--gn-brass)" }}
+        className="gnv2-display mt-1.5 text-3xl font-semibold"
+        style={{ color: "var(--gnv2-accent-warm-strong)" }}
       >
         {event.players.map((p, i) => (
           <span key={p.id}>
@@ -113,14 +117,14 @@ function AwardPlaque({ event }: { event: FinaleEvent }) {
           </span>
         ))}
       </p>
-      <p className="gn-muted mt-2 text-sm">{event.subtitle}</p>
+      <p className="gnv2-muted mt-2 text-sm">{event.subtitle}</p>
       {event.narrative && (
-        <p className="gn-faint mt-3 text-xs italic">{event.narrative}</p>
+        <p className="gnv2-faint mt-3 text-xs italic">{event.narrative}</p>
       )}
       {event.game && (
         <Link
           to={gameDetailPath(event.game)}
-          className="gn-muted mt-4 inline-block text-xs underline"
+          className="gnv2-muted mt-4 inline-block text-xs underline"
         >
           Bekijk {event.game.name}
         </Link>
@@ -135,6 +139,14 @@ function AwardPlaque({ event }: { event: FinaleEvent }) {
 // Game Night als weken later als historische replay (sectie 33/38): de
 // sessionId in de URL is de enige bron van waarheid, een refresh
 // reconstrueert exact dezelfde ceremonie.
+//
+// Visuele consistentieronde (legacy .gn-*-migratie): de vaste
+// gn-tabletop-fit/TopNav-app-shell wordt losgelaten voor een gewone,
+// scrollbare GnV2Scene (dezelfde categorie als de andere geschiedenis-
+// pagina's — zie isGameNightContentRoute in site-layout.tsx) met een
+// compacte sluitknop i.p.v. de volledige navigatiebalk, passend bij een
+// ceremonie met eigen Terug/Volgende-navigatie. Stap/screen-logica,
+// event-opbouw en fun-stats zijn volledig ongewijzigd.
 export default function GameNightFinale() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
@@ -183,56 +195,48 @@ export default function GameNightFinale() {
   const isFirst = screenIndex === 0;
   const isLast = screenIndex === screens.length - 1;
 
-  if (isLoading) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="gn-faint h-5 w-5 animate-spin" />
-      </div>
-    );
-  }
+  if (isLoading) return <GnV2Loading />;
 
   if (!session) {
     return (
-      <div className="mx-auto max-w-xl px-4 py-14 text-center">
-        <p className="gn-display text-xl font-semibold">
-          Deze Game Night is niet gevonden
-        </p>
-        <Link
-          to="/game-night/geschiedenis"
-          className="gn-muted mt-3 inline-block text-sm underline"
-        >
-          Terug naar geschiedenis
-        </Link>
-      </div>
+      <GnV2Scene className="gnv2-finale-scene">
+        <main className="gnv2-content-main items-center justify-center text-center">
+          <p className="gnv2-display text-xl font-semibold">
+            Deze Game Night is niet gevonden
+          </p>
+          <Link
+            to="/game-night/geschiedenis"
+            className="gnv2-muted mt-3 inline-block text-sm underline"
+          >
+            Terug naar geschiedenis
+          </Link>
+        </main>
+      </GnV2Scene>
     );
   }
 
   if (session.status !== "completed") {
     return (
-      <div className="mx-auto max-w-xl px-4 py-14 text-center">
-        <p className="gn-display text-xl font-semibold">
-          Deze Game Night is nog niet afgesloten
-        </p>
-        <p className="gn-muted mt-2 text-sm">
-          De finale is pas beschikbaar zodra de avond is afgesloten.
-        </p>
-        <Link
-          to="/game-night"
-          className="gn-muted mt-3 inline-block text-sm underline"
-        >
-          Terug naar Game Night
-        </Link>
-      </div>
+      <GnV2Scene className="gnv2-finale-scene">
+        <main className="gnv2-content-main items-center justify-center text-center">
+          <p className="gnv2-display text-xl font-semibold">
+            Deze Game Night is nog niet afgesloten
+          </p>
+          <p className="gnv2-muted mt-2 text-sm">
+            De finale is pas beschikbaar zodra de avond is afgesloten.
+          </p>
+          <Link
+            to="/game-night"
+            className="gnv2-muted mt-3 inline-block text-sm underline"
+          >
+            Terug naar Game Night
+          </Link>
+        </main>
+      </GnV2Scene>
     );
   }
 
-  if (!detail || !screen) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="gn-faint h-5 w-5 animate-spin" />
-      </div>
-    );
-  }
+  if (!detail || !screen) return <GnV2Loading />;
 
   const date = new Date(session.started_at).toLocaleDateString("nl-NL", {
     day: "numeric",
@@ -252,20 +256,35 @@ export default function GameNightFinale() {
 
   return (
     <>
-      <div className="gn-tabletop gn-tabletop-fit">
-        <TopNav />
-        <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-4 py-6">
+      <GnV2Scene className="gnv2-finale-scene">
+        <header className="gnv2-topbar">
+          <Link
+            to={`/game-night/geschiedenis/${session.id}`}
+            className="gnv2-nav-btn"
+            aria-label="Sluiten"
+            title="Sluiten"
+          >
+            <X className="h-[18px] w-[18px]" />
+          </Link>
+          <div className="gnv2-identity gnv2-identity-center">
+            <p className="gnv2-identity-eyebrow">Game Night</p>
+            <p className="gnv2-identity-date">Finale</p>
+          </div>
+          <div className="gnv2-topbar-spacer" aria-hidden />
+        </header>
+
+        <main className="gnv2-content-main items-center">
           <div
             key={screenIndex}
-            className="flex w-full max-w-lg flex-1 flex-col items-center justify-center gap-4"
+            className="flex w-full max-w-lg flex-1 flex-col items-center justify-center gap-4 py-4"
           >
             {screen.kind === "intro" && (
-              <div className="gn-finale-reveal text-center">
-                <p className="gn-eyebrow">Game Night voltooid</p>
-                <h1 className="gn-display mt-2 text-2xl font-semibold sm:text-3xl">
+              <div className="gnv2-finale-reveal w-full text-center">
+                <p className="gnv2-eyebrow">Game Night voltooid</p>
+                <h1 className="gnv2-display mt-2 text-2xl font-semibold sm:text-3xl">
                   {date}
                 </h1>
-                <p className="gn-muted mt-2 text-sm">
+                <p className="gnv2-muted mt-2 text-sm">
                   {detail.attendees.map((p, i) => (
                     <span key={p.id}>
                       {i > 0 && " · "}
@@ -276,55 +295,53 @@ export default function GameNightFinale() {
                 <button
                   type="button"
                   onClick={goNext}
-                  className="gn-plaque-action gn-plaque-action-primary mt-6 flex min-h-[60px] w-full items-center justify-center px-6"
+                  className="gnv2-btn gnv2-btn-primary mt-6 w-full"
                 >
-                  <span className="gn-display text-lg font-semibold tracking-wide">
-                    Bekijk de uitslag
-                  </span>
+                  Bekijk de uitslag
                 </button>
               </div>
             )}
 
             {screen.kind === "tonight" && (
-              <div className="gn-finale-reveal w-full text-center">
-                <p className="gn-eyebrow mb-4">Vanavond</p>
+              <div className="gnv2-finale-reveal w-full text-center">
+                <p className="gnv2-eyebrow mb-4">Vanavond</p>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  <div className="gn-panel-elevated px-4 py-4">
-                    <p className="gn-display text-2xl font-semibold">
+                  <div className="gnv2-stat-block">
+                    <p className="gnv2-display text-2xl font-semibold">
                       {detail.totals.gamesPlayed}
                     </p>
-                    <p className="gn-faint text-xs">spellen</p>
+                    <p className="gnv2-faint text-xs">spellen</p>
                   </div>
                   {detail.totals.roundCount > 0 && (
-                    <div className="gn-panel-elevated px-4 py-4">
-                      <p className="gn-display text-2xl font-semibold">
+                    <div className="gnv2-stat-block">
+                      <p className="gnv2-display text-2xl font-semibold">
                         {detail.totals.roundCount}
                       </p>
-                      <p className="gn-faint text-xs">rondes</p>
+                      <p className="gnv2-faint text-xs">rondes</p>
                     </div>
                   )}
                   {detail.totals.totalActiveSeconds > 0 && (
-                    <div className="gn-panel-elevated px-4 py-4">
-                      <p className="gn-display text-2xl font-semibold">
+                    <div className="gnv2-stat-block">
+                      <p className="gnv2-display text-2xl font-semibold">
                         {formatDuration(detail.totals.totalActiveSeconds)}
                       </p>
-                      <p className="gn-faint text-xs">speeltijd</p>
+                      <p className="gnv2-faint text-xs">speeltijd</p>
                     </div>
                   )}
-                  <div className="gn-panel-elevated px-4 py-4">
-                    <p className="gn-display text-2xl font-semibold">
+                  <div className="gnv2-stat-block">
+                    <p className="gnv2-display text-2xl font-semibold">
                       {detail.attendees.length}
                     </p>
-                    <p className="gn-faint text-xs">spelers</p>
+                    <p className="gnv2-faint text-xs">spelers</p>
                   </div>
                 </div>
               </div>
             )}
 
             {screen.kind === "results" && (
-              <div className="gn-finale-reveal w-full">
-                <p className="gn-eyebrow mb-3 text-center">Spelresultaten</p>
-                <div className="gn-checkpoint-scroll flex max-h-[46vh] flex-col gap-2.5">
+              <div className="gnv2-finale-reveal w-full">
+                <p className="gnv2-eyebrow mb-3 text-center">Spelresultaten</p>
+                <div className="flex max-h-[46vh] w-full flex-col gap-2.5 overflow-y-auto pb-1">
                   {detail.gameSessions.map((gs) => (
                     <ResultLine key={gs.gameSession.id} detail={gs} />
                   ))}
@@ -333,15 +350,15 @@ export default function GameNightFinale() {
             )}
 
             {screen.kind === "moments" && (
-              <div className="gn-finale-reveal w-full text-center">
-                <p className="gn-eyebrow mb-3">Momenten van de avond</p>
+              <div className="gnv2-finale-reveal w-full text-center">
+                <p className="gnv2-eyebrow mb-3">Momenten van de avond</p>
                 <div className="grid grid-cols-2 gap-3">
                   {photos.map(({ gameSessionId, photo }) => (
                     <button
                       key={gameSessionId}
                       type="button"
                       onClick={() => setLightboxId(photo.id)}
-                      className="gn-cover aspect-square overflow-hidden"
+                      className="gnv2-cover aspect-square overflow-hidden"
                     >
                       {photo.url ? (
                         <img
@@ -368,9 +385,9 @@ export default function GameNightFinale() {
             {screen.kind === "award" && <AwardPlaque event={screen.event} />}
 
             {screen.kind === "podium" && (
-              <div className="gn-finale-reveal w-full text-center">
-                <p className="gn-eyebrow">Game Night</p>
-                <h1 className="gn-display mt-1 text-2xl font-semibold sm:text-3xl">
+              <div className="gnv2-finale-reveal w-full text-center">
+                <p className="gnv2-eyebrow">Game Night</p>
+                <h1 className="gnv2-display mt-1 text-2xl font-semibold sm:text-3xl">
                   Afgesloten
                 </h1>
 
@@ -389,7 +406,7 @@ export default function GameNightFinale() {
                             · {s.label.toLowerCase()} · {s.value}
                           </>
                         ) : (
-                          <span className="gn-muted">
+                          <span className="gnv2-muted">
                             {s.label} · {s.value}
                           </span>
                         )}
@@ -401,7 +418,7 @@ export default function GameNightFinale() {
                 {eventBundle && eventBundle.headline.length > 0 && (
                   <div className="mt-2 flex flex-col gap-1">
                     {eventBundle.headline.map((e) => (
-                      <p key={e.id} className="gn-muted text-sm">
+                      <p key={e.id} className="gnv2-muted text-sm">
                         {e.players.map((p) => p.name).join(" & ")} · nieuwe{" "}
                         {e.title}
                       </p>
@@ -410,11 +427,11 @@ export default function GameNightFinale() {
                 )}
 
                 {eventBundle && eventBundle.bundled.length > 0 && (
-                  <div className="gn-panel-elevated mt-4 px-4 py-3 text-left">
-                    <p className="gn-eyebrow mb-1.5">Nog meer records</p>
+                  <div className="gnv2-panel-elevated mt-4 px-4 py-3 text-left">
+                    <p className="gnv2-eyebrow mb-1.5">Nog meer records</p>
                     <div className="flex flex-col gap-1 text-xs">
                       {eventBundle.bundled.map((e) => (
-                        <p key={e.id} className="gn-faint">
+                        <p key={e.id} className="gnv2-faint">
                           {e.title} · {e.players.map((p) => p.name).join(" & ")}{" "}
                           · {e.subtitle}
                         </p>
@@ -426,24 +443,20 @@ export default function GameNightFinale() {
                 <div className="mt-6 flex flex-col gap-2.5">
                   <Link
                     to={`/game-night/geschiedenis/${session.id}`}
-                    className="gn-plaque-action gn-plaque-action-primary flex min-h-[56px] w-full items-center justify-center px-6"
+                    className="gnv2-btn gnv2-btn-primary w-full"
                   >
-                    <span className="gn-display text-sm font-semibold tracking-wide">
-                      Bekijk deze avond
-                    </span>
+                    Bekijk deze avond
                   </Link>
                   <Link
                     to="/game-night/hall-of-fame"
-                    className="gn-plaque-action flex min-h-[52px] w-full items-center justify-center px-6"
+                    className="gnv2-btn gnv2-btn-ghost w-full"
                   >
-                    <span className="gn-display text-sm font-semibold tracking-wide">
-                      Hall of Fame
-                    </span>
+                    Hall of Fame
                   </Link>
                   <button
                     type="button"
                     onClick={() => navigate("/game-night")}
-                    className="gn-muted min-h-[44px] text-xs underline"
+                    className="gnv2-muted min-h-[44px] text-xs underline"
                   >
                     Terug naar Game Night
                   </button>
@@ -453,12 +466,12 @@ export default function GameNightFinale() {
           </div>
 
           {!isLast && (
-            <div className="mt-2 flex w-full max-w-lg flex-col items-center gap-3">
+            <div className="mt-2 flex w-full max-w-lg flex-col items-center gap-3 pb-4">
               <div className="flex items-center gap-1.5">
                 {screens.map((_, i) => (
                   <span
                     key={i}
-                    className={`gn-finale-dot ${i === screenIndex ? "gn-finale-dot-active" : ""}`}
+                    className={`gnv2-finale-dot ${i === screenIndex ? "gnv2-finale-dot-active" : ""}`}
                   />
                 ))}
               </div>
@@ -467,35 +480,31 @@ export default function GameNightFinale() {
                   type="button"
                   onClick={goBack}
                   disabled={isFirst}
-                  className="gn-plaque-action flex min-h-[52px] flex-1 items-center justify-center px-4 disabled:opacity-30"
+                  className="gnv2-btn gnv2-btn-ghost flex-1 disabled:opacity-30"
                 >
-                  <span className="gn-display text-sm font-semibold tracking-wide">
-                    Terug
-                  </span>
+                  Terug
                 </button>
                 <button
                   type="button"
                   onClick={goNext}
-                  className="gn-plaque-action gn-plaque-action-primary flex min-h-[52px] flex-1 items-center justify-center px-4"
+                  className="gnv2-btn gnv2-btn-primary flex-1"
                 >
-                  <span className="gn-display text-sm font-semibold tracking-wide">
-                    Volgende
-                  </span>
+                  Volgende
                 </button>
               </div>
               {screenIndex > 0 && (
                 <button
                   type="button"
                   onClick={skipToPodium}
-                  className="gn-faint text-xs underline"
+                  className="gnv2-faint text-xs underline"
                 >
                   Naar eindoverzicht
                 </button>
               )}
             </div>
           )}
-        </div>
-      </div>
+        </main>
+      </GnV2Scene>
 
       {lightboxId &&
         (() => {

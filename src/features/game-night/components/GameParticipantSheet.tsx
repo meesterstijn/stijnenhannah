@@ -63,19 +63,19 @@ export function GameParticipantSheet({
   }
 
   return (
-    <div className="gn-sheet-backdrop" role="dialog" aria-modal="true">
-      <div className="gn-sheet-card">
+    <div className="gnv2-sheet-backdrop" role="dialog" aria-modal="true">
+      <div className="gnv2-sheet-card">
         <div className="flex items-start justify-between">
           <div>
-            <p className="gn-eyebrow">{game.name}</p>
-            <p className="gn-display text-xl font-semibold tracking-wide sm:text-2xl">
+            <p className="gnv2-eyebrow">{game.name}</p>
+            <p className="gnv2-display text-xl font-semibold tracking-wide sm:text-2xl">
               Wie spelen mee?
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="gn-topnav-icon-btn"
+            className="gnv2-nav-btn"
             aria-label="Sluiten"
           >
             <X className="h-3.5 w-3.5" />
@@ -96,7 +96,7 @@ export function GameParticipantSheet({
         </div>
 
         {(helperText || error) && (
-          <p className="gn-faint mt-2 text-center text-xs">
+          <p className="gnv2-faint mt-2 text-center text-xs">
             {error ?? helperText}
           </p>
         )}
@@ -105,11 +105,9 @@ export function GameParticipantSheet({
           type="button"
           disabled={!canStart || startSession.isPending}
           onClick={handleStart}
-          className="gn-plaque-action gn-plaque-action-primary mt-3 w-full px-6 py-3.5 disabled:cursor-not-allowed disabled:opacity-40"
+          className="gnv2-btn gnv2-btn-primary mt-3 w-full"
         >
-          <span className="gn-display text-lg font-semibold tracking-wide">
-            {startSession.isPending ? "Bezig..." : `Start ${game.name}`}
-          </span>
+          {startSession.isPending ? "Bezig..." : `Start ${game.name}`}
         </button>
       </div>
     </div>

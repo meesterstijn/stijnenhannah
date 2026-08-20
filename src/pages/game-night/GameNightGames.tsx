@@ -10,6 +10,7 @@ import { GameCard } from "@/features/game-night/components/GameCard";
 import { GameParticipantSheet } from "@/features/game-night/components/GameParticipantSheet";
 import { GameFlowSettingsSheet } from "@/features/game-night/components/GameFlowSettingsSheet";
 import { gameDetailPath } from "@/features/game-night/lib/gameNightStats";
+import { GnV2Scene } from "@/features/game-night/v2/GnV2Scene";
 
 // Sectie 3/4: de Spellenkast blijft ook zonder actieve Game Night gewoon
 // zichzelf (kaarten zijn dan puur informatief, zoals nu). Zodra er een
@@ -21,6 +22,10 @@ import { gameDetailPath } from "@/features/game-night/lib/gameNightStats";
 // niet erin genest — zo blijft "kaart aantikken = spel kiezen" en
 // "tandwiel aantikken = instellingen" altijd twee gescheiden knoppen, ook
 // als de kaart zelf al een <button> is.
+//
+// Visuele consistentieronde (legacy .gn-*-migratie): echte game-library-
+// grid in GnV2Scene (2 kolommen mobiel → meer op tablet/desktop via
+// auto-fill), dezelfde GameCard/-Sheets als voorheen, puur herkleurd.
 export default function GameNightGames() {
   const { data: games = [], isLoading } = useGameNightGames();
   const { data: activeGameNight } = useActiveGameNightSession();
@@ -40,101 +45,108 @@ export default function GameNightGames() {
   const selectionMode = !!activeGameNight && !openGameSession;
 
   return (
-    <div className="space-y-7">
-      <Link
-        to="/game-night"
-        className="gn-muted inline-flex items-center gap-1.5 text-xs transition-colors hover:text-[var(--gn-brass)]"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" /> Terug naar Game Night
-      </Link>
+    <GnV2Scene className="gnv2-games-scene">
+      <header className="gnv2-topbar">
+        <Link
+          to="/game-night"
+          className="gnv2-nav-btn"
+          aria-label="Terug naar Game Night"
+          title="Terug"
+        >
+          <ArrowLeft className="h-[18px] w-[18px]" />
+        </Link>
+        <div className="gnv2-identity gnv2-identity-center">
+          <p className="gnv2-identity-eyebrow">Game Night</p>
+          <p className="gnv2-identity-date">Mijn spellen</p>
+        </div>
+        <div className="gnv2-topbar-spacer" aria-hidden />
+      </header>
 
-      <div>
-        <p className="gn-eyebrow mb-1.5">Game Night</p>
-        <h1 className="gn-display text-2xl font-semibold sm:text-3xl">
-          Mijn spellen
-        </h1>
-        <p className="gn-muted mt-1.5 text-sm">
-          {isLoading
-            ? "Kast wordt geladen…"
-            : `${games.length} ${games.length === 1 ? "spel" : "spellen"} in de kast`}
-        </p>
-        {selectionMode && (
-          <p className="gn-faint mt-2 text-xs">
-            Tik een spel aan om het te starten voor de huidige Game Night.
+      <main className="gnv2-content-main">
+        <div className="gnv2-content-intro">
+          <p className="gnv2-content-sub">
+            {isLoading
+              ? "Kast wordt geladen…"
+              : `${games.length} ${games.length === 1 ? "spel" : "spellen"} in de kast`}
           </p>
-        )}
-        {openGameSession && (
-          <div className="gn-chip gn-chip-felt mt-2 inline-flex items-center gap-1.5">
-            <PlayCircle className="h-3 w-3" />
-            Er wordt al {openGameSession.game.name} gespeeld —{" "}
-            <Link to="/game-night" className="underline">
-              ga terug
-            </Link>
+          {selectionMode && (
+            <p className="gnv2-faint text-xs">
+              Tik een spel aan om het te starten voor de huidige Game Night.
+            </p>
+          )}
+          {openGameSession && (
+            <div className="gnv2-chip mt-1 inline-flex w-fit items-center gap-1.5">
+              <PlayCircle className="h-3 w-3" />
+              Er wordt al {openGameSession.game.name} gespeeld —{" "}
+              <Link to="/game-night" className="underline">
+                ga terug
+              </Link>
+            </div>
+          )}
+        </div>
+
+        {isLoading ? (
+          <div className="flex justify-center py-14">
+            <Loader2 className="gnv2-faint h-5 w-5 animate-spin" />
+          </div>
+        ) : games.length === 0 ? (
+          <p className="gnv2-content-empty">Nog geen spellen in de kast.</p>
+        ) : (
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {games.map((game) => {
+              const badge = game.uses_rounds ? (
+                <span className="gnv2-chip">Rondes</span>
+              ) : undefined;
+              return (
+                <div key={game.id} className="relative h-full">
+                  {selectionMode ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setPickingGame(game)}
+                        className="h-full w-full text-left transition-transform active:scale-[0.98]"
+                      >
+                        <GameCard game={game} badge={badge} />
+                      </button>
+                      {/* Sectie 3 (Game Night V6): tijdens spelselectie blijft
+                          de hoofdtik op de kaart "spel kiezen" — speldetail
+                          krijgt hier een eigen, niet-geneste knop i.p.v. de
+                          kaart zelf te laten linken. */}
+                      <Link
+                        to={gameDetailPath(game)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="gnv2-nav-btn absolute left-2 top-2 z-10"
+                        aria-label={`Meer info over ${game.name}`}
+                        title="Speldetail"
+                      >
+                        <Info className="h-3.5 w-3.5" />
+                      </Link>
+                    </>
+                  ) : (
+                    <GameCard
+                      game={game}
+                      badge={badge}
+                      to={gameDetailPath(game)}
+                    />
+                  )}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setConfiguringGame(game);
+                    }}
+                    className="gnv2-nav-btn absolute right-2 bottom-2 z-10"
+                    aria-label={`Spelverloop van ${game.name} instellen`}
+                    title="Spelverloop"
+                  >
+                    <Settings className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
-      </div>
-
-      {isLoading ? (
-        <div className="flex justify-center py-14">
-          <Loader2 className="gn-faint h-5 w-5 animate-spin" />
-        </div>
-      ) : games.length === 0 ? (
-        <p className="gn-faint text-sm">Nog geen spellen in de kast.</p>
-      ) : (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-          {games.map((game) => {
-            const badge = game.uses_rounds ? (
-              <span className="gn-chip">Rondes</span>
-            ) : undefined;
-            return (
-              <div key={game.id} className="relative h-full">
-                {selectionMode ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => setPickingGame(game)}
-                      className="h-full w-full text-left transition-transform active:scale-[0.98]"
-                    >
-                      <GameCard game={game} badge={badge} />
-                    </button>
-                    {/* Sectie 3 (Game Night V6): tijdens spelselectie blijft de
-                        hoofdtik op de kaart "spel kiezen" — speldetail krijgt
-                        hier een eigen, niet-geneste knop i.p.v. de kaart zelf
-                        te laten linken. */}
-                    <Link
-                      to={gameDetailPath(game)}
-                      onClick={(e) => e.stopPropagation()}
-                      className="gn-topnav-icon-btn absolute left-2 top-2 z-10"
-                      aria-label={`Meer info over ${game.name}`}
-                      title="Speldetail"
-                    >
-                      <Info className="h-3.5 w-3.5" />
-                    </Link>
-                  </>
-                ) : (
-                  <GameCard
-                    game={game}
-                    badge={badge}
-                    to={gameDetailPath(game)}
-                  />
-                )}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setConfiguringGame(game);
-                  }}
-                  className="gn-topnav-icon-btn absolute right-2 bottom-2 z-10"
-                  aria-label={`Spelverloop van ${game.name} instellen`}
-                  title="Spelverloop"
-                >
-                  <Settings className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      </main>
 
       {pickingGame && activeGameNight && (
         <GameParticipantSheet
@@ -151,6 +163,6 @@ export default function GameNightGames() {
           onClose={() => setConfiguringGame(null)}
         />
       )}
-    </div>
+    </GnV2Scene>
   );
 }

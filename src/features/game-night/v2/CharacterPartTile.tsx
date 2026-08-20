@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ImageOff, Lock } from "lucide-react";
+import { Check, ImageOff, Lock } from "lucide-react";
 import type { GameNightCharacterPart } from "@/lib/supabase";
 import type { CharacterPartTileStatus } from "@/features/game-night/lib/gameNightCharacter";
 
@@ -60,7 +60,14 @@ export function CharacterPartTile({
         equipped
           ? {
               borderColor: colorHex ?? "var(--gnv2-accent-warm)",
-              boxShadow: `0 0 0 2px ${colorHex ?? "var(--gnv2-accent-warm)"}`,
+              // Visuele consistentieronde (sectie 8: "duidelijke rand;
+              // subtiele glow/check; niet alleen kleurverschil") — een
+              // tweede, wijdere schaduwlaag als zachte gloed bovenop de
+              // bestaande 2px-ring, zodat geselecteerd-zijn ook voor een
+              // speler die kleurverschil lastig ziet duidelijk is (samen
+              // met de check-badge hieronder, die dat sowieso al
+              // vormgebaseerd bevestigt).
+              boxShadow: `0 0 0 2px ${colorHex ?? "var(--gnv2-accent-warm)"}, 0 0 18px -4px ${colorHex ?? "var(--gnv2-accent-warm)"}`,
             }
           : undefined
       }
@@ -68,6 +75,16 @@ export function CharacterPartTile({
       <span className="gnv2-part-tile-preview">
         <PartThumbnail part={part} />
         {locked && <Lock className="gnv2-part-tile-lock" aria-hidden />}
+        {equipped && (
+          <span
+            className="gnv2-part-tile-check"
+            style={{
+              background: colorHex ?? "var(--gnv2-accent-warm)",
+            }}
+          >
+            <Check aria-hidden strokeWidth={3} />
+          </span>
+        )}
       </span>
       <span className="gnv2-part-tile-label">{part.label}</span>
     </button>

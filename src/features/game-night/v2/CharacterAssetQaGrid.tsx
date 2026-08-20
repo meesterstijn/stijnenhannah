@@ -11,6 +11,7 @@ import {
   CHARACTER_STARTER_MANIFEST,
   starterManifestBySlot,
 } from "@/features/game-night/lib/characterStarterManifest";
+import { CUSTOM_BODY_MANIFEST } from "@/features/game-night/generated/customBodyManifest";
 import {
   useAllCharacterPartsForQa,
   useCharacterEquipmentForPlayers,
@@ -625,6 +626,114 @@ function FullCharacterCompositePreview({
   );
 }
 
+// Managed-scope (zelfde grens als scripts/generate-custom-body-manifest.mjs
+// en de gegenereerde SQL, sectie 11 van de opdracht): alleen rijen met deze
+// key-prefix ÉN dit asset_path-prefix worden door de assetdiscovery-pijplijn
+// beheerd — dit rapport mag nooit iets buiten die grens als "mismatch" melden.
+const CUSTOM_BODY_ASSET_PREFIX = "/game-night/characters/parts/custom/base/";
+
+function isManifestManagedRow(part: GameNightCharacterPart): boolean {
+  return (
+    part.key.startsWith("body-") &&
+    part.asset_path.startsWith(CUSTOM_BODY_ASSET_PREFIX)
+  );
+}
+
+// Manifest/DB-mismatchrapport (opdracht sectie 18) — vergelijkt de
+// build-time gegenereerde CUSTOM_BODY_MANIFEST (= "wat staat er als bestand
+// op schijf", zie scripts/generate-custom-body-manifest.mjs) met de live
+// catalogus (= "wat staat er in de database") voor exact de door de
+// assetdiscovery beheerde rijen. Puur leesbaar — repareert niets, toont
+// alleen waar de twee bronnen uit elkaar lopen zodat dat manueel (via de
+// gegenereerde SQL, supabase/generated/game_night_custom_bodies.sql) kan
+// worden rechtgezet.
+function CustomBodyManifestReport({
+  allParts,
+}: {
+  allParts: GameNightCharacterPart[];
+}) {
+  const managedRows = allParts.filter(isManifestManagedRow);
+  const rowsByKey = new Map(managedRows.map((p) => [p.key, p]));
+  const manifestByKey = new Map(CUSTOM_BODY_MANIFEST.map((e) => [e.key, e]));
+
+  const fileWithoutDbRow = CUSTOM_BODY_MANIFEST.filter(
+    (e) => !rowsByKey.has(e.key),
+  );
+  const dbRowWithoutFile = managedRows.filter((p) => !manifestByKey.has(p.key));
+  const matched = CUSTOM_BODY_MANIFEST.filter((e) => rowsByKey.has(e.key));
+
+  return (
+    <div className="gn-panel-elevated space-y-3 px-5 py-4">
+      <div>
+        <p className="gn-eyebrow mb-1">
+          Custom body assetpipeline — manifest ↔ database
+        </p>
+        <p className="gn-faint text-xs">
+          Manifest = gegenereerd uit{" "}
+          <code>public/game-night/characters/parts/custom/base/</code> (
+          <code>npm run game-night:generate-assets</code>). Database = live
+          catalogus. Verschillen hier betekenen dat de gegenereerde SQL (
+          <code>supabase/generated/game_night_custom_bodies.sql</code>) nog niet
+          is toegepast.
+        </p>
+      </div>
+
+      {fileWithoutDbRow.length === 0 && dbRowWithoutFile.length === 0 ? (
+        <p className="text-xs text-emerald-500">
+          ✓ Alle {matched.length} manifest-entries hebben een bijbehorende
+          databaserij.
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {fileWithoutDbRow.map((e) => (
+            <p key={`file-${e.key}`} className="text-xs text-amber-500">
+              ⚠ FILE WITHOUT DB ROW — {e.key} ({e.assetPath}) — nog niet
+              gesynchroniseerd, pas de gegenereerde SQL toe.
+            </p>
+          ))}
+          {dbRowWithoutFile.map((p) => (
+            <p key={`db-${p.key}`} className="text-xs text-amber-500">
+              ⚠ DB ROW WITHOUT FILE — {p.key} ({p.asset_path}) —{" "}
+              {p.active ? "actief" : "inactief"}, bestand ontbreekt in de
+              huidige scan (verwijderd of hernoemd?).
+            </p>
+          ))}
+        </div>
+      )}
+
+      {matched.length > 0 && (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-[11px]">
+            <thead>
+              <tr className="gn-faint">
+                <th className="pr-3 font-normal">key</th>
+                <th className="pr-3 font-normal">bestand</th>
+                <th className="pr-3 font-normal">512×512</th>
+                <th className="pr-3 font-normal">DB actief</th>
+              </tr>
+            </thead>
+            <tbody>
+              {matched.map((e) => {
+                const row = rowsByKey.get(e.key);
+                return (
+                  <tr key={e.key}>
+                    <td className="pr-3">{e.key}</td>
+                    <td className="pr-3">{e.isLegacy ? "legacy" : "nieuw"}</td>
+                    <td className="pr-3 text-emerald-500">
+                      {e.width}×{e.height} ✓
+                    </td>
+                    <td className="pr-3">{row?.active ? "ja" : "nee"}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Custom-body-integratietest — per NIEUWE 512×512 body-PNG (slot 'base',
 // zie 20260921000000_game_night_character_custom_base_bodies.sql): BODY LOS,
 // FACE LOS, en BODY+FACE samengesteld, plus de bestaande AssetDimensionCheck
@@ -1084,6 +1193,8 @@ export default function CharacterAssetQaGrid() {
         maleBase={maleBase}
         femaleBase={femaleBase}
       />
+
+      <CustomBodyManifestReport allParts={allParts} />
 
       <CustomBodyQaSection
         bodyParts={allParts.filter((p) => p.slot === "base")}

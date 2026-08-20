@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Images, Loader2 } from "lucide-react";
+import { ArrowLeft, Images } from "lucide-react";
 import { useGameNightAnalytics } from "@/features/game-night/hooks/useGameNightAnalytics";
 import {
   buildGameNightDetail,
@@ -14,6 +14,8 @@ import { CheckpointHistoryPanel } from "@/features/game-night/components/Checkpo
 import { CheckpointViewer } from "@/features/game-night/components/CheckpointViewer";
 import { PlayerLink } from "@/features/game-night/components/PlayerLink";
 import { gameDetailPath } from "@/features/game-night/lib/gameNightStats";
+import { GnV2Scene } from "@/features/game-night/v2/GnV2Scene";
+import { GnV2Loading } from "@/features/game-night/v2/GnV2Loading";
 import type { GameNightPlayer } from "@/lib/supabase";
 
 // Opent dezelfde bestaande checkpoint-lijst/viewer als tijdens het spelen
@@ -69,11 +71,11 @@ function GameSessionCard({ detail }: { detail: GameNightGameSessionDetail }) {
   const isScoreMode = detail.gameSession.result_mode === "score";
 
   return (
-    <div className="gn-panel-elevated px-5 py-4">
+    <div className="gnv2-panel-elevated px-5 py-4">
       <div className="flex items-start gap-3">
         <Link
           to={gameDetailPath(detail.game)}
-          className="gn-cover h-16 w-13 shrink-0 overflow-hidden"
+          className="gnv2-cover h-16 w-13 shrink-0 overflow-hidden"
         >
           {coverUrl ? (
             <img src={coverUrl} alt="" className="h-full w-full object-cover" />
@@ -83,7 +85,7 @@ function GameSessionCard({ detail }: { detail: GameNightGameSessionDetail }) {
               style={{ background: placeholderCoverGradient(detail.game.id) }}
               aria-hidden
             >
-              <span className="gn-display text-sm font-semibold text-white/75">
+              <span className="gnv2-display text-sm font-semibold text-white/75">
                 {detail.game.name.charAt(0)}
               </span>
             </div>
@@ -93,11 +95,11 @@ function GameSessionCard({ detail }: { detail: GameNightGameSessionDetail }) {
         <div className="min-w-0 flex-1">
           <Link
             to={gameDetailPath(detail.game)}
-            className="gn-display block text-base font-semibold tracking-wide hover:text-[var(--gn-brass)]"
+            className="gnv2-display block text-base font-semibold tracking-wide hover:text-[var(--gnv2-accent-warm-strong)]"
           >
             {detail.game.name}
           </Link>
-          <p className="gn-muted mt-0.5 text-xs">
+          <p className="gnv2-muted mt-0.5 text-xs">
             {detail.participants.map((p, i) => (
               <span key={p.id}>
                 {i > 0 && " · "}
@@ -106,7 +108,7 @@ function GameSessionCard({ detail }: { detail: GameNightGameSessionDetail }) {
             ))}
           </p>
           {detail.durationSeconds != null && (
-            <p className="gn-faint mt-1 text-xs">
+            <p className="gnv2-faint mt-1 text-xs">
               {formatDuration(detail.durationSeconds)}
             </p>
           )}
@@ -115,8 +117,8 @@ function GameSessionCard({ detail }: { detail: GameNightGameSessionDetail }) {
 
       {detail.rounds.length > 0 && (
         <div className="mt-3">
-          <p className="gn-eyebrow mb-1.5">{detail.rounds.length} RONDES</p>
-          <div className="gn-faint flex flex-col gap-0.5 text-xs">
+          <p className="gnv2-eyebrow mb-1.5">{detail.rounds.length} RONDES</p>
+          <div className="gnv2-faint flex flex-col gap-0.5 text-xs">
             {detail.rounds.map((r) => (
               <p key={r.round.id}>
                 Ronde {r.round.round_number} —{" "}
@@ -129,12 +131,12 @@ function GameSessionCard({ detail }: { detail: GameNightGameSessionDetail }) {
 
       {isScoreMode && detail.hasResult && (
         <div className="mt-3">
-          <p className="gn-eyebrow mb-1.5">Eindstand</p>
+          <p className="gnv2-eyebrow mb-1.5">Eindstand</p>
           <div className="flex flex-col gap-0.5 text-xs">
             {detail.results.map((r) => (
               <p
                 key={r.player.id}
-                className={r.isWinner ? "font-semibold" : "gn-muted"}
+                className={r.isWinner ? "font-semibold" : "gnv2-muted"}
               >
                 <PlayerLink player={r.player} /> — {r.score ?? "–"}
               </p>
@@ -152,7 +154,7 @@ function GameSessionCard({ detail }: { detail: GameNightGameSessionDetail }) {
       {!isScoreMode &&
         !detail.hasResult &&
         detail.gameSession.has_session_winner && (
-          <p className="gn-faint mt-3 text-xs italic">
+          <p className="gnv2-faint mt-3 text-xs italic">
             Geen eindwinnaar geregistreerd
           </p>
         )}
@@ -161,7 +163,7 @@ function GameSessionCard({ detail }: { detail: GameNightGameSessionDetail }) {
         <button
           type="button"
           onClick={() => setShowCheckpoints(true)}
-          className="gn-faint mt-3 flex min-h-[36px] items-center gap-1.5 text-[11px] underline"
+          className="gnv2-faint mt-3 flex min-h-[36px] items-center gap-1.5 text-[11px] underline"
         >
           <Images className="h-3 w-3" />
           Spelstanden · {checkpoints.length}
@@ -183,6 +185,9 @@ function GameSessionCard({ detail }: { detail: GameNightGameSessionDetail }) {
 // spellen binnen één avond, met rondes/resultaten/spelstanden — alles
 // afgeleid uit dezelfde AnalyticsData als de geschiedenislijst, zodat de
 // cijfers nooit uiteenlopen (sectie 41).
+//
+// Visuele consistentieronde (legacy .gn-*-migratie): puur herkleurd naar
+// gnv2-* + GnV2Scene/topbar — geen enkele query/afgeleide waarde gewijzigd.
 export default function GameNightHistoryDetail() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const { data, isLoading } = useGameNightAnalytics();
@@ -197,86 +202,93 @@ export default function GameNightHistoryDetail() {
       })
     : null;
 
+  if (isLoading) return <GnV2Loading />;
+
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <Link
-        to="/game-night/geschiedenis"
-        className="gn-muted inline-flex items-center gap-1.5 text-xs transition-colors hover:text-[var(--gn-brass)]"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" /> Terug naar geschiedenis
-      </Link>
-
-      {isLoading ? (
-        <div className="flex justify-center py-14">
-          <Loader2 className="gn-faint h-5 w-5 animate-spin" />
+    <GnV2Scene className="gnv2-history-detail-scene">
+      <header className="gnv2-topbar">
+        <Link
+          to="/game-night/geschiedenis"
+          className="gnv2-nav-btn"
+          aria-label="Terug naar geschiedenis"
+          title="Terug"
+        >
+          <ArrowLeft className="h-[18px] w-[18px]" />
+        </Link>
+        <div className="gnv2-identity gnv2-identity-center">
+          <p className="gnv2-identity-eyebrow">Game Night</p>
+          <p className="gnv2-identity-date">{date ?? "Sessie"}</p>
         </div>
-      ) : !detail ? (
-        <p className="gn-faint text-sm">Deze Game Night is niet gevonden.</p>
-      ) : (
-        <>
-          <div>
-            <p className="gn-eyebrow mb-1.5">Game Night</p>
-            <h1 className="gn-display text-2xl font-semibold sm:text-3xl">
-              {date}
-            </h1>
-            <p className="gn-muted mt-1.5 text-sm">
-              {detail.attendees.map((p, i) => (
-                <span key={p.id}>
-                  {i > 0 && " · "}
-                  <PlayerLink player={p} />
-                </span>
-              ))}
-            </p>
-            <p className="gn-faint mt-2 text-xs">
-              {detail.totals.gamesPlayed}{" "}
-              {detail.totals.gamesPlayed === 1 ? "spel" : "spellen"}
-              {detail.totals.roundCount > 0 &&
-                ` · ${detail.totals.roundCount} rondes`}
-              {detail.totals.totalActiveSeconds > 0 &&
-                ` · ${formatDuration(detail.totals.totalActiveSeconds)} actieve speeltijd`}
-            </p>
-            {detail.session.status === "completed" && (
-              <Link
-                to={`/game-night/geschiedenis/${detail.session.id}/finale`}
-                className="gn-muted mt-2 inline-block text-xs underline"
-              >
-                Bekijk finale opnieuw
-              </Link>
-            )}
-          </div>
+        <div className="gnv2-topbar-spacer" aria-hidden />
+      </header>
 
-          {(detail.sessionWinsByPlayer.length > 0 ||
-            detail.roundWinsByPlayer.length > 0) && (
-            <div className="gn-panel-elevated px-5 py-4">
-              <p className="gn-eyebrow mb-2">Winnaars van de avond</p>
-              <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs">
-                {detail.sessionWinsByPlayer.map((w) => (
-                  <span key={`sw-${w.player.id}`}>
-                    <PlayerLink player={w.player} /> · {w.wins} session{" "}
-                    {w.wins === 1 ? "win" : "wins"}
+      <main className="gnv2-content-main">
+        {!detail ? (
+          <p className="gnv2-content-empty">
+            Deze Game Night is niet gevonden.
+          </p>
+        ) : (
+          <>
+            <div className="gnv2-content-intro">
+              <p className="gnv2-muted text-sm">
+                {detail.attendees.map((p, i) => (
+                  <span key={p.id}>
+                    {i > 0 && " · "}
+                    <PlayerLink player={p} />
                   </span>
                 ))}
-              </div>
-              {detail.roundWinsByPlayer.length > 0 && (
-                <div className="gn-faint mt-1.5 flex flex-wrap gap-x-6 gap-y-1 text-xs">
-                  {detail.roundWinsByPlayer.map((w) => (
-                    <span key={`rw-${w.player.id}`}>
-                      <PlayerLink player={w.player} /> · {w.wins} round{" "}
+              </p>
+              <p className="gnv2-faint mt-1 text-xs">
+                {detail.totals.gamesPlayed}{" "}
+                {detail.totals.gamesPlayed === 1 ? "spel" : "spellen"}
+                {detail.totals.roundCount > 0 &&
+                  ` · ${detail.totals.roundCount} rondes`}
+                {detail.totals.totalActiveSeconds > 0 &&
+                  ` · ${formatDuration(detail.totals.totalActiveSeconds)} actieve speeltijd`}
+              </p>
+              {detail.session.status === "completed" && (
+                <Link
+                  to={`/game-night/geschiedenis/${detail.session.id}/finale`}
+                  className="gnv2-muted mt-1.5 inline-block text-xs underline"
+                >
+                  Bekijk finale opnieuw
+                </Link>
+              )}
+            </div>
+
+            {(detail.sessionWinsByPlayer.length > 0 ||
+              detail.roundWinsByPlayer.length > 0) && (
+              <div className="gnv2-panel-elevated px-5 py-4">
+                <p className="gnv2-eyebrow mb-2">Winnaars van de avond</p>
+                <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs">
+                  {detail.sessionWinsByPlayer.map((w) => (
+                    <span key={`sw-${w.player.id}`}>
+                      <PlayerLink player={w.player} /> · {w.wins} session{" "}
                       {w.wins === 1 ? "win" : "wins"}
                     </span>
                   ))}
                 </div>
-              )}
-            </div>
-          )}
+                {detail.roundWinsByPlayer.length > 0 && (
+                  <div className="gnv2-faint mt-1.5 flex flex-wrap gap-x-6 gap-y-1 text-xs">
+                    {detail.roundWinsByPlayer.map((w) => (
+                      <span key={`rw-${w.player.id}`}>
+                        <PlayerLink player={w.player} /> · {w.wins} round{" "}
+                        {w.wins === 1 ? "win" : "wins"}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
-          <div className="space-y-3">
-            {detail.gameSessions.map((gs) => (
-              <GameSessionCard key={gs.gameSession.id} detail={gs} />
-            ))}
-          </div>
-        </>
-      )}
-    </div>
+            <div className="gnv2-content-list">
+              {detail.gameSessions.map((gs) => (
+                <GameSessionCard key={gs.gameSession.id} detail={gs} />
+              ))}
+            </div>
+          </>
+        )}
+      </main>
+    </GnV2Scene>
   );
 }

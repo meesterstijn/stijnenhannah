@@ -27,28 +27,28 @@ function nightDateLabel(iso: string) {
 
 function NightCard({ summary }: { summary: GameNightSummary }) {
   return (
-    <div className="gnv2-history-card">
-      <div className="gnv2-history-card-top">
+    <div className="gnv2-content-card">
+      <div className="gnv2-content-card-top">
         <div className="min-w-0">
-          <p className="gnv2-history-card-date">
+          <p className="gnv2-content-card-date">
             {nightDateLabel(summary.session.started_at)}
           </p>
-          <p className="gnv2-history-card-title truncate">
+          <p className="gnv2-content-card-title truncate">
             {summary.session.name}
           </p>
         </div>
         {summary.isActive && (
-          <span className="gnv2-history-card-badge">Bezig</span>
+          <span className="gnv2-content-card-badge">Bezig</span>
         )}
       </div>
 
       {summary.attendees.length > 0 && (
-        <p className="gnv2-history-card-players">
+        <p className="gnv2-content-card-players">
           {summary.attendees.map((p) => getPlayerDisplayName(p)).join(" · ")}
         </p>
       )}
 
-      <p className="gnv2-history-card-meta">
+      <p className="gnv2-content-card-meta">
         {summary.gameSessionCount}{" "}
         {summary.gameSessionCount === 1 ? "spel" : "spellen"}
         {` · ${summary.attendees.length} ${summary.attendees.length === 1 ? "speler" : "spelers"}`}
@@ -59,14 +59,14 @@ function NightCard({ summary }: { summary: GameNightSummary }) {
       <div className="flex flex-wrap gap-x-5 gap-y-1">
         <Link
           to={`/game-night/geschiedenis/${summary.session.id}`}
-          className="gnv2-history-card-link"
+          className="gnv2-content-card-link"
         >
           Bekijk avond
         </Link>
         {summary.session.status === "completed" && (
           <Link
             to={`/game-night/geschiedenis/${summary.session.id}/finale`}
-            className="gnv2-history-card-link"
+            className="gnv2-content-card-link"
           >
             Bekijk finale opnieuw
           </Link>
@@ -85,24 +85,24 @@ function SessionCard({
 }) {
   const winner = detail.results.find((r) => r.isWinner);
   return (
-    <div className="gnv2-history-card">
-      <div className="gnv2-history-card-top">
+    <div className="gnv2-content-card">
+      <div className="gnv2-content-card-top">
         <div className="min-w-0">
-          <p className="gnv2-history-card-date">
+          <p className="gnv2-content-card-date">
             {nightDateLabel(detail.gameSession.started_at)}
           </p>
-          <p className="gnv2-history-card-title truncate">{detail.game.name}</p>
+          <p className="gnv2-content-card-title truncate">{detail.game.name}</p>
         </div>
       </div>
 
       {detail.participants.length > 0 && (
-        <p className="gnv2-history-card-players">
+        <p className="gnv2-content-card-players">
           {detail.participants.map((p) => getPlayerDisplayName(p)).join(" · ")}
         </p>
       )}
 
       {(detail.durationSeconds != null || winner) && (
-        <p className="gnv2-history-card-meta">
+        <p className="gnv2-content-card-meta">
           {detail.durationSeconds != null &&
             formatDuration(detail.durationSeconds)}
           {detail.durationSeconds != null && winner && " · "}
@@ -112,7 +112,7 @@ function SessionCard({
 
       <Link
         to={`/game-night/geschiedenis/${night.session.id}`}
-        className="gnv2-history-card-link"
+        className="gnv2-content-card-link"
       >
         Bekijk avond
       </Link>
@@ -179,10 +179,10 @@ export default function GameNightHistory() {
         <div className="gnv2-topbar-spacer" aria-hidden />
       </header>
 
-      <main className="gnv2-history-main">
-        <div className="gnv2-history-intro">
-          <h1 className="gnv2-history-heading">Geschiedenis</h1>
-          <p className="gnv2-history-sub">
+      <main className="gnv2-content-main">
+        <div className="gnv2-content-intro">
+          <h1 className="gnv2-content-heading">Geschiedenis</h1>
+          <p className="gnv2-content-sub">
             Game Nights &amp; sessies — {nights.length}{" "}
             {nights.length === 1 ? "avond" : "avonden"} gespeeld.
           </p>
@@ -224,9 +224,9 @@ export default function GameNightHistory() {
 
         {tab === "nights" &&
           (nights.length === 0 ? (
-            <p className="gnv2-history-empty">Nog geen Game Nights gespeeld.</p>
+            <p className="gnv2-content-empty">Nog geen Game Nights gespeeld.</p>
           ) : (
-            <div className="gnv2-history-list">
+            <div className="gnv2-content-list">
               {nights.map((n) => (
                 <NightCard key={n.session.id} summary={n} />
               ))}
@@ -235,9 +235,9 @@ export default function GameNightHistory() {
 
         {tab === "sessions" &&
           (sessions.length === 0 ? (
-            <p className="gnv2-history-empty">Nog geen spellen gespeeld.</p>
+            <p className="gnv2-content-empty">Nog geen spellen gespeeld.</p>
           ) : (
-            <div className="gnv2-history-list">
+            <div className="gnv2-content-list">
               {sessions.map((row) => (
                 <SessionCard
                   key={row.detail.gameSession.id}
@@ -250,11 +250,11 @@ export default function GameNightHistory() {
 
         {tab === "finales" &&
           (finales.length === 0 ? (
-            <p className="gnv2-history-empty">
+            <p className="gnv2-content-empty">
               Nog geen afgeronde Game Night met finale.
             </p>
           ) : (
-            <div className="gnv2-history-list">
+            <div className="gnv2-content-list">
               {finales.map((n) => (
                 <NightCard key={n.session.id} summary={n} />
               ))}

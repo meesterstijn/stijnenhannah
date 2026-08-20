@@ -38,6 +38,22 @@ los, op de man-base, op de vrouw-base (waar van toepassing), key, slot,
 128×128-validatie en actief/inactief-status — zonder dat deze pagina zelf
 nog per asset hoeft te worden aangepast.
 
+**Uitzondering — `custom/base/` heeft sinds de asset-automatiseringsronde
+géén handmatige migratie per PNG meer nodig.** Een PNG in
+`custom/base/` toevoegen (512×512, alfakanaal, bestandsnaam
+`body-<slug>.png`) is voldoende: `npm run game-night:generate-assets`
+(automatisch via de `predev`/`prebuild`-hooks) scant de map, valideert elk
+bestand en genereert `supabase/generated/game_night_custom_bodies.sql` — een
+idempotente upsert die je zelf, buiten dit script om, via je bestaande
+Supabase-workflow toepast (dit script schrijft nooit rechtstreeks naar de
+database). Zie `scripts/generate-custom-body-manifest.mjs` voor de volledige
+logica en `supabase/migrations/20260921000000_game_night_character_custom_base_bodies.sql`
+voor de al-toegepaste legacy-batch (`manbody*.png`, blijft ondersteund naast
+de nieuwe `body-*.png`-conventie). De overige `custom/`-submappen
+(`clothing/`, `eyes/`, enz.) volgen dit patroon nog NIET — die blijven op de
+handmatige-migratie-workflow hierboven totdat hetzelfde automatiseringspatroon
+er expliciet naar wordt uitgebreid.
+
 De onderstaande V2.9D- en V2.9E-secties blijven staan als **historisch
 referentiemateriaal** (art-direction-taal, canvas-/anchor-conventies,
 laagvolgorde) — de harde technische eisen (128×128, transparant, exacte

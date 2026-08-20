@@ -334,24 +334,34 @@ export default function GameNightCharacterCreator() {
         <div className="gnv2-topbar-spacer" aria-hidden />
       </header>
 
-      <div className="gnv2-creator-preview" aria-live="off">
-        <div className="gnv2-creator-preview-frame">
-          <CharacterVisual
-            player={myPlayer}
-            characterId={showLegacyPreview ? myPlayer.character_id : null}
-            layers={showLegacyPreview ? undefined : previewLayers}
-            loading="eager"
-          />
+      {/* Sectie 7 (visuele consistentieronde): op mobiel is
+          .gnv2-creator-body/-left/-right puur `display:contents` (zie
+          styles.css) — deze wrapper-divs veranderen dus NIETS aan de
+          bestaande, beproefde verticale flex-volgorde. Vanaf de
+          tablet-breakpoint (800px, dekt Tab S9 portret én landschap) worden
+          ze een echte 40/60-lay-out: LEFT de sticky preview, RIGHT
+          lichaamsbouw/tabs/grid/footer. */}
+      <div className="gnv2-creator-body">
+        <div className="gnv2-creator-body-left">
+          <div className="gnv2-creator-preview" aria-live="off">
+            <div className="gnv2-creator-preview-frame">
+              <CharacterVisual
+                player={myPlayer}
+                characterId={showLegacyPreview ? myPlayer.character_id : null}
+                layers={showLegacyPreview ? undefined : previewLayers}
+                loading="eager"
+              />
+            </div>
+            {showLegacyPreview && (
+              <p className="gnv2-creator-legacy-note">
+                Dit is je huidige character — kies hieronder onderdelen om je
+                eigen versie samen te stellen.
+              </p>
+            )}
+          </div>
         </div>
-        {showLegacyPreview && (
-          <p className="gnv2-creator-legacy-note">
-            Dit is je huidige character — kies hieronder onderdelen om je eigen
-            versie samen te stellen.
-          </p>
-        )}
-      </div>
-
-      {showBodyShapePicker && (
+        <div className="gnv2-creator-body-right">
+          {showBodyShapePicker && (
         <div className="gnv2-creator-bodyshape" aria-label="Lichaamsbouw">
           <p className="gnv2-creator-bodyshape-label">Lichaamsbouw</p>
           <div
@@ -476,6 +486,8 @@ export default function GameNightCharacterCreator() {
             </>
           )}
         </button>
+      </div>
+        </div>
       </div>
 
       {confirmLeave && (
