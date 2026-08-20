@@ -1,0 +1,1 @@
+import{r as a}from"./react-C_UkKOgN.js";function s(t,e){const[r,c]=a.useState(()=>{if(typeof window>"u")return e;try{const o=window.localStorage.getItem(t);return o?JSON.parse(o):e}catch{return e}});return a.useEffect(()=>{try{window.localStorage.setItem(t,JSON.stringify(r))}catch{}},[t,r]),[r,c]}export{s as u};
