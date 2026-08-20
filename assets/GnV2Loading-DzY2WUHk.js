@@ -1,1 +1,0 @@
-import{j as n}from"./query-lCHjTO8z.js";import{G as s}from"./GnV2Scene-GcBqzi8D.js";function i(){return n.jsx(s,{className:"gnv2-loading-scene",children:n.jsx("div",{className:"gnv2-loading",children:n.jsx("div",{className:"gnv2-loading-pulse","aria-hidden":!0})})})}export{i as G};
