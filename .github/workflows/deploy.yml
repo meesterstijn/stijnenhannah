@@ -8,6 +8,11 @@ on:
 permissions:
   contents: write
 
+# Eén concurrency-group voor de hele productiepijplijn (build+DB-sync+deploy
+# samen) — voorkomt dat twee gelijktijdige deploys dezelfde Game Night-
+# catalogus proberen te synchroniseren. `cancel-in-progress` annuleert een
+# oudere, nog lopende run zodra een nieuwere start (laatste push wint),
+# in plaats van twee syncs interleaved te laten draaien.
 concurrency:
   group: pages
   cancel-in-progress: true
@@ -25,9 +30,54 @@ jobs:
 
       - run: npm install
 
-      - run: npm run build
+      # Fail-fast (opdracht sectie 3/4): een ongeldig PNG (verkeerd formaat,
+      # geen alfakanaal, ongeldige bestandsnaam, duplicate key) laat dit
+      # script met exit-code 1 stoppen — hierna draait geen enkele volgende
+      # stap (type-check/build/DB-sync/deploy), dus zowel de database als de
+      # live site blijven exact zoals ze waren.
+      - name: Generate & validate Game Night custom body assets
+        run: npm run game-night:generate-assets
+
+      - name: Type-check
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
+
+      - name: Build succeeded
+        run: echo "✓ build geslaagd"
+
+      # Alleen de ECHTE productie-deploy mag naar Supabase schrijven (opdracht
+      # sectie 7): de repository-check sluit forks uit (die sowieso nooit het
+      # SUPABASE_DB_URL-secret van dit repo krijgen — GitHub deelt secrets
+      # nooit met forks), de ref-check sluit een handmatige workflow_dispatch
+      # vanaf een andere branch dan main uit. PR's triggeren deze workflow
+      # sowieso al niet (geen `pull_request:`-trigger hierboven).
+      - name: Sync Game Night custom body catalog to Supabase
+        if: github.repository == 'meesterstijn/stijnenhannah' && github.ref == 'refs/heads/main'
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "::error::SUPABASE_DB_URL secret ontbreekt — kan de Game Night-catalogus niet synchroniseren."
+            exit 1
+          fi
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends postgresql-client
+          echo "Synchroniseren van supabase/generated/game_night_custom_bodies.sql met Supabase..."
+          # -v ON_ERROR_STOP=1: stop bij de eerste SQL-fout met exit-code != 0
+          # (psql's default gedrag is anders door te lopen ná een fout).
+          # --single-transaction: de volledige gegenereerde SQL (upsert +
+          # deactivatie) slaagt of faalt als geheel, nooit gedeeltelijk
+          # toegepast.
+          psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 --single-transaction \
+            -f supabase/generated/game_night_custom_bodies.sql
+          echo "✓ Supabase catalogus gesynchroniseerd"
 
       - uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
+
+      - name: Deploy succeeded
+        run: echo "✓ deploy geslaagd"

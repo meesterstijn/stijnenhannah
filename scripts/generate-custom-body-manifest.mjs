@@ -410,10 +410,14 @@ function main() {
   );
   writeFileSync(SQL_OUTPUT, sqlLines.join("\n"), "utf8");
 
+  // Herkenbaar, CI-vriendelijk logformaat (opdracht: duidelijke
+  // deployment-output) — puur cosmetisch, geen gedragswijziging.
+  console.log(`Game Night bodies: ${allEntries.length} gevonden`);
   console.log(
-    `generate-custom-body-manifest: ${allEntries.length} custom body(s) gevonden ` +
-      `(${legacyEntries.length} legacy, ${canonicalEntries.length} canonical) in ${SCAN_DIR_REL}/`,
+    `  (${legacyEntries.length} legacy, ${canonicalEntries.length} canonical) in ${SCAN_DIR_REL}/`,
   );
+  console.log("✓ alle bestanden geldig");
+  console.log("✓ manifest gegenereerd");
   console.log(
     `  → ${TS_OUTPUT.replace(REPO_ROOT + "\\", "").replace(REPO_ROOT + "/", "")}`,
   );
