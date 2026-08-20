@@ -371,7 +371,7 @@ export function compositeOntoCanonicalCanvas(
   return canvas;
 }
 
-function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
+export function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   return new Promise<Blob>((resolve, reject) => {
     canvas.toBlob((blob) => {
       if (blob) resolve(blob);
@@ -385,21 +385,146 @@ function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   });
 }
 
+// ── Handmatig hoofdmasker (polygon-editor) ─────────────────────────────────
+//
+// Optionele, door de speler zelf bijgestelde correctie BOVENOP de al
+// bestaande, automatische maskers (HEAD_SAFETY_MASK/NECK_CUTOFF hierboven —
+// GEEN van beide gewijzigd of vervangen). Coördinaten liggen genormaliseerd
+// (0–1) relatief aan CHARACTER_CANVAS, exact zoals opgeslagen in
+// face_crop.manualHeadMask (zie GameNightFaceCrop in src/lib/supabase.ts).
+export type NormalizedPoint = { x: number; y: number };
+
+export const MANUAL_HEAD_MASK = {
+  // "Gebruik bijvoorbeeld 2-4px feather, centraal configureerbaar."
+  featherPx: 3,
+} as const;
+
+export const MANUAL_HEAD_MASK_VERSION = "polygon-v1";
+
+/**
+ * Startpolygon voor de editor: GEEN nieuwe AI/alfa-contourextractie (bewust
+ * de door de opdracht toegestane eenvoudigere route — "als betrouwbare
+ * automatische polygon-extractie te complex wordt, gebruik dan een
+ * eenvoudige vooraf ingestelde head-vorm... op basis van de bestaande
+ * alpha/head safety mask"). Hergebruikt letterlijk de acht
+ * HEAD_SAFETY_MASK-keyframes (dezelfde "ei/gloeilamp"-vorm als het
+ * automatische masker) — links top-naar-onder, dan rechts onder-naar-top,
+ * samen 16 punten, een gesloten lus rond het canonieke hoofdgebied. De
+ * speler hoeft in de praktijk meestal alleen een paar punten rond kaak/nek
+ * bij te stellen, exact zoals gevraagd.
+ */
+export function deriveDefaultHeadMaskPoints(): NormalizedPoint[] {
+  const left = HEAD_SAFETY_MASK.keyframes.map((k) => ({
+    x: (FACE_ANCHOR.centerX - k.halfWidth) / CHARACTER_CANVAS.width,
+    y: k.y / CHARACTER_CANVAS.height,
+  }));
+  const right = HEAD_SAFETY_MASK.keyframes
+    .map((k) => ({
+      x: (FACE_ANCHOR.centerX + k.halfWidth) / CHARACTER_CANVAS.width,
+      y: k.y / CHARACTER_CANVAS.height,
+    }))
+    .reverse();
+  return [...left, ...right];
+}
+
+/**
+ * Rasterizeert de gesloten polygon (rechte segmenten tussen punten, zoals
+ * de opdracht als standaard voorschrijft — de eventuele visueel afgeronde
+ * weergave in de editor-UI is puur decoratief en verandert nooit deze
+ * daadwerkelijke maskergeometrie) naar een los alfa-masker-canvas: wit =
+ * volledig binnen de polygon, transparant = volledig buiten, met een korte
+ * canvas-blur (MANUAL_HEAD_MASK.featherPx) als feather op de rand — een
+ * eenvoudige, geen-losse-wiskunde-vereisende manier om een voorspelbare,
+ * kleine falloff te krijgen zonder de polygon zelf op te rekken (blur werkt
+ * symmetrisch naar binnen én buiten de rand, dus geen overshoot voorbij de
+ * gekozen maximumgrens).
+ */
+export function rasterizePolygonMask(
+  points: NormalizedPoint[],
+  width: number,
+  height: number,
+): HTMLCanvasElement {
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error(
+      "Kan geen 2D-canvascontext aanmaken voor het handmatige hoofdmasker.",
+    );
+  }
+  ctx.filter = `blur(${MANUAL_HEAD_MASK.featherPx}px)`;
+  ctx.beginPath();
+  points.forEach((p, i) => {
+    const px = p.x * width;
+    const py = p.y * height;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  });
+  ctx.closePath();
+  ctx.fillStyle = "#fff";
+  ctx.fill();
+  return canvas;
+}
+
+/**
+ * Past het handmatige polygon-masker toe op een canvas van exact
+ * CHARACTER_CANVAS-afmetingen: finalAlpha = bestaande alfa × polygonMaskAlpha
+ * (puur vermenigvuldigend, net als applyHeadSafetyMask/applyNeckCutoffFade —
+ * voegt nooit pixels toe). Minder dan 3 punten is geen geldige polygon en
+ * wordt genegeerd (geen enkel effect), zodat een lege/ongeldige
+ * manualHeadMask nooit per ongeluk alles wegmaskeert.
+ */
+export function applyPolygonMask(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  points: NormalizedPoint[],
+): void {
+  if (points.length < 3) return;
+  const maskCanvas = rasterizePolygonMask(points, width, height);
+  const maskCtx = maskCanvas.getContext("2d");
+  if (!maskCtx) return;
+  const maskAlpha = maskCtx.getImageData(0, 0, width, height).data;
+  const imageData = ctx.getImageData(0, 0, width, height);
+  const pixels = imageData.data;
+  for (let i = 0; i < width * height; i++) {
+    const idx = i * 4 + 3;
+    const factor = maskAlpha[idx] / 255;
+    if (factor >= 1) continue;
+    pixels[idx] = factor <= 0 ? 0 : Math.round(pixels[idx] * factor);
+  }
+  ctx.putImageData(imageData, 0, 0);
+}
+
 /**
  * Rendert de definitieve 512x512 PNG-blob uit een bronafbeelding (of
  * -canvas, altijd de al-gesegmenteerde, transparante head-crop, zie
  * gameNightFaceSegmentation.ts) + een crop-rechthoek (in pixels van de
  * BRON). Volgorde: canonieke plaatsing (compositeOntoCanonicalCanvas) →
  * head safety mask (applyHeadSafetyMask, begrenst X) → nek-cutoff-fade
- * (applyNeckCutoffFade, begrenst Y) → PNG-export. Beide maskers zijn puur
- * multiplicatief op het bestaande alfakanaal — nooit een fillRect/
- * fillStyle-achtergrondkleur, dus alfa buiten de toegestane zones blijft tot
- * en met de PNG-export exact 0 (canvas.toBlob met "image/png" bewaart
- * alpha; JPEG/WebP-zonder-alpha wordt hier bewust nooit gebruikt).
+ * (applyNeckCutoffFade, begrenst Y) → optioneel handmatig polygon-masker
+ * (applyPolygonMask, alleen als `manualHeadMaskPoints` is meegegeven) →
+ * PNG-export.
+ *
+ * Bewust in DIE volgorde (niet andersom): de automatische pipeline
+ * (MediaPipe + head safety mask + neck-cutoff-fade) produceert eerst zijn
+ * eigen, volledige beste resultaat — dat blijft een ongewijzigde safety-
+ * baseline, precies zoals hij ook zonder handmatige correctie zou opleveren.
+ * Het polygon-masker is daarna de LAATSTE stap, puur een handmatige
+ * bijstelling bovenop dat resultaat: hij mag nog pixels van de automatische
+ * uitkomst wegnemen, maar er volgt na de polygon geen enkel automatisch
+ * geometrisch masker meer dat de door de speler gekozen contour opnieuw zou
+ * kunnen veranderen. Alle maskers zijn puur multiplicatief op het bestaande
+ * alfakanaal — nooit een fillRect/fillStyle-achtergrondkleur, dus alfa
+ * buiten de toegestane zones blijft tot en met de PNG-export exact 0
+ * (canvas.toBlob met "image/png" bewaart alpha; JPEG/WebP-zonder-alpha
+ * wordt hier bewust nooit gebruikt).
  */
 export async function renderCanonicalFaceCanvas(
   image: HTMLImageElement | HTMLCanvasElement,
   crop: FaceSourceRect,
+  manualHeadMaskPoints?: NormalizedPoint[],
 ): Promise<Blob> {
   const canvas = compositeOntoCanonicalCanvas(image, crop);
   const ctx = canvas.getContext("2d");
@@ -408,6 +533,14 @@ export async function renderCanonicalFaceCanvas(
   }
   applyHeadSafetyMask(ctx, CHARACTER_CANVAS.width, CHARACTER_CANVAS.height);
   applyNeckCutoffFade(ctx, CHARACTER_CANVAS.width, CHARACTER_CANVAS.height);
+  if (manualHeadMaskPoints && manualHeadMaskPoints.length >= 3) {
+    applyPolygonMask(
+      ctx,
+      CHARACTER_CANVAS.width,
+      CHARACTER_CANVAS.height,
+      manualHeadMaskPoints,
+    );
+  }
   return canvasToPngBlob(canvas);
 }
 

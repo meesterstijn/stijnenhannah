@@ -15,15 +15,22 @@ import {
   uploadPlayerFaceOriginal,
 } from "@/features/game-night/lib/gameNightFaceStorage";
 import {
+  applyHeadSafetyMask,
+  applyNeckCutoffFade,
+  CHARACTER_CANVAS,
+  compositeOntoCanonicalCanvas,
   computeHeadCropSourceRect,
+  deriveDefaultHeadMaskPoints,
   drawRegionToCanvas,
   HEAD_CROP,
   HEAD_SAFETY_MASK_VERSION,
   loadImageFromUrl,
   mapRectIntoRegion,
+  MANUAL_HEAD_MASK_VERSION,
   NECK_CUTOFF_VERSION,
   renderCanonicalFaceCanvas,
   type FaceSourceRect,
+  type NormalizedPoint,
 } from "@/features/game-night/lib/gameNightFaceCanvas";
 import {
   preloadFaceSegmenter,
@@ -31,6 +38,7 @@ import {
   SEGMENTATION_VERSION,
 } from "@/features/game-night/lib/gameNightFaceSegmentation";
 import { FaceCropper } from "@/features/game-night/components/FaceCropper";
+import { HeadMaskEditor } from "@/features/game-night/components/HeadMaskEditor";
 import {
   DEFAULT_BODY_SHAPE,
   personalFaceLayer,
@@ -44,6 +52,7 @@ type Step =
   | "preparing"
   | "positioning"
   | "processing"
+  | "masking"
   | "preview"
   | "saving"
   | "error";
@@ -109,13 +118,26 @@ export default function GameNightFaceSetup() {
   const [step, setStep] = useState<Step>("pick");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [rawImageUrl, setRawImageUrl] = useState<string | null>(null);
+  const [maskBackgroundUrl, setMaskBackgroundUrl] = useState<string | null>(
+    null,
+  );
   const [previewFaceUrl, setPreviewFaceUrl] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [errorStage, setErrorStage] = useState<ErrorStage | null>(null);
 
   const cropAreaRef = useRef<Area | null>(null);
   const optimizedOriginalRef = useRef<OptimizedPhoto | null>(null);
+  // De gesegmenteerde head-crop + de daarbinnen gemapte oorspronkelijke
+  // crop-rechthoek (opdracht: nieuwe "masking"-stap tussen segmentatie en
+  // de definitieve compositie) — bewaard zodat handleConfirmMask() de
+  // definitieve 512x512 PNG opnieuw, vanaf de bron, kan opbouwen (via
+  // renderCanonicalFaceCanvas, ALTIJD een vers canvas — nooit een
+  // gedeeld/gemuteerd canvas hergebruiken tussen pogingen, dat zou bij een
+  // herhaalde bevestiging de maskers dubbel kunnen toepassen).
+  const segmentedCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const cropInHeadSpaceRef = useRef<FaceSourceRect | null>(null);
   const pendingFaceBlobRef = useRef<Blob | null>(null);
+  const pendingManualHeadMaskRef = useRef<NormalizedPoint[] | null>(null);
   // De ORIGINELE (strakke, niet-vergrote) crop-rechthoek — dit is wat in
   // face_crop wordt opgeslagen (zelfde contract als voorheen: "genoeg om
   // face_asset later opnieuw te genereren vanuit face_original"), NIET het
@@ -198,15 +220,71 @@ export default function GameNightFaceSetup() {
       const { canvas: segmentedCanvas } =
         await removeSelfieBackground(headCanvas);
       const cropInHeadSpace = mapRectIntoRegion(cropRect, headRegion, scale);
-      // renderCanonicalFaceCanvas tekent de gesegmenteerde head-crop op het
-      // canonieke 512x512-canvas EN past daarna de nek-cutoff-fade toe (zie
-      // NECK_CUTOFF in gameNightFaceCanvas.ts) — geen aparte stap hier nodig.
-      const faceBlob = await renderCanonicalFaceCanvas(
+
+      // Nieuwe "masking"-stap (opdracht): de speler krijgt hier de
+      // handmatige-contourpunten-editor te zien, als LAATSTE correctie NÁ
+      // de volledige automatische pipeline — de achtergrond is dus het
+      // canoniek geplaatste resultaat MET head safety mask én nek-cutoff-
+      // fade al toegepast (de automatische pipeline maakt eerst zijn eigen
+      // beste resultaat; de polygon mag daarna alleen nog pixels
+      // WEGNEMEN, geen enkel automatisch geometrisch masker volgt nog ná de
+      // polygon, zie de volgorde in renderCanonicalFaceCanvas). Bewaar de
+      // bron (segmentedCanvas + cropInHeadSpace) zodat de definitieve PNG
+      // pas na bevestiging, vanaf een vers canvas, wordt opgebouwd —
+      // hetzelfde canvas hier voor de achtergrond wordt nooit hergebruikt/
+      // verder gemuteerd.
+      segmentedCanvasRef.current = segmentedCanvas;
+      cropInHeadSpaceRef.current = cropInHeadSpace;
+      pendingCropRectRef.current = cropRect;
+      const previewCanvas = compositeOntoCanonicalCanvas(
         segmentedCanvas,
         cropInHeadSpace,
       );
+      const previewCtx = previewCanvas.getContext("2d");
+      if (previewCtx) {
+        applyHeadSafetyMask(
+          previewCtx,
+          CHARACTER_CANVAS.width,
+          CHARACTER_CANVAS.height,
+        );
+        applyNeckCutoffFade(
+          previewCtx,
+          CHARACTER_CANVAS.width,
+          CHARACTER_CANVAS.height,
+        );
+      }
+      setMaskBackgroundUrl(previewCanvas.toDataURL("image/png"));
+      setStep("masking");
+    } catch (err) {
+      setErrorMessage(
+        err instanceof Error
+          ? err.message
+          : "Achtergrond verwijderen is mislukt. Probeer het opnieuw.",
+      );
+      setErrorStage("segmentation");
+      setStep("error");
+    }
+  }
+
+  async function handleConfirmMask(points: NormalizedPoint[]) {
+    const segmentedCanvas = segmentedCanvasRef.current;
+    const cropInHeadSpace = cropInHeadSpaceRef.current;
+    if (!segmentedCanvas || !cropInHeadSpace) return;
+    setErrorMessage(null);
+    setErrorStage(null);
+    try {
+      // Vers canvas vanaf de bron (zie de toelichting bij
+      // segmentedCanvasRef hierboven) — past head safety mask + nek-cutoff-
+      // fade toe (ongewijzigde automatische baseline) en DAARNA pas het
+      // optionele handmatige polygon-masker, als allerlaatste stap (zie
+      // renderCanonicalFaceCanvas in gameNightFaceCanvas.ts).
+      const faceBlob = await renderCanonicalFaceCanvas(
+        segmentedCanvas,
+        cropInHeadSpace,
+        points,
+      );
       pendingFaceBlobRef.current = faceBlob;
-      pendingCropRectRef.current = cropRect;
+      pendingManualHeadMaskRef.current = points;
       setPreviewFaceUrl((prev) => {
         if (prev) URL.revokeObjectURL(prev);
         return URL.createObjectURL(faceBlob);
@@ -216,7 +294,7 @@ export default function GameNightFaceSetup() {
       setErrorMessage(
         err instanceof Error
           ? err.message
-          : "Achtergrond verwijderen is mislukt. Probeer het opnieuw.",
+          : "Verwerken is mislukt. Probeer het opnieuw.",
       );
       setErrorStage("segmentation");
       setStep("error");
@@ -241,12 +319,16 @@ export default function GameNightFaceSetup() {
       if (prev) URL.revokeObjectURL(prev);
       return null;
     });
+    setMaskBackgroundUrl(null);
     setPreviewFaceUrl((prev) => {
       if (prev) URL.revokeObjectURL(prev);
       return null;
     });
     optimizedOriginalRef.current = null;
+    segmentedCanvasRef.current = null;
+    cropInHeadSpaceRef.current = null;
     pendingFaceBlobRef.current = null;
+    pendingManualHeadMaskRef.current = null;
     pendingCropRectRef.current = null;
     cropAreaRef.current = null;
     setErrorMessage(null);
@@ -305,6 +387,14 @@ export default function GameNightFaceSetup() {
           segmentationVersion: SEGMENTATION_VERSION,
           neckCutoffVersion: NECK_CUTOFF_VERSION,
           headSafetyMaskVersion: HEAD_SAFETY_MASK_VERSION,
+          ...(pendingManualHeadMaskRef.current
+            ? {
+                manualHeadMask: {
+                  version: MANUAL_HEAD_MASK_VERSION,
+                  points: pendingManualHeadMaskRef.current,
+                },
+              }
+            : {}),
           processedAt: new Date().toISOString(),
         },
       });
@@ -351,7 +441,7 @@ export default function GameNightFaceSetup() {
   const backAction =
     step === "pick"
       ? handleBackToProfile
-      : step === "preview"
+      : step === "preview" || step === "masking"
         ? handleAdjustAgain
         : handleAnotherPhoto;
 
@@ -477,6 +567,27 @@ export default function GameNightFaceSetup() {
                 een paar seconden duren.
               </p>
             </div>
+          </div>
+        )}
+
+        {step === "masking" && maskBackgroundUrl && (
+          <div className="flex w-full flex-col items-center gap-3">
+            <p className="gnv2-dialog-muted text-center text-sm font-semibold">
+              Pas je hoofdcontour aan (optioneel)
+            </p>
+            <HeadMaskEditor
+              imageUrl={maskBackgroundUrl}
+              bodyPreviewUrl={
+                bodyPreviewPart
+                  ? resolveBodyShapeAssetPath(
+                      bodyPreviewPart,
+                      DEFAULT_BODY_SHAPE,
+                    )
+                  : null
+              }
+              initialPoints={deriveDefaultHeadMaskPoints()}
+              onConfirm={(points) => void handleConfirmMask(points)}
+            />
           </div>
         )}
 

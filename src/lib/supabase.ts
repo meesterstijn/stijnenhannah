@@ -653,6 +653,16 @@ export type GameNightFaceCrop = {
   segmentationVersion?: string;
   neckCutoffVersion?: string;
   headSafetyMaskVersion?: string;
+  // Optionele, door de speler zelf via de polygon-editor bijgestelde
+  // correctie BOVENOP de automatische maskers (nooit een vervanging ervan —
+  // zie applyPolygonMask/MANUAL_HEAD_MASK_VERSION in gameNightFaceCanvas.ts).
+  // Coördinaten genormaliseerd 0–1, relatief aan het 512x512 canonieke
+  // canvas. Absent/undefined = speler heeft de voorgestelde contour
+  // ongewijzigd geaccepteerd of de stap nog nooit doorlopen (oudere faces).
+  manualHeadMask?: {
+    version: string;
+    points: { x: number; y: number }[];
+  };
   processedAt?: string;
 };
 
