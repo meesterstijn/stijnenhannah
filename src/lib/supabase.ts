@@ -643,15 +643,16 @@ export type GameNightFaceCrop = {
   sourceWidth: number;
   sourceHeight: number;
   // Optioneel, binnen dezelfde jsonb-kolom (bewust GEEN nieuwe
-  // databasekolommen voor deze drie) — laat een latere sessie zien met
-  // welke segmentatie-/nek-cutoff-implementatie en wanneer een
-  // face_asset_path is gegenereerd, zodat een toekomstig beter model/
-  // nieuwe fade-waarden selectief kunnen herverwerken (bv. "alleen faces
-  // met segmentationVersion < 2"). Zie SEGMENTATION_VERSION/
-  // NECK_CUTOFF_VERSION in resp. gameNightFaceSegmentation.ts/
-  // gameNightFaceCanvas.ts.
+  // databasekolommen voor deze vier) — laat een latere sessie zien met
+  // welke segmentatie-/nek-cutoff-/head-safety-mask-implementatie en
+  // wanneer een face_asset_path is gegenereerd, zodat een toekomstig beter
+  // model/nieuwe maskerwaarden selectief kunnen herverwerken (bv. "alleen
+  // faces met segmentationVersion < 2"). Zie SEGMENTATION_VERSION/
+  // NECK_CUTOFF_VERSION/HEAD_SAFETY_MASK_VERSION in resp.
+  // gameNightFaceSegmentation.ts/gameNightFaceCanvas.ts.
   segmentationVersion?: string;
   neckCutoffVersion?: string;
+  headSafetyMaskVersion?: string;
   processedAt?: string;
 };
 

@@ -82,17 +82,20 @@ export function FaceCropper({
           onCropComplete={handleCropComplete}
         />
 
-        {/* Ovale hoofd-guide (opdracht sectie 2/3): PUUR een positionerings-
-            hulp, geen masking — het is een gewone, doorzichtige cirkel-div
-            met een enorme box-shadow die al het overige (buiten het ovaal)
-            verduistert (de klassieke CSS-"spotlight"-truc). De daadwerkelijke
-            crop/export gebruikt uitsluitend de vierkante `croppedAreaPixels`
-            van de Cropper hierboven — dit ovaal beïnvloedt die rechthoek op
-            geen enkele manier, en haar/oren/hoofdcontour die buiten het
-            ovaal maar binnen de vierkante crop vallen blijven volledig
-            onderdeel van de MediaPipe-input (opdracht sectie 3: "ovaal is
-            een guide, geen ovale afbeelding" — MediaPipe, niet dit ovaal,
-            bepaalt uiteindelijk wat haar/oren/hoofdcontour is). */}
+        {/* Ovale hoofd-guide: PUUR een positioneringshulp/maximum-veilige-
+            ruimte, geen masking en geen vereiste dat de zijkant van het
+            hoofd het ovaal ook daadwerkelijk raakt — leidend zijn alleen
+            haar-top≈bovenste lijn, kin≈onderste lijn, hoofd gecentreerd (zie
+            FACE_ANCHOR). Het is een gewone, doorzichtige cirkel-div met een
+            enorme box-shadow die al het overige verduistert (CSS-
+            "spotlight"-truc). De daadwerkelijke crop/export gebruikt
+            uitsluitend de vierkante `croppedAreaPixels` van de Cropper
+            hierboven — dit ovaal beïnvloedt die rechthoek op geen enkele
+            manier. Het echte, generieuzere "niet breder dan dit"-masker
+            (HEAD_SAFETY_MASK) wordt pas ná segmentatie/canonieke plaatsing
+            toegepast, zie gameNightFaceCanvas.ts — een smal hoofd hoeft dit
+            ovaal dus niet te vullen, MediaPipe bepaalt de echte haar-/
+            oorcontour. */}
         <div
           className="pointer-events-none absolute -translate-x-1/2 rounded-full border-2 border-emerald-400/80"
           style={{
@@ -142,7 +145,8 @@ export function FaceCropper({
 
       <p className="text-center text-xs text-white/70">
         Plaats de bovenkant van je haar op de bovenste lijn en je kin op de
-        onderste lijn. Centreer je hoofd in het ovaal.
+        onderste lijn. Centreer je hoofd. Je hoofd hoeft de zijkanten van het
+        ovaal niet te raken.
       </p>
 
       {/* Zoom-slider (opdracht sectie 5: "eventueel een zoom-slider als

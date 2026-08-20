@@ -68,40 +68,146 @@ export const HEAD_CROP = {
   maxOutputSidePx: 640,
 } as const;
 
-// ── Nek-cutoff (opdracht sectie 7) ────────────────────────────────────────
+// ── Nek-cutoff ─────────────────────────────────────────────────────────────
 //
 // Zelfs met head-only segmentation-input kan MediaPipe nog een stukje nek/
-// kraag/shirt als "persoon" classificeren. Dit is een TWEEDE, deterministische
+// kraag/shirt als "persoon" classificeren. Dit is een deterministische
 // maskeerstap, losstaand van de segmentatie-confidence: een verticale
 // alfa-fade in het canonieke 512x512-canvas zelf, uitsluitend gebaseerd op
 // FACE_ANCHOR.chinY (320) — dus onafhankelijk van crop-/head-cropresolutie
-// of segmentatiekwaliteit.
+// of segmentatiekwaliteit. Werkt samen met HEAD_SAFETY_MASK hieronder (die
+// ook X-richting begrenst) — twee onafhankelijke, multiplicatieve
+// alfa-maskers, geen onderlinge afhankelijkheid.
 //
-// Gekozen waarden (na visuele beoordeling tegen bestaande FACE_ANCHOR-
-// verhoudingen, chinY=320 op een 512-canvas):
-//   allowancePx: 26 — een klein, ONgefade stukje nek direct onder de kin
-//     blijft volledig behouden (voorkomt een onnatuurlijk harde afsnede
-//     precies onder de kaaklijn/baard).
-//   fadePx: 34 — daarna een geleidelijke (lineaire) alfa-afname naar 0,
-//     over de volgende 34px (canonieke Y 346→380).
-// Alfa is GEGARANDEERD 0 vanaf canonieke Y 380 (chinY + allowancePx +
-// fadePx) — een harde, resolutie-onafhankelijke ondergrens die kleding nooit
-// kan overleven, zelfs niet bij een onvolledig/optimistisch segmentatie-
-// masker. BODY_REFERENCE.topY (264) ligt ruim boven deze grens: de
-// body/clothing-laag (die ONDER de face-laag rendert, zie
-// PERSONAL_FACE_LAYER_ORDER) schemert vanaf Y380 gewoon door, exact zoals
-// bedoeld — kleding komt voortaan uitsluitend uit body/clothing-assets, nooit
-// uit de selfie zelf (opdracht sectie 14).
+// Definitieve waarden (bijgesteld t.o.v. de vorige versie — 26/34, canonieke
+// Y346→380 — na meldingen dat schouders/shirt soms nog zichtbaar bleven):
+//   allowancePx: 25 — klein, ONgefade stukje nek direct onder de kin blijft
+//     volledig behouden (canonieke Y320→345, voorkomt een onnatuurlijk harde
+//     afsnede precies onder de kaaklijn/baard).
+//   fadePx: 25 — daarna een geleidelijke (lineaire) alfa-afname naar 0, over
+//     de volgende 25px (canonieke Y345→370).
+// Alfa is GEGARANDEERD 0 vanaf canonieke Y370 (chinY + allowancePx + fadePx)
+// — 10px eerder dan voorheen (380→370), een harde, resolutie-onafhankelijke
+// ondergrens die kleding nooit kan overleven, zelfs niet bij een onvolledig/
+// optimistisch segmentatiemasker. BODY_REFERENCE.topY (264) ligt ruim boven
+// deze grens: de body/clothing-laag (die ONDER de face-laag rendert, zie
+// PERSONAL_FACE_LAYER_ORDER) schemert vanaf Y370 gewoon door — kleding komt
+// uitsluitend uit body/clothing-assets, nooit uit de selfie zelf.
 export const NECK_CUTOFF = {
-  allowancePx: 26,
-  fadePx: 34,
+  allowancePx: 25,
+  fadePx: 25,
 } as const;
 
 // Versie-string voor face_crop.neckCutoffVersion (zelfde herverwerkings-
 // motivatie als segmentationVersion, zie GameNightFaceCrop in
 // src/lib/supabase.ts) — wijzigt zodra allowancePx/fadePx hierboven ooit
 // wijzigen, zodat een toekomstige sessie selectief kan herverwerken.
-export const NECK_CUTOFF_VERSION = "neck-fade-v1";
+export const NECK_CUTOFF_VERSION = "neck-fade-v2";
+
+// ── Head safety mask ────────────────────────────────────────────────────
+//
+// NECK_CUTOFF hierboven begrenst alleen de Y-richting (alles onder een
+// vaste hoogte verdwijnt). Dat laat één gat open: schouders/kraag die
+// SEIZIJDS in beeld komen — bv. bij een dichtbij-genomen selfie — op een Y
+// die nog BOVEN de neck-cutoff-grens ligt, worden door MediaPipe terecht als
+// "persoon" gezien en dus niet verwijderd door een puur verticaal masker.
+// Dit tweede, onafhankelijke masker begrenst daarom ook de X-richting, per
+// rij, volgens een natuurlijke "ei/gloeilamp"-vorm (breed rond oren/slapen,
+// smaller richting kaak, smal richting nek) — zie HEAD_SAFETY_MASK.keyframes.
+//
+// Hard uitgangspunt (NIET veranderd t.o.v. de canonical geometrie): dit is
+// uitsluitend een MAXIMUM/safety-grens. Het masker voegt NOOIT pixels toe en
+// rekt het resultaat nooit op — een smal hoofd blijft gewoon smal (alles
+// BINNEN de grens blijft exact zoals de segmentatie het aanlevert). Alleen
+// wat verder van FACE_ANCHOR.centerX ligt dan de toegestane halve breedte op
+// die hoogte, wordt (met feather, zie featherPx) naar transparant gemaskeerd.
+//
+// Keyframes: { y (canonieke Y, px), halfWidth (max. afstand tot centerX,
+// px) } — lineair geïnterpoleerd tussen punten, geclampt aan het eerste/
+// laatste punt buiten het bereik. Bewust een paar losse referentiepunten
+// i.p.v. een enkele wiskundige ovaal-formule: geeft direct controleerbare,
+// per-zone marges (boven ruim voor haar/kuif, midden ruim voor oren, onder
+// smal voor nek) zonder de vorm via één parameter te moeten benaderen.
+export const HEAD_SAFETY_MASK = {
+  keyframes: [
+    { y: 0, halfWidth: 150 },
+    // FACE_ANCHOR.topY (50) — ruime marge zodat uitstekend haar/kuif/
+    // krullen niet onnodig worden afgeknipt.
+    { y: 50, halfWidth: 170 },
+    // Breedste punt — rond oren/slapen, ruim genoeg voor de meeste
+    // hoofdbreedtes/haarvolumes zonder de nek/schouders al toe te staan.
+    { y: 150, halfWidth: 195 },
+    { y: 260, halfWidth: 175 },
+    // FACE_ANCHOR.chinY (320) — kaaklijn, merkbaar smaller dan het oorpunt.
+    { y: 320, halfWidth: 140 },
+    // Samenvallend met NECK_CUTOFF.allowancePx-grens (345) — smalle nek.
+    { y: 345, halfWidth: 100 },
+    // Samenvallend met de volledige NECK_CUTOFF-fade-grens (370) — vanaf
+    // hier is alfa via NECK_CUTOFF al hard 0, deze breedte is dan ook geen
+    // zichtbaar effect meer, alleen conceptuele continuïteit van de vorm.
+    { y: 370, halfWidth: 65 },
+    { y: 512, halfWidth: 65 },
+  ],
+  // Feather (klein houden — "geen wazig hoofd"): de rand van de hierboven
+  // bepaalde maximumbreedte wordt over dit aantal pixels lineair naar 0
+  // gefaded i.p.v. een harde knip, zodat haar/oren/kaak niet "met een
+  // schaar geknipt" ogen.
+  featherPx: 10,
+} as const;
+
+// Versie-string voor face_crop.headSafetyMaskVersion — zelfde
+// herverwerkings-motivatie als segmentationVersion/neckCutoffVersion.
+export const HEAD_SAFETY_MASK_VERSION = "head-safety-mask-v1";
+
+function maxHalfWidthAtY(y: number): number {
+  const kf = HEAD_SAFETY_MASK.keyframes;
+  if (y <= kf[0].y) return kf[0].halfWidth;
+  for (let i = 1; i < kf.length; i++) {
+    const a = kf[i - 1];
+    const b = kf[i];
+    if (y <= b.y) {
+      const t = (y - a.y) / (b.y - a.y);
+      return a.halfWidth + (b.halfWidth - a.halfWidth) * t;
+    }
+  }
+  return kf[kf.length - 1].halfWidth;
+}
+
+/**
+ * Past het head safety mask toe op een canvas van exact CHARACTER_CANVAS-
+ * afmetingen: per rij (Y) wordt de toegestane maximale afstand tot
+ * FACE_ANCHOR.centerX bepaald (zie maxHalfWidthAtY), en alles verder daarvan
+ * wordt — met een korte lineaire feather (HEAD_SAFETY_MASK.featherPx) —
+ * naar alfa=0 gemaskeerd. Vermenigvuldigt uitsluitend de BESTAANDE
+ * alfawaarde (nooit optellen/verhogen) — verwijdert dus alleen pixels,
+ * voegt er nooit toe.
+ */
+export function applyHeadSafetyMask(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+): void {
+  const imageData = ctx.getImageData(0, 0, width, height);
+  const pixels = imageData.data;
+  const { featherPx } = HEAD_SAFETY_MASK;
+  for (let y = 0; y < height; y++) {
+    const maxHalfWidth = maxHalfWidthAtY(y);
+    const rowOffset = y * width;
+    for (let x = 0; x < width; x++) {
+      const dist = Math.abs(x - FACE_ANCHOR.centerX);
+      if (dist <= maxHalfWidth) continue;
+      const over = dist - maxHalfWidth;
+      const idx = (rowOffset + x) * 4 + 3;
+      if (over >= featherPx) {
+        pixels[idx] = 0;
+      } else {
+        const factor = 1 - over / featherPx;
+        pixels[idx] = Math.round(pixels[idx] * factor);
+      }
+    }
+  }
+  ctx.putImageData(imageData, 0, 0);
+}
 
 export type FaceSourceRect = {
   sourceX: number;
@@ -227,24 +333,23 @@ export function applyNeckCutoffFade(
 }
 
 /**
- * Rendert een 512x512 PNG-blob uit een bronafbeelding (of -canvas) + een
- * crop-rechthoek (in pixels van de BRON). Puur een schaal/teken-operatie —
- * GEEN automatische crop/centrering/reconstructie: de speler heeft de
- * positionering zelf al bepaald via de cropper-guides, dit tekent letterlijk
- * dat gekozen gebied op het canonieke canvas, en past daarna de nek-cutoff-
- * fade toe (zie applyNeckCutoffFade hierboven).
+ * Tekent `crop` uit `image` op een nieuw canvas van exact CHARACTER_CANVAS-
+ * afmetingen — puur een schaal/teken-operatie, GEEN automatische crop/
+ * centrering/reconstructie/masker: de speler heeft de positionering zelf al
+ * bepaald via de cropper-guides, dit tekent letterlijk dat gekozen gebied op
+ * het canonieke canvas. Losstaand geëxporteerd (i.p.v. alleen inline in
+ * renderCanonicalFaceCanvas hieronder) zodat GameNightFaceSetup.tsx/QA-
+ * tooling exact dezelfde "canonieke plaatsing, nog vóór de maskers"-stap
+ * kunnen hergebruiken — geen tweede implementatie van deze teken-operatie.
  *
- * De bronafbeelding is inmiddels altijd de al-gesegmenteerde, transparante
- * achtergrond-verwijderde head-crop (zie gameNightFaceSegmentation.ts) —
- * deze functie zelf doet GEEN fillRect/fillStyle en vult het canvas nooit
- * met een achtergrondkleur, dus het alfakanaal van de bron blijft exact
- * behouden tot en met de PNG-export (canvas.toBlob met "image/png" bewaart
- * alpha; JPEG/WebP-zonder-alpha wordt hier bewust nooit gebruikt).
+ * Canvas start standaard volledig transparant (alpha=0 overal) en wordt
+ * hier NERGENS gevuld — drawImage kopieert de bron 1-op-1 inclusief
+ * alfakanaal.
  */
-export async function renderCanonicalFaceCanvas(
+export function compositeOntoCanonicalCanvas(
   image: HTMLImageElement | HTMLCanvasElement,
   crop: FaceSourceRect,
-): Promise<Blob> {
+): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
   canvas.width = CHARACTER_CANVAS.width;
   canvas.height = CHARACTER_CANVAS.height;
@@ -252,9 +357,6 @@ export async function renderCanonicalFaceCanvas(
   if (!ctx) {
     throw new Error("Kan geen 2D-canvascontext aanmaken voor de face-export.");
   }
-  // Canvas start standaard volledig transparant (alpha=0 overal) en wordt
-  // hier NERGENS gevuld — drawImage kopieert de bron 1-op-1 inclusief
-  // alfakanaal.
   ctx.drawImage(
     image,
     crop.sourceX,
@@ -266,7 +368,10 @@ export async function renderCanonicalFaceCanvas(
     CHARACTER_CANVAS.width,
     CHARACTER_CANVAS.height,
   );
-  applyNeckCutoffFade(ctx, CHARACTER_CANVAS.width, CHARACTER_CANVAS.height);
+  return canvas;
+}
+
+function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   return new Promise<Blob>((resolve, reject) => {
     canvas.toBlob((blob) => {
       if (blob) resolve(blob);
@@ -278,6 +383,32 @@ export async function renderCanonicalFaceCanvas(
         );
     }, "image/png");
   });
+}
+
+/**
+ * Rendert de definitieve 512x512 PNG-blob uit een bronafbeelding (of
+ * -canvas, altijd de al-gesegmenteerde, transparante head-crop, zie
+ * gameNightFaceSegmentation.ts) + een crop-rechthoek (in pixels van de
+ * BRON). Volgorde: canonieke plaatsing (compositeOntoCanonicalCanvas) →
+ * head safety mask (applyHeadSafetyMask, begrenst X) → nek-cutoff-fade
+ * (applyNeckCutoffFade, begrenst Y) → PNG-export. Beide maskers zijn puur
+ * multiplicatief op het bestaande alfakanaal — nooit een fillRect/
+ * fillStyle-achtergrondkleur, dus alfa buiten de toegestane zones blijft tot
+ * en met de PNG-export exact 0 (canvas.toBlob met "image/png" bewaart
+ * alpha; JPEG/WebP-zonder-alpha wordt hier bewust nooit gebruikt).
+ */
+export async function renderCanonicalFaceCanvas(
+  image: HTMLImageElement | HTMLCanvasElement,
+  crop: FaceSourceRect,
+): Promise<Blob> {
+  const canvas = compositeOntoCanonicalCanvas(image, crop);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("Kan geen 2D-canvascontext aanmaken voor de face-export.");
+  }
+  applyHeadSafetyMask(ctx, CHARACTER_CANVAS.width, CHARACTER_CANVAS.height);
+  applyNeckCutoffFade(ctx, CHARACTER_CANVAS.width, CHARACTER_CANVAS.height);
+  return canvasToPngBlob(canvas);
 }
 
 export function loadImageFromUrl(url: string): Promise<HTMLImageElement> {

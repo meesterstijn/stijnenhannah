@@ -18,6 +18,7 @@ import {
   computeHeadCropSourceRect,
   drawRegionToCanvas,
   HEAD_CROP,
+  HEAD_SAFETY_MASK_VERSION,
   loadImageFromUrl,
   mapRectIntoRegion,
   NECK_CUTOFF_VERSION,
@@ -303,6 +304,7 @@ export default function GameNightFaceSetup() {
           ...cropRect,
           segmentationVersion: SEGMENTATION_VERSION,
           neckCutoffVersion: NECK_CUTOFF_VERSION,
+          headSafetyMaskVersion: HEAD_SAFETY_MASK_VERSION,
           processedAt: new Date().toISOString(),
         },
       });
@@ -510,9 +512,9 @@ export default function GameNightFaceSetup() {
               </span>
             </div>
             <p className="gnv2-dialog-faint max-w-sm text-center text-xs">
-              Klopt de hoofdgrootte, sluit je kin netjes aan, en is de
-              achtergrond/je shirt volledig verdwenen? Zo niet, pas de
-              positionering aan.
+              Is je haar heel, zijn je oren heel, sluit je kin netjes aan, en
+              zijn achtergrond/shirt/schouders volledig verdwenen? Zo niet, pas
+              de positionering aan.
             </p>
             <div className="flex w-full max-w-sm flex-col gap-2.5">
               <button

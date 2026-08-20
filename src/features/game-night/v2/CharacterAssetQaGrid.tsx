@@ -29,13 +29,17 @@ import {
   type ResolvedCharacterLayer,
 } from "@/features/game-night/lib/gameNightCharacter";
 import {
+  applyHeadSafetyMask,
   BODY_REFERENCE,
   CHARACTER_CANVAS,
+  compositeOntoCanonicalCanvas,
   computeHeadCropSourceRect,
   drawRegionToCanvas,
   FACE_ANCHOR,
   HEAD_CROP,
+  HEAD_SAFETY_MASK,
   loadImageFromUrl,
+  mapRectIntoRegion,
   NECK_CUTOFF,
 } from "@/features/game-night/lib/gameNightFaceCanvas";
 import { removeSelfieBackground } from "@/features/game-night/lib/gameNightFaceSegmentation";
@@ -343,6 +347,17 @@ function FaceGuideOverlay() {
     ((FACE_ANCHOR.chinY + NECK_CUTOFF.allowancePx + NECK_CUTOFF.fadePx) /
       CHARACTER_CANVAS.height) *
     100;
+  // Head safety mask — maximum head-zone (opdracht: "toon in debugmodus de
+  // maximum head-zone subtiel als lijn"). SVG met viewBox 0..512 zodat de
+  // keyframes (canonieke pixels) er 1-op-1 in overnemen, geen percentage-
+  // omrekening nodig — puur ter visualisatie, dezelfde HEAD_SAFETY_MASK-
+  // data als de daadwerkelijke maskerfunctie (applyHeadSafetyMask) gebruikt.
+  const leftBoundaryPoints = HEAD_SAFETY_MASK.keyframes
+    .map((k) => `${FACE_ANCHOR.centerX - k.halfWidth},${k.y}`)
+    .join(" ");
+  const rightBoundaryPoints = HEAD_SAFETY_MASK.keyframes
+    .map((k) => `${FACE_ANCHOR.centerX + k.halfWidth},${k.y}`)
+    .join(" ");
   return (
     <div className="pointer-events-none absolute inset-0">
       {/* BODY_REFERENCE-bbox (documentatie, niet afgedwongen) */}
@@ -355,6 +370,28 @@ function FaceGuideOverlay() {
           bottom: `${100 - bodyBottomPct}%`,
         }}
       />
+      <svg
+        className="absolute inset-0 h-full w-full"
+        viewBox={`0 0 ${CHARACTER_CANVAS.width} ${CHARACTER_CANVAS.height}`}
+        preserveAspectRatio="none"
+      >
+        <polyline
+          points={leftBoundaryPoints}
+          fill="none"
+          stroke="rgb(232 121 249 / 0.65)"
+          strokeWidth={2}
+          strokeDasharray="4 3"
+          vectorEffect="non-scaling-stroke"
+        />
+        <polyline
+          points={rightBoundaryPoints}
+          fill="none"
+          stroke="rgb(232 121 249 / 0.65)"
+          strokeWidth={2}
+          strokeDasharray="4 3"
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
       <div
         className="absolute inset-x-0 border-y border-dashed border-amber-400/70 bg-amber-400/10"
         style={{
@@ -399,6 +436,9 @@ function FaceProcessingDebugPanel({ player }: { player: GameNightPlayer }) {
   >("idle");
   const [headCropUrl, setHeadCropUrl] = useState<string | null>(null);
   const [segmentedUrl, setSegmentedUrl] = useState<string | null>(null);
+  const [afterSafetyMaskUrl, setAfterSafetyMaskUrl] = useState<string | null>(
+    null,
+  );
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   async function generate() {
@@ -421,7 +461,7 @@ function FaceProcessingDebugPanel({ player }: { player: GameNightPlayer }) {
         image.naturalWidth,
         image.naturalHeight,
       );
-      const { canvas: headCanvas } = drawRegionToCanvas(
+      const { canvas: headCanvas, scale } = drawRegionToCanvas(
         image,
         headRegion,
         HEAD_CROP.maxOutputSidePx,
@@ -430,6 +470,27 @@ function FaceProcessingDebugPanel({ player }: { player: GameNightPlayer }) {
       const { canvas: segmentedCanvas } =
         await removeSelfieBackground(headCanvas);
       setSegmentedUrl(segmentedCanvas.toDataURL("image/png"));
+
+      // "Resultaat ná safety mask" (opdracht sectie 19) — exact dezelfde
+      // canonieke plaatsing + applyHeadSafetyMask als renderCanonicalFaceCanvas
+      // zelf gebruikt (geen tweede implementatie), maar bewust ZONDER de
+      // nek-cutoff-fade erna, zodat het effect van het safety mask op
+      // zichzelf zichtbaar is — de definitieve face.png (met neck-fade erbij)
+      // staat al hierboven in de Output-sectie.
+      const cropInHeadSpace = mapRectIntoRegion(cropRect, headRegion, scale);
+      const canonicalCanvas = compositeOntoCanonicalCanvas(
+        segmentedCanvas,
+        cropInHeadSpace,
+      );
+      const canonicalCtx = canonicalCanvas.getContext("2d");
+      if (canonicalCtx) {
+        applyHeadSafetyMask(
+          canonicalCtx,
+          CHARACTER_CANVAS.width,
+          CHARACTER_CANVAS.height,
+        );
+        setAfterSafetyMaskUrl(canonicalCanvas.toDataURL("image/png"));
+      }
       setStatus("ready");
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : "Onbekende fout");
@@ -455,7 +516,10 @@ function FaceProcessingDebugPanel({ player }: { player: GameNightPlayer }) {
       {status === "error" && (
         <p className="text-[10px] text-red-400">{errorMsg}</p>
       )}
-      {(signedOriginal.data || headCropUrl || segmentedUrl) && (
+      {(signedOriginal.data ||
+        headCropUrl ||
+        segmentedUrl ||
+        afterSafetyMaskUrl) && (
         <div className="flex flex-wrap gap-4">
           {signedOriginal.data && (
             <div className="w-28 text-center">
@@ -484,7 +548,7 @@ function FaceProcessingDebugPanel({ player }: { player: GameNightPlayer }) {
           {segmentedUrl && (
             <div className="w-28 text-center">
               <p className="mb-1 text-[9px] uppercase tracking-wide text-white/40">
-                Segmentation-resultaat
+                Segmentation-resultaat (vóór safety mask)
               </p>
               <div
                 className="mx-auto aspect-square w-28 overflow-hidden rounded-lg"
@@ -495,6 +559,24 @@ function FaceProcessingDebugPanel({ player }: { player: GameNightPlayer }) {
                   alt=""
                   className="h-full w-full object-cover"
                 />
+              </div>
+            </div>
+          )}
+          {afterSafetyMaskUrl && (
+            <div className="w-28 text-center">
+              <p className="mb-1 text-[9px] uppercase tracking-wide text-white/40">
+                Ná safety mask (vóór neck-fade)
+              </p>
+              <div
+                className="relative mx-auto aspect-square w-28 overflow-hidden rounded-lg"
+                style={CHECKERBOARD_BG_STYLE}
+              >
+                <img
+                  src={afterSafetyMaskUrl}
+                  alt=""
+                  className="h-full w-full object-cover"
+                />
+                <FaceGuideOverlay />
               </div>
             </div>
           )}
