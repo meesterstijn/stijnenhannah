@@ -41,17 +41,30 @@ nog per asset hoeft te worden aangepast.
 **Uitzondering — `custom/base/` heeft sinds de asset-automatiseringsronde
 géén handmatige migratie per PNG meer nodig.** Een PNG in
 `custom/base/` toevoegen (512×512, alfakanaal, bestandsnaam
-`body-<slug>.png`) is voldoende: `npm run game-night:generate-assets`
-(automatisch via de `predev`/`prebuild`-hooks) scant de map, valideert elk
-bestand en genereert `supabase/generated/game_night_custom_bodies.sql` — een
-idempotente upsert die je zelf, buiten dit script om, via je bestaande
-Supabase-workflow toepast (dit script schrijft nooit rechtstreeks naar de
-database). Zie `scripts/generate-custom-body-manifest.mjs` voor de volledige
-logica en `supabase/migrations/20260921000000_game_night_character_custom_base_bodies.sql`
-voor de al-toegepaste legacy-batch (`manbody*.png`, blijft ondersteund naast
-de nieuwe `body-*.png`-conventie). De overige `custom/`-submappen
-(`clothing/`, `eyes/`, enz.) volgen dit patroon nog NIET — die blijven op de
-handmatige-migratie-workflow hierboven totdat hetzelfde automatiseringspatroon
+`body-man-<slug>.png` of `body-vrouw-<slug>.png` — bv.
+`body-man-catan.png`, `body-vrouw-zomer.png`; voor een lichaam zonder
+bedachte naam mag tijdelijk `body-man-<N>.png`/`body-vrouw-<N>.png`) is
+voldoende: `npm run game-night:generate-assets` (automatisch via de
+`predev`/`prebuild`-hooks) scant de map, valideert elk bestand en genereert
+`supabase/generated/game_night_custom_bodies.sql` — een idempotente upsert
+die je zelf, buiten dit script om, via je bestaande Supabase-workflow
+toepast (dit script schrijft nooit rechtstreeks naar de database). Zie
+`scripts/generate-custom-body-manifest.mjs` voor de volledige logica.
+
+Het oude, gender-loze `manbody<N>.png`-patroon is per de man/vrouw-
+canonicalisering (`supabase/migrations/20260923000000_game_night_character_
+manbody_canonical_rename.sql`) uitsluitend nog backwards-compat herkend
+(met een duidelijke waarschuwing) — nieuwe assets gebruiken altijd meteen
+`body-man-*`/`body-vrouw-*`. De historische legacy-batch
+(`supabase/migrations/20260921000000_game_night_character_custom_base_
+bodies.sql`, ooit geseed als `body-manbody-<NN>`) is via die canonical-
+rename-migratie eenmalig geremapt naar de nieuwe keys; bestaand equipment
+bleef daarbij intact. `gender` (`"male"`/`"female"`) wordt uitsluitend uit
+de bestandsnaam/key afgeleid (`deriveCustomBodyGender()` in
+`gameNightCharacter.ts`) — geen aparte databasekolom. De overige
+`custom/`-submappen (`clothing/`, `eyes/`, enz.) volgen dit patroon nog
+NIET — die blijven op de handmatige-migratie-workflow hierboven totdat
+hetzelfde automatiseringspatroon
 er expliciet naar wordt uitgebreid.
 
 De onderstaande V2.9D- en V2.9E-secties blijven staan als **historisch

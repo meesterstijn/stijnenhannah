@@ -15,12 +15,23 @@
 //        toe via zijn bestaande Supabase-workflow (SQL editor / CLI) — dit
 //        script schrijft nooit rechtstreeks naar de database.
 //
-// Beide bestanden zijn GENEREERD — niet handmatig bewerken, gewoon opnieuw
-// draaien (npm run game-night:generate-assets, of automatisch via de
-// predev/prebuild-hooks in package.json).
+// ── Naamconventie-migratie (man/vrouw-canonicalisering) ──────────────────
+// Canonical vanaf nu: body-man-<slug>.png / body-vrouw-<slug>.png. Het oude
+// manbody<N>.png-patroon wordt nog TIJDELIJK herkend voor backwards-
+// compatibility (produceert nog altijd de historische body-manbody-<NN>-key,
+// nooit stilzwijgend geremapt naar een canonical key door dit script — die
+// eenmalige remap gebeurt bewust via een aparte, expliciete Supabase-
+// migratie, zie supabase/migrations/20260923000000_game_night_character_
+// manbody_canonical_rename.sql), maar levert een duidelijke waarschuwing op.
+// Elk ander `body-*.png`-bestand zonder man-/vrouw-prefix is vanaf nu
+// ONGELDIG (harde build-fout) — de oude, gender-loze `body-<slug>.png`-
+// conventie is vervangen door de gendered variant.
 //
-// Alleen Node-builtins (fs/path/url) — geen nieuwe dependency, zie sectie
-// 17 van de opdracht.
+// Beide gegenereerde bestanden zijn GENEREERD — niet handmatig bewerken,
+// gewoon opnieuw draaien (npm run game-night:generate-assets, of automatisch
+// via de predev/prebuild-hooks in package.json).
+//
+// Alleen Node-builtins (fs/path/url) — geen nieuwe dependency.
 
 import {
   existsSync,
@@ -50,13 +61,20 @@ const SQL_OUTPUT = join(
 
 const EXPECTED_SIZE = 512;
 // PNG-colorType: 6 = truecolor+alpha (RGBA), 4 = grayscale+alpha — beide
-// hebben een alfakanaal in de header zelf, geen tRNS-chunk-scan nodig
-// (zelfde check als handmatig gedaan voor de bestaande manbody*.png-batch,
-// zie 20260921000000_game_night_character_custom_base_bodies.sql).
+// hebben een alfakanaal in de header zelf, geen tRNS-chunk-scan nodig.
 const ALPHA_CAPABLE_COLOR_TYPES = new Set([4, 6]);
 
+// Legacy — backwards-compat, geen nieuwe assets meer in deze vorm.
 const LEGACY_PATTERN = /^manbody(\d+)\.png$/;
-const NEW_PATTERN = /^body-([a-z0-9]+(?:-[a-z0-9]+)*)\.png$/;
+// Canonical — body-man-<slug>.png / body-vrouw-<slug>.png.
+const CANONICAL_PATTERN = /^body-(man|vrouw)-([a-z0-9]+(?:-[a-z0-9]+)*)\.png$/;
+// Puur-numerieke slug (tijdelijke fallback-naam, sectie "temporary" in de
+// opdracht, bv. body-man-13.png) — deze krijgen een genderwoord terug in
+// hun label ("Man 13"), een beschrijvende slug ("catan") juist niet.
+const NUMERIC_SLUG = /^\d+$/;
+
+const GENDER_WORD = { man: "Man", vrouw: "Vrouw" };
+const GENDER_VALUE = { man: "male", vrouw: "female" };
 
 const PNG_SIGNATURE = Buffer.from([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
@@ -64,10 +82,9 @@ const PNG_SIGNATURE = Buffer.from([
 
 function readPngHeader(filePath) {
   // De IHDR-chunk is altijd de allereerste chunk in een geldige PNG en
-  // heeft een vaste layout — 33 bytes volstaan (8 signature + 4 length +
-  // 4 "IHDR" + 4 width + 4 height + 1 bitdepth + 1 colortype), dus we lezen
-  // nooit het hele bestand voor validatie. Het bestand zelf wordt hier
-  // alleen GELEZEN, nooit herschreven (sectie 16 van de opdracht).
+  // heeft een vaste layout — 33 bytes volstaan, dus we lezen nooit het hele
+  // bestand voor validatie. Het bestand zelf wordt hier alleen GELEZEN,
+  // nooit herschreven.
   const fd = readFileSync(filePath).subarray(0, 33);
   if (fd.length < 33 || !fd.subarray(0, 8).equals(PNG_SIGNATURE)) {
     return { valid: false };
@@ -89,12 +106,26 @@ function humanizeSlug(slug) {
     .join(" ");
 }
 
+// Sectie 6: het technische body-man-/body-vrouw--prefix verdwijnt altijd uit
+// het label. Voor een puur-numerieke fallback-slug (nog geen beschrijvende
+// naam bedacht) blijft het genderwoord ALSNOG in het label staan ("Man 13"),
+// anders zou de tegel in de Creator alleen "13" tonen — voor een
+// beschrijvende slug ("catan") verdwijnt het genderwoord volledig, precies
+// zoals de opdracht voorschrijft.
+function deriveLabel(genderKey, slug) {
+  if (NUMERIC_SLUG.test(slug)) {
+    return `${GENDER_WORD[genderKey]} ${slug}`;
+  }
+  return humanizeSlug(slug);
+}
+
 function sqlString(value) {
   return `'${value.replace(/'/g, "''")}'`;
 }
 
 function main() {
   const errors = [];
+  const warnings = [];
 
   if (!existsSync(SCAN_DIR)) {
     console.error(`Scanmap bestaat niet: ${SCAN_DIR_REL}`);
@@ -107,19 +138,24 @@ function main() {
   });
 
   const legacyEntries = [];
-  const newEntries = [];
+  // Canonical wordt in twee subgroepen opgebouwd zodat de sort_order-regels
+  // (sectie 11) apart kunnen worden toegepast: numerieke fallback-namen
+  // behouden hun nummer als sort_order (net als de oude legacy-rijen),
+  // beschrijvende namen krijgen een eigen, ruim gescheiden band.
+  const canonicalNumeric = [];
+  const canonicalDescriptive = [];
 
   for (const file of files) {
-    // Bestandsnaamconventie (sectie 4): body-<slug>.png (nieuw) of
-    // manbody<N>.png (legacy, backwards-compat, niet automatisch hernoemd).
     const legacyMatch = file.match(LEGACY_PATTERN);
-    const newMatch = file.match(NEW_PATTERN);
+    const canonicalMatch = file.match(CANONICAL_PATTERN);
 
-    if (!legacyMatch && !newMatch) {
+    if (!legacyMatch && !canonicalMatch) {
       errors.push(
-        `Ongeldige bestandsnaam: "${file}" — verwacht "body-<slug>.png" ` +
-          `(lowercase, cijfers, koppeltekens) of het legacy-patroon ` +
-          `"manbody<N>.png". Geen automatische hernoeming toegepast.`,
+        `Ongeldige bestandsnaam: "${file}" — verwacht "body-man-<slug>.png" ` +
+          `of "body-vrouw-<slug>.png" (lowercase, cijfers, koppeltekens). ` +
+          `Het oude, gender-loze "body-<slug>.png"-patroon is niet meer ` +
+          `geldig; het legacy-patroon "manbody<N>.png" wordt nog tijdelijk ` +
+          `herkend (zie de waarschuwing hierboven als dat de oorzaak is).`,
       );
       continue;
     }
@@ -145,6 +181,12 @@ function main() {
     }
 
     if (legacyMatch) {
+      warnings.push(
+        `"${file}" gebruikt nog de legacy-naamconventie "manbody<N>.png" ` +
+          `— hernoem naar "body-man-${legacyMatch[1]}.png" en pas de ` +
+          `canonical-rename-migratie toe zodra dat praktisch uitkomt. ` +
+          `Nieuwe assets moeten altijd meteen canonical genoemd worden.`,
+      );
       const n = Number(legacyMatch[1]);
       legacyEntries.push({
         key: `body-manbody-${String(n).padStart(2, "0")}`,
@@ -153,41 +195,55 @@ function main() {
         width: header.width,
         height: header.height,
         isLegacy: true,
+        gender: "male", // legacy manbody* was altijd de mannelijke set.
         sortOrder: n,
         file,
       });
+      continue;
+    }
+
+    const genderKey = canonicalMatch[1]; // "man" | "vrouw"
+    const slug = canonicalMatch[2];
+    const entry = {
+      key: `body-${genderKey}-${slug}`,
+      label: deriveLabel(genderKey, slug),
+      assetPath: `${ASSET_PATH_PREFIX}/${file}`,
+      width: header.width,
+      height: header.height,
+      isLegacy: false,
+      gender: GENDER_VALUE[genderKey],
+      sortOrder: null,
+      file,
+    };
+    if (NUMERIC_SLUG.test(slug)) {
+      entry.sortOrder = Number(slug);
+      canonicalNumeric.push(entry);
     } else {
-      const slug = newMatch[1];
-      newEntries.push({
-        key: `body-${slug}`,
-        label: humanizeSlug(slug),
-        assetPath: `${ASSET_PATH_PREFIX}/${file}`,
-        width: header.width,
-        height: header.height,
-        isLegacy: false,
-        sortOrder: null, // hieronder toegekend na alfabetisch sorteren
-        file,
-      });
+      canonicalDescriptive.push(entry);
     }
   }
 
-  newEntries.sort((a, b) => a.key.localeCompare(b.key));
-  newEntries.forEach((entry, i) => {
-    // Ruim boven het legacy-bereik (2–12 vandaag) zodat nieuwe en legacy
-    // bodies elkaars sort_order nooit overlappen, ook als er ooit een
-    // manbody50.png bijkomt.
-    entry.sortOrder = 1000 + i;
+  canonicalDescriptive.sort((a, b) => a.key.localeCompare(b.key));
+  canonicalDescriptive.forEach((entry, i) => {
+    // Ruim boven het grootste realistische numerieke-fallbackbereik, zodat
+    // beschrijvende en numerieke canonical-bodies elkaars sort_order nooit
+    // overlappen.
+    entry.sortOrder = 10000 + i;
   });
 
   legacyEntries.sort((a, b) => a.sortOrder - b.sortOrder);
+  canonicalNumeric.sort((a, b) => a.sortOrder - b.sortOrder);
 
-  const allEntries = [...legacyEntries, ...newEntries];
+  const allEntries = [
+    ...legacyEntries,
+    ...canonicalNumeric,
+    ...canonicalDescriptive,
+  ];
 
-  // Duplicate-keydetectie (paranoia — zou alleen kunnen bij bv. zowel
-  // manbody02.png als manbody2.png tegelijk, die tot dezelfde key
-  // herleiden) en duplicate-assetPath (praktisch onmogelijk binnen één
-  // map met unieke bestandsnamen, maar expliciet gecontroleerd i.p.v.
-  // aangenomen).
+  // Duplicate-keydetectie (paranoia — zou kunnen bij bv. zowel
+  // manbody02.png als een canonical body-man-02.png tegelijk) en
+  // duplicate-assetPath (praktisch onmogelijk binnen één map met unieke
+  // bestandsnamen, maar expliciet gecontroleerd i.p.v. aangenomen).
   const seenKeys = new Map();
   const seenPaths = new Map();
   for (const entry of allEntries) {
@@ -203,6 +259,14 @@ function main() {
     } else {
       seenPaths.set(entry.assetPath, entry.file);
     }
+  }
+
+  if (warnings.length > 0) {
+    console.warn(
+      `\ngenerate-custom-body-manifest: ${warnings.length} waarschuwing(en)\n`,
+    );
+    for (const warning of warnings) console.warn(`  ⚠ ${warning}`);
+    console.warn("");
   }
 
   if (errors.length > 0) {
@@ -234,11 +298,15 @@ function main() {
     "  width: 512;",
     "  height: 512;",
     "  isLegacy: boolean;",
+    "  // Afgeleid uit de bestandsnaamconventie (body-man-*/body-vrouw-*, of",
+    '  // "male" voor legacy manbody*.png) — puur metadata voor filtering/UI,',
+    "  // geen aparte DB-kolom nodig zolang dit uit de key af te leiden blijft.",
+    '  gender: "male" | "female";',
     "  sortOrder: number;",
-    "  // V1: elke custom body is meteen starter/actief (zie opleverrapport",
-    "  // sectie 13/15). Bewust al hier gemodelleerd als velden i.p.v. een",
-    "  // aparte aanname, zodat een latere unlock-uitbreiding (isStarter:",
-    "  // false + unlockKey) geen structuurwijziging is.",
+    "  // V1: elke custom body is meteen starter/actief. Bewust al hier",
+    "  // gemodelleerd als velden i.p.v. een aparte aanname, zodat een latere",
+    "  // unlock-uitbreiding (isStarter: false + unlockKey) geen",
+    "  // structuurwijziging is.",
     "  isStarter: boolean;",
     "  unlockKey?: string;",
     "};",
@@ -246,7 +314,7 @@ function main() {
     "export const CUSTOM_BODY_MANIFEST: readonly CustomBodyManifestEntry[] = [",
     ...allEntries.map(
       (e) =>
-        `  { key: ${JSON.stringify(e.key)}, label: ${JSON.stringify(e.label)}, slot: "base", assetPath: ${JSON.stringify(e.assetPath)}, width: 512, height: 512, isLegacy: ${e.isLegacy}, sortOrder: ${e.sortOrder}, isStarter: true },`,
+        `  { key: ${JSON.stringify(e.key)}, label: ${JSON.stringify(e.label)}, slot: "base", assetPath: ${JSON.stringify(e.assetPath)}, width: 512, height: 512, isLegacy: ${e.isLegacy}, gender: ${JSON.stringify(e.gender)}, sortOrder: ${e.sortOrder}, isStarter: true },`,
     ),
     "] as const;",
     "",
@@ -254,73 +322,97 @@ function main() {
   writeFileSync(TS_OUTPUT, tsLines.join("\n"), "utf8");
 
   // ── 2. Idempotente upsert-SQL (GEEN migratie, zie bestandskop) ───────────
+  // Sectie 9: uitsluitend canonical body-man-*/body-vrouw--rijen worden hier
+  // beheerd. Legacy body-manbody-* rijen worden door dit gegenereerde
+  // bestand NOOIT aangeraakt (niet opnieuw geactiveerd, niet opnieuw
+  // ge-upsert) — die worden ÉÉNMALIG, bewust, door de aparte Supabase-
+  // migratie gedeactiveerd (20260923000000_game_night_character_manbody_
+  // canonical_rename.sql). Zou dit script legacy-rijen blijven upserten,
+  // dan zou een owner die een legacy-rij bewust deactiveerde dat bij een
+  // volgende sync weer ongedaan kunnen zien worden — expliciet ongewenst.
   mkdirSync(dirname(SQL_OUTPUT), { recursive: true });
   const layerOrder = 20; // 'base'-conventie, zie gameNightCharacter.ts DEFAULT_SLOT_LAYER_ORDER
-  const valuesLines = allEntries.map((e) => {
+  const canonicalEntries = [...canonicalNumeric, ...canonicalDescriptive];
+  const valuesLines = canonicalEntries.map((e) => {
     return `  (${sqlString(e.key)}, 'base', ${sqlString(e.label)}, ${sqlString(e.assetPath)}, ${layerOrder}, true, 'common', true, ${e.sortOrder})`;
   });
-  const keyListForDeactivation = allEntries
+  const keyListForDeactivation = canonicalEntries
     .map((e) => sqlString(e.key))
     .join(", ");
 
   const sqlLines = [
     "-- GEGENEREERD BESTAND — niet handmatig bewerken, niet in",
-    "-- supabase/migrations/ plaatsen (zie opleverrapport sectie 7/8: dit is",
-    "-- GEEN Supabase-migratie, geen timestamped historie-entry — regenereer",
-    "-- het opnieuw met `npm run game-night:generate-assets` en pas het",
-    "-- daarna handmatig toe via je bestaande Supabase-workflow, bv.:",
+    "-- supabase/migrations/ plaatsen — dit is GEEN Supabase-migratie, geen",
+    "-- timestamped historie-entry. Regenereer het opnieuw met",
+    "-- `npm run game-night:generate-assets` en pas het daarna handmatig toe",
+    "-- via je bestaande Supabase-workflow, bv.:",
     "--   supabase db execute -f supabase/generated/game_night_custom_bodies.sql",
     "-- of plak de inhoud in de Supabase SQL editor. Niets in dit script/",
     "-- bestand schrijft zelf naar de database.",
     "--",
-    "-- Scope (sectie 11): raakt UITSLUITEND rijen met key like 'body-%' EN",
-    "-- asset_path like '/game-night/characters/parts/custom/base/%' — nooit",
-    "-- andere slots of andere starter-rijen.",
+    "-- Scope: raakt UITSLUITEND CANONICAL rijen — key like 'body-man-%' OF",
+    "-- 'body-vrouw-%', EN asset_path like '/game-night/characters/parts/",
+    "-- custom/base/%'. Legacy 'body-manbody-%'-rijen worden hier NOOIT",
+    "-- aangeraakt (niet geupsert, niet gereactiveerd) — die worden eenmalig",
+    "-- door supabase/migrations/20260923000000_game_night_character_manbody_",
+    "-- canonical_rename.sql gedeactiveerd. Andere slots blijven ongemoeid.",
     "--",
-    "-- Managed-by-manifest-velden (sectie 9):",
+    "-- Managed-by-manifest-velden:",
     "--   bij INSERT:      key, slot, label, asset_path, layer_order,",
     "--                    is_starter, active, rarity, sort_order",
     "--   bij UPDATE:      alleen asset_path, slot, layer_order, sort_order —",
     "--                    label/is_starter/active worden NA de eerste insert",
-    "--                    nooit meer overschreven (owner-managed vanaf dan),",
-    "--                    zodat een handmatige labelverbetering of bewuste",
-    "--                    deactivatie nooit stilzwijgend teruggedraaid wordt.",
+    "--                    nooit meer overschreven (owner-managed vanaf dan).",
     "--   bij ontbrekend bestand: uitsluitend active = false (zie onderaan) —",
     "--                    nooit een DELETE (FK/equipment-historie blijft intact).",
     "",
-    "insert into public.game_night_character_parts",
-    "  (key, slot, label, asset_path, layer_order, is_starter, rarity, active, sort_order)",
-    "values",
-    valuesLines.join(",\n") + "",
-    "on conflict (key) do update set",
-    "  asset_path = excluded.asset_path,",
-    "  slot = excluded.slot,",
-    "  layer_order = excluded.layer_order,",
-    "  sort_order = excluded.sort_order;",
-    "",
-    "-- Bestand-verwijderd-pad (sectie 10): een PNG die niet meer in de",
-    "-- huidige scan zit, mag NOOIT een hard delete triggeren (FK/equipment-",
-    "-- historie) — uitsluitend deactiveren. Gescopet tot exact dezelfde",
-    "-- key-prefix + asset_path-prefix als hierboven.",
+  ];
+
+  if (valuesLines.length > 0) {
+    sqlLines.push(
+      "insert into public.game_night_character_parts",
+      "  (key, slot, label, asset_path, layer_order, is_starter, rarity, active, sort_order)",
+      "values",
+      valuesLines.join(",\n") + "",
+      "on conflict (key) do update set",
+      "  asset_path = excluded.asset_path,",
+      "  slot = excluded.slot,",
+      "  layer_order = excluded.layer_order,",
+      "  sort_order = excluded.sort_order;",
+      "",
+    );
+  } else {
+    sqlLines.push(
+      "-- Geen canonical body-man-*/body-vrouw--bestanden gevonden — geen insert nodig.",
+      "",
+    );
+  }
+
+  sqlLines.push(
+    "-- Bestand-verwijderd-pad: een canonical PNG die niet meer in de huidige",
+    "-- scan zit, mag NOOIT een hard delete triggeren (FK/equipment-",
+    "-- historie) — uitsluitend deactiveren. Gescopet tot canonical",
+    "-- key-prefixen + hetzelfde asset_path-prefix als hierboven.",
     "update public.game_night_character_parts",
     "set active = false",
-    "where key like 'body-%'",
+    "where (key like 'body-man-%' or key like 'body-vrouw-%')",
     `  and asset_path like ${sqlString(`${ASSET_PATH_PREFIX}/%`)}`,
     keyListForDeactivation.length > 0
       ? `  and key not in (${keyListForDeactivation})`
-      : "  and true -- (geen enkel bestand meer aanwezig, dus alle managed rijen deactiveren)",
+      : "  and true -- (geen enkel canonical bestand meer aanwezig)",
     "  and active = true;",
     "",
-    "-- Controle na toepassen:",
+    "-- Controle na toepassen (gender is niet in de database opgeslagen,",
+    "-- alleen afgeleid uit de key-prefix — zie deriveCustomBodyGender()):",
     "-- select key, label, active, sort_order from public.game_night_character_parts",
-    "-- where key like 'body-%' order by sort_order;",
+    "-- where key like 'body-man-%' or key like 'body-vrouw-%' order by sort_order;",
     "",
-  ];
+  );
   writeFileSync(SQL_OUTPUT, sqlLines.join("\n"), "utf8");
 
   console.log(
     `generate-custom-body-manifest: ${allEntries.length} custom body(s) gevonden ` +
-      `(${legacyEntries.length} legacy, ${newEntries.length} nieuw) in ${SCAN_DIR_REL}/`,
+      `(${legacyEntries.length} legacy, ${canonicalEntries.length} canonical) in ${SCAN_DIR_REL}/`,
   );
   console.log(
     `  → ${TS_OUTPUT.replace(REPO_ROOT + "\\", "").replace(REPO_ROOT + "/", "")}`,

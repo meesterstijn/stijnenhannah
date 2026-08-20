@@ -198,6 +198,26 @@ export function getBodyShapeBaseParts(
     .sort((a, b) => a.sort_order - b.sort_order);
 }
 
+// ── Custom-body gender-metadata (man/vrouw-canonicalisering) ────────────
+//
+// Puur afgeleid uit de key-conventie (body-man-<slug> / body-vrouw-<slug>,
+// zie scripts/generate-custom-body-manifest.mjs) — bewust GEEN nieuwe
+// database-kolom, want de key is al de stabiele, canonieke bron hiervoor.
+// "male"/"female" (i.p.v. de Nederlandse bestandsnaamwoorden) om aan te
+// sluiten bij de bestaande projectterminologie (GameNightBodyShape hierboven,
+// genderMarkerFromBaseKey verderop in dit bestand). Minimale infrastructuur
+// voor een toekomstig man/vrouw-filter in de Creator (opdracht: "bouw nu
+// alleen de minimale infrastructuur/metadata") — geen UI-groepering hier,
+// dat is een bewust apart gehouden vervolgstap.
+export type CustomBodyGender = "male" | "female";
+
+export function deriveCustomBodyGender(key: string): CustomBodyGender | null {
+  if (key.startsWith("body-man-") || key.startsWith("body-manbody-"))
+    return "male";
+  if (key.startsWith("body-vrouw-")) return "female";
+  return null;
+}
+
 // ── Pose/prop-compatibiliteit (V2.9E) ────────────────────────────────────
 //
 // Een prop die aan een pose gebonden is (bv. prop-mug-01 →

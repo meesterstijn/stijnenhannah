@@ -5,6 +5,7 @@ import type {
   GameNightBodyShape,
   GameNightCharacterPart,
   GameNightPlayer,
+  GameNightPlayerCharacterEquipment,
 } from "@/lib/supabase";
 import type { GameNightRealtimeInfo } from "@/features/game-night/hooks/useGameNightRealtimeSync";
 import {
@@ -639,28 +640,48 @@ function isManifestManagedRow(part: GameNightCharacterPart): boolean {
   );
 }
 
-// Manifest/DB-mismatchrapport (opdracht sectie 18) — vergelijkt de
-// build-time gegenereerde CUSTOM_BODY_MANIFEST (= "wat staat er als bestand
-// op schijf", zie scripts/generate-custom-body-manifest.mjs) met de live
-// catalogus (= "wat staat er in de database") voor exact de door de
-// assetdiscovery beheerde rijen. Puur leesbaar — repareert niets, toont
-// alleen waar de twee bronnen uit elkaar lopen zodat dat manueel (via de
-// gegenereerde SQL, supabase/generated/game_night_custom_bodies.sql) kan
+// Manifest/DB-mismatchrapport (uitgebreid met de man/vrouw-canonicalisering:
+// gender, legacy/canonical-status, en aantal equipment-referenties) —
+// vergelijkt de build-time gegenereerde CUSTOM_BODY_MANIFEST (= "wat staat
+// er als bestand op schijf", zie scripts/generate-custom-body-manifest.mjs)
+// met de live catalogus (= "wat staat er in de database") voor exact de
+// door de assetdiscovery beheerde rijen. Puur leesbaar — repareert niets,
+// toont alleen waar de twee bronnen uit elkaar lopen zodat dat manueel (via
+// de gegenereerde SQL, of eenmalig via de canonical-rename-migratie) kan
 // worden rechtgezet.
 function CustomBodyManifestReport({
   allParts,
+  equipment,
 }: {
   allParts: GameNightCharacterPart[];
+  equipment: GameNightPlayerCharacterEquipment[];
 }) {
   const managedRows = allParts.filter(isManifestManagedRow);
   const rowsByKey = new Map(managedRows.map((p) => [p.key, p]));
   const manifestByKey = new Map(CUSTOM_BODY_MANIFEST.map((e) => [e.key, e]));
+  const equipmentCountByPartId = new Map<string, number>();
+  for (const row of equipment) {
+    equipmentCountByPartId.set(
+      row.part_id,
+      (equipmentCountByPartId.get(row.part_id) ?? 0) + 1,
+    );
+  }
 
   const fileWithoutDbRow = CUSTOM_BODY_MANIFEST.filter(
     (e) => !rowsByKey.has(e.key),
   );
   const dbRowWithoutFile = managedRows.filter((p) => !manifestByKey.has(p.key));
   const matched = CUSTOM_BODY_MANIFEST.filter((e) => rowsByKey.has(e.key));
+  // Legacy-DB-rijen die nog steeds actief staan — na een voltooide
+  // canonical-rename-migratie hoort dit een lege lijst te zijn (zie
+  // supabase/migrations/20260923000000_game_night_character_manbody_
+  // canonical_rename.sql). Staat hier nog iets, dan is die migratie nog
+  // niet (volledig) toegepast.
+  const activeLegacyRows = managedRows.filter(
+    (p) => p.key.startsWith("body-manbody-") && p.active,
+  );
+  // Legacy PNG's die nog fysiek in de scan-map staan.
+  const legacyFilesFound = CUSTOM_BODY_MANIFEST.filter((e) => e.isLegacy);
 
   return (
     <div className="gn-panel-elevated space-y-3 px-5 py-4">
@@ -677,6 +698,23 @@ function CustomBodyManifestReport({
           is toegepast.
         </p>
       </div>
+
+      {legacyFilesFound.length > 0 && (
+        <p className="text-xs font-semibold text-amber-500">
+          ⚠ {legacyFilesFound.length}× legacy "manbody&lt;N&gt;.png" gevonden in
+          de scanmap — hernoem naar "body-man-&lt;N&gt;.png" en pas de
+          canonical-rename-migratie toe. Nieuwe assets moeten altijd canonical
+          genoemd worden.
+        </p>
+      )}
+
+      {activeLegacyRows.length > 0 && (
+        <p className="text-xs font-semibold text-amber-500">
+          ⚠ {activeLegacyRows.length} legacy databaserij(en) staan nog actief:{" "}
+          {activeLegacyRows.map((p) => p.key).join(", ")} — de
+          canonical-rename-migratie (20260923000000) is nog niet toegepast.
+        </p>
+      )}
 
       {fileWithoutDbRow.length === 0 && dbRowWithoutFile.length === 0 ? (
         <p className="text-xs text-emerald-500">
@@ -696,6 +734,8 @@ function CustomBodyManifestReport({
               ⚠ DB ROW WITHOUT FILE — {p.key} ({p.asset_path}) —{" "}
               {p.active ? "actief" : "inactief"}, bestand ontbreekt in de
               huidige scan (verwijderd of hernoemd?).
+              {(equipmentCountByPartId.get(p.id) ?? 0) > 0 &&
+                ` Let op: ${equipmentCountByPartId.get(p.id)} speler(s) hebben dit part nog equipped.`}
             </p>
           ))}
         </div>
@@ -708,21 +748,38 @@ function CustomBodyManifestReport({
               <tr className="gn-faint">
                 <th className="pr-3 font-normal">key</th>
                 <th className="pr-3 font-normal">bestand</th>
+                <th className="pr-3 font-normal">gender</th>
+                <th className="pr-3 font-normal">status</th>
                 <th className="pr-3 font-normal">512×512</th>
                 <th className="pr-3 font-normal">DB actief</th>
+                <th className="pr-3 font-normal">equipped door</th>
               </tr>
             </thead>
             <tbody>
               {matched.map((e) => {
                 const row = rowsByKey.get(e.key);
+                const equippedCount = row
+                  ? (equipmentCountByPartId.get(row.id) ?? 0)
+                  : 0;
                 return (
                   <tr key={e.key}>
                     <td className="pr-3">{e.key}</td>
-                    <td className="pr-3">{e.isLegacy ? "legacy" : "nieuw"}</td>
+                    <td className="pr-3">{e.assetPath.split("/").pop()}</td>
+                    <td className="pr-3">{e.gender}</td>
+                    <td className="pr-3">
+                      {e.isLegacy ? (
+                        <span className="text-amber-500">legacy</span>
+                      ) : (
+                        "canonical"
+                      )}
+                    </td>
                     <td className="pr-3 text-emerald-500">
                       {e.width}×{e.height} ✓
                     </td>
                     <td className="pr-3">{row?.active ? "ja" : "nee"}</td>
+                    <td className="pr-3">
+                      {equippedCount > 0 ? `${equippedCount}×` : "—"}
+                    </td>
                   </tr>
                 );
               })}
@@ -1072,6 +1129,13 @@ export default function CharacterAssetQaGrid() {
   const bySlot = starterManifestBySlot();
   const { data: allParts = [] } = useAllCharacterPartsForQa();
   const { data: analyticsData } = useGameNightAnalytics();
+  // Alle equipment van alle spelers (i.t.t. de rest van deze pagina, die
+  // per player_id batcht) — puur voor het manifest/DB-mismatchrapport
+  // hieronder, dat moet kunnen tonen hoeveel spelers een bepaald
+  // (mogelijk wees geworden) part nog daadwerkelijk equipped hebben.
+  const allPlayerIds = (analyticsData?.players ?? []).map((p) => p.id);
+  const { data: allEquipment = [] } =
+    useCharacterEquipmentForPlayers(allPlayerIds);
   // Optionele, QA-only debugstatus voor het gedeelde Realtime-kanaal (zie
   // GameNightLayout.tsx) — leest 'm via Outlet context i.p.v. zelf
   // useGameNightRealtimeSync() aan te roepen, dat zou een TWEEDE kanaal
@@ -1194,7 +1258,7 @@ export default function CharacterAssetQaGrid() {
         femaleBase={femaleBase}
       />
 
-      <CustomBodyManifestReport allParts={allParts} />
+      <CustomBodyManifestReport allParts={allParts} equipment={allEquipment} />
 
       <CustomBodyQaSection
         bodyParts={allParts.filter((p) => p.slot === "base")}
