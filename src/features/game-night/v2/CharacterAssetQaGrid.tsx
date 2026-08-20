@@ -620,6 +620,117 @@ function FullCharacterCompositePreview({
   );
 }
 
+// Custom-body-integratietest — per NIEUWE 512×512 body-PNG (slot 'base',
+// zie 20260921000000_game_night_character_custom_base_bodies.sql): BODY LOS,
+// FACE LOS, en BODY+FACE samengesteld, plus de bestaande AssetDimensionCheck
+// (meldt duidelijk als een bestand geen 512×512 is). Eigen, kleine speler-
+// selector (net als PersonalFaceQaSection) i.p.v. gedeelde state — puur
+// leesbaar/diagnostisch, geen schrijfactie.
+function CustomBodyQaSection({
+  bodyParts,
+  players,
+}: {
+  bodyParts: GameNightCharacterPart[];
+  players: GameNightPlayer[];
+}) {
+  const playersWithFace = players.filter((p) => p.face_asset_path);
+  const [selectedId, setSelectedId] = useState<string | null>(
+    playersWithFace[0]?.id ?? null,
+  );
+  const selected =
+    playersWithFace.find((p) => p.id === selectedId) ?? playersWithFace[0];
+  const faceLayer = selected ? personalFaceLayer(selected) : null;
+
+  return (
+    <div className="gn-panel-elevated space-y-4 px-5 py-4">
+      <div>
+        <p className="gn-eyebrow mb-1">
+          Custom bodies — integratietest ({bodyParts.length})
+        </p>
+        <p className="gn-faint text-xs">
+          Elke rij: body los, de huidige face los, en beide samengesteld
+          (layer_order: body 20, personal-face 40 — body dus onder het gezicht,
+          exact zoals CharacterVisual ze overal elders stapelt).
+        </p>
+      </div>
+
+      {bodyParts.length === 0 ? (
+        <p className="gn-faint text-xs">
+          Nog geen enkele "base"-catalogusrij gevonden.
+        </p>
+      ) : playersWithFace.length === 0 ? (
+        <p className="gn-faint text-xs">
+          Nog geen enkele speler heeft een face-layer ingesteld — body+face kan
+          pas getoond worden zodra dat er is.
+        </p>
+      ) : (
+        <select
+          value={selected?.id ?? ""}
+          onChange={(e) => setSelectedId(e.target.value)}
+          className="gnv2-input max-w-xs"
+        >
+          {playersWithFace.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.nickname ?? p.name}
+            </option>
+          ))}
+        </select>
+      )}
+
+      <div className="flex flex-wrap gap-6">
+        {bodyParts.map((body) => (
+          <div key={body.key} className="w-32 space-y-2 text-center">
+            <p className="text-[11px] font-semibold">{body.label}</p>
+            <p className="gn-faint text-[10px]">
+              {body.key} · {body.active ? "actief" : "inactief"}
+            </p>
+            <div>
+              <p className="mb-1 text-[9px] uppercase tracking-wide text-white/40">
+                Body los
+              </p>
+              <div className="mx-auto flex aspect-square w-32 items-center justify-center overflow-hidden rounded-xl bg-black/30">
+                <CharacterVisual
+                  player={QA_PLAYER}
+                  layers={[partLayer(body)]}
+                />
+              </div>
+              <AssetDimensionCheck assetPath={body.asset_path} />
+            </div>
+            {faceLayer && selected && (
+              <>
+                <div>
+                  <p className="mb-1 text-[9px] uppercase tracking-wide text-white/40">
+                    Face los
+                  </p>
+                  <div
+                    className="mx-auto aspect-square w-32 overflow-hidden rounded-xl"
+                    style={CHECKERBOARD_BG_STYLE}
+                  >
+                    <CharacterVisual player={selected} layers={[faceLayer]} />
+                  </div>
+                </div>
+                <div>
+                  <p className="mb-1 text-[9px] uppercase tracking-wide text-white/40">
+                    Body + face
+                  </p>
+                  <div className="mx-auto flex aspect-square w-32 items-center justify-center overflow-hidden rounded-xl bg-black/30">
+                    <CharacterVisual
+                      player={selected}
+                      layers={[partLayer(body), faceLayer].sort(
+                        (a, b) => a.layerOrder - b.layerOrder,
+                      )}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // Personal Face QA — toont voor één gekozen speler (dropdown eronder) diens
 // opgeslagen face-layer los, op de man-/vrouw-base, de canonieke guides
 // erover (om te vergelijken met de Photoshop-test), de werkelijke
@@ -943,6 +1054,11 @@ export default function CharacterAssetQaGrid() {
         players={analyticsData?.players ?? []}
         maleBase={maleBase}
         femaleBase={femaleBase}
+      />
+
+      <CustomBodyQaSection
+        bodyParts={allParts.filter((p) => p.slot === "base")}
+        players={analyticsData?.players ?? []}
       />
 
       {[...v2BySlot.entries()].map(([slot, entries]) => (
