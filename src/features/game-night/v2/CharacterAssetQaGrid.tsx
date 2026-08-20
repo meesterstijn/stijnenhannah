@@ -131,6 +131,29 @@ const V2_QA_COMBOS: { label: string; layers: ResolvedCharacterLayer[] }[] = [
       v2EntryToLayer(v2ByKey("effect-party-hat")),
     ],
   },
+  {
+    label:
+      "V2.9E-hersteltraject: man + haar + wenkbrauwen + volle baard (alpha-extractie)",
+    layers: [
+      v2EntryToLayer(v2ByKey("base-male-01")),
+      v2EntryToLayer(v2ByKey("eyes-round-01")),
+      v2EntryToLayer(v2ByKey("eyebrows-03")),
+      v2EntryToLayer(v2ByKey("mouth-01")),
+      v2EntryToLayer(v2ByKey("facialhair-beard-full-01")),
+      v2EntryToLayer(v2ByKey("hair-short-04")),
+    ],
+  },
+  {
+    label:
+      "V2.9E-hersteltraject: vrouw + lang haar + wenkbrauwen (alpha-extractie, zelfde haar-key als man)",
+    layers: [
+      v2EntryToLayer(v2ByKey("base-female-medium")),
+      v2EntryToLayer(v2ByKey("eyes-almond-01"), "medium"),
+      v2EntryToLayer(v2ByKey("eyebrows-08")),
+      v2EntryToLayer(v2ByKey("mouth-02")),
+      v2EntryToLayer(v2ByKey("hair-long-03")),
+    ],
+  },
 ];
 
 // Drie combinaties uit de opdracht (sectie 17) — puur de bestaande

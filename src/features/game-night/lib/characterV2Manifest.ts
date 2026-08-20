@@ -395,6 +395,90 @@ export const CHARACTER_V2_MANIFEST: readonly CharacterV2ManifestEntry[] = [
     `${P}/foreground-effects/effect-hearts.png`,
     95,
   ),
+
+  // ── hair (26, gender-agnostisch — zie 20260916000000) ───────────────────
+  ...Array.from({ length: 12 }, (_, i) =>
+    entry(
+      `hair-short-${String(i + 1).padStart(2, "0")}`,
+      "hair",
+      `Kort haar ${i + 1}`,
+      `${P}/hair/hair-short-${String(i + 1).padStart(2, "0")}.png`,
+      50,
+    ),
+  ),
+  ...Array.from({ length: 7 }, (_, i) =>
+    entry(
+      `hair-medium-${String(i + 1).padStart(2, "0")}`,
+      "hair",
+      `Halflang haar ${i + 1}`,
+      `${P}/hair/hair-medium-${String(i + 1).padStart(2, "0")}.png`,
+      50,
+    ),
+  ),
+  ...Array.from({ length: 7 }, (_, i) =>
+    entry(
+      `hair-long-${String(i + 1).padStart(2, "0")}`,
+      "hair",
+      `Lang haar ${i + 1}`,
+      `${P}/hair/hair-long-${String(i + 1).padStart(2, "0")}.png`,
+      50,
+    ),
+  ),
+
+  // ── eyebrows (10) ─────────────────────────────────────────────────────
+  ...Array.from({ length: 10 }, (_, i) =>
+    entry(
+      `eyebrows-${String(i + 1).padStart(2, "0")}`,
+      "eyebrows",
+      `Wenkbrauwen ${i + 1}`,
+      `${P}/eyebrows/eyebrows-${String(i + 1).padStart(2, "0")}.png`,
+      34,
+    ),
+  ),
+
+  // ── facial-hair (6) ───────────────────────────────────────────────────
+  entry(
+    "facialhair-beard-full-01",
+    "facial-hair",
+    "Volle baard 1",
+    `${P}/facial-hair/facialhair-beard-full-01.png`,
+    38,
+  ),
+  entry(
+    "facialhair-beard-full-02",
+    "facial-hair",
+    "Volle baard 2",
+    `${P}/facial-hair/facialhair-beard-full-02.png`,
+    38,
+  ),
+  entry(
+    "facialhair-beard-round-01",
+    "facial-hair",
+    "Ronde baard 1",
+    `${P}/facial-hair/facialhair-beard-round-01.png`,
+    38,
+  ),
+  entry(
+    "facialhair-beard-round-02",
+    "facial-hair",
+    "Ronde baard 2",
+    `${P}/facial-hair/facialhair-beard-round-02.png`,
+    38,
+  ),
+  entry(
+    "facialhair-moustache-goatee",
+    "facial-hair",
+    "Snor met sikje",
+    `${P}/facial-hair/facialhair-moustache-goatee.png`,
+    38,
+  ),
+  entry(
+    "facialhair-moustache-patch",
+    "facial-hair",
+    "Snor met kinpatch",
+    `${P}/facial-hair/facialhair-moustache-patch.png`,
+    38,
+  ),
 ] as const;
 
 export function v2ManifestBySlot(): Map<
@@ -416,16 +500,16 @@ export function getV2BodyShapeBaseEntries(): CharacterV2ManifestEntry[] {
   );
 }
 
+// V2.9E-hersteltraject (20260916000000): hair/eyebrows/facial-hair zijn
+// alsnog volledig gered via alpha-kanaal-extractie (zie het opleverrapport)
+// — deze lijst is dus NIET meer van toepassing op die drie slots. Alleen
+// huidskleur blijft ongebruikt, maar om een andere reden dan "matting
+// mislukt": de 12 tinten zijn wél schoon uitgesneden, maar de bron-crop
+// bevat alleen hoofd+nek (geen schouders), wat niet aansluit bij hoe
+// kleding op de bestaande base-silhouetten ankert. Geen slot in dit
+// 12-slot-model, dus geen entry hieronder — zie het opleverrapport voor de
+// aanbevolen vervolgstap.
 export const V2_NEEDS_ASSET_REVISION_SLOTS: readonly {
   slot: GameNightCharacterSlot;
   note: string;
-}[] = [
-  {
-    slot: "eyebrows",
-    note: "5/8 uitgesneden, kwaliteit onvoldoende geverifieerd",
-  },
-  {
-    slot: "facial-hair",
-    note: "matting mislukte voor alle 6 varianten (ghosting)",
-  },
-] as const;
+}[] = [] as const;
