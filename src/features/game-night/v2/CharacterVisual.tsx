@@ -28,7 +28,10 @@ function CharacterLayerImage({
   onError: () => void;
 }) {
   const isPersonalFace = layer.partId === "personal-face";
-  const signedFace = useSignedFaceUrl(isPersonalFace ? layer.assetPath : null);
+  const signedFace = useSignedFaceUrl(
+    isPersonalFace ? layer.assetPath : null,
+    isPersonalFace ? layer.revision : null,
+  );
 
   // Fetchfout doorgeven aan dezelfde "deze laag mislukt permanent"-afhandeling
   // als een gewone <img onError> — geen apart foutpad nodig.

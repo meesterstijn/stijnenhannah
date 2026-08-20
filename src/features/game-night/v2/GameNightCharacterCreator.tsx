@@ -148,6 +148,7 @@ export default function GameNightCharacterCreator() {
         partsById,
         draftBodyShape,
         myPlayer?.face_asset_path ?? null,
+        myPlayer?.face_crop?.processedAt ?? null,
       )
     : [];
 

@@ -129,6 +129,13 @@ export type ResolvedCharacterLayer = {
   key: string;
   assetPath: string;
   layerOrder: number;
+  // Alleen betekenisvol voor de "personal-face"-laag (private Storage, dus
+  // via een getekende URL gerenderd, zie useSignedFaceUrl.ts) — het
+  // storage-PAD verandert nooit bij "Gezicht wijzigen" (upsert:true naar
+  // hetzelfde bestand), dus zonder een apart revisiesignaal zou een live
+  // update van een ANDERE speler geen nieuwe getekende URL/afbeelding
+  // opleveren. Meestal player.face_crop.processedAt, zie personalFaceLayer().
+  revision?: string;
 };
 
 export type ResolvedCharacter =
@@ -348,7 +355,7 @@ export function derivePartTileStatus(
 // hair/glasses/headwear (50/55/60) — zie PERSONAL_FACE_LAYER_ORDER in
 // gameNightFaceCanvas.ts voor de volledige laagvolgorde-motivatie.
 export function personalFaceLayer(
-  player: Pick<GameNightPlayer, "face_asset_path">,
+  player: Pick<GameNightPlayer, "face_asset_path" | "face_crop">,
 ): ResolvedCharacterLayer | null {
   if (!player.face_asset_path) return null;
   return {
@@ -357,6 +364,7 @@ export function personalFaceLayer(
     key: "personal-face",
     assetPath: player.face_asset_path,
     layerOrder: PERSONAL_FACE_LAYER_ORDER,
+    revision: player.face_crop?.processedAt,
   };
 }
 
@@ -507,6 +515,11 @@ export function resolveDraftLayers(
   // catalogus-part is. Vervangt, net als in resolvePlayerCharacter, een
   // eventueel gekozen catalogus-"face"-part.
   facePhotoUrl: string | null = null,
+  // Zelfde live-update-motivatie als ResolvedCharacterLayer.revision
+  // hierboven — de Creator's eigen live-preview moet net als
+  // resolvePlayerCharacter() een gewijzigde face ook zonder storage-pad-
+  // wijziging herkennen als "nieuw".
+  facePhotoRevision: string | null = null,
 ): ResolvedCharacterLayer[] {
   const layers: ResolvedCharacterLayer[] = [];
   for (const slot of CHARACTER_SLOTS) {
@@ -530,6 +543,7 @@ export function resolveDraftLayers(
       key: "personal-face",
       assetPath: facePhotoUrl,
       layerOrder: PERSONAL_FACE_LAYER_ORDER,
+      revision: facePhotoRevision ?? undefined,
     });
   }
   return applyPoseOverride(

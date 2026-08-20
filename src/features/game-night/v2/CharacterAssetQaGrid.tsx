@@ -1,10 +1,12 @@
 import { useMemo, useState } from "react";
+import { useOutletContext } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import type {
   GameNightBodyShape,
   GameNightCharacterPart,
   GameNightPlayer,
 } from "@/lib/supabase";
+import type { GameNightRealtimeInfo } from "@/features/game-night/hooks/useGameNightRealtimeSync";
 import {
   CHARACTER_STARTER_MANIFEST,
   starterManifestBySlot,
@@ -430,7 +432,10 @@ function FaceGuideOverlay() {
 // pipeline. Werkt uitsluitend voor spelers met zowel face_original_path als
 // face_crop (nodig om het oorspronkelijke hoofdgebied te reconstrueren).
 function FaceProcessingDebugPanel({ player }: { player: GameNightPlayer }) {
-  const signedOriginal = useSignedFaceUrl(player.face_original_path);
+  const signedOriginal = useSignedFaceUrl(
+    player.face_original_path,
+    player.face_crop?.processedAt,
+  );
   const [status, setStatus] = useState<
     "idle" | "loading" | "ready" | "error" | "no-data"
   >("idle");
@@ -757,7 +762,10 @@ function PersonalFaceQaSection({
   // CharacterVisual-previews hieronder lossen dat zelf al intern op (zie
   // CharacterVisual.tsx), maar de losse dimensie-/transparantiecontroles
   // hebben zelf ook een echte URL nodig.
-  const signedFace = useSignedFaceUrl(selected?.face_asset_path);
+  const signedFace = useSignedFaceUrl(
+    selected?.face_asset_path,
+    selected?.face_crop?.processedAt,
+  );
 
   return (
     <div className="gn-panel-elevated space-y-4 px-5 py-4">
@@ -955,6 +963,11 @@ export default function CharacterAssetQaGrid() {
   const bySlot = starterManifestBySlot();
   const { data: allParts = [] } = useAllCharacterPartsForQa();
   const { data: analyticsData } = useGameNightAnalytics();
+  // Optionele, QA-only debugstatus voor het gedeelde Realtime-kanaal (zie
+  // GameNightLayout.tsx) — leest 'm via Outlet context i.p.v. zelf
+  // useGameNightRealtimeSync() aan te roepen, dat zou een TWEEDE kanaal
+  // openen naast het ene al-gedeelde kanaal.
+  const realtimeInfo = useOutletContext<GameNightRealtimeInfo | undefined>();
   const v2BySlot = groupPartsBySlot(
     allParts.filter((p) => V2_SLOTS.includes(p.slot)),
   );
@@ -1001,6 +1014,22 @@ export default function CharacterAssetQaGrid() {
           valt dan stilzwijgend terug op de initiaal, precies zoals in de
           Creator/Lobby/Arena.
         </p>
+        {realtimeInfo && (
+          <p className="gn-faint mt-2 text-[11px]">
+            Realtime: {realtimeInfo.status}
+            {realtimeInfo.lastEvent && (
+              <>
+                {" · Laatste event: "}
+                {realtimeInfo.lastEvent.table}{" "}
+                {realtimeInfo.lastEvent.eventType}
+                {" · "}
+                {new Date(realtimeInfo.lastEvent.at).toLocaleTimeString(
+                  "nl-NL",
+                )}
+              </>
+            )}
+          </p>
+        )}
       </div>
 
       <div className="gn-panel-elevated px-5 py-4">

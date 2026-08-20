@@ -18,9 +18,25 @@ import { PLAYER_FACES_BUCKET } from "@/features/game-night/lib/gameNightFaceStor
 const EXPIRES_IN_SECONDS = 60 * 60;
 const STALE_TIME_MS = 45 * 60 * 1000;
 
-export function useSignedFaceUrl(storagePath: string | null | undefined) {
+// `revision` (optioneel — meestal face_crop.processedAt, zie personalFaceLayer()
+// in gameNightCharacter.ts) lost een live-update-cachingprobleem op dat puur
+// invalideren van de players-query NIET oplost: "Gezicht wijzigen" schrijft
+// de nieuwe face.png via upsert:true naar EXACT hetzelfde storage-pad
+// (<player_id>/face.png) — de PATH verandert dus nooit, alleen de PIXELS.
+// Door `revision` in de query key op te nemen wordt een gewijzigde face
+// automatisch een NIEUWE, nog nooit gecachete query zodra de players-rij
+// (met zijn nieuwe processedAt) opnieuw binnenkomt — geen aparte,
+// handmatige invalidatie van signed-face-url-queries nodig, en de
+// resulterende getekende URL is ook een nieuwe string (nieuw token), dus de
+// browser hergebruikt nooit de oude gecachete afbeelding voor dat pad.
+// Zonder revision (bv. QA-gebruik zonder bekende processedAt) werkt de hook
+// exact als voorheen.
+export function useSignedFaceUrl(
+  storagePath: string | null | undefined,
+  revision?: string | null,
+) {
   return useQuery({
-    queryKey: ["game-night", "signed-face-url", storagePath],
+    queryKey: ["game-night", "signed-face-url", storagePath, revision ?? null],
     queryFn: async (): Promise<string> => {
       if (!storagePath) throw new Error("Geen storage-pad opgegeven");
       const { data, error } = await supabase.storage
