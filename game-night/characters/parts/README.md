@@ -1,3 +1,54 @@
+# Status-update — Photoshop-workflow (na V2.9E)
+
+De automatisch uitgesneden/genormaliseerde V2.9E-pixel-art-batch (sectie
+"V2.9E" hieronder) is **afgekeurd en verwijderd**. De bijbehorende
+`public/game-night/characters/parts/v2/`-map bestaat niet meer, en alle
+catalogus-rijen die ernaar wezen zijn gedeactiveerd (`active = false`, zie
+`supabase/migrations/20260917000000_game_night_character_v2_deactivate_extracted_batch.sql`)
+— niet hard verwijderd, om bestaande equipment-/unlock-historie van spelers
+niet te beschadigen.
+
+Nieuwe artwork wordt vanaf nu **handgetekend in Photoshop** aangeleverd en
+1-op-1 als laag gebruikt (geen automatische crop/scale/matting/reconstructie
+meer). Elke toekomstige asset is:
+
+- exact **128×128px**, PNG, transparante achtergrond;
+- al correct gepositioneerd en pixel-perfect uitgelijnd (geen per-asset
+  code-offsets — alignment komt uit het bronbestand zelf, zelfde harde eis
+  als de V2.9E-sectie hieronder al stelde).
+
+**Mapstructuur voor deze nieuwe assets** (hergebruikt de bestaande,
+slot-gebaseerde indeling — geen tweede assetsysteem):
+
+```
+public/game-night/characters/parts/custom/
+  base/  clothing/  eyes/  eyebrows/  mouth/  facial-hair/
+  hair/  glasses/  headwear/  arms/  props/  foreground-effects/
+```
+
+Nog leeg (met `.gitkeep` per map) — plaats hier de PNG's en registreer ze
+daarna via een nieuwe, additieve migratie (zelfde patroon als
+`20260915010000_game_night_character_v2_seed.sql`, maar met
+`asset_path`-waarden onder `.../parts/custom/...` i.p.v. `.../parts/v2/...`).
+Zodra een rij `active = true` heeft en het bestand op zijn pad staat, pakt
+de app het automatisch op — geen codewijziging nodig. De QA-pagina
+(`/game-night/dev/character-qa`, zie `CharacterAssetQaGrid.tsx`) leest de
+live catalogus rechtstreeks (ook inactieve rijen) en toont per onderdeel:
+los, op de man-base, op de vrouw-base (waar van toepassing), key, slot,
+128×128-validatie en actief/inactief-status — zonder dat deze pagina zelf
+nog per asset hoeft te worden aangepast.
+
+De onderstaande V2.9D- en V2.9E-secties blijven staan als **historisch
+referentiemateriaal** (art-direction-taal, canvas-/anchor-conventies,
+laagvolgorde) — de harde technische eisen (128×128, transparant, exacte
+laagvolgorde/anchors) gelden onverkort ook voor de nieuwe Photoshop-assets.
+De V2.9D-14-onderdelen-set (`parts/base/`, `parts/face/`, enz., zónder
+`/v2/`- of `/custom/`-segment) is losstaand or ongewijzigd: die bestanden
+bestonden nooit fysiek en blijven een legacy-fallback-pad, hier niet bij
+betrokken.
+
+---
+
 # Game Night — modulaire character-onderdelen (definitieve spec, V2.9D)
 
 Dit is de assetmap voor de modulaire Character Creator. **Er staat nog geen
