@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { GameNightPlayer } from "@/lib/supabase";
 import { getPlayerInitial } from "@/features/game-night/lib/playerIdentity";
 import { resolveCharacterVisualSource } from "@/features/game-night/lib/characterPresets";
@@ -6,6 +6,67 @@ import {
   resolveVisibleLayers,
   type ResolvedCharacterLayer,
 } from "@/features/game-night/lib/gameNightCharacter";
+import { useSignedFaceUrl } from "@/features/game-night/hooks/useSignedFaceUrl";
+
+// De "personal-face"-laag (zie personalFaceLayer() in gameNightCharacter.ts)
+// wijst naar een storage-PAD in de privé game-night-player-faces-bucket
+// (20260918000000), geen direct bruikbare URL zoals elke andere,
+// statische/publieke character-laag. Deze ene laag lost daarom eerst zelf
+// een getekende URL op (useSignedFaceUrl) vóór 'm rendert — alle overige
+// lagen gaan via de kortere, synchrone `else`-tak hieronder, ongewijzigd.
+// Bewust een APART kind-component (i.p.v. een hook binnen de .map() zelf,
+// wat de Rules of Hooks zou schenden): elke instantie hiervan is één eigen
+// React-boomelement, dus zijn eigen useSignedFaceUrl()-call per laag is
+// volledig legaal.
+function CharacterLayerImage({
+  layer,
+  loading,
+  onError,
+}: {
+  layer: ResolvedCharacterLayer;
+  loading: "eager" | "lazy";
+  onError: () => void;
+}) {
+  const isPersonalFace = layer.partId === "personal-face";
+  const signedFace = useSignedFaceUrl(isPersonalFace ? layer.assetPath : null);
+
+  // Fetchfout doorgeven aan dezelfde "deze laag mislukt permanent"-afhandeling
+  // als een gewone <img onError> — geen apart foutpad nodig.
+  useEffect(() => {
+    if (isPersonalFace && signedFace.isError) onError();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPersonalFace, signedFace.isError]);
+
+  if (isPersonalFace) {
+    // Nog geen getekende URL (of de fetch faalde net) -> deze laag toont
+    // simpelweg (nog) niets, exact zoals elke andere ontbrekende laag —
+    // nooit een kapot-plaatje-icoon.
+    if (!signedFace.data) return null;
+    return (
+      <img
+        key={layer.key}
+        src={signedFace.data}
+        alt=""
+        loading={loading}
+        decoding="async"
+        className="gnv2-character-layer"
+        onError={onError}
+      />
+    );
+  }
+
+  return (
+    <img
+      key={layer.key}
+      src={layer.assetPath}
+      alt=""
+      loading={loading}
+      decoding="async"
+      className="gnv2-character-layer"
+      onError={onError}
+    />
+  );
+}
 
 // Game Night V2.9/V2.9B (sectie 1/7/9/10/15/17) — de "base art"-laag:
 // uitsluitend verantwoordelijk voor WAT er in het character-vlak
@@ -51,16 +112,10 @@ export function CharacterVisual({
       return (
         <span className="gnv2-character-layers">
           {visible.map((layer) => (
-            <img
+            <CharacterLayerImage
               key={layer.key}
-              src={layer.assetPath}
-              alt=""
+              layer={layer}
               loading={loading}
-              decoding="async"
-              className="gnv2-character-layer"
-              // Eén mislukte laag (bv. een ontbrekende accessory-asset) mag
-              // nooit de andere lagen wegtrekken — elke laag heeft zijn
-              // eigen fout-state en verdwijnt uitsluitend zelf.
               onError={() =>
                 setFailedLayerKeys((prev) => new Set(prev).add(layer.key))
               }

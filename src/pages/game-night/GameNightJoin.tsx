@@ -43,6 +43,12 @@ export default function GameNightJoin() {
   const [joinResult, setJoinResult] = useState<{
     name: string;
     nickname: string | null;
+    // Sectie 15 (face-layer-opdracht): alleen bij een GLOEDNIEUW profiel
+    // bewust naar character/face-setup wijzen — een bestaande speler die
+    // opnieuw scant (hasExistingPlayer, zie hieronder) krijgt zijn normale
+    // "Mijn profiel"-pad, nooit geforceerd naar setup. Puur een lokale
+    // sessievlag, geen extra query nodig.
+    isNewProfile: boolean;
   } | null>(null);
 
   // Sectie 7 (Owner)/Sectie 5 (V2.3): alleen owner/game_night_member kunnen
@@ -77,7 +83,13 @@ export default function GameNightJoin() {
     if (hasExistingPlayer) {
       join
         .mutateAsync({ token, confirmRoleReplacement: roleWarningConfirmed })
-        .then((r) => setJoinResult({ name: r.name, nickname: r.nickname }))
+        .then((r) =>
+          setJoinResult({
+            name: r.name,
+            nickname: r.nickname,
+            isNewProfile: false,
+          }),
+        )
         .catch(() => {
           /* join.isError toont de melding */
         });
@@ -104,7 +116,13 @@ export default function GameNightJoin() {
         },
         confirmRoleReplacement: roleWarningConfirmed,
       })
-      .then((r) => setJoinResult({ name: r.name, nickname: r.nickname }))
+      .then((r) =>
+        setJoinResult({
+          name: r.name,
+          nickname: r.nickname,
+          isNewProfile: true,
+        }),
+      )
       .catch(() => {
         // Stil falen hier is prima — de gewone "nieuw profiel"-vorm
         // hieronder verschijnt dan alsnog als fallback.
@@ -399,12 +417,33 @@ export default function GameNightJoin() {
             {joinResult.nickname ?? joinResult.name} ·{" "}
             {validation.data.gameNightName}
           </p>
-          <Link
-            to="/game-night/me"
-            className="mt-2 inline-block min-h-[48px] rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground"
-          >
-            Mijn profiel
-          </Link>
+          {/* Sectie 15 (face-layer-opdracht): alleen bij een gloednieuw
+              profiel expliciet naar character/face-setup wijzen — bestaand
+              account dat opnieuw scant krijgt gewoon zijn normale pad, nooit
+              geforceerd. */}
+          {joinResult.isNewProfile ? (
+            <div className="flex flex-col items-center gap-2">
+              <Link
+                to="/game-night/me/face"
+                className="mt-2 inline-block min-h-[48px] rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground"
+              >
+                Maak je character
+              </Link>
+              <Link
+                to="/game-night/me"
+                className="text-xs text-muted-foreground underline"
+              >
+                Overslaan, naar mijn profiel
+              </Link>
+            </div>
+          ) : (
+            <Link
+              to="/game-night/me"
+              className="mt-2 inline-block min-h-[48px] rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground"
+            >
+              Mijn profiel
+            </Link>
+          )}
         </div>
       </div>
     );
@@ -449,7 +488,7 @@ export default function GameNightJoin() {
         },
         confirmRoleReplacement: roleWarningConfirmed,
       });
-      setJoinResult({ name: r.name, nickname: r.nickname });
+      setJoinResult({ name: r.name, nickname: r.nickname, isNewProfile: true });
     } catch {
       // join.isError toont de melding hieronder
     }

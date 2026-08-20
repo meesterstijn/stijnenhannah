@@ -121,6 +121,9 @@ const GameNightMe = lazy(() => import("@/pages/game-night/GameNightMe"));
 const GameNightCharacterCreator = lazy(
   () => import("@/features/game-night/v2/GameNightCharacterCreator"),
 );
+const GameNightFaceSetup = lazy(
+  () => import("@/pages/game-night/GameNightFaceSetup"),
+);
 const CharacterAssetQaGrid = lazy(
   () => import("@/features/game-night/v2/CharacterAssetQaGrid"),
 );
@@ -280,6 +283,7 @@ function AppRoutes() {
                 path="me/character"
                 element={<GameNightCharacterCreator />}
               />
+              <Route path="me/face" element={<GameNightFaceSetup />} />
               {/* Sectie 17 (V2.9D) — dev-only asset-QA, bewust NERGENS in
                   de navigatie gelinkt, alleen bereikbaar via de directe
                   URL en owner-gated (zie het component zelf). */}

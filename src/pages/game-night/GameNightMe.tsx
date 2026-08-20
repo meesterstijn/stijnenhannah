@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Crown, LogOut, Check, Loader2, Sparkles } from "lucide-react";
+import { Crown, LogOut, Check, Loader2, Sparkles, Camera } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { useGameNightAnalytics } from "@/features/game-night/hooks/useGameNightAnalytics";
@@ -204,13 +204,27 @@ export default function GameNightMe() {
 
         {/* V2.9C (sectie 2/21): character samenstellen gebeurt volledig in
             de eigen Creator — hier alleen de duidelijke actie ernaartoe. */}
-        <Link
-          to="/game-night/me/character"
-          className="gn-plaque-action mt-4 flex min-h-[48px] items-center justify-center gap-2 px-6 text-sm font-semibold"
-        >
-          <Sparkles className="h-4 w-4" />
-          Mijn character
-        </Link>
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+          <Link
+            to="/game-night/me/character"
+            className="gn-plaque-action flex min-h-[48px] flex-1 items-center justify-center gap-2 px-6 text-sm font-semibold"
+          >
+            <Sparkles className="h-4 w-4" />
+            Mijn character
+          </Link>
+          {/* Persoonlijke face-layer (selfie/crop-flow) — nieuwe, eigen
+              actie ernaartoe. Label verandert al naargelang er al een
+              face is ingesteld (opdracht sectie 16: "Gezicht wijzigen"). */}
+          <Link
+            to="/game-night/me/face"
+            className="gn-plaque-action flex min-h-[48px] flex-1 items-center justify-center gap-2 px-6 text-sm font-semibold"
+          >
+            <Camera className="h-4 w-4" />
+            {myPlayer.face_asset_path
+              ? "Gezicht wijzigen"
+              : "Gezicht instellen"}
+          </Link>
+        </div>
       </div>
 
       {/* Sectie 12: profiel aanpassen — nickname + kleur uit het actieve

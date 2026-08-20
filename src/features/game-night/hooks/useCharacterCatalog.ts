@@ -19,6 +19,10 @@ import {
 // voor de (toekomstige) eigen creator-UI, dus een kleinere, aparte hook.
 
 const CHARACTER_PARTS_KEY = ["game-night", "character-parts"] as const;
+const ALL_CHARACTER_PARTS_QA_KEY = [
+  "game-night",
+  "character-parts-qa-all",
+] as const;
 const MY_UNLOCKS_KEY = ["game-night", "my-character-unlocks"] as const;
 const CHARACTER_EQUIPMENT_KEY = (playerIds: string[]) =>
   ["game-night", "character-equipment", [...playerIds].sort()] as const;
@@ -41,6 +45,29 @@ export function useCharacterParts() {
       return data ?? [];
     },
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+// Owner-only dev-tooling (CharacterAssetQaGrid.tsx): ALLE catalogus-rijen,
+// ook inactieve/needs_asset_revision-items — bewust GEEN `.eq("active", true)`
+// zoals useCharacterParts() hierboven, want de QA-pagina moet juist ook
+// laten zien wat er (nog) niet actief staat. Werkt uitsluitend voor de
+// owner: de "member select active"-RLS-policy op deze tabel laat een
+// gewoon lid sowieso alleen active=true-rijen terugkrijgen, ongeacht deze
+// query — de owner-ALL-policy geeft de owner hier het volledige beeld.
+export function useAllCharacterPartsForQa() {
+  return useQuery({
+    queryKey: ALL_CHARACTER_PARTS_QA_KEY,
+    queryFn: async (): Promise<GameNightCharacterPart[]> => {
+      const { data, error } = await supabase
+        .from("game_night_character_parts")
+        .select("*")
+        .order("slot", { ascending: true })
+        .order("sort_order", { ascending: true });
+      if (error) throw error;
+      return data ?? [];
+    },
+    staleTime: 60 * 1000,
   });
 }
 

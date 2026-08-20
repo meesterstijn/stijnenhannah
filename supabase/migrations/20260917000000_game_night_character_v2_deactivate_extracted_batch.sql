@@ -1,0 +1,65 @@
+-- Game Night — intrekken van de volledige V2.9E-batch (automatisch
+-- uitgesneden/genormaliseerde pixel-art, zowel de oorspronkelijke seed
+-- als het alpha-rescue-hersteltraject). De workflow wisselt om naar
+-- handgetekende Photoshop-assets (128×128, PNG, transparant, al correct
+-- gepositioneerd/uitgelijnd) — de automatisch geproduceerde artwork wordt
+-- afgekeurd en de bijbehorende PNG-bestanden zijn fysiek verwijderd uit
+-- public/game-night/characters/parts/v2/.
+--
+-- Bewust DEACTIVEREN, niet hard-deleten (zie
+-- 20260914000000_game_night_character_parts.sql, tabelcommentaar: "een
+-- catalogus-item hoort ALTIJD via active=false uitgefaseerd te worden...
+-- nooit hard verwijderd"). Een hard delete zou via
+-- game_night_player_character_equipment_part_id_fkey/
+-- game_night_player_character_unlocks_part_id_fkey (beide ON DELETE
+-- CASCADE) bestaande equipment-/unlock-rijen van spelers stilzwijgend
+-- kunnen wegvagen. `active = false` laat die rijen volledig intact —
+-- resolvePlayerCharacter() (gameNightCharacter.ts) slaat een equipment-rij
+-- die naar een inactief part wijst simpelweg over (geen crash, geen
+-- kapot-plaatje: de speler valt voor die laag terug op "geen laag", of
+-- op zijn legacy character_id/initiaal als geen enkele laag overblijft).
+--
+-- Dit bestand wijzigt GEEN bestaande, al uitgevoerde migratie — puur een
+-- nieuwe, additieve UPDATE bovenop de rijen die
+-- 20260915010000_game_night_character_v2_seed.sql en
+-- 20260916000000_game_night_character_v2_alpha_rescue_seed.sql eerder
+-- insertten. Beide bronmigraties gebruikten uitsluitend het pad-prefix
+-- '/game-night/characters/parts/v2/' (bevestigd: geen enkele andere
+-- migratie gebruikt dit prefix) — dat prefix is dus een betrouwbare,
+-- volledige selector voor exact de af te keuren batch, zonder alle ~94
+-- keys hier met de hand te hoeven opsommen (foutgevoelig, makkelijk er één
+-- te missen).
+--
+-- `and active = true`: idempotent en minimaal — raakt de twee al-inactieve
+-- needs_asset_revision-rijen (base-female-small/base-female-large, nooit
+-- fysiek aangeleverd) niet nogmaals aan, en dit bestand kan zonder effect
+-- opnieuw draaien.
+--
+-- GEEN wijziging aan RLS/policies/functies/andere tabellen. GEEN wijziging
+-- aan de V2.9B/V2.9D-starterset (game_night_character_parts-rijen met
+-- asset_path onder .../parts/base|face|hair|outfit|headwear|accessory|
+-- effect|badge/, zonder /v2/-segment) — die blijft ongewijzigd bestaan als
+-- legacy-fallback, exact zoals eerder al het geval was.
+
+update public.game_night_character_parts
+set active = false
+where active = true
+  and asset_path like '/game-night/characters/parts/v2/%';
+
+-- Handmatige controle na het draaien van deze migratie:
+--
+-- select count(*) filter (where active) as nog_actief,
+--        count(*) filter (where not active) as inactief
+-- from public.game_night_character_parts
+-- where asset_path like '/game-night/characters/parts/v2/%';
+-- -- verwacht: nog_actief = 0, inactief = 96 (94 net gedeactiveerd + de 2
+-- -- al-bestaande needs_asset_revision-rijen)
+--
+-- select player_id, slot, part_id
+-- from public.game_night_player_character_equipment e
+-- join public.game_night_character_parts p on p.id = e.part_id
+-- where p.asset_path like '/game-night/characters/parts/v2/%';
+-- -- toont welke spelers (indien van toepassing) een nu-gedeactiveerd
+-- -- onderdeel droegen — hun equipment-rij blijft bestaan (geen data
+-- -- verloren), alleen het RENDER-resultaat verliest die ene laag totdat
+-- -- de speler iets nieuws kiest.

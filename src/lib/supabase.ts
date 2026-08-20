@@ -616,8 +616,39 @@ export type GameNightPlayer = {
   // (zie resolveBodyShape() in gameNightCharacter.ts), nooit hier een
   // kolomdefault die dat verhult.
   body_shape: GameNightBodyShape | null;
+  // Game Night — persoonlijke face-layer (selfie/crop-flow). Alle drie
+  // null = nog geen face ingesteld; CharacterVisual/resolvePlayerCharacter
+  // vallen dan terug op het bestaande modulaire/legacy/leeg-gedrag.
+  // face_original_path: de alleen-grootte-beperkte, nog niet gecropte
+  // selfie (bewaard voor toekomstige herverwerking). face_asset_path: de
+  // afgeleide, canonieke 512x512 face-laag die daadwerkelijk gerenderd
+  // wordt. Beide staan altijd samen gezet of samen null (zie
+  // game_night_update_my_face-RPC).
+  face_original_path: string | null;
+  face_asset_path: string | null;
+  face_crop: GameNightFaceCrop | null;
   created_at: string;
   updated_at: string;
+};
+
+// Game Night — cropmetadata uit het origineel (pixels binnen
+// face_original_path) waarmee face_asset_path later opnieuw gegenereerd
+// kan worden zonder de croppositionering te verliezen. Zie
+// FACE_ANCHOR/CHARACTER_CANVAS in gameNightFaceCanvas.ts voor de
+// canonieke 512x512-doelgeometrie waar deze rechthoek naartoe wordt
+// getekend.
+export type GameNightFaceCrop = {
+  sourceX: number;
+  sourceY: number;
+  sourceWidth: number;
+  sourceHeight: number;
+  // Optioneel, binnen dezelfde jsonb-kolom (bewust GEEN nieuwe
+  // databasekolommen voor deze twee) — laat een latere sessie zien met
+  // welke segmentatie-implementatie/wanneer een face_asset_path is
+  // gegenereerd, zodat een toekomstig beter model selectief kan
+  // herverwerken (bv. "alleen faces met segmentationVersion < 2").
+  segmentationVersion?: string;
+  processedAt?: string;
 };
 
 // Game Night V2.1 (20260912130000_game_night_identity_foundations.sql) —

@@ -6,6 +6,7 @@ import type {
   GameNightPlayerCharacterEquipment,
   GameNightPlayerCharacterUnlock,
 } from "@/lib/supabase";
+import { PERSONAL_FACE_LAYER_ORDER } from "@/features/game-night/lib/gameNightFaceCanvas";
 
 export type { GameNightBodyShape };
 
@@ -334,6 +335,31 @@ export function derivePartTileStatus(
   return canEquipPart(part, slot, unlocks) ? "unlocked" : "locked";
 }
 
+// ── Persoonlijke face-layer (selfie/crop-flow) ───────────────────────────
+//
+// Een speler's eigen gezichtsfoto (game_night_players.face_asset_path) is
+// GEEN catalogus-part — het is per-speler fotodata, geen selecteerbaar
+// item in game_night_character_parts. Toch wordt 'm hier, als synthetische
+// ResolvedCharacterLayer, in DEZELFDE bestaande stapel geïnjecteerd (zie
+// resolvePlayerCharacter/resolveDraftLayers hieronder) zodat CharacterVisual
+// 'm zonder een tweede renderer of nieuwe prop kan tonen — precies "onderdeel
+// van dezelfde bestaande character-compositie". layer_order (40) matcht de
+// positie van de oude "face"-slot: boven body/clothing (20/25), onder
+// hair/glasses/headwear (50/55/60) — zie PERSONAL_FACE_LAYER_ORDER in
+// gameNightFaceCanvas.ts voor de volledige laagvolgorde-motivatie.
+export function personalFaceLayer(
+  player: Pick<GameNightPlayer, "face_asset_path">,
+): ResolvedCharacterLayer | null {
+  if (!player.face_asset_path) return null;
+  return {
+    slot: "face",
+    partId: "personal-face",
+    key: "personal-face",
+    assetPath: player.face_asset_path,
+    layerOrder: PERSONAL_FACE_LAYER_ORDER,
+  };
+}
+
 // ── Character-resolutie (sectie 8/9/10) ──────────────────────────────────
 //
 // Prioriteit: modulaire equipment (als er minstens 1 geldige laag over-
@@ -356,27 +382,33 @@ export function resolvePlayerCharacter(
   const ownEquipment = equipment.filter((e) => e.player_id === player.id);
   const bodyShape = resolveBodyShape(player);
 
-  if (ownEquipment.length > 0) {
-    const bySlot = new Map<GameNightCharacterSlot, ResolvedCharacterLayer>();
-    for (const row of ownEquipment) {
-      const part = partsById.get(row.part_id);
-      if (!part || !part.active) continue;
-      bySlot.set(row.slot, {
-        slot: row.slot,
-        partId: part.id,
-        key: part.key,
-        assetPath: resolveBodyShapeAssetPath(part, bodyShape),
-        layerOrder: part.layer_order,
-      });
-    }
+  const bySlot = new Map<GameNightCharacterSlot, ResolvedCharacterLayer>();
+  for (const row of ownEquipment) {
+    const part = partsById.get(row.part_id);
+    if (!part || !part.active) continue;
+    bySlot.set(row.slot, {
+      slot: row.slot,
+      partId: part.id,
+      key: part.key,
+      assetPath: resolveBodyShapeAssetPath(part, bodyShape),
+      layerOrder: part.layer_order,
+    });
+  }
+  const faceLayer = personalFaceLayer(player);
+  // Vervangt bewust een eventuele catalogus-"face"-laag i.p.v. ernaast te
+  // renderen: twee volledige 512x512-gezichtslagen (een catalogus-face-part
+  // én de eigen foto) tegelijk zou de twee gewoon over elkaar stapelen,
+  // wat nooit het gewenste resultaat is zodra een speler zijn eigen foto
+  // heeft ingesteld.
+  if (faceLayer) bySlot.set("face", faceLayer);
+  const combinedLayers = [...bySlot.values()];
+  if (combinedLayers.length > 0) {
     const layers = applyPoseOverride(
-      [...bySlot.values()].sort((a, b) => a.layerOrder - b.layerOrder),
+      combinedLayers.sort((a, b) => a.layerOrder - b.layerOrder),
       [...partsById.values()],
       bodyShape,
     );
-    if (layers.length > 0) {
-      return { mode: "modular", layers };
-    }
+    return { mode: "modular", layers };
   }
 
   if (player.character_id) {
@@ -469,9 +501,16 @@ export function resolveDraftLayers(
   draft: CharacterSlotMap,
   partsById: Map<string, GameNightCharacterPart>,
   bodyShape: GameNightBodyShape = DEFAULT_BODY_SHAPE,
+  // Optioneel (sectie 10 face-layer-opdracht): laat de Creator's eigen
+  // live-preview ook de speler's ingestelde face-foto tonen, zonder de
+  // draft/slot-selectiestaat zelf te hoeven kennen van iets dat geen
+  // catalogus-part is. Vervangt, net als in resolvePlayerCharacter, een
+  // eventueel gekozen catalogus-"face"-part.
+  facePhotoUrl: string | null = null,
 ): ResolvedCharacterLayer[] {
   const layers: ResolvedCharacterLayer[] = [];
   for (const slot of CHARACTER_SLOTS) {
+    if (slot === "face" && facePhotoUrl) continue;
     const partId = draft[slot];
     if (!partId) continue;
     const part = partsById.get(partId);
@@ -482,6 +521,15 @@ export function resolveDraftLayers(
       key: part.key,
       assetPath: resolveBodyShapeAssetPath(part, bodyShape),
       layerOrder: part.layer_order,
+    });
+  }
+  if (facePhotoUrl) {
+    layers.push({
+      slot: "face",
+      partId: "personal-face",
+      key: "personal-face",
+      assetPath: facePhotoUrl,
+      layerOrder: PERSONAL_FACE_LAYER_ORDER,
     });
   }
   return applyPoseOverride(
