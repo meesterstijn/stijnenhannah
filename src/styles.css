@@ -3363,6 +3363,36 @@ a.gn-plaque-mini:hover {
   opacity: 0.035;
 }
 
+/* Game Night V2.10.1 (bugfix: "Wat spelen we?" verdween onder de fold bij
+   ~4 spelers) — `.gnv2-scene` gebruikt bewust `min-height:100dvh` (geen
+   `height`), want de meeste andere V2-schermen (Geschiedenis, Hall of
+   Fame, Spelersprofiel, ...) hebben legitiem langere content en MOETEN
+   gewoon als pagina kunnen scrollen. De Lobby is anders: dat is een vaste
+   3-zone-shell (header/stage/actiebalk) die NOOIT paginascroll hoort te
+   hebben — de actiebalk moet altijd in beeld blijven. Met alleen
+   `min-height` kan de scene ONBEPERKT hoger worden dan de viewport zodra
+   de stage veel ruimte claimt (grote characters bij ~4 spelers), waardoor
+   `.gnv2-main`/`.gnv2-stage` se `flex:1; min-height:0` niets hebben om
+   ECHT in te krimpen — er is dan geen vaste ouder-hoogte om "resterende
+   ruimte" van af te leiden, dus de footer wordt gewoon voorbij de
+   onderkant geduwd i.p.v. dat de stage zelf gaat scrollen. Deze regel
+   overschrijft dat UITSLUITEND voor de Lobby (hogere specificiteit via de
+   dubbele class, werkt ongeacht bron-volgorde in dit bestand) met een
+   ECHTE vaste hoogte, waarna de bestaande flex-keten
+   (.gnv2-main/.gnv2-stage) weer normaal functioneert: header en
+   actiebalk krijgen hun natuurlijke hoogte, de stage krijgt exact de rest
+   en scrollt zelf intern (`.gnv2-stage`'s bestaande `overflow-y:auto`) als
+   laatste vangnet in plaats van de actiebalk te verdringen. */
+.gnv2-scene.gnv2-lobby-scene {
+  height: 100dvh;
+}
+
+.gnv2-lobby-scene .gnv2-topbar,
+.gnv2-lobby-scene .gnv2-toasts,
+.gnv2-lobby-scene .gnv2-footer {
+  flex: 0 0 auto;
+}
+
 .gnv2-suit-1 {
   top: -4rem;
   left: -3rem;
@@ -3536,13 +3566,29 @@ a.gn-plaque-mini:hover {
   color: var(--gnv2-text-faint);
 }
 
+/* V2.10.3-bugfix ("glow rechthoekig afgeknipt"): `overflow-y: auto` alleen
+   lijkt onschuldig, maar CSS dwingt daarmee OOK `overflow-x` naar een
+   niet-`visible` waarde (de spec staat geen mix van `visible`/niet-
+   `visible` tussen de twee assen toe) — deze regel knipt dus in de
+   praktijk op BEIDE assen, inclusief de "ink overflow" van
+   `filter:drop-shadow()` (die niet meetelt voor scrollbare overflow, maar
+   WEL geknipt wordt door overflow-clipping). Dat is precies waarom de
+   gloed hard afsneed vlak naast het lichaam: bij ~4 spelers vulde een rij
+   characters de stage bijna volledig, en de oude, minimale padding
+   (0.25rem zijkant) gaf de gloed geen enkele ruimte om uit te doven vóór
+   die grens. We MOGEN deze overflow niet zomaar op `visible` zetten — dat
+   is precies de vangnet-scroll die de CTA's binnen 100dvh houdt (zie
+   V2.10.1). Oplossing: ruime, symmetrische padding als bewuste
+   bleed-marge, ruim genoeg voor de getemperde blur-radius hierboven
+   (.gnv2-party-character-art) om volledig uit te faden vóórdat 'm deze
+   rand bereikt. */
 .gnv2-stage {
   flex: 1;
   min-height: 0;
   width: 100%;
   max-width: 68rem;
   overflow-y: auto;
-  padding: 0.5rem 0.25rem 1.25rem;
+  padding: 1.75rem;
   border-radius: var(--gnv2-radius-lg);
   transition: box-shadow 0.15s ease;
 }
@@ -3551,46 +3597,78 @@ a.gn-plaque-mini:hover {
   box-shadow: inset 0 0 0 2px var(--gnv2-accent-warm);
 }
 
-/* Game Night V2.10 (sectie 1-4) — "de characters ZIJN de tafel": geen
-   uniforme CSS-grid met vaste kolombreedte meer, maar gecentreerde,
-   wrappende rijen die zich vanzelf rond het midden clusteren (5 spelers
-   wordt bv. vanzelf 3+2, wat al een stuk minder "top-left lijst" aanvoelt
-   dan een grid — zonder de fragiliteit van handmatige absolute posities
-   per aantal, die bij Arena WEL bewust gekozen zijn omdat daar een vast
-   bord het middelpunt is, zie .gnv2-arena-ring). `--gnv2-party-char-size`
-   wordt per `data-count` hieronder gezet (sectie 3: "meer ruimte = groter
-   character") en door `.gnv2-party-character` verderop gebruikt. */
+/* Game Night V2.10/V2.10.1 (sectie 1-4, herzien na bugfix "CTA's onder de
+   fold bij ~4 spelers") — "de characters ZIJN de tafel": geen uniforme
+   CSS-grid met vaste kolombreedte meer, maar gecentreerde, wrappende
+   rijen die zich vanzelf rond het midden clusteren (5 spelers wordt bv.
+   vanzelf 3+2) — zonder de fragiliteit van handmatige absolute posities
+   per aantal (die bij Arena WEL bewust gekozen zijn, zie .gnv2-arena-ring).
+   `--gnv2-party-char-size` wordt per `data-count` hieronder gezet, nu via
+   `min(voorkeursmaat, resterende-viewporthoogte)` i.p.v. uitsluitend
+   breedte/aantal: het aantal SPELERS bepaalt de voorkeursmaat, maar de
+   FEITELIJKE maat mag die nooit overschrijden zodra dat de actiebalk van
+   het scherm zou duwen. `--gnv2-stage-overhead-1row`/`-2row`/`-3row` zijn
+   geen losse magic numbers per tier, maar één afgeleide schatting van
+   header + actiebalk + padding + (bij 2-3 rijen) naam/gap-ruimte per extra
+   rij — zie het opleverrapport voor de exacte meting. Bewust een
+   RUIME/veilige schatting: als 'm een klein beetje te conservatief is,
+   scrollt de stage gewoon zelf een fractie (expliciet toegestaan als
+   laatste vangnet), nooit verdwijnt de actiebalk. */
 .gnv2-stage-grid {
+  /* +40px t.o.v. de vorige waarden — compenseert exact de extra
+     verticale padding die .gnv2-stage hierboven nu reserveert als
+     glow-bleed-marge, zodat de charactermaat zelf niet stiekem kleiner
+     wordt door een wijziging die eigenlijk alleen de gloed betrof. */
+  --gnv2-stage-overhead-1row: 290px;
+  --gnv2-stage-overhead-2row: 350px;
+  --gnv2-stage-overhead-3row: 390px;
   --gnv2-party-char-size: 300px;
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   align-items: flex-end;
-  gap: 2.25rem 2.5rem;
+  gap: 1.5rem 2rem;
   width: 100%;
-  padding: 1rem 0.5rem;
 }
 
 .gnv2-stage-grid[data-count="1"] {
-  --gnv2-party-char-size: 400px;
+  --gnv2-party-char-size: min(
+    400px,
+    calc(100dvh - var(--gnv2-stage-overhead-1row))
+  );
 }
 .gnv2-stage-grid[data-count="2"] {
-  --gnv2-party-char-size: 360px;
+  --gnv2-party-char-size: min(
+    360px,
+    calc(100dvh - var(--gnv2-stage-overhead-1row))
+  );
 }
 .gnv2-stage-grid[data-count="3"],
 .gnv2-stage-grid[data-count="4"] {
-  --gnv2-party-char-size: 310px;
+  --gnv2-party-char-size: min(
+    310px,
+    calc((100dvh - var(--gnv2-stage-overhead-2row)) / 2)
+  );
 }
 .gnv2-stage-grid[data-count="5"],
 .gnv2-stage-grid[data-count="6"] {
-  --gnv2-party-char-size: 260px;
+  --gnv2-party-char-size: min(
+    260px,
+    calc((100dvh - var(--gnv2-stage-overhead-2row)) / 2)
+  );
 }
 .gnv2-stage-grid[data-count="7"],
 .gnv2-stage-grid[data-count="8"] {
-  --gnv2-party-char-size: 220px;
+  --gnv2-party-char-size: min(
+    220px,
+    calc((100dvh - var(--gnv2-stage-overhead-2row)) / 2)
+  );
 }
 .gnv2-stage-grid[data-count="9-plus"] {
-  --gnv2-party-char-size: 190px;
+  --gnv2-party-char-size: min(
+    190px,
+    calc((100dvh - var(--gnv2-stage-overhead-3row)) / 3)
+  );
 }
 
 .gnv2-stage-empty {
@@ -3652,6 +3730,16 @@ a.gn-plaque-mini:hover {
 
 .gnv2-card-remove {
   position: absolute;
+  /* V2.10.2-bugfix: sinds het grote, zwevende character (V2.10) overlapt
+     de rechtsboven-hoek van .gnv2-party-character (zelf ook
+     `position:relative`, dus ook een gepositioneerd element) fysiek met
+     deze knop. Zonder expliciete z-index stapelen twee gepositioneerde
+     siblings zonder eigen stacking-context op DOM-volgorde — en
+     .gnv2-party-character staat ná deze knop in de DOM, dus die schilderde
+     (en ving dus ook de klik/tik van) overheen. Vaste, ruim hogere
+     z-index dan alles in de character-laag (.gnv2-party-character-art
+     zit op 1) lost dit definitief op, ongeacht DOM-volgorde. */
+  z-index: 5;
   top: -0.4rem;
   right: -0.4rem;
   width: 2.75rem;
@@ -3766,18 +3854,26 @@ a.gn-plaque-mini:hover {
   display: block;
   width: 100%;
   aspect-ratio: 1;
-  filter: drop-shadow(0 16px 20px oklch(0 0 0 / 0.42))
+  /* V2.10.3-bugfix: blur-radius bewust iets getemperd (was 20px/30px) —
+     niet om de gloed te verzwakken, maar om 'm comfortabel te laten
+     uitdoven binnen de bleed-marge die .gnv2-stage nu reserveert (zie
+     aldaar) i.p.v. een nóg grotere, kostbaardere marge nodig te hebben.
+     Blijft `filter: drop-shadow(...)` — GEEN box-shadow, volgt dus de
+     transparante silhouetvorm van het samengestelde character (alle
+     gestapelde lagen samen, één keer, niet per laag — zie de toelichting
+     bij .gnv2-character-layers hieronder). */
+  filter: drop-shadow(0 12px 14px oklch(0 0 0 / 0.4))
     drop-shadow(
-      0 0 30px
+      0 0 20px
         color-mix(in oklch, var(--gnv2-ring, transparent) 55%, transparent)
     );
   transition: filter 0.2s ease;
 }
 
 .gnv2-party-character-dragging .gnv2-party-character-art {
-  filter: drop-shadow(0 24px 30px oklch(0 0 0 / 0.5))
+  filter: drop-shadow(0 16px 20px oklch(0 0 0 / 0.5))
     drop-shadow(
-      0 0 44px
+      0 0 28px
         color-mix(in oklch, var(--gnv2-ring, transparent) 75%, transparent)
     );
 }
@@ -3792,7 +3888,7 @@ a.gn-plaque-mini:hover {
 }
 
 .gnv2-party-character-name {
-  margin-top: 0.5rem;
+  margin-top: 0.3rem;
   font-family: var(--gnv2-font-display);
   font-weight: 700;
   font-size: clamp(
@@ -3821,7 +3917,7 @@ a.gn-plaque-mini:hover {
 }
 
 .gnv2-win-badge {
-  margin-top: 0.35rem;
+  margin-top: 0.2rem;
   font-size: 0.62rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -3831,15 +3927,18 @@ a.gn-plaque-mini:hover {
   color: var(--gnv2-accent-warm-strong);
 }
 
-/* ── Onderste zone: beschikbare-spelersrail + acties (sectie 14/16) ── */
+/* ── Onderste zone: beschikbare-spelersrail + acties (sectie 14/16,
+   compacter sinds V2.10.1 — deze zone is secundair en mag geen tientallen
+   procenten van de viewport opeisen; de winst gaat naar de characterstage
+   erboven, zie .gnv2-stage-grid). ── */
 
 .gnv2-footer {
   position: relative;
   z-index: 2;
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
-  padding: 0.75rem 1.75rem 1.5rem;
+  gap: 0.5rem;
+  padding: 0.4rem 1.75rem max(0.75rem, env(safe-area-inset-bottom));
 }
 
 .gnv2-tray-label {
@@ -3848,7 +3947,7 @@ a.gn-plaque-mini:hover {
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--gnv2-text-faint);
-  margin-bottom: 0.4rem;
+  margin-bottom: 0.2rem;
 }
 
 .gnv2-tray-strip {
@@ -3856,7 +3955,7 @@ a.gn-plaque-mini:hover {
   align-items: center;
   gap: 0.6rem;
   overflow-x: auto;
-  padding: 0.3rem 0.25rem 0.5rem;
+  padding: 0.15rem 0.25rem 0.3rem;
   border-radius: var(--gnv2-radius-md);
   transition: box-shadow 0.15s ease;
 }
@@ -4054,28 +4153,46 @@ a.gn-plaque-mini:hover {
 
 @media (max-width: 1180px) {
   .gnv2-stage-grid {
-    gap: 1.75rem 2rem;
+    gap: 1.25rem 1.5rem;
   }
   .gnv2-stage-grid[data-count="1"] {
-    --gnv2-party-char-size: 340px;
+    --gnv2-party-char-size: min(
+      340px,
+      calc(100dvh - var(--gnv2-stage-overhead-1row))
+    );
   }
   .gnv2-stage-grid[data-count="2"] {
-    --gnv2-party-char-size: 300px;
+    --gnv2-party-char-size: min(
+      300px,
+      calc(100dvh - var(--gnv2-stage-overhead-1row))
+    );
   }
   .gnv2-stage-grid[data-count="3"],
   .gnv2-stage-grid[data-count="4"] {
-    --gnv2-party-char-size: 260px;
+    --gnv2-party-char-size: min(
+      260px,
+      calc((100dvh - var(--gnv2-stage-overhead-2row)) / 2)
+    );
   }
   .gnv2-stage-grid[data-count="5"],
   .gnv2-stage-grid[data-count="6"] {
-    --gnv2-party-char-size: 220px;
+    --gnv2-party-char-size: min(
+      220px,
+      calc((100dvh - var(--gnv2-stage-overhead-2row)) / 2)
+    );
   }
   .gnv2-stage-grid[data-count="7"],
   .gnv2-stage-grid[data-count="8"] {
-    --gnv2-party-char-size: 190px;
+    --gnv2-party-char-size: min(
+      190px,
+      calc((100dvh - var(--gnv2-stage-overhead-2row)) / 2)
+    );
   }
   .gnv2-stage-grid[data-count="9-plus"] {
-    --gnv2-party-char-size: 165px;
+    --gnv2-party-char-size: min(
+      165px,
+      calc((100dvh - var(--gnv2-stage-overhead-3row)) / 3)
+    );
   }
   .gnv2-avatar {
     width: 4rem;
@@ -4103,24 +4220,46 @@ a.gn-plaque-mini:hover {
    specifiek een SMALLERE-maar-nog-relatief-hoge viewport bedient, zodat
    een staande tablet niet de desktop-tafel in een smalle kolom perst. ── */
 @media (max-width: 900px) {
+  .gnv2-stage-grid {
+    /* +40px t.o.v. de vorige waarden, zelfde reden als de basisregel
+       hierboven: compenseert .gnv2-stage's grotere glow-bleed-padding. */
+    --gnv2-stage-overhead-1row: 270px;
+    --gnv2-stage-overhead-2row: 330px;
+    --gnv2-stage-overhead-3row: 370px;
+  }
   .gnv2-stage-grid[data-count="1"] {
-    --gnv2-party-char-size: 300px;
+    --gnv2-party-char-size: min(
+      300px,
+      calc(100dvh - var(--gnv2-stage-overhead-1row))
+    );
   }
   .gnv2-stage-grid[data-count="2"] {
-    --gnv2-party-char-size: 260px;
+    --gnv2-party-char-size: min(
+      260px,
+      calc(100dvh - var(--gnv2-stage-overhead-1row))
+    );
   }
   .gnv2-stage-grid[data-count="3"],
   .gnv2-stage-grid[data-count="4"] {
-    --gnv2-party-char-size: 220px;
+    --gnv2-party-char-size: min(
+      220px,
+      calc((100dvh - var(--gnv2-stage-overhead-2row)) / 2)
+    );
   }
   .gnv2-stage-grid[data-count="5"],
   .gnv2-stage-grid[data-count="6"] {
-    --gnv2-party-char-size: 190px;
+    --gnv2-party-char-size: min(
+      190px,
+      calc((100dvh - var(--gnv2-stage-overhead-2row)) / 2)
+    );
   }
   .gnv2-stage-grid[data-count="7"],
   .gnv2-stage-grid[data-count="8"],
   .gnv2-stage-grid[data-count="9-plus"] {
-    --gnv2-party-char-size: 155px;
+    --gnv2-party-char-size: min(
+      155px,
+      calc((100dvh - var(--gnv2-stage-overhead-3row)) / 3)
+    );
   }
 }
 
@@ -4129,28 +4268,54 @@ a.gn-plaque-mini:hover {
    nog altijd een fors deel van het scherm innemen (via `max-width:78vw`
    op .gnv2-party-character hierboven, die hier bindend wordt). ── */
 @media (max-width: 640px) {
+  /* Kleinere bleed-marge dan desktop/tablet (1rem i.p.v. 1.75rem) — op een
+     telefoon is elke px breedte kostbaar, en de getemperde blur-radius
+     (zie .gnv2-party-character-art) heeft hier ook minder ruimte nodig om
+     grotendeels uit te doven. */
+  .gnv2-stage {
+    padding: 1rem;
+  }
   .gnv2-stage-grid {
-    gap: 1.25rem 1rem;
-    padding: 0.5rem 0.25rem;
+    /* +20px t.o.v. de vorige waarden — compenseert .gnv2-stage's nieuwe
+       (kleinere, telefoon-specifieke) glow-bleed-padding hierboven. */
+    --gnv2-stage-overhead-1row: 230px;
+    --gnv2-stage-overhead-2row: 280px;
+    --gnv2-stage-overhead-3row: 315px;
+    gap: 1rem 0.85rem;
   }
   .gnv2-stage-grid[data-count="1"] {
-    --gnv2-party-char-size: 260px;
+    --gnv2-party-char-size: min(
+      260px,
+      calc(100dvh - var(--gnv2-stage-overhead-1row))
+    );
   }
   .gnv2-stage-grid[data-count="2"] {
-    --gnv2-party-char-size: 220px;
+    --gnv2-party-char-size: min(
+      220px,
+      calc(100dvh - var(--gnv2-stage-overhead-1row))
+    );
   }
   .gnv2-stage-grid[data-count="3"],
   .gnv2-stage-grid[data-count="4"] {
-    --gnv2-party-char-size: 170px;
+    --gnv2-party-char-size: min(
+      170px,
+      calc((100dvh - var(--gnv2-stage-overhead-2row)) / 2)
+    );
   }
   .gnv2-stage-grid[data-count="5"],
   .gnv2-stage-grid[data-count="6"] {
-    --gnv2-party-char-size: 140px;
+    --gnv2-party-char-size: min(
+      140px,
+      calc((100dvh - var(--gnv2-stage-overhead-2row)) / 2)
+    );
   }
   .gnv2-stage-grid[data-count="7"],
   .gnv2-stage-grid[data-count="8"],
   .gnv2-stage-grid[data-count="9-plus"] {
-    --gnv2-party-char-size: 118px;
+    --gnv2-party-char-size: min(
+      118px,
+      calc((100dvh - var(--gnv2-stage-overhead-3row)) / 3)
+    );
   }
   .gnv2-party-character-name {
     font-size: clamp(

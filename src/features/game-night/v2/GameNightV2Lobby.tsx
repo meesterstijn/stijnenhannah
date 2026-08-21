@@ -157,7 +157,7 @@ export function GameNightV2Lobby({
   const { weekday, date } = formatEveningIdentity(session.started_at);
 
   return (
-    <GnV2Scene>
+    <GnV2Scene className="gnv2-lobby-scene">
       <header className="gnv2-topbar">
         <div className="gnv2-identity">
           <p className="gnv2-identity-eyebrow">{weekday}</p>
