@@ -9,13 +9,20 @@ import {
 } from "@/features/game-night/lib/gameNightCharacter";
 import { CharacterVisual } from "@/features/game-night/v2/CharacterVisual";
 
-// Game Night V2.5/V2.9C (sectie 6/7/8/9/10/18) — de speler-identiteit voor
-// "aan tafel": nickname voorop, echte naam subtiel eronder, eigen kleur als
-// gloeiende ring i.p.v. een volledig gekleurde kaart. `resolvedCharacter`
-// (V2.9C) laat GameNightV2Lobby.tsx de al-batchgeladen modulaire/legacy
-// character tonen via dezelfde CharacterVisual als Arena/Creator (sectie
-// 18: "GEEN tweede character-preview renderer") — zonder character valt
-// dit gewoon terug op de bestaande initiaal.
+// Game Night V2.5/V2.9C/V2.10 (sectie 6/7/8/9/10/18) — de speler-identiteit
+// voor "aan tafel". V2.10 ("characters zijn de show"): geen kleine ronde
+// avatar meer opgesloten in een kaart — het volledige transparante
+// character zweeft los op de scene (`.gnv2-party-character`), met een
+// zachte vloer-gloed in de spelerkleur i.p.v. een cirkel-ring. `.gnv2-party-
+// card` blijft bestaan als de dnd-kit-transform-drager (drag-and-drop moet
+// ongewijzigd werken) maar draagt zelf geen kaart-chrome (achtergrond/
+// rand/blur) meer — puur een onzichtbare positioneringshost. Grootte komt
+// van `--gnv2-party-char-size`, gezet door PartyStage.tsx op basis van het
+// aantal spelers (sectie 3: "meer ruimte = groter character").
+// `resolvedCharacter` (V2.9C) laat GameNightV2Lobby.tsx de al-batchgeladen
+// modulaire/legacy character tonen via dezelfde CharacterVisual als Arena/
+// Creator (sectie 18: "GEEN tweede character-preview renderer") — zonder
+// character valt dit gewoon terug op de bestaande initiaal.
 export function PartyPlayerCard({
   player,
   colorHex,
@@ -52,12 +59,8 @@ export function PartyPlayerCard({
         // verplaatsings-transform (i.p.v. een losse CSS-class-transform) —
         // een los toegevoegde class-transform zou door dnd-kit's continue
         // inline updates worden overschreven en dus nooit zichtbaar zijn.
-        transform: `${CSS.Transform.toString(transform) ?? ""} scale(${isDragging ? 1.05 : 1})`,
+        transform: `${CSS.Transform.toString(transform) ?? ""} scale(${isDragging ? 1.06 : 1})`,
         transition,
-        // Sectie 10: los-optillen + gloed in speleraccent tijdens het slepen.
-        boxShadow: isDragging
-          ? `0 22px 40px -14px oklch(0 0 0 / 0.55), 0 0 0 3px ${colorHex ?? "var(--gnv2-accent-warm)"}66`
-          : undefined,
       }}
       className={`gnv2-party-card ${isDragging ? "gnv2-party-card-dragging" : ""}`}
     >
@@ -77,19 +80,18 @@ export function PartyPlayerCard({
       <div
         {...attributes}
         {...listeners}
-        className="flex touch-none select-none flex-col items-center gap-1.5"
+        className={`gnv2-party-character touch-none select-none ${isDragging ? "gnv2-party-character-dragging" : ""}`}
+        style={{ ["--gnv2-ring" as string]: ringColor }}
       >
-        <span
-          className="gnv2-avatar"
-          style={{ ["--gnv2-ring" as string]: ringColor }}
-        >
+        <span className="gnv2-party-character-art">
           <CharacterVisual
             player={player}
             characterId={visualProps.characterId}
             layers={visualProps.layers}
+            loading="eager"
           />
         </span>
-        <span className="gnv2-party-card-name">{displayName}</span>
+        <span className="gnv2-party-character-name">{displayName}</span>
         {showRealName && (
           <span className="gnv2-party-card-realname">{player.name}</span>
         )}

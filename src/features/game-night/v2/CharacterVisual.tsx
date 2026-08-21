@@ -52,7 +52,13 @@ function CharacterLayerImage({
         alt=""
         loading={loading}
         decoding="async"
-        className="gnv2-character-layer"
+        // Game Night V2.10: characters worden nu op tafel/in de Arena veel
+        // groter getoond dan voorheen — `.gnv2-character-layer` staat op
+        // `image-rendering:pixelated` (bedoeld voor de pixel-art
+        // lichaamsdelen), wat een echte foto bij grote weergave onnodig
+        // blokkerig maakt. Puur een render-hint via een extra class, GEEN
+        // wijziging aan de foto/crop/mask zelf.
+        className="gnv2-character-layer gnv2-character-layer-photo"
         onError={onError}
       />
     );

@@ -8,9 +8,12 @@ import { PartyPlayerCard } from "@/features/game-night/v2/PartyPlayerCard";
 
 export const PARTY_ZONE_ID = "gnv2-party-zone";
 
-// Game Night V2.5 (sectie 4/6/15) — DE centrale scene: geen getekende
+// Game Night V2.5/V2.10 (sectie 4/6/15) — DE centrale scene: geen getekende
 // tafel, geen twee gelijkwaardige panelen. Lege staat nodigt uit i.p.v. een
-// kaal "0 spelers"-kader (sectie 15).
+// kaal "0 spelers"-kader (sectie 15). V2.10: `data-count` op de grid geeft
+// `--gnv2-party-char-size` z'n waarde in CSS (zie styles.css) — "minder
+// spelers = groter character". Boven 8 spelers hergebruikt de CSS bewust
+// dezelfde kleinste tier (geen aparte regel per denkbaar aantal nodig).
 export function PartyStage({
   seats,
   colorHex,
@@ -53,7 +56,10 @@ export function PartyStage({
             </button>
           </div>
         ) : (
-          <div className="gnv2-stage-grid">
+          <div
+            className="gnv2-stage-grid"
+            data-count={seats.length > 8 ? "9-plus" : seats.length}
+          >
             {seats.map((seat) => (
               <PartyPlayerCard
                 key={seat.player_id}

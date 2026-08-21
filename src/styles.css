@@ -3410,8 +3410,7 @@ a.gn-plaque-mini:hover {
      laat 'm rustig meegroeien op tablet/desktop, geen aparte breakpoint
      nodig. `env(safe-area-inset-top)` erbovenop (niet in plaats van) zodat
      een iPhone-notch de topbar nooit onder de systeem-UI duwt. */
-  padding: max(0.85rem, env(safe-area-inset-top))
-    clamp(1rem, 4vw, 1.75rem) 0;
+  padding: max(0.85rem, env(safe-area-inset-top)) clamp(1rem, 4vw, 1.75rem) 0;
 }
 
 .gnv2-identity {
@@ -3552,11 +3551,46 @@ a.gn-plaque-mini:hover {
   box-shadow: inset 0 0 0 2px var(--gnv2-accent-warm);
 }
 
+/* Game Night V2.10 (sectie 1-4) — "de characters ZIJN de tafel": geen
+   uniforme CSS-grid met vaste kolombreedte meer, maar gecentreerde,
+   wrappende rijen die zich vanzelf rond het midden clusteren (5 spelers
+   wordt bv. vanzelf 3+2, wat al een stuk minder "top-left lijst" aanvoelt
+   dan een grid — zonder de fragiliteit van handmatige absolute posities
+   per aantal, die bij Arena WEL bewust gekozen zijn omdat daar een vast
+   bord het middelpunt is, zie .gnv2-arena-ring). `--gnv2-party-char-size`
+   wordt per `data-count` hieronder gezet (sectie 3: "meer ruimte = groter
+   character") en door `.gnv2-party-character` verderop gebruikt. */
 .gnv2-stage-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
-  gap: 1.1rem;
+  --gnv2-party-char-size: 300px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 2.25rem 2.5rem;
   width: 100%;
+  padding: 1rem 0.5rem;
+}
+
+.gnv2-stage-grid[data-count="1"] {
+  --gnv2-party-char-size: 400px;
+}
+.gnv2-stage-grid[data-count="2"] {
+  --gnv2-party-char-size: 360px;
+}
+.gnv2-stage-grid[data-count="3"],
+.gnv2-stage-grid[data-count="4"] {
+  --gnv2-party-char-size: 310px;
+}
+.gnv2-stage-grid[data-count="5"],
+.gnv2-stage-grid[data-count="6"] {
+  --gnv2-party-char-size: 260px;
+}
+.gnv2-stage-grid[data-count="7"],
+.gnv2-stage-grid[data-count="8"] {
+  --gnv2-party-char-size: 220px;
+}
+.gnv2-stage-grid[data-count="9-plus"] {
+  --gnv2-party-char-size: 190px;
 }
 
 .gnv2-stage-empty {
@@ -3584,27 +3618,22 @@ a.gn-plaque-mini:hover {
   line-height: 1.5;
 }
 
-/* ── Spelerkaart aan tafel (sectie 6/7/8/9/10/18) — extensible basis:
-   avatar-placeholder + kleurring + naam, geen verzonnen cosmetics. ── */
+/* ── Speler aan tafel (sectie 6/7/8/9/10/18, herzien V2.10) — GEEN
+   traditionele profielkaart meer: `.gnv2-party-card` is nu uitsluitend de
+   onzichtbare dnd-kit-transform/positioneringshost (nog altijd nodig voor
+   drag-and-drop), zonder eigen achtergrond/rand/padding. Het character
+   zélf zweeft los op de scene via `.gnv2-party-character` hieronder. ── */
 
 .gnv2-party-card {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 1.15rem 0.75rem 0.9rem;
-  border-radius: var(--gnv2-radius-md);
-  background: var(--gnv2-surface);
-  border: 1px solid var(--gnv2-border);
-  backdrop-filter: blur(14px);
   /* Geen 'both'/'forwards': de animatie mag alleen de EERSTE 280ms sturen.
      dnd-kit zet daarna continu zijn eigen inline transform op dit element
      (voor slepen/herschikken) — een fill-mode die transform vasthoudt zou
      die inline updates permanent overschrijven en drag-and-drop breken. */
   animation: gnv2-pop-in 280ms ease-out;
-  transition:
-    border-color 0.18s ease,
-    box-shadow 0.18s ease;
 }
 
 @keyframes gnv2-pop-in {
@@ -3614,10 +3643,6 @@ a.gn-plaque-mini:hover {
   to {
     opacity: 1;
   }
-}
-
-.gnv2-party-card:hover {
-  border-color: var(--gnv2-border-strong);
 }
 
 .gnv2-party-card-dragging {
@@ -3682,23 +3707,117 @@ a.gn-plaque-mini:hover {
   box-shadow: 0 0 0 2px var(--gnv2-ring, var(--gnv2-border-strong));
 }
 
-.gnv2-party-card-name {
-  margin-top: 0.65rem;
+/* Game Night V2.10 (sectie 2/3/4/10) — het volledige, transparante
+   character los op de scene: geen cirkel-frame, geen kaart-achtergrond.
+   `filter:drop-shadow` (i.p.v. box-shadow, dat een rechthoekige/ronde
+   doos vereist) volgt het echte silhouet van de transparante PNG — de
+   speler ziet een character dat op de tafel "staat", niet in een vak zit.
+   Grootte komt van `--gnv2-party-char-size` (gezet op `.gnv2-stage-grid`
+   via `[data-count]`, zie hierboven). */
+.gnv2-party-character {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: var(--gnv2-party-char-size, 300px);
+  max-width: 78vw;
+  transition:
+    width 0.25s ease,
+    transform 0.15s ease;
+}
+
+.gnv2-party-character-dragging {
+  z-index: 5;
+}
+
+/* Zachte vloer-gloed in de spelerkleur i.p.v. een ronde ring — het
+   character "staat" op deze gloed in plaats van erin opgesloten te zitten. */
+.gnv2-party-character::before {
+  content: "";
+  position: absolute;
+  bottom: 6%;
+  left: 50%;
+  width: 58%;
+  height: 12%;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse,
+    color-mix(
+      in oklch,
+      var(--gnv2-ring, var(--gnv2-accent-warm)) 60%,
+      transparent
+    ),
+    transparent 72%
+  );
+  filter: blur(10px);
+  opacity: 0.55;
+  z-index: 0;
+  transition: opacity 0.2s ease;
+}
+
+.gnv2-party-character-dragging::before {
+  opacity: 0.85;
+}
+
+.gnv2-party-character-art {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  filter: drop-shadow(0 16px 20px oklch(0 0 0 / 0.42))
+    drop-shadow(
+      0 0 30px
+        color-mix(in oklch, var(--gnv2-ring, transparent) 55%, transparent)
+    );
+  transition: filter 0.2s ease;
+}
+
+.gnv2-party-character-dragging .gnv2-party-character-art {
+  filter: drop-shadow(0 24px 30px oklch(0 0 0 / 0.5))
+    drop-shadow(
+      0 0 44px
+        color-mix(in oklch, var(--gnv2-ring, transparent) 75%, transparent)
+    );
+}
+
+/* De 92%-standaardregel (.gnv2-character-layers/-visual-img) is bedoeld
+   voor de kleine cirkel-avatar elders — hier moet het character het
+   VOLLEDIGE vlak vullen, vandaar deze specifiekere override. */
+.gnv2-party-character-art .gnv2-character-layers,
+.gnv2-party-character-art .gnv2-character-visual-img {
+  width: 100%;
+  height: 100%;
+}
+
+.gnv2-party-character-name {
+  margin-top: 0.5rem;
   font-family: var(--gnv2-font-display);
-  font-weight: 600;
-  font-size: 1.02rem;
+  font-weight: 700;
+  font-size: clamp(
+    1.1rem,
+    calc(var(--gnv2-party-char-size, 300px) * 0.075),
+    1.7rem
+  );
   color: var(--gnv2-text);
   text-align: center;
-  max-width: 9rem;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  letter-spacing: 0.01em;
+  /* Sectie 10: subtiele text-shadow i.p.v. een kaart-achtergrond, zodat de
+     naam ook boven een lichte/drukke plek in de scene-achtergrond leesbaar
+     blijft. */
+  text-shadow: 0 2px 10px oklch(0 0 0 / 0.65);
 }
 
 .gnv2-party-card-realname {
-  margin-top: -0.1rem;
-  font-size: 0.68rem;
+  margin-top: 0.05rem;
+  font-size: 0.74rem;
   color: var(--gnv2-text-faint);
+  text-shadow: 0 2px 8px oklch(0 0 0 / 0.6);
 }
 
 .gnv2-win-badge {
@@ -3935,8 +4054,28 @@ a.gn-plaque-mini:hover {
 
 @media (max-width: 1180px) {
   .gnv2-stage-grid {
-    grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
-    gap: 0.9rem;
+    gap: 1.75rem 2rem;
+  }
+  .gnv2-stage-grid[data-count="1"] {
+    --gnv2-party-char-size: 340px;
+  }
+  .gnv2-stage-grid[data-count="2"] {
+    --gnv2-party-char-size: 300px;
+  }
+  .gnv2-stage-grid[data-count="3"],
+  .gnv2-stage-grid[data-count="4"] {
+    --gnv2-party-char-size: 260px;
+  }
+  .gnv2-stage-grid[data-count="5"],
+  .gnv2-stage-grid[data-count="6"] {
+    --gnv2-party-char-size: 220px;
+  }
+  .gnv2-stage-grid[data-count="7"],
+  .gnv2-stage-grid[data-count="8"] {
+    --gnv2-party-char-size: 190px;
+  }
+  .gnv2-stage-grid[data-count="9-plus"] {
+    --gnv2-party-char-size: 165px;
   }
   .gnv2-avatar {
     width: 4rem;
@@ -3956,6 +4095,69 @@ a.gn-plaque-mini:hover {
   }
   .gnv2-identity-date {
     font-size: 1.3rem;
+  }
+}
+
+/* ── Responsive: tablet-portrait (sectie 8) — de vorige twee tiers waren
+   allebei voor liggende/brede schermen bedoeld; dit is de eerste tier die
+   specifiek een SMALLERE-maar-nog-relatief-hoge viewport bedient, zodat
+   een staande tablet niet de desktop-tafel in een smalle kolom perst. ── */
+@media (max-width: 900px) {
+  .gnv2-stage-grid[data-count="1"] {
+    --gnv2-party-char-size: 300px;
+  }
+  .gnv2-stage-grid[data-count="2"] {
+    --gnv2-party-char-size: 260px;
+  }
+  .gnv2-stage-grid[data-count="3"],
+  .gnv2-stage-grid[data-count="4"] {
+    --gnv2-party-char-size: 220px;
+  }
+  .gnv2-stage-grid[data-count="5"],
+  .gnv2-stage-grid[data-count="6"] {
+    --gnv2-party-char-size: 190px;
+  }
+  .gnv2-stage-grid[data-count="7"],
+  .gnv2-stage-grid[data-count="8"],
+  .gnv2-stage-grid[data-count="9-plus"] {
+    --gnv2-party-char-size: 155px;
+  }
+}
+
+/* ── Responsive: telefoon (sectie 8) — characters blijven de hoofdrol,
+   niet gewoon de desktoptafel verkleind: bij 1-2 spelers mag een character
+   nog altijd een fors deel van het scherm innemen (via `max-width:78vw`
+   op .gnv2-party-character hierboven, die hier bindend wordt). ── */
+@media (max-width: 640px) {
+  .gnv2-stage-grid {
+    gap: 1.25rem 1rem;
+    padding: 0.5rem 0.25rem;
+  }
+  .gnv2-stage-grid[data-count="1"] {
+    --gnv2-party-char-size: 260px;
+  }
+  .gnv2-stage-grid[data-count="2"] {
+    --gnv2-party-char-size: 220px;
+  }
+  .gnv2-stage-grid[data-count="3"],
+  .gnv2-stage-grid[data-count="4"] {
+    --gnv2-party-char-size: 170px;
+  }
+  .gnv2-stage-grid[data-count="5"],
+  .gnv2-stage-grid[data-count="6"] {
+    --gnv2-party-char-size: 140px;
+  }
+  .gnv2-stage-grid[data-count="7"],
+  .gnv2-stage-grid[data-count="8"],
+  .gnv2-stage-grid[data-count="9-plus"] {
+    --gnv2-party-char-size: 118px;
+  }
+  .gnv2-party-character-name {
+    font-size: clamp(
+      0.85rem,
+      calc(var(--gnv2-party-char-size, 300px) * 0.11),
+      1.15rem
+    );
   }
 }
 
@@ -5256,8 +5458,8 @@ a.gn-plaque-mini:hover {
    voor "characters bewegen dichter naar het bord". */
 .gnv2-arena-ring {
   position: relative;
-  width: min(100%, calc(78vh * 4 / 3));
-  max-width: 78rem;
+  width: min(100%, calc(84vh * 4 / 3));
+  max-width: 82rem;
   aspect-ratio: 4 / 3;
   margin: 0 auto;
 }
@@ -5276,17 +5478,19 @@ a.gn-plaque-mini:hover {
   transform: translate(-50%, -50%);
 }
 
-/* Bij 5/6 spelers iets compactere zones (sectie 35: "geen overlap"). */
+/* Bij 5/6 spelers iets compactere zones (sectie 35: "geen overlap") — V2.10:
+   vloer verhoogd (was 2.9rem), characters blijven de hoofdrol ook bij meer
+   spelers aan tafel. */
 .gnv2-arena-ring[data-count="5"] .gnv2-player-zone,
 .gnv2-arena-ring[data-count="6"] .gnv2-player-zone {
-  min-width: 84px;
+  min-width: 92px;
   padding: 0.4rem 0.5rem;
 }
 
 .gnv2-arena-ring[data-count="5"] .gnv2-character-head,
 .gnv2-arena-ring[data-count="6"] .gnv2-character-head {
-  width: 2.9rem;
-  height: 2.9rem;
+  width: 3.6rem;
+  height: 3.6rem;
 }
 
 /* ── Centrale setupfoto: het hart van de arena (sectie 2) — 40-55% van de
@@ -5493,25 +5697,35 @@ a.gn-plaque-mini:hover {
   image-rendering: pixelated;
 }
 
-/* ── Grootte-varianten (V2.8 sectie 8, vergroot in V2.9 sectie 13: characters
-   moeten meer visueel gewicht hebben nu er echte art in past — de setupfoto
+/* Game Night V2.10 — de "personal-face"-laag is een echte foto, geen
+   pixel-art: bij de nu veel grotere character-weergave (tafel/Arena) zou
+   `image-rendering:pixelated` een geüploade selfie onnodig blokkerig
+   maken. Overschrijft alleen het rendering-hint, raakt geen crop/mask/
+   verwerking van de foto zelf. */
+.gnv2-character-layer-photo {
+  image-rendering: auto;
+}
+
+/* ── Grootte-varianten (V2.8 sectie 8, vergroot in V2.9 sectie 13, opnieuw
+   vergroot in V2.10 sectie 6: characters moeten ook TIJDENS een actief spel
+   de hoofdrol houden, niet alleen op het spelersscherm — de setupfoto
    blijft dominant via zijn eigen 40-55%-breedte, dit raakt alleen de
    spelerzones eromheen). "md" blijft het vorige formaat (bv. een grotere
    preview elders); "lg" is de character-selector-preview (V2.9 sectie 11). ── */
 
 .gnv2-character-sm .gnv2-character-head {
-  width: 4rem;
-  height: 4rem;
+  width: 5.5rem;
+  height: 5.5rem;
 }
 
 .gnv2-character-sm .gnv2-character-initial {
-  font-size: 1.3rem;
+  font-size: 1.7rem;
 }
 
 .gnv2-character-sm .gnv2-character-name {
   margin-top: 0.35rem;
-  font-size: 0.82rem;
-  max-width: 6rem;
+  font-size: 0.88rem;
+  max-width: 7.5rem;
 }
 
 .gnv2-character-lg .gnv2-character-head {
@@ -6104,22 +6318,25 @@ a.gn-plaque-mini:hover {
   margin-top: 1rem;
 }
 
-/* ── Responsive: 1180×820 / 1024×768 (sectie 23/36) — characters worden
-   compacter/dichter naar het bord i.p.v. groter; de ring zelf schaalt al
-   automatisch mee via zijn eigen vh/%-formule (geen aparte breedte-regel
-   hier nodig, V2.8). ── */
+/* ── Responsive: 1180×820 / 1024×768 (sectie 23/36, vloeren verhoogd in
+   V2.10 sectie 6/8) — characters worden compacter/dichter naar het bord
+   i.p.v. groter; de ring zelf schaalt al automatisch mee via zijn eigen
+   vh/%-formule (geen aparte breedte-regel hier nodig, V2.8). De vorige
+   vloeren (2.9rem/2.5rem) waren te klein om nog als "hoofdrolspeler" te
+   voelen — characters blijven nu ook op kleinere schermen duidelijk
+   herkenbaar. ── */
 
 @media (max-width: 1180px) {
   .gnv2-setup-photo {
     width: clamp(170px, 42%, 360px);
   }
   .gnv2-player-zone {
-    min-width: 84px;
+    min-width: 96px;
     padding: 0.4rem 0.5rem;
   }
   .gnv2-character-sm .gnv2-character-head {
-    width: 2.9rem;
-    height: 2.9rem;
+    width: 3.8rem;
+    height: 3.8rem;
   }
 }
 
@@ -6131,20 +6348,44 @@ a.gn-plaque-mini:hover {
     width: clamp(150px, 40%, 300px);
   }
   .gnv2-player-zone {
-    min-width: 72px;
+    min-width: 84px;
     padding: 0.35rem 0.4rem;
   }
   .gnv2-character-sm .gnv2-character-head {
-    width: 2.5rem;
-    height: 2.5rem;
+    width: 3.3rem;
+    height: 3.3rem;
   }
   .gnv2-character-sm .gnv2-character-name {
-    font-size: 0.72rem;
-    max-width: 4.5rem;
+    font-size: 0.76rem;
+    max-width: 5.5rem;
   }
   .gnv2-spotify-panel {
     right: 1rem;
     top: 4.75rem;
+  }
+}
+
+/* ── Responsive: telefoon (sectie 6/8) — de Arena had nog geen dedicated
+   telefoon-tier; onder 640px iets compacter dan de 1024px-tier om overlap
+   bij 5-6 spelers te voorkomen, maar nog altijd ruim boven de oorspronkelijke
+   2.5rem-vloer. ── */
+@media (max-width: 640px) {
+  .gnv2-player-zone {
+    min-width: 72px;
+    padding: 0.3rem 0.35rem;
+  }
+  .gnv2-character-sm .gnv2-character-head {
+    width: 2.9rem;
+    height: 2.9rem;
+  }
+  .gnv2-character-sm .gnv2-character-name {
+    font-size: 0.68rem;
+    max-width: 4.6rem;
+  }
+  .gnv2-arena-ring[data-count="5"] .gnv2-character-head,
+  .gnv2-arena-ring[data-count="6"] .gnv2-character-head {
+    width: 2.6rem;
+    height: 2.6rem;
   }
 }
 
