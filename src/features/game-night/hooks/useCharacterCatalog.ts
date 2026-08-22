@@ -1,4 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import {
   supabase,
   type GameNightCharacterPart,
@@ -75,6 +80,22 @@ export function useAllCharacterPartsForQa() {
 // sectie 14: "geen query per speler"). Lege input geeft bewust een lege
 // lijst zonder network-call, zelfde patroon als
 // useCheckpointCountsForGameSessions.
+//
+// Bugfix (V2.10.4, "bestaande characters flitsen bij toevoegen speler"):
+// de queryKey bevat bewust de VOLLEDIGE spelerslijst (nodig om per exacte
+// tafelsamenstelling te cachen) — maar dat betekent ook dat elke wijziging
+// in wie er aan tafel zit (bv. speler D toevoegen aan A/B/C) een geheel
+// NIEUWE, nog nooit gefetchte querykey oplevert. Zonder `placeholderData`
+// geeft TanStack Query voor zo'n nieuwe key `data: undefined` totdat de
+// fetch klaar is — GameNightV2Lobby.tsx's `characterEquipment = []`-
+// fallback vangt dat dan op, maar die lege array gaat via
+// resolvePlayerCharacter() ook voor de AL ZICHTBARE spelers A/B/C (niet
+// alleen de nieuwe D) tijdelijk naar hun legacy/lege fallback — een echte
+// tak-wisseling in CharacterVisual (andere DOM-structuur), vandaar de
+// zichtbare flits. `placeholderData: keepPreviousData` laat de vorige
+// (nog steeds inhoudelijk correcte, want A/B/C's equipment is niet
+// gewijzigd) dataset gewoon zichtbaar blijven terwijl de nieuwe key op de
+// achtergrond fetcht — exact "alleen speler D mag nieuw laden".
 export function useCharacterEquipmentForPlayers(playerIds: string[]) {
   const sortedIds = [...playerIds].sort();
   return useQuery({
@@ -89,6 +110,7 @@ export function useCharacterEquipmentForPlayers(playerIds: string[]) {
       return data ?? [];
     },
     enabled: sortedIds.length > 0,
+    placeholderData: keepPreviousData,
   });
 }
 
