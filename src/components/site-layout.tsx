@@ -77,6 +77,30 @@ export function SiteLayout() {
     pathname === "/game-night/me/character" ||
     pathname === "/game-night/me/face" ||
     /^\/game-night\/join\//.test(pathname);
+  // Responsive-shell-consistentieronde (audit: "topbar staat te laag /
+  // neemt te veel ruimte op mobiel") — root cause: bovenstaande route-groep
+  // kreeg zijn `pt-16 pb-8`-compensatie alleen ONTZET vanaf `lg:` (≥1024px),
+  // dus op elke telefoon/staande tablet stapelde die 64-96px BOVENOP de
+  // eigen `env(safe-area-inset-top)`-padding die elke GnV2Scene al zelf
+  // toepast — precies de dubbele/te-lage-topbar-klacht. Die compensatie was
+  // ooit alleen bedoeld voor de zwevende "Ons Huisje"-knop hierboven, die
+  // uitsluitend rendert voor `!isGameNightMember` (een anonieme QR-joiner op
+  // /game-night/join/*) — elke andere fullbleed-route is sowieso alleen
+  // bereikbaar na inloggen als huisgenoot, dus daar bestaat de knop nooit en
+  // is de compensatie pure overbodige ruimte. Voortaan dus conditioneel op
+  // lidmaatschap i.p.v. op breakpoint, en op ELK breakpoint toegepast (geen
+  // `lg:`-prefix meer) — elke GnV2Scene-pagina regelt zijn eigen viewport-
+  // hoogte/veiligheidsranden nu zelf, zie .gnv2-scene.gnv2-*-scene-regels.
+  // Lobby-bugfix (screenshot-review): op de Lobby zelf (isGameNightHome)
+  // gaf deze pt-16 een zichtbare houten strook (de transparante padding
+  // liet body:has(.gamenight-theme)'s houtachtergrond doorschemeren vóór
+  // de eigen, ondoorzichtige .gnv2-scene) EN kneep de scene tot minder dan
+  // 100dvh, waardoor de onderste actiebalk/character-rij buiten beeld
+  // viel. De Lobby rendert "Ons Huisje" voortaan zelf INLINE in haar eigen
+  // topbar (zie GameNightV2Lobby.tsx) i.p.v. via de zwevende knop
+  // hieronder — heeft dus nooit meer top-clearance nodig.
+  const gameNightFullBleedNeedsTopClearance =
+    isGameNightFullBleedRoute && !isGameNightMember && !isGameNightHome;
   // Visuele consistentieronde (legacy .gn-*-migratie) — een TWEEDE, bewust
   // ANDERE categorie dan isGameNightFullBleedRoute hierboven. Geschiedenis/
   // Geschiedenis-detail/Finale/Spellen/Speldetail/Spelers/Spelerprofiel/
@@ -112,7 +136,7 @@ export function SiteLayout() {
     <div
       className={`min-h-screen flex flex-col ${
         isGameNightFullBleedRoute
-          ? "lg:h-dvh lg:min-h-0 lg:overflow-hidden lg:overscroll-none"
+          ? "h-dvh min-h-0 overflow-hidden overscroll-none"
           : ""
       }`}
     >
@@ -176,7 +200,12 @@ export function SiteLayout() {
           </Link>
         </div>
       )}
-      {isGameNight && !isGameNightMember && (
+      {/* Lobby-bugfix: op isGameNightHome rendert GameNightV2Lobby.tsx "Ons
+          Huisje" zelf INLINE in haar eigen topbar-rij (naast de datum) i.p.v.
+          als los zwevend element hierboven — dat zwevende element stond
+          voorheen visueel BOVEN de Lobby's eigen topbar i.p.v. ernaast, zie
+          de toelichting bij gameNightFullBleedNeedsTopClearance. */}
+      {isGameNight && !isGameNightMember && !isGameNightHome && (
         <div className="gamenight-theme fixed left-3 top-3 z-50 flex max-w-[calc(100vw-1.5rem)] items-center gap-2 overflow-x-auto">
           <Link
             to="/"
@@ -276,8 +305,17 @@ export function SiteLayout() {
                 // zo'n volledig zelfvoorzienende, volledig-breedte
                 // achtergrond rendert (zie styles.css) mag hier dus geen
                 // eigen max-width/centrering/padding meer opgelegd krijgen,
-                // op geen enkel breakpoint (niet alleen lg:).
-                "flex-1 w-full pt-16 pb-8 sm:pb-12 lg:pt-0 lg:pb-0 lg:min-h-0 lg:overflow-hidden"
+                // op geen enkel breakpoint. `pt-16 pb-8` compenseert
+                // uitsluitend nog voor de zwevende "Ons Huisje"-knop
+                // (alleen renderend voor !isGameNightMember, zie
+                // gameNightFullBleedNeedsTopClearance hierboven) — elke
+                // andere fullbleed-pagina krijgt nu GEEN eigen padding meer
+                // en regelt haar viewport-hoogte volledig zelf.
+                `flex-1 w-full min-h-0 overflow-hidden ${
+                  gameNightFullBleedNeedsTopClearance
+                    ? "pt-16 pb-8 sm:pb-12"
+                    : ""
+                }`
               : isGameNightContentRoute
                 ? "flex-1 w-full"
                 : `flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 ${

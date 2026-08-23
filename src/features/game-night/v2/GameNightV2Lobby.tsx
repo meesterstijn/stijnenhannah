@@ -8,8 +8,9 @@ import {
   useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import { History, LogOut, QrCode, Trophy, Users } from "lucide-react";
+import { History, Home, LogOut, QrCode, Trophy, Users } from "lucide-react";
 import type { GameNightPlayer, GameNightSession } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   useActivePartySeats,
   useAddToParty,
@@ -52,6 +53,7 @@ export function GameNightV2Lobby({
   onChooseGame: () => void;
   onCloseGameNight: () => void;
 }) {
+  const { isGameNightMember } = useAuth();
   const { data: atTable = [] } = useActivePartySeats(session.id);
   const { data: allPlayers = [] } = usePlayers();
   const { data: palette = [] } = useGameNightColorPalette();
@@ -160,8 +162,31 @@ export function GameNightV2Lobby({
     <GnV2Scene className="gnv2-lobby-scene">
       <header className="gnv2-topbar">
         <div className="gnv2-identity">
-          <p className="gnv2-identity-eyebrow">{weekday}</p>
-          <p className="gnv2-identity-date">{date}</p>
+          {/* Bugfix (screenshot-review): "Ons Huisje" stond voorheen als los
+              zwevend element van site-layout.tsx BOVEN deze topbar (met een
+              pt-16-compensatie die de houten site-achtergrond liet
+              doorschemeren en de scene onder 100dvh kneep) i.p.v. ERIN. Nu
+              een echt onderdeel van dezelfde rij, zie site-layout.tsx
+              (gameNightFullBleedNeedsTopClearance/isGameNightHome) voor de
+              root-cause-toelichting. */}
+          {!isGameNightMember && (
+            <Link
+              to="/"
+              className="gnv2-identity-home"
+              aria-label="Ons Huisje"
+              title="Ons Huisje"
+            >
+              <Home className="h-3.5 w-3.5" />
+              <span className="gnv2-identity-home-label">Ons Huisje</span>
+            </Link>
+          )}
+          <div className="gnv2-identity-text">
+            <p className="gnv2-identity-eyebrow">{weekday}</p>
+            <span className="gnv2-identity-sep" aria-hidden="true">
+              ·
+            </span>
+            <p className="gnv2-identity-date">{date}</p>
+          </div>
         </div>
         <nav className="gnv2-nav" aria-label="Game Night navigatie">
           <Link

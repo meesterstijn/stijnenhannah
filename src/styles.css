@@ -3387,10 +3387,61 @@ a.gn-plaque-mini:hover {
   height: 100dvh;
 }
 
-.gnv2-lobby-scene .gnv2-topbar,
-.gnv2-lobby-scene .gnv2-toasts,
-.gnv2-lobby-scene .gnv2-footer {
+.gnv2-lobby-scene .gnv2-toasts {
   flex: 0 0 auto;
+}
+
+/* Bugfix (screenshot-review, 1280×800): "Ons Huisje" rendert nu INLINE in
+   deze topbar-rij (zie GameNightV2Lobby.tsx) i.p.v. als los zwevend
+   element van site-layout.tsx erboven — dat zwevende element + zijn
+   pt-16-compensatie in <main> zorgden samen voor een zichtbare houten
+   strook boven de scene, een tweede "titelblok" los boven deze rij, EN
+   een scene die minder dan 100dvh kreeg (waardoor de onderste actiebalk
+   uit beeld viel). Scoped onder .gnv2-lobby-scene i.p.v. op de gedeelde
+   .gnv2-identity-basisklasse — Arena/Creator/Start/GameSelect/content-
+   pagina's hergebruiken die basisklasse voor hun eigen weekdag/datum-blok
+   en vallen buiten deze Lobby-only bugfix. */
+.gnv2-lobby-scene .gnv2-identity {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.gnv2-identity-home {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+  height: 2.75rem;
+  padding: 0 0.9rem;
+  border-radius: 999px;
+  background: var(--gnv2-surface);
+  border: 1px solid var(--gnv2-border);
+  color: var(--gnv2-text-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.gnv2-identity-home:hover {
+  color: var(--gnv2-text);
+  border-color: var(--gnv2-accent-cool);
+}
+
+.gnv2-identity-text {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.gnv2-identity-sep {
+  color: var(--gnv2-text-faint);
+  font-size: 0.9rem;
 }
 
 .gnv2-suit-1 {
@@ -3430,6 +3481,15 @@ a.gn-plaque-mini:hover {
 .gnv2-topbar {
   position: relative;
   z-index: 2;
+  /* ÉÉN shell-strategie (responsive-consistentieronde): een header hoort in
+     een flex-column-scene NOOIT te groeien/krimpen — dat is exact wat het
+     `.gnv2-lobby-scene`/`.gnv2-arena-scene`/`.gnv2-creator-scene`/
+     `.gnv2-start-scene`-plafond hierboven/-onder nodig heeft om de
+     main-zone precies de resterende ruimte te geven. Hier op de GEDEELDE
+     basisklasse i.p.v. per scherm herhaald, want elk gnv2-*-scene-scherm
+     is sowieso al een flex-column (zie .gnv2-scene) en profiteert hier
+     zonder uitzondering van. */
+  flex: 0 0 auto;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -3652,8 +3712,15 @@ a.gn-plaque-mini:hover {
 }
 .gnv2-stage-grid[data-count="5"],
 .gnv2-stage-grid[data-count="6"] {
+  /* Bugfix (screenshot-review, 1280×800 + 6 spelers): 260px liet op deze
+     leidende viewport geen marge over voor eventuele afwijkingen in de
+     overhead-schatting hierboven — 6 spelers paste daardoor soms net niet
+     zonder dat de stage zelf ging scrollen. 200px (richtmaat "liever
+     195px zonder scroll dan 225px met afgesneden rij") geeft ~25px
+     structurele marge onder de berekende ruimte op 800px hoogte, en blijft
+     nog altijd duidelijk groter dan de oude avatarversie. */
   --gnv2-party-char-size: min(
-    260px,
+    200px,
     calc((100dvh - var(--gnv2-stage-overhead-2row)) / 2)
   );
 }
@@ -3888,7 +3955,7 @@ a.gn-plaque-mini:hover {
 }
 
 .gnv2-party-character-name {
-  margin-top: 0.3rem;
+  margin-top: 0.2rem;
   font-family: var(--gnv2-font-display);
   font-weight: 700;
   font-size: clamp(
@@ -3916,8 +3983,21 @@ a.gn-plaque-mini:hover {
   text-shadow: 0 2px 8px oklch(0 0 0 / 0.6);
 }
 
+/* Compactere metadata bij veel spelers (sectie 7: data-driven i.p.v.
+   hardcoded per persoon) — vanaf 5 spelers geven nickname + character al
+   voldoende identiteit, de echte naam eronder is dan puur extra
+   verticale ruimte die de stage juist nodig heeft voor de character-rijen
+   zelf. Keyed op data-count (aantal spelers vanavond), niet op wie het is. */
+.gnv2-stage-grid[data-count="5"] .gnv2-party-card-realname,
+.gnv2-stage-grid[data-count="6"] .gnv2-party-card-realname,
+.gnv2-stage-grid[data-count="7"] .gnv2-party-card-realname,
+.gnv2-stage-grid[data-count="8"] .gnv2-party-card-realname,
+.gnv2-stage-grid[data-count="9-plus"] .gnv2-party-card-realname {
+  display: none;
+}
+
 .gnv2-win-badge {
-  margin-top: 0.2rem;
+  margin-top: 0.15rem;
   font-size: 0.62rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -3935,6 +4015,9 @@ a.gn-plaque-mini:hover {
 .gnv2-footer {
   position: relative;
   z-index: 2;
+  /* ÉÉN shell-strategie — zie de toelichting bij .gnv2-topbar hierboven,
+     zelfde redenering voor de onderste actiebalk. */
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -3965,9 +4048,12 @@ a.gn-plaque-mini:hover {
 }
 
 .gnv2-tray-empty {
+  /* Compacter dan de chip-tray (sectie 8: "0 beschikbaar" mag veel minder
+     hoogte gebruiken dan een tray met chips — .gnv2-tray-chip reserveert
+     min-height:48px, deze tekstregel heeft dat niet nodig). */
   color: var(--gnv2-text-faint);
   font-size: 0.85rem;
-  padding: 0.5rem 0.25rem;
+  padding: 0.25rem 0.25rem;
 }
 
 .gnv2-tray-chip {
@@ -4260,6 +4346,27 @@ a.gn-plaque-mini:hover {
       155px,
       calc((100dvh - var(--gnv2-stage-overhead-3row)) / 3)
     );
+  }
+  /* Lobby-topbar: onder tablet-landscape is er niet genoeg breedte voor
+     "[Ons Huisje] VRIJDAG · 21 Augustus" + de 4 nav-iconen op één rij —
+     terug naar het oorspronkelijke gestapelde weekdag/datum-blok en een
+     icon-only "Ons Huisje" (zelfde inklap-patroon als de Arena-toolbar se
+     "Spel afsluiten"), i.p.v. tekst te laten overlappen/wrappen. */
+  .gnv2-identity-text {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.05rem;
+  }
+  .gnv2-identity-sep {
+    display: none;
+  }
+  .gnv2-identity-home {
+    width: 2.75rem;
+    padding: 0;
+    justify-content: center;
+  }
+  .gnv2-identity-home-label {
+    display: none;
   }
 }
 
@@ -5439,6 +5546,20 @@ a.gn-plaque-mini:hover {
 
 /* ── Arena-root + per-spel achtergrondwas (sectie 3/20) ── */
 
+/* Responsive-shell-consistentieronde (bugfix: "controls buiten beeld /
+   onnodige scroll") — de Arena had, in tegenstelling tot de Lobby, NOOIT
+   een eigen `height:100dvh`-plafond gekregen: `.gnv2-scene` zelf gebruikt
+   bewust alleen `min-height:100dvh` (nodig voor content-pagina's die WEL
+   mogen scrollen), dus zonder deze regel kon de scene bij bv. 5-6 spelers
+   groeien tot boven de viewport — precies het patroon dat de Lobby-
+   actiebalk ooit wegdrukte, hier toegepast op de Arena-topbar/-toolbar.
+   Tablet-landscape (±1280×800) is de PRIMAIRE Arena-weergave (sectie
+   "device-prioriteit"), dus dit is de hoogst-prioritaire van alle scene-
+   hoogteplafonds in dit bestand. */
+.gnv2-scene.gnv2-arena-scene {
+  height: 100dvh;
+}
+
 .gnv2-arena-root {
   position: relative;
   z-index: 2;
@@ -6079,6 +6200,74 @@ a.gn-plaque-mini:hover {
   }
 }
 
+/* Game Night V2.10.5 (Arena Fase 1, Winner Spotlight) — dezelfde
+   celebratie-keyframes hierboven, nu ook toegepast op de grote, kaderloze
+   `.gnv2-party-character-art` (i.p.v. alleen de kleine cirkel-variant).
+   Bewust GEEN box-shadow-varianten hergebruikt (zoals `gnv2-celebrate-
+   pulse`, die op `.gnv2-character-head` een cirkel-ring pulseert) — een
+   box-shadow op een transparante, niet-cirkelvormige laag zou exact de
+   rechthoekige-grens-bug reproduceren die eerder al gefikst is (zie
+   .gnv2-party-character-art se `filter:drop-shadow` hierboven i.p.v.
+   box-shadow). "pulse" krijgt hier daarom een eigen, drop-shadow-gebaseerde
+   variant; de overige presets zijn al puur transform/filter en dus
+   probleemloos herbruikbaar. */
+.gnv2-celebrate-burst .gnv2-party-character-art,
+.gnv2-celebrate-confetti .gnv2-party-character-art,
+.gnv2-celebrate-default .gnv2-party-character-art {
+  animation: gnv2-celebrate-burst 750ms cubic-bezier(0.34, 1.56, 0.64, 1) 2;
+}
+
+.gnv2-celebrate-pulse .gnv2-party-character-art {
+  animation: gnv2-celebrate-pulse-glow 750ms cubic-bezier(0.34, 1.56, 0.64, 1) 2;
+}
+
+@keyframes gnv2-celebrate-pulse-glow {
+  0%,
+  100% {
+    filter: drop-shadow(0 12px 14px oklch(0 0 0 / 0.4))
+      drop-shadow(
+        0 0 20px
+          color-mix(in oklch, var(--gnv2-ring, transparent) 55%, transparent)
+      );
+  }
+  50% {
+    filter: drop-shadow(0 12px 14px oklch(0 0 0 / 0.4))
+      drop-shadow(
+        0 0 44px
+          color-mix(in oklch, var(--gnv2-ring, transparent) 85%, transparent)
+      );
+  }
+}
+
+.gnv2-celebrate-spark .gnv2-party-character-art {
+  animation: gnv2-celebrate-spark 750ms cubic-bezier(0.34, 1.56, 0.64, 1) 2;
+}
+
+.gnv2-celebrate-slam .gnv2-party-character-art {
+  animation: gnv2-celebrate-slam 750ms cubic-bezier(0.34, 1.56, 0.64, 1) 2;
+}
+
+.gnv2-celebrate-glitch .gnv2-party-character-art {
+  animation: gnv2-celebrate-glitch 750ms cubic-bezier(0.34, 1.56, 0.64, 1) 2;
+}
+
+.gnv2-celebrate-confetti .gnv2-party-character-art::after {
+  content: "";
+  position: absolute;
+  inset: -20%;
+  background-image:
+    radial-gradient(circle, var(--gnv2-accent-warm) 3px, transparent 3.5px),
+    radial-gradient(circle, var(--gnv2-accent-cool) 3px, transparent 3.5px);
+  background-size:
+    24px 24px,
+    30px 30px;
+  background-position:
+    12% 18%,
+    72% 62%;
+  opacity: 0;
+  animation: gnv2-confetti-burst 900ms ease-out both;
+}
+
 /* ── Spelerzone = WIN-knop (V2.7B/V2.8 sectie 6/7/8/42) — compact: het
    speelbord moet domineren, dit is geen dashboardkaart meer (V2.8 sectie
    8). ── */
@@ -6552,6 +6741,221 @@ a.gn-plaque-mini:hover {
     width: 2.6rem;
     height: 2.6rem;
   }
+  /* Bugfix (audit sectie 5, "hoogste overlap-risico van de hele app"):
+     camera + muziek + ···-knop + "Spel afsluiten" (icoon+tekst) pasten
+     samen niet meer op een smalle telefoon. "Spel afsluiten" blijft
+     BEWUST uit het ···-menu (zie ArenaMoreMenuSheet.tsx) — hier verdwijnt
+     daarom alleen het tekstlabel, de knop zelf blijft een even grote
+     (44px), altijd-klikbare vierkante iconknop met aria-label/title als
+     naam. */
+  .gnv2-arena-toolbar {
+    gap: 0.35rem;
+  }
+  .gnv2-arena-end-btn {
+    width: 44px;
+    padding: 0;
+    gap: 0;
+  }
+  .gnv2-arena-end-btn-label {
+    display: none;
+  }
+}
+
+/* ── Arena Fase 1 (V2.10.5) — onderste actiebalk: één primaire actie
+   ("Arena controls": "beperk controls", zie ook het opleverrapport). Zelfde
+   `.gnv2-footer`-basisklasse als de Lobby (al `flex:0 0 auto`, zie de
+   responsive-shell-consistentieronde hierboven) — hier alleen gecentreerd
+   i.p.v. de Lobby's tray+acties-stack. ── */
+.gnv2-arena-footer {
+  align-items: center;
+  padding-top: 0.6rem;
+}
+
+.gnv2-arena-win-btn {
+  width: 100%;
+  max-width: 22rem;
+}
+
+/* ── Scène-podium (sectie "scène-transitions") — `key={activeScene}` in
+   GameNightV2Arena.tsx remount't dit element bij elke wissel, wat deze
+   entrance-animatie opnieuw triggert; puur opacity+lichte
+   schaal/verschuiving, geen zware animatielibrary. ── */
+.gnv2-arena-scene-stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  animation: gnv2-scene-fade-in 420ms ease-out both;
+}
+
+@keyframes gnv2-scene-fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.gnv2-arena-scene-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.1rem;
+  text-align: center;
+  padding: 1rem;
+}
+
+.gnv2-arena-scene-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gnv2-accent-warm-strong);
+}
+
+.gnv2-arena-scene-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 1.5rem 2rem;
+}
+
+.gnv2-arena-scene-vs {
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.gnv2-arena-scene-vs-score {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  font-family: var(--gnv2-font-display);
+  font-size: clamp(2rem, 5vw, 3rem);
+  font-weight: 700;
+  color: var(--gnv2-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.gnv2-arena-scene-vs-dash {
+  font-size: 1.2rem;
+  color: var(--gnv2-text-faint);
+}
+
+.gnv2-arena-scene-headline {
+  max-width: 32rem;
+  color: var(--gnv2-text-muted);
+  font-size: 0.98rem;
+}
+
+.gnv2-arena-scene-caption {
+  margin-top: -0.3rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--gnv2-accent-warm-strong);
+}
+
+/* ── "Wie won er?"-overlay (sectie "WIN registreren") ── */
+
+.gnv2-win-picker-card {
+  width: min(720px, 100%);
+  max-height: 82vh;
+  padding: 1.5rem 1.5rem 1.75rem;
+  overflow-y: auto;
+}
+
+.gnv2-win-picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: 0.5rem;
+}
+
+.gnv2-win-picker-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 1.25rem 1.5rem;
+  width: 100%;
+  padding: 0.5rem 0;
+}
+
+.gnv2-win-picker-option {
+  display: flex;
+  border-radius: var(--gnv2-radius-lg);
+  transition: transform 0.12s ease;
+}
+
+.gnv2-win-picker-option:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.gnv2-win-picker-option:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Winner Spotlight (sectie "winner spotlight") — onderbreekt de
+   scènerotatie kort na een WIN; zelfde grote kaderloze character-
+   presentatie als overal elders, hier met een steviger entrance en de
+   celebratie-animaties uit .gnv2-celebrate-* hierboven. ── */
+
+.gnv2-winner-spotlight {
+  position: fixed;
+  inset: 0;
+  z-index: 65;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 2rem;
+  background: oklch(0.06 0.02 300 / 0.78);
+  backdrop-filter: blur(10px);
+  animation: gnv2-spotlight-in 380ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+
+@keyframes gnv2-spotlight-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.gnv2-winner-spotlight-character {
+  width: var(--gnv2-party-char-size, 300px);
+}
+
+.gnv2-winner-spotlight-headline {
+  margin-top: 0.75rem;
+  font-family: var(--gnv2-font-display);
+  font-weight: 700;
+  font-size: clamp(1.8rem, 5vw, 2.6rem);
+  letter-spacing: 0.01em;
+  color: var(--gnv2-text);
+  text-shadow: 0 4px 16px oklch(0 0 0 / 0.6);
+}
+
+.gnv2-winner-spotlight-subline {
+  max-width: 30rem;
+  text-align: center;
+  color: var(--gnv2-text-muted);
+  font-size: 1rem;
 }
 
 /* ── Reduced motion (sectie 8/10/23/42) — celebraties worden een korte
@@ -6565,9 +6969,19 @@ a.gn-plaque-mini:hover {
       0 0 0 4px var(--gnv2-ring, var(--gnv2-border-strong)),
       0 0 32px 2px var(--gnv2-ring, transparent) !important;
   }
-  .gnv2-celebrate-confetti .gnv2-character-head::after {
+  .gnv2-celebrate-confetti .gnv2-character-head::after,
+  .gnv2-celebrate-confetti .gnv2-party-character-art::after {
     animation: none !important;
     opacity: 0 !important;
+  }
+  .gnv2-celebrate-burst .gnv2-party-character-art,
+  .gnv2-celebrate-confetti .gnv2-party-character-art,
+  .gnv2-celebrate-default .gnv2-party-character-art,
+  .gnv2-celebrate-pulse .gnv2-party-character-art,
+  .gnv2-celebrate-spark .gnv2-party-character-art,
+  .gnv2-celebrate-slam .gnv2-party-character-art,
+  .gnv2-celebrate-glitch .gnv2-party-character-art {
+    animation: none !important;
   }
   .gnv2-player-zone {
     transition: none !important;
@@ -6575,9 +6989,12 @@ a.gn-plaque-mini:hover {
   .gnv2-player-zone:active {
     transform: none !important;
   }
-  .gnv2-moment-banner,
   .gnv2-arena-intro,
   .gnv2-spotify-panel {
+    animation: none !important;
+  }
+  .gnv2-arena-scene-stage,
+  .gnv2-winner-spotlight {
     animation: none !important;
   }
 }
@@ -6618,6 +7035,13 @@ a.gn-plaque-mini:hover {
 
 /* ── GameNightV2Start (sectie 2) ── */
 
+/* Responsive-shell-consistentieronde — zelfde `height:100dvh`-plafond als
+   de andere app-shell-scenes (Lobby/Arena/Creator), zie die regels voor de
+   volledige toelichting. */
+.gnv2-scene.gnv2-start-scene {
+  height: 100dvh;
+}
+
 .gnv2-start-main {
   position: relative;
   z-index: 2;
@@ -6630,6 +7054,11 @@ a.gn-plaque-mini:hover {
   gap: 1rem;
   padding: 1.5rem;
   text-align: center;
+  /* Veiligheidsvangnet (sectie "scrollregel"): dit scherm past vrijwel
+     altijd ruim binnen de viewport, maar mocht een extreem korte/brede
+     viewport dat ooit tegenspreken, scrollt deze main-zone zelf i.p.v. de
+     topbar te verdringen — nooit paginascroll nodig. */
+  overflow-y: auto;
 }
 
 .gnv2-start-eyebrow {
@@ -7933,6 +8362,27 @@ button.gnv2-list-row:hover {
    echte 40/60-lay-out i.p.v. gewoon de mobiele kolom te centreren (visuele
    consistentieronde sectie 7/14). ── */
 
+/* Responsive-shell-consistentieronde (bugfix: "onbedoelde paginascroll/
+   topbar zakt weg op sommige schermen") — dezelfde `height:100dvh`-fix als
+   eerder al op de Lobby toegepast (`.gnv2-lobby-scene`): zonder een ECHTE
+   vaste hoogte kan deze scene groeien tot boven de viewport (min-height
+   alleen is geen plafond), waardoor .gnv2-creator-grid-wrap's bestaande
+   `flex:1; min-height:0; overflow-y:auto` niets heeft om daadwerkelijk in
+   te krimpen — precies het patroon dat destijds de Lobby-actiebalk
+   wegdrukte. De comment hierboven noemt deze verticale flex-stack-volgorde
+   al "bestaand en beproefd"; deze regel maakt 'm nu ook daadwerkelijk
+   hoogte-correct. */
+.gnv2-scene.gnv2-creator-scene {
+  height: 100dvh;
+}
+.gnv2-creator-scene > .gnv2-topbar,
+.gnv2-creator-scene > .gnv2-creator-preview,
+.gnv2-creator-scene > .gnv2-creator-bodyshape,
+.gnv2-creator-scene > .gnv2-creator-tabs,
+.gnv2-creator-scene > .gnv2-creator-footer {
+  flex: 0 0 auto;
+}
+
 /* `.gnv2-creator-body`/`-left`/`-right` zijn PUUR groeperende wrappers om
    GameNightCharacterCreator.tsx's bestaande, ongewijzigde kind-elementen
    (preview / lichaamsbouw-picker / tabs / grid / footer) heen — op mobiel
@@ -8035,7 +8485,13 @@ button.gnv2-list-row:hover {
    nieuw patroon, alleen de bestaande scene/knoppen/inputs op een nieuwe
    pagina toegepast. */
 
-.gnv2-join-scene {
+/* Responsive-shell-consistentieronde — zelfde `height:100dvh`-plafond als
+   de andere app-shell-scenes. Join is een vorm/kaart-scherm (mag intern
+   scrollen op een korte viewport/met toetsenbord open, zie
+   .gnv2-join-center hieronder), maar heeft net als de andere GEEN
+   paginascroll nodig zolang de kaart past. */
+.gnv2-scene.gnv2-join-scene {
+  height: 100dvh;
   align-items: center;
   justify-content: center;
 }
@@ -8044,11 +8500,16 @@ button.gnv2-list-row:hover {
   position: relative;
   z-index: 2;
   flex: 1;
+  min-height: 0;
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: clamp(1.5rem, 6vw, 3rem) clamp(1rem, 4vw, 2rem);
+  /* Vangnet: een korte viewport + open toetsenbord mag de join-kaart nooit
+     ontoegankelijk maken — liever hier intern scrollen dan de kaart onder
+     de fold laten verdwijnen. */
+  overflow-y: auto;
 }
 
 .gnv2-join-card {

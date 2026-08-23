@@ -464,7 +464,12 @@ export default function GameNightFaceSetup() {
         <div className="gnv2-topbar-spacer" aria-hidden />
       </header>
 
-      <div className="flex flex-1 flex-col items-center justify-center gap-4 px-4 py-6">
+      {/* Responsive-shell-consistentieronde: `.gnv2-creator-scene` heeft nu
+          een echt `height:100dvh`-plafond (styles.css) — `min-h-0` is hier
+          nodig zodat DEZE zone (niet de header) daadwerkelijk krimpt/zelf
+          scrollt (crop/masker-stappen kunnen visueel hoog zijn) i.p.v. de
+          hele pagina te laten scrollen. */}
+      <div className="flex flex-1 min-h-0 flex-col items-center justify-center gap-4 overflow-y-auto px-4 py-6">
         {step === "pick" && (
           <div className="flex w-full max-w-sm flex-col items-center gap-3">
             <input

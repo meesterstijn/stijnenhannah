@@ -5,7 +5,7 @@ import {
   useState,
   type CSSProperties,
 } from "react";
-import { Camera, Flag, Music, MoreHorizontal } from "lucide-react";
+import { Camera, Flag, Music, MoreHorizontal, Trophy } from "lucide-react";
 import type {
   GameNightCheckpointPhotoType,
   GameNightPlayer,
@@ -26,33 +26,43 @@ import {
   useCharacterParts,
 } from "@/features/game-night/hooks/useCharacterCatalog";
 import { useGameArenaSound } from "@/features/game-night/hooks/useGameArenaSound";
-import {
-  getPlayerDisplayName,
-  resolvePlayerColorHex,
-} from "@/features/game-night/lib/playerIdentity";
+import { resolvePlayerColorHex } from "@/features/game-night/lib/playerIdentity";
 import { resolvePlayerCharacter } from "@/features/game-night/lib/gameNightCharacter";
 import { resolveGameArenaTheme } from "@/features/game-night/lib/gameNightArena";
 import {
   buildCompetitiveMoment,
   buildPreviousWinnerIntro,
-  type CompetitiveMoment,
   type PreviousWinnerIntro,
 } from "@/features/game-night/lib/gameNightCompetitiveMoments";
+import { resolveAvailableArenaScenes } from "@/features/game-night/lib/gameNightArenaScenes";
+import { useArenaSceneRotation } from "@/features/game-night/hooks/useArenaSceneRotation";
 import { ARENA_SYMBOL_ICONS } from "@/features/game-night/v2/arenaSymbolIcons";
 import { GnV2Scene } from "@/features/game-night/v2/GnV2Scene";
 import { ArenaSetupPhoto } from "@/features/game-night/v2/ArenaSetupPhoto";
 import { ArenaPlayerLayout } from "@/features/game-night/v2/ArenaPlayerLayout";
 import { ArenaPlayerZone } from "@/features/game-night/v2/ArenaPlayerZone";
-import { GameArenaMomentBanner } from "@/features/game-night/v2/GameArenaMomentBanner";
+import {
+  ArenaSceneHistorisch,
+  ArenaSceneRecord,
+  ArenaSceneRivaliteit,
+  ArenaSceneVanavond,
+} from "@/features/game-night/v2/ArenaScenes";
+import { ArenaWinPickerSheet } from "@/features/game-night/v2/ArenaWinPickerSheet";
+import { ArenaWinnerSpotlight } from "@/features/game-night/v2/ArenaWinnerSpotlight";
 import { ArenaActionFeedSheet } from "@/features/game-night/v2/ArenaActionFeedSheet";
 import { ArenaMoreMenuSheet } from "@/features/game-night/v2/ArenaMoreMenuSheet";
 import { ArenaCheckpointOverlay } from "@/features/game-night/v2/ArenaCheckpointOverlay";
 import { ArenaSpotifyPanel } from "@/features/game-night/v2/ArenaSpotifyPanel";
 
-const CELEBRATION_MS = 900;
-const MOMENT_MS = 3400;
 const INTRO_MS = 4000;
 const TOAST_MS = 3200;
+// Sectie "automatische scènerotatie": "iedere 25-40 seconden" — TAFEL komt
+// dubbel zo vaak voor in de rotatievolgorde (zie sceneSequence hieronder)
+// zodat die, conform de scène-prioriteit, het merendeel van de tijd in
+// beeld blijft zonder een aparte/langere timer voor die ene scène nodig te
+// hebben.
+const SCENE_ROTATION_MS = 32000;
+const SPOTLIGHT_MS = 4200;
 
 function ArenaSymbolDecoration({
   symbol,
@@ -103,11 +113,21 @@ export function GameNightV2Arena({
   const completeWinSession = useCompleteWinSession();
   const sound = useGameArenaSound();
 
-  const [celebratingPlayerId, setCelebratingPlayerId] = useState<string | null>(
-    null,
-  );
-  const [moment, setMoment] = useState<CompetitiveMoment | null>(null);
   const [intro, setIntro] = useState<PreviousWinnerIntro | null>(null);
+  // V2.10.5 (Arena Fase 1) — "🏆 Win registreren" opent dit overlay i.p.v.
+  // dat elk character op tafel permanent een WIN-knop is (sectie "Arena
+  // controls"). `spotlight` vervangt de oude kleine
+  // `celebratingPlayerId`-pulse + optionele `GameArenaMomentBanner`: ELKE
+  // WIN krijgt nu dezelfde grote, prominente "winnaar komt naar voren"-
+  // presentatie (zie ArenaWinnerSpotlight.tsx) i.p.v. alleen de
+  // "bijzondere" wins een moment te geven.
+  const [winPickerOpen, setWinPickerOpen] = useState(false);
+  const [spotlight, setSpotlight] = useState<{
+    playerId: string;
+    eventId: string;
+    winsTonight: number;
+    momentText: string | null;
+  } | null>(null);
   const [actionFeedOpen, setActionFeedOpen] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [spotifyOpen, setSpotifyOpen] = useState(false);
@@ -187,18 +207,18 @@ export function GameNightV2Arena({
     }, TOAST_MS);
   }
 
-  async function handleTap(playerId: string) {
+  // V2.10.5 — vervangt het oude `handleTap` (elk character = WIN-knop):
+  // wordt nu uitsluitend aangeroepen vanuit ArenaWinPickerSheet, ná
+  // expliciete keuze in "Wie won er?". Zelfde onderliggende
+  // win-infrastructuur (useRecordWin/RPC), ongewijzigd.
+  async function handleWinPick(playerId: string) {
     // Sectie 7: beschermt alleen tegen één dubbel-verstuurd fysiek tik-
     // event — twee bewuste tikken na elkaar registreren gewoon twee WINs
     // (zelfde patroon als de legacy WinPlayPanel).
     if (recordWin.isPending) return;
     const event = await recordWin.mutateAsync(playerId);
     sound.playWin();
-
-    setCelebratingPlayerId(playerId);
-    setTimeout(() => {
-      setCelebratingPlayerId((cur) => (cur === playerId ? null : cur));
-    }, CELEBRATION_MS);
+    setWinPickerOpen(false);
 
     // Het net-aangemaakte event zit nog niet gegarandeerd in `events`
     // (query-invalidatie is async) — expliciet meegeven i.p.v. wachten op
@@ -212,21 +232,52 @@ export function GameNightV2Arena({
       participantsById,
       analyticsData,
     });
-    if (nextMoment) {
-      setMoment(nextMoment);
-      setTimeout(() => {
-        setMoment((cur) => (cur === nextMoment ? null : cur));
-      }, MOMENT_MS);
-    } else {
-      // Sectie 22 (V2.8): de meeste WINs krijgen bewust GEEN competitive
-      // moment ("niet elke WIN heeft een grap nodig") — zonder moment zou
-      // een screenreader-gebruiker dan helemaal geen bevestiging krijgen.
-      // Hergebruikt de bestaande toast/aria-live-mechaniek (kort, niet
-      // permanent) i.p.v. een nieuwe feedbacklaag te bouwen.
-      const player = participantsById.get(playerId);
-      if (player) pushToast(`${getPlayerDisplayName(player)} pakt de WIN`);
-    }
+    setSpotlight({
+      playerId,
+      eventId: event.id,
+      winsTonight: (activeWinsByPlayer.get(playerId) ?? 0) + 1,
+      momentText: nextMoment?.subtitle ?? nextMoment?.headline ?? null,
+    });
+    setTimeout(() => {
+      setSpotlight((cur) => (cur?.eventId === event.id ? null : cur));
+    }, SPOTLIGHT_MS);
   }
+
+  // ── V2.10.5 (Arena Fase 1) — automatische scènerotatie ─────────────────
+  // Sectie "scène-prioriteit": TAFEL blijft altijd primair (dubbel gewicht
+  // in de volgorde), de vier aanvullende scènes verschijnen alleen als er
+  // écht bruikbare data voor is (resolveAvailableArenaScenes) — nooit een
+  // lege/irrelevante scène tonen. Rotatie pauzeert tijdens de Win-picker
+  // EN de Winner Spotlight (nooit de scène wisselen terwijl iemand actief
+  // aan het kiezen is of net een spotlight-moment beleeft).
+  const arenaScenes = useMemo(
+    () =>
+      resolveAvailableArenaScenes({
+        analyticsData,
+        gameId: gameSession.game_id,
+        participants,
+        activeWinsByPlayer,
+      }),
+    [analyticsData, gameSession.game_id, participants, activeWinsByPlayer],
+  );
+  const sceneSequence = useMemo(() => {
+    const extra: ("vanavond" | "rivaliteit" | "historisch" | "record")[] = [];
+    if (arenaScenes.vanavond) extra.push("vanavond");
+    if (arenaScenes.rivaliteit) extra.push("rivaliteit");
+    if (arenaScenes.historisch) extra.push("historisch");
+    if (arenaScenes.record) extra.push("record");
+    if (extra.length === 0) return ["tafel"] as const;
+    // TAFEL na elke aanvullende scène terug — zie bestandscommentaar.
+    return extra.flatMap((id) => ["tafel", id] as const);
+  }, [arenaScenes]);
+  const activeScene = useArenaSceneRotation(sceneSequence, {
+    intervalMs: SCENE_ROTATION_MS,
+    paused: winPickerOpen || spotlight !== null,
+  });
+
+  const spotlightPlayer = spotlight
+    ? participantsById.get(spotlight.playerId)
+    : null;
 
   function handleUndo(eventId: string) {
     if (undoWinEvent.isPending) return;
@@ -322,10 +373,22 @@ export function GameNightV2Arena({
             <button
               type="button"
               onClick={() => setConfirmFinishOpen(true)}
-              className="gnv2-btn-danger-ghost"
+              aria-label="Spel afsluiten"
+              title="Spel afsluiten"
+              className="gnv2-btn-danger-ghost gnv2-arena-end-btn"
             >
               <Flag className="h-4 w-4" />
-              <span>Spel afsluiten</span>
+              {/* V2.10.5 (responsive-shell-consistentieronde): dit label
+                  blijft de EXPLICIETE tekst op tablet/desktop (sectie
+                  "actiebalk": "Spel afsluiten... hoeft niet dominant, maar
+                  moet WEL bereikbaar blijven" — bewust niet verplaatst naar
+                  het ···-menu, zie ArenaMoreMenuSheet.tsx's eigen
+                  toelichting daarover). Op smalle telefoons verdwijnt
+                  alleen de TEKST via CSS (.gnv2-arena-end-btn-label,
+                  ≤640px) — de knop zelf blijft even groot/klikbaar (44px),
+                  met aria-label/title hierboven als vaste toegankelijke
+                  naam, dus dit is puur visueel, geen functieverlies. */}
+              <span className="gnv2-arena-end-btn-label">Spel afsluiten</span>
             </button>
           </div>
         </header>
@@ -345,38 +408,120 @@ export function GameNightV2Arena({
           </div>
         )}
 
-        {moment && <GameArenaMomentBanner moment={moment} />}
-
+        {/* V2.10.5 (Arena Fase 1) — de scène-wisseling zelf: TAFEL blijft
+            de bestaande ArenaPlayerLayout-ring (nu passief, geen onTap
+            meer — zie ArenaPlayerZone.tsx), de vier aanvullende scènes
+            hergebruiken dezelfde al-gebatchte data (characterFor/colorHex/
+            activeWinsByPlayer). `key={activeScene}` triggert bewust een
+            React-remount per scènewissel: dat is precies de haak voor de
+            CSS-crossfade hieronder (`.gnv2-arena-scene-stage`,
+            styles.css), en de content zelf (characters/DOM binnen ÉÉN
+            scène) blijft stabiel zolang die scène actief is — geen
+            onnodige remounts van CharacterVisual/img's tijdens de 25-40s
+            dat een scène in beeld staat. */}
         <main className="gnv2-arena-main">
-          <ArenaPlayerLayout
-            participants={participants}
-            center={
-              <ArenaSetupPhoto
-                gameName={gameSession.game.name}
-                theme={theme}
-                liveBoardPhotoUrl={liveBoardPhoto?.url ?? null}
-                showLive={showLivePhoto}
-                onToggleLive={() => setShowLivePhoto((v) => !v)}
-              />
-            }
-            renderPlayer={(player) => (
-              <ArenaPlayerZone
-                player={player}
-                colorHex={colorHex(player)}
-                characterId={player.character_id}
-                resolvedCharacter={characterFor(player)}
-                wins={activeWinsByPlayer.get(player.id) ?? 0}
-                state={
-                  celebratingPlayerId === player.id ? "celebrating" : "normal"
+          <div key={activeScene} className="gnv2-arena-scene-stage">
+            {activeScene === "tafel" && (
+              <ArenaPlayerLayout
+                participants={participants}
+                center={
+                  <ArenaSetupPhoto
+                    gameName={gameSession.game.name}
+                    theme={theme}
+                    liveBoardPhotoUrl={liveBoardPhoto?.url ?? null}
+                    showLive={showLivePhoto}
+                    onToggleLive={() => setShowLivePhoto((v) => !v)}
+                  />
                 }
-                celebrationStyle={theme.celebrationStyle}
-                disabled={recordWin.isPending}
-                onTap={() => handleTap(player.id)}
+                renderPlayer={(player) => (
+                  <ArenaPlayerZone
+                    player={player}
+                    colorHex={colorHex(player)}
+                    characterId={player.character_id}
+                    resolvedCharacter={characterFor(player)}
+                    wins={activeWinsByPlayer.get(player.id) ?? 0}
+                    celebrationStyle={theme.celebrationStyle}
+                  />
+                )}
               />
             )}
-          />
+            {activeScene === "vanavond" && arenaScenes.vanavond && (
+              <ArenaSceneVanavond
+                data={arenaScenes.vanavond}
+                colorHex={colorHex}
+                characterFor={characterFor}
+              />
+            )}
+            {activeScene === "rivaliteit" && arenaScenes.rivaliteit && (
+              <ArenaSceneRivaliteit
+                data={arenaScenes.rivaliteit}
+                colorHex={colorHex}
+                characterFor={characterFor}
+              />
+            )}
+            {activeScene === "historisch" && arenaScenes.historisch && (
+              <ArenaSceneHistorisch
+                data={arenaScenes.historisch}
+                colorHex={colorHex}
+                characterFor={characterFor}
+              />
+            )}
+            {activeScene === "record" && arenaScenes.record && (
+              <ArenaSceneRecord
+                data={arenaScenes.record}
+                colorHex={colorHex}
+                characterFor={characterFor}
+              />
+            )}
+          </div>
         </main>
+
+        <footer className="gnv2-footer gnv2-arena-footer">
+          <button
+            type="button"
+            onClick={() => setWinPickerOpen(true)}
+            className="gnv2-btn gnv2-btn-primary gnv2-arena-win-btn"
+          >
+            <Trophy className="h-4 w-4" />
+            Win registreren
+          </button>
+        </footer>
       </div>
+
+      {winPickerOpen && (
+        <ArenaWinPickerSheet
+          participants={participants}
+          colorHex={colorHex}
+          characterFor={characterFor}
+          pending={recordWin.isPending}
+          onPick={handleWinPick}
+          onClose={() => setWinPickerOpen(false)}
+        />
+      )}
+
+      {spotlight && spotlightPlayer && (
+        <ArenaWinnerSpotlight
+          player={spotlightPlayer}
+          resolvedCharacter={characterFor(spotlightPlayer)}
+          colorHex={colorHex(spotlightPlayer)}
+          celebrationStyle={theme.celebrationStyle}
+          winsTonight={spotlight.winsTonight}
+          momentText={spotlight.momentText}
+          eventId={spotlight.eventId}
+        />
+      )}
+
+      {/* Fase 2 (nog NIET gebouwd, sectie "geen reactions nog"): telefoon-
+          reacties (bier/salt/clown/kroon/...) horen hier als een
+          VOLGEND, onafhankelijk overlay-element te komen — precies zoals
+          ArenaWinPickerSheet/ArenaWinnerSpotlight hierboven: een eigen
+          `position:fixed`-laag, een eigen stukje state
+          (bv. `activeReactions`), en een eigen realtime-subscription
+          (zelfde idioom als usePartyRealtimeSync/useCharacterEquipment-
+          ForPlayers — een kanaal per gameSessionId, geen query per
+          reactie). Geen wijziging aan de scène-rotatie/win-flow hierboven
+          nodig om dat toe te voegen; vandaar bewust nog GEEN
+          interaction-tabel/-hook gebouwd (zie het opleverrapport). */}
 
       {actionFeedOpen && (
         <ArenaActionFeedSheet
