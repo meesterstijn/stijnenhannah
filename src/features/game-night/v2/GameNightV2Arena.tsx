@@ -437,7 +437,6 @@ export function GameNightV2Arena({
                   <ArenaPlayerZone
                     player={player}
                     colorHex={colorHex(player)}
-                    characterId={player.character_id}
                     resolvedCharacter={characterFor(player)}
                     wins={activeWinsByPlayer.get(player.id) ?? 0}
                     celebrationStyle={theme.celebrationStyle}
