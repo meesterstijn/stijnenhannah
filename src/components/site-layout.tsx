@@ -1,8 +1,9 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
-import { Home, NotebookPen, ListTodo, Sprout } from "lucide-react";
+import { Home, LogOut, NotebookPen, ListTodo, Sprout } from "lucide-react";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { WeatherForecast } from "@/components/weather-forecast";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
 
 const nav = [
   { to: "/notities", label: "Notities", icon: NotebookPen },
@@ -184,6 +185,27 @@ export function SiteLayout() {
               })}
             </nav>
           )}
+        </div>
+      )}
+      {/* R6-pagina's hebben geen navbalk (zie hierboven) en de zwevende "Ons
+          Huisje"-knop is voor een r6_player-account bewust uitgeschakeld
+          (die mag toch nergens anders heen) — zonder iets anders bleef er
+          dus GEEN enkele manier over om uit te loggen, op elke R6-pagina,
+          voor zowel r6_player als owner. Rechtsboven i.p.v. links (waar de
+          "Ons Huisje"-knop staat) zodat ze nooit overlappen, ook niet op de
+          sessiedetailpagina (die zijn eigen "Ons Huisje"-link al inline
+          rendert) — vandaar geen !isR6SessionDetail/!isR6Player-uitzondering
+          hier, in tegenstelling tot de linkerknop. */}
+      {isR6 && (
+        <div className="fixed right-3 top-3 z-50">
+          <button
+            type="button"
+            onClick={() => supabase.auth.signOut()}
+            aria-label="Uitloggen"
+            className="flex items-center gap-1.5 rounded-full border border-zinc-800 bg-zinc-900/80 p-2 text-zinc-300 backdrop-blur-sm transition-colors hover:bg-zinc-800/80 hover:text-amber-400"
+          >
+            <LogOut className="h-4 w-4" />
+          </button>
         </div>
       )}
       {/* Eigen blok i.p.v. meeliften op de R6/Cocktail Bar-groep hierboven —
