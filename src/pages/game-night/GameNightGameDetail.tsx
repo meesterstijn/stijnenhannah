@@ -2,7 +2,10 @@ import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, Images, Settings, Skull, Trophy } from "lucide-react";
 import { useGameNightAnalytics } from "@/features/game-night/hooks/useGameNightAnalytics";
-import { useActiveGameNightSession } from "@/features/game-night/hooks/useGameNightSession";
+import {
+  useActiveGameNightSession,
+  useGameNightSessionPlayers,
+} from "@/features/game-night/hooks/useGameNightSession";
 import { useActivePartyPlayers } from "@/features/game-night/hooks/useGameNightParty";
 import { useLatestGameSession } from "@/features/game-night/hooks/useGameSession";
 import { useCheckpointCountsForGameSessions } from "@/features/game-night/hooks/useCheckpoints";
@@ -32,6 +35,7 @@ import { getGameCoverUrl } from "@/features/game-night/lib/gameCoverStorage";
 import { placeholderCoverGradient } from "@/features/game-night/lib/gameCoverPlaceholder";
 import { PlayerLink } from "@/features/game-night/components/PlayerLink";
 import { GameParticipantSheet } from "@/features/game-night/components/GameParticipantSheet";
+import { MarioKartLeaderboard } from "@/features/game-night/components/MarioKartLeaderboard";
 import { GameFlowSettingsSheet } from "@/features/game-night/components/GameFlowSettingsSheet";
 import { GnV2Scene } from "@/features/game-night/v2/GnV2Scene";
 import { GnV2Loading } from "@/features/game-night/v2/GnV2Loading";
@@ -321,6 +325,12 @@ export default function GameNightGameDetail() {
   // Sectie 26 (V2.4): alleen spelers die NU actief aan tafel zitten.
   const { data: attendees = [] } = useActivePartyPlayers(activeGameNight?.id);
   const { data: latestGameSession } = useLatestGameSession(activeGameNight?.id);
+  // Mario Kart-klassement (sectie hieronder): de VOLLEDIGE avond-attendance,
+  // niet alleen wie NU actief aan tafel zit — iemand die even van tafel is
+  // mag zijn puntentotaal niet uit het klassement zien verdwijnen.
+  const { data: gameNightSessionPlayers = [] } = useGameNightSessionPlayers(
+    activeGameNight?.id,
+  );
 
   const [pickingGame, setPickingGame] = useState(false);
   const [configuring, setConfiguring] = useState(false);
@@ -500,6 +510,19 @@ export default function GameNightGameDetail() {
                   </Link>
                 )}
               </div>
+            )}
+
+            {/* ── Mario Kart: eigen puntenklassement i.p.v. het generieke
+                rondes-/sessieklassement hieronder (sectie "Klassement") —
+                zie MarioKartLeaderboard voor waarom dit spel een aparte
+                tabel gebruikt. Alleen zichtbaar tijdens een lopende Game
+                Night: zonder actieve avond is er geen game_night_session_id
+                om punten aan te koppelen. ── */}
+            {game.slug === "mario-kart" && activeGameNight && (
+              <MarioKartLeaderboard
+                gameNightSessionId={activeGameNight.id}
+                players={gameNightSessionPlayers}
+              />
             )}
 
             {stats.sessionsPlayed === 0 ? (

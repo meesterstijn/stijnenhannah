@@ -804,6 +804,19 @@ export type GameNightGameSessionResult = {
   updated_at: string;
 };
 
+// Game Night — Mario Kart-puntenklassement (20260924010000). Los van
+// GameNightGameSessionResult/GameNightRoundResult hierboven: geen
+// win/verlies-boolean, alleen een lopend puntentotaal per (Game Night,
+// speler) dat de owner handmatig ophoogt via game_night_add_mario_kart_points.
+export type GameNightMarioKartPoints = {
+  id: string;
+  game_night_session_id: string;
+  player_id: string;
+  points: number;
+  created_at: string;
+  updated_at: string;
+};
+
 export type GameNightCheckpointPhotoType =
   | "board"
   | "cards"
