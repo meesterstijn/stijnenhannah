@@ -38,6 +38,8 @@ function isCocktailGuestPath(pathname: string): boolean {
 // cocktail_guest, omdat "/game-night" zelf hier juist NIET mag doorlaten.
 const GAME_NIGHT_MEMBER_ALLOWED_EXACT = new Set([
   "/game-night/me",
+  "/game-night/me/character",
+  "/game-night/me/face",
   "/game-night/spellen",
   "/game-night/hall-of-fame",
   "/game-night/geschiedenis",
