@@ -4505,6 +4505,25 @@ a.gn-plaque-mini:hover {
 
 /* ── Hoofdcontainer Game Select ── */
 
+/* Bugfix (20260924, Mario Kart-toevoeging legde dit bloot): net als
+   .gnv2-lobby-scene/.gnv2-arena-scene/.gnv2-start-scene hieronder had ook
+   Game Select een ECHTE `height:100dvh` nodig — met alleen de generieke
+   `.gnv2-scene`-regel (`min-height:100dvh`, geen plafond) kon deze scene
+   gewoon oneindig meegroeien met zijn inhoud, waardoor `.gnv2-select-main`'s
+   `flex:1; min-height:0; overflow-y:auto` hieronder nooit een begrensde
+   ouderhoogte kreeg om binnen te scrollen. Zolang de spellenkast toevallig
+   op één scherm paste (comment bij GameSelectionHero.tsx) viel dat niet op;
+   de content groeide toen gewoon met de scene mee. Zodra de kast niet meer
+   past, duwt die onbegrensde groei de scene voorbij de vaste-hoogte
+   `<main class="... h-dvh ... overflow-hidden">`-wrapper in site-layout.tsx
+   (bedoeld om de Game Night-"tafel" nooit te laten paginascrollen) — het
+   teveel wordt dan stilzwijgend AFGEKAPT in plaats van scrollbaar, exact het
+   "ik kan niet scrollen"-symptoom. Met een echte hoogte hier wordt
+   `.gnv2-select-main` pas echt begrensd en dus daadwerkelijk scrollbaar. */
+.gnv2-scene.gnv2-select-scene {
+  height: 100dvh;
+}
+
 .gnv2-select-main {
   position: relative;
   z-index: 2;
@@ -6725,6 +6744,312 @@ button.gnv2-arena-character:disabled {
 .gnv2-arena-win-btn {
   width: 100%;
   max-width: 22rem;
+}
+
+/* ── Mario Kart-klassement, grote 2-koloms Arena-weergave (20260924) ──────
+   Bewust GEEN vh/rijen-formule (die eerdere versie gokte een vaste
+   headerhoogte en bleek veel te conservatief — met weinig spelers bleef er
+   dan een enorme lege strook staan). In plaats daarvan puur flexbox: de
+   kolom krijgt de ECHTE beschikbare hoogte, elke rij is `flex:1` binnen die
+   kolom en deelt die hoogte dus altijd EXACT eerlijk door het aantal
+   rijen — vier spelers per kolom geeft automatisch kleinere rijen dan één
+   speler per kolom, zonder dat ergens een spelersaantal hoeft te worden
+   ingevuld. De avatar vult op zijn beurt gewoon de hoogte van zijn rij
+   (height:100%, aspect-ratio:1 houdt 'm vierkant) — de enige TWEE harde
+   grenzen zijn een klein minimum (5.5rem, blijft altijd duidelijk
+   zichtbaar) en een ruim maximum (9rem, voorkomt dat een kolom met maar
+   1-2 spelers een scherm-brede avatar zou krijgen die de kolom
+   breedte-gewijs over de rand zou duwen — "zonder door de randen van het
+   scherm te gaan"). Nooit een vaste breedte-aanname nodig: min(100%, 9rem)
+   op de hoogte zorgt dat 'm ALTIJD binnen zijn eigen rij blijft, ongeacht
+   hoeveel rijen er zijn.
+
+   BUGFIX (na screenshot-review: rijen overlapten elkaar, avatars bleven
+   piepklein): `height:100%` werkt alleen als ELKE voorouder daadwerkelijk
+   een DEFINITIEVE hoogte doorgeeft. .gnv2-arena-main is een ROW-flex
+   (default richting) met `align-items:center` — dat centreert zijn kind
+   .gnv2-arena-scene-stage op de CROSS-as (hoogte) i.p.v. 'm te rekken, dus
+   .gnv2-arena-scene-stage bleef zelf gewoon shrink-to-content i.p.v. de
+   100dvh-hoogte van zijn ouder over te nemen. Voor de character-ring
+   (ArenaPlayerLayout) maakt dat niets uit — die rekent zelf al rechtstreeks
+   met 100dvh/--gnv2-arena-overhead-* i.p.v. via procentuele hoogtes. Dit
+   klassement rekent WEL procentueel, dus heeft die definitieve hoogte
+   alsnog nodig: `.gnv2-arena-scene-stage-fill` (alleen aangezet voor Mario
+   Kart, zie GameNightV2Arena.tsx) rekt de stage naar de echte hoogte van
+   .gnv2-arena-main, en `align-self:stretch` hieronder rekt dit element op
+   zijn beurt naar de volle hoogte van die (nu wél definitieve) stage. Geen
+   van beide raakt .gnv2-arena-main/.gnv2-arena-scene-stage's gedrag voor
+   andere spellen. */
+.gnv2-arena-scene-stage-fill {
+  align-self: stretch;
+}
+
+.gnv2-mk-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 1.5rem;
+  width: 100%;
+  height: 100%;
+  max-width: 64rem;
+  max-height: 100%;
+  margin-inline: auto;
+  align-self: stretch;
+  overflow-y: auto;
+}
+
+/* Klein, terughoudend knopje — alleen nog gebruikt door de compacte
+   speldetail-lijst (geen Arena-topbar daar). In de Arena zelf staat
+   "Laatste ongedaan maken" als icoon-only .gnv2-nav-btn naast camera/muziek
+   (zie GameNightV2Arena.tsx) — geeft de MEEST RECENTE puntentoekenning van
+   de hele avond terug (welke speler dan ook), niet per rij, dus hoort niet
+   thuis in de puntenpil van een individuele speler. */
+.gnv2-mk-undo-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid var(--gnv2-border-strong);
+  background: var(--gnv2-surface-strong);
+  color: var(--gnv2-text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.gnv2-mk-undo-btn:hover:not(:disabled) {
+  border-color: var(--gnv2-accent-cool);
+  color: var(--gnv2-text);
+}
+
+.gnv2-mk-undo-btn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.gnv2-mk-undo-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.gnv2-mk-column {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+}
+
+.gnv2-mk-row-large {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 0.35rem 0;
+}
+
+/* Positiebadge (bugfix-vervolg: "meer opvallend, alsof het een Mario
+   Kart-race is") — een bold, rond "medaillon" i.p.v. een simpel grijs
+   rangnummer, zelfde gouden taal als de bestaande trofee-/specialist-
+   accenten elders (--gnv2-accent-warm*, zie SpecialistPlaque in
+   GameNightGameDetail.tsx) i.p.v. een nieuwe kleur te verzinnen. Positie 1
+   krijgt de .gnv2-mk-rank-first-variant hieronder: groter + een gloed,
+   dezelfde "de leider springt eruit"-taal als een echte racekop-indicator. */
+.gnv2-mk-rank {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.3rem;
+  height: 2.3rem;
+  border-radius: 999px;
+  font-family: var(--gnv2-font-display);
+  font-weight: 800;
+  font-size: 1.05rem;
+  line-height: 1;
+  background: linear-gradient(
+    155deg,
+    var(--gnv2-surface-strong),
+    var(--gnv2-bg-elevated)
+  );
+  border: 1px solid var(--gnv2-border-strong);
+  color: var(--gnv2-text);
+  box-shadow: 0 3px 8px -3px oklch(0 0 0 / 0.5);
+}
+
+.gnv2-mk-rank-first {
+  width: 2.75rem;
+  height: 2.75rem;
+  font-size: 1.3rem;
+  background: linear-gradient(
+    155deg,
+    var(--gnv2-accent-warm-strong),
+    var(--gnv2-accent-warm)
+  );
+  border-color: var(--gnv2-accent-warm-strong);
+  color: var(--gnv2-accent-warm-contrast);
+  box-shadow:
+    0 4px 12px -3px oklch(0 0 0 / 0.55),
+    0 0 16px 1px
+      color-mix(in oklch, var(--gnv2-accent-warm-strong) 65%, transparent);
+}
+
+/* Bewust GEEN cirkel/rand om het character heen — dezelfde "kaderloze"
+   weergave als .gnv2-party-character-art overal elders in de Arena
+   (ArenaPlayerZone/ArenaWinPickerSheet/PartyPlayerCard), puur een vierkant
+   canvas waar de character-illustratie zelf al transparant omheen loopt.
+   De vloer-gloed hieronder is 1-op-1 dezelfde formule als
+   .gnv2-party-character::before (zelfde --gnv2-ring-kleur, hier gezet vanuit
+   colorHex in MarioKartLeaderboard.tsx) — enige verschil is dat deze relatief
+   is aan het vierkante avatar-canvas zelf i.p.v. aan een avatar+naam-kolom. */
+.gnv2-mk-avatar {
+  position: relative;
+  flex: 0 0 auto;
+  height: min(100%, 9rem);
+  min-height: 5.5rem;
+  aspect-ratio: 1;
+}
+
+.gnv2-mk-avatar::before {
+  content: "";
+  position: absolute;
+  bottom: 4%;
+  left: 50%;
+  width: 58%;
+  height: 12%;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse,
+    color-mix(in oklch, var(--gnv2-ring, var(--gnv2-accent-warm)) 60%, transparent),
+    transparent 72%
+  );
+  filter: blur(10px);
+  opacity: 0.55;
+  z-index: 0;
+}
+
+.gnv2-mk-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--gnv2-font-display);
+  font-weight: 700;
+  font-size: clamp(1.15rem, 2.4vh, 2.1rem);
+  color: var(--gnv2-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Puntentotaal staat NIET meer in deze pil (zie .gnv2-mk-total hieronder,
+   los ervan en veel opvallender) — dit is uitsluitend nog invoerveld +
+   "+"-knop, samen ÉÉN afgeronde pil i.p.v. twee losse elementen.
+   overflow:hidden op de afgeronde buitenrand knipt de interne
+   scheidingslijn (border-left op de knop) netjes mee af. Gebruikt door
+   zowel de grote Arena-weergave als de compacte speldetail-lijst
+   hieronder. */
+.gnv2-mk-score {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: stretch;
+  height: 2.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--gnv2-border);
+  background: var(--gnv2-surface);
+  overflow: hidden;
+}
+
+.gnv2-mk-score-input {
+  width: 3.4rem;
+  border: none;
+  background: transparent;
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--gnv2-text);
+  -moz-appearance: textfield;
+}
+
+.gnv2-mk-score-input:focus {
+  outline: none;
+  background: var(--gnv2-surface-strong);
+}
+
+/* De ingebouwde op/neer-spinner van type="number" past niet binnen deze
+   smalle pil (zou half onder de "+"-knop verdwijnen) — de knop hiernaast is
+   al de bedoelde manier om de invoer te bevestigen. */
+.gnv2-mk-score-input::-webkit-inner-spin-button,
+.gnv2-mk-score-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.gnv2-mk-score-submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  border: none;
+  border-left: 1px solid var(--gnv2-border);
+  background: var(--gnv2-accent-warm-strong);
+  color: var(--gnv2-accent-warm-contrast);
+  transition: filter 0.12s ease;
+}
+
+.gnv2-mk-score-submit:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.gnv2-mk-score-submit:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.gnv2-mk-score-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Los, groot en opvallend puntentotaal — niet langer onderdeel van de
+   invoerpil hierboven. Zelfde gouden accentkleur als de #1-badge/trofee-
+   elementen elders in de Arena: dit is het getal waar de hele avond om
+   draait, dus mag qua gewicht wedijveren met de naam ernaast i.p.v. een
+   grijze bijzaak te zijn. tabular-nums + een vaste minimumbreedte houdt de
+   kolom cijfers netjes uitgelijnd zodra totalen van 1 naar 2+ cijfers
+   groeien. */
+.gnv2-mk-total {
+  flex: 0 0 auto;
+  min-width: 2.4ch;
+  text-align: right;
+  font-family: var(--gnv2-font-display);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(1.4rem, 3.2vh, 2.6rem);
+  color: var(--gnv2-accent-warm-strong);
+  text-shadow: 0 0 18px
+    color-mix(in oklch, var(--gnv2-accent-warm-strong) 45%, transparent);
+}
+
+/* Speldetail-lijst (geen fullscreen Arena, dus geen vh-gebaseerde reuzen-
+   cijfers en geen gloed nodig) — blijft wel duidelijk dikker/goudkleuriger
+   dan de rest van de rij, alleen bescheidener van formaat. */
+.gnv2-mk-total-compact {
+  font-size: 1.15rem;
+  text-shadow: none;
+}
+
+@media (max-width: 640px) {
+  /* Twee smalle kolommen naast elkaar op een telefoon zou de character/naam
+     juist kleiner maken (precies het omgekeerde van de wens) — hier terug
+     naar één kolom. De array is al vooraf in twee helften geknipt (1..half
+     dan half+1..einde), dus dit blijft gewoon top-naar-onder 1..N,
+     ongewijzigd t.o.v. de 2-koloms volgorde. */
+  .gnv2-mk-columns {
+    grid-template-columns: 1fr;
+    max-width: 26rem;
+  }
 }
 
 /* ── Scène-podium (sectie "scène-transitions") — `key={activeScene}` in

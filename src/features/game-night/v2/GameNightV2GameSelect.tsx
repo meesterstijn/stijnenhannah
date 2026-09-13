@@ -48,7 +48,7 @@ export function GameNightV2GameSelect({
   const goHome = () => setView({ kind: "home" });
 
   return (
-    <GnV2Scene>
+    <GnV2Scene className="gnv2-select-scene">
       <header className="gnv2-topbar gnv2-topbar-compact">
         <button
           type="button"

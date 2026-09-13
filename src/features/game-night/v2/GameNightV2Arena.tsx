@@ -5,7 +5,7 @@ import {
   useState,
   type CSSProperties,
 } from "react";
-import { Camera, Flag, Music, MoreHorizontal, Trophy } from "lucide-react";
+import { Camera, Flag, Music, MoreHorizontal, Trophy, Undo2 } from "lucide-react";
 import type {
   GameNightCheckpointPhotoType,
   GameNightPlayer,
@@ -19,6 +19,10 @@ import {
   useCompleteWinSession,
 } from "@/features/game-night/hooks/useGameNightWinEvents";
 import { useGameNightColorPalette } from "@/features/game-night/hooks/useGameNightMemberProfile";
+import {
+  useMarioKartPointEvents,
+  useUndoLastMarioKartPointEvent,
+} from "@/features/game-night/hooks/useMarioKartPoints";
 import { useGameNightAnalytics } from "@/features/game-night/hooks/useGameNightAnalytics";
 import { useLatestBoardPhoto } from "@/features/game-night/hooks/useCheckpoints";
 import {
@@ -53,6 +57,7 @@ import { ArenaActionFeedSheet } from "@/features/game-night/v2/ArenaActionFeedSh
 import { ArenaMoreMenuSheet } from "@/features/game-night/v2/ArenaMoreMenuSheet";
 import { ArenaCheckpointOverlay } from "@/features/game-night/v2/ArenaCheckpointOverlay";
 import { ArenaSpotifyPanel } from "@/features/game-night/v2/ArenaSpotifyPanel";
+import { MarioKartLeaderboard } from "@/features/game-night/components/MarioKartLeaderboard";
 
 const INTRO_MS = 4000;
 const TOAST_MS = 3200;
@@ -99,6 +104,28 @@ export function GameNightV2Arena({
     [gameSession.game],
   );
   const { data: events = [] } = useGameSessionWinEvents(gameSession.id);
+  // Mario Kart (20260924) gebruikt geen win_events: i.p.v. de character-ring
+  // met een WIN-knop toont de tafelscène voor dit ene spel een permanent
+  // zichtbaar, onder-elkaar-gerangschikt puntenklassement (zie
+  // MarioKartLeaderboard, die zijn eigen useMarioKartPoints-data haalt) —
+  // geen los overlay dat je eerst moet openen. `session.id` is bewust de
+  // sleutel die daar naartoe gaat, niet gameSession.id: het klassement hoort
+  // bij de hele Game Night, niet bij deze ene spelsessie (reset per Game
+  // Night, niet per rematch — zie de migratie voor de reden).
+  const isMarioKart = gameSession.game.slug === "mario-kart";
+  // Los van MarioKartLeaderboard.tsx se eigen instantie van dezelfde hooks
+  // (React Query dedupt op queryKey, dus geen dubbele fetch) — nodig omdat
+  // de "Laatste ongedaan maken"-knop hier in de topbar staat (naast
+  // camera/muziek), niet in het klassement zelf.
+  const { data: marioKartPointEvents = [] } = useMarioKartPointEvents(
+    isMarioKart ? session.id : undefined,
+  );
+  const undoLastMarioKartPoint = useUndoLastMarioKartPointEvent(
+    isMarioKart ? session.id : undefined,
+  );
+  const canUndoMarioKartPoint = marioKartPointEvents.some(
+    (e) => e.undone_at == null,
+  );
   const { data: palette = [] } = useGameNightColorPalette();
   const { data: analyticsData } = useGameNightAnalytics();
   const { data: liveBoardPhoto } = useLatestBoardPhoto(gameSession.id);
@@ -261,6 +288,10 @@ export function GameNightV2Arena({
     [analyticsData, gameSession.game_id, participants, activeWinsByPlayer],
   );
   const sceneSequence = useMemo(() => {
+    // Mario Kart heeft geen win_events, dus nooit bruikbare data voor
+    // vanavond/rivaliteit/historisch/record — de tafelscène (hier het
+    // puntenklassement, zie hieronder) blijft daarom altijd de enige scène.
+    if (isMarioKart) return ["tafel"] as const;
     const extra: ("vanavond" | "rivaliteit" | "historisch" | "record")[] = [];
     if (arenaScenes.vanavond) extra.push("vanavond");
     if (arenaScenes.rivaliteit) extra.push("rivaliteit");
@@ -269,7 +300,7 @@ export function GameNightV2Arena({
     if (extra.length === 0) return ["tafel"] as const;
     // TAFEL na elke aanvullende scène terug — zie bestandscommentaar.
     return extra.flatMap((id) => ["tafel", id] as const);
-  }, [arenaScenes]);
+  }, [isMarioKart, arenaScenes]);
   const activeScene = useArenaSceneRotation(sceneSequence, {
     intervalMs: SCENE_ROTATION_MS,
     paused: winPickerOpen || spotlight !== null,
@@ -346,6 +377,20 @@ export function GameNightV2Arena({
             >
               <Music className="h-[18px] w-[18px]" />
             </button>
+            {isMarioKart && (
+              <button
+                type="button"
+                onClick={() => undoLastMarioKartPoint.mutate()}
+                disabled={
+                  !canUndoMarioKartPoint || undoLastMarioKartPoint.isPending
+                }
+                aria-label="Laatste puntenwijziging ongedaan maken"
+                title="Laatste puntenwijziging ongedaan maken"
+                className="gnv2-nav-btn"
+              >
+                <Undo2 className="h-[18px] w-[18px]" />
+              </button>
+            )}
             <div className="gnv2-action-menu-anchor">
               <button
                 ref={moreMenuTriggerRef}
@@ -420,8 +465,19 @@ export function GameNightV2Arena({
             onnodige remounts van CharacterVisual/img's tijdens de 25-40s
             dat een scène in beeld staat. */}
         <main className="gnv2-arena-main">
-          <div key={activeScene} className="gnv2-arena-scene-stage">
-            {activeScene === "tafel" && (
+          <div
+            key={activeScene}
+            className={`gnv2-arena-scene-stage${isMarioKart ? " gnv2-arena-scene-stage-fill" : ""}`}
+          >
+            {activeScene === "tafel" && isMarioKart && (
+              <MarioKartLeaderboard
+                gameNightSessionId={session.id}
+                players={participants}
+                characterFor={characterFor}
+                colorHex={colorHex}
+              />
+            )}
+            {activeScene === "tafel" && !isMarioKart && (
               <ArenaPlayerLayout
                 participants={participants}
                 center={
@@ -475,16 +531,22 @@ export function GameNightV2Arena({
           </div>
         </main>
 
-        <footer className="gnv2-footer gnv2-arena-footer">
-          <button
-            type="button"
-            onClick={() => setWinPickerOpen(true)}
-            className="gnv2-btn gnv2-btn-primary gnv2-arena-win-btn"
-          >
-            <Trophy className="h-4 w-4" />
-            Win registreren
-          </button>
-        </footer>
+        {/* Mario Kart heeft geen eigen "Win registreren"-equivalent nodig:
+            het klassement hierboven heeft al een invoerveld + knop per
+            speler, dus een extra footer-actie zou dezelfde handeling
+            dubbel aanbieden. */}
+        {!isMarioKart && (
+          <footer className="gnv2-footer gnv2-arena-footer">
+            <button
+              type="button"
+              onClick={() => setWinPickerOpen(true)}
+              className="gnv2-btn gnv2-btn-primary gnv2-arena-win-btn"
+            >
+              <Trophy className="h-4 w-4" />
+              Win registreren
+            </button>
+          </footer>
+        )}
       </div>
 
       {winPickerOpen && (

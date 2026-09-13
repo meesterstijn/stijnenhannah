@@ -804,17 +804,21 @@ export type GameNightGameSessionResult = {
   updated_at: string;
 };
 
-// Game Night — Mario Kart-puntenklassement (20260924010000). Los van
-// GameNightGameSessionResult/GameNightRoundResult hierboven: geen
-// win/verlies-boolean, alleen een lopend puntentotaal per (Game Night,
-// speler) dat de owner handmatig ophoogt via game_night_add_mario_kart_points.
-export type GameNightMarioKartPoints = {
+// Game Night — Mario Kart-puntenklassement (20260925000000, vervangt het
+// mutable-totaal van 20260924010000). Append-only event-log, exact hetzelfde
+// patroon als GameNightWinEvent hierboven: elke toekenning is een eigen rij,
+// `undone_at` markeert "ongedaan gemaakt" i.p.v. te verwijderen/terug te
+// rekenen, en het puntentotaal per speler is altijd de som van de delta's
+// van niet-ongedaan-gemaakte rijen (zie MarioKartLeaderboard.tsx). Nodig
+// voor de "laatste wijziging ongedaan maken"-knop — een mutable totaal kan
+// niet terugdraaien zonder zelf al een geschiedenis bij te houden.
+export type GameNightMarioKartPointEvent = {
   id: string;
   game_night_session_id: string;
   player_id: string;
-  points: number;
+  delta: number;
   created_at: string;
-  updated_at: string;
+  undone_at: string | null;
 };
 
 export type GameNightCheckpointPhotoType =
