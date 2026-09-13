@@ -1,1 +1,0 @@
-import{u as e}from"./query-DRm75QKu.js";import{e as u}from"./cocktails-ko3bq6N7.js";const o=["cocktail_bar","cocktails","published_full"];function t(){return e({queryKey:o,queryFn:u})}export{o as C,t as u};
