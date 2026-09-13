@@ -15,6 +15,24 @@ import { CharacterVisual } from "@/features/game-night/v2/CharacterVisual";
 
 type Row = { player: GameNightPlayer; points: number };
 
+// "1st"/"2nd"/"3rd"/"4th"... — Engelse ordinale, bewust dezelfde conventie
+// als de racefinish-stijl die dit klassement navolgt (zie .gnv2-mk-rank in
+// styles.css), niet de Nederlandse "1e/2e".
+function ordinalSuffix(rank: number): string {
+  const mod100 = rank % 100;
+  if (mod100 >= 11 && mod100 <= 13) return "th";
+  switch (rank % 10) {
+    case 1:
+      return "st";
+    case 2:
+      return "nd";
+    case 3:
+      return "rd";
+    default:
+      return "th";
+  }
+}
+
 // Bewust op module-niveau, NIET als binnenste functie in
 // MarioKartLeaderboard: een component die bij elke render van zijn ouder
 // opnieuw als functie wordt aangemaakt krijgt daardoor een nieuwe identity,
@@ -196,8 +214,12 @@ export function MarioKartLeaderboard({
                   <div key={row.player.id} className="gnv2-mk-row-large">
                     <span
                       className={`gnv2-mk-rank${rank === 1 ? " gnv2-mk-rank-first" : ""}`}
+                      data-rank={rank}
                     >
                       {rank}
+                      <span className="gnv2-mk-rank-suffix">
+                        {ordinalSuffix(rank)}
+                      </span>
                     </span>
                     <span
                       className="gnv2-mk-avatar"

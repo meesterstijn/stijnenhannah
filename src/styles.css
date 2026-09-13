@@ -6852,50 +6852,93 @@ button.gnv2-arena-character:disabled {
   padding: 0.35rem 0;
 }
 
-/* Positiebadge (bugfix-vervolg: "meer opvallend, alsof het een Mario
-   Kart-race is") — een bold, rond "medaillon" i.p.v. een simpel grijs
-   rangnummer, zelfde gouden taal als de bestaande trofee-/specialist-
-   accenten elders (--gnv2-accent-warm*, zie SpecialistPlaque in
-   GameNightGameDetail.tsx) i.p.v. een nieuwe kleur te verzinnen. Positie 1
-   krijgt de .gnv2-mk-rank-first-variant hieronder: groter + een gloed,
-   dezelfde "de leider springt eruit"-taal als een echte racekop-indicator. */
+/* Positiebadge, "racefinish"-stijl (bugfix-vervolg: "maak de positienummers
+   zoals deze stijl" — een gedeeld screenshot van chunky, schuine, per-positie
+   gekleurde racecijfers met "1st/2nd/3rd/..."-ordinale). Geen kopie van een
+   bestaand lettertype/plaatje: puur CSS — een dikke schuine cijfertekst.
+   CORRECTIE (leesbaarheidsklacht): de eerste versie vulde het cijfer zelf
+   met het kleurverloop (background-clip:text) — op sommige tinten (zilver/
+   pastel) smolt dat cijfer bijna weg tegen de donkere achtergrond. Het
+   cijfer is nu altijd effen WIT (maximaal contrast/leesbaarheid); de
+   per-positie kleur (`--mk-rank-color`, zie `data-rank` hieronder) leeft nu
+   alleen nog in de omlijning + gloed eromheen, dus elke positie behoudt
+   zijn eigen herkenbare kleur zonder dat de leesbaarheid daaronder lijdt.
+   Ook iets groter dan de vorige versie op verzoek. */
 .gnv2-mk-rank {
   flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.3rem;
-  height: 2.3rem;
-  border-radius: 999px;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.05em;
+  min-width: 2.9rem;
   font-family: var(--gnv2-font-display);
   font-weight: 800;
-  font-size: 1.05rem;
+  font-style: italic;
   line-height: 1;
-  background: linear-gradient(
-    155deg,
-    var(--gnv2-surface-strong),
-    var(--gnv2-bg-elevated)
-  );
-  border: 1px solid var(--gnv2-border-strong);
-  color: var(--gnv2-text);
-  box-shadow: 0 3px 8px -3px oklch(0 0 0 / 0.5);
+  font-size: 1.9rem;
+  color: #fff;
+  -webkit-text-stroke: 1.75px var(--mk-rank-color);
+  filter: drop-shadow(0 2px 0 oklch(0.08 0 0))
+    drop-shadow(0 0 6px color-mix(in oklch, var(--mk-rank-color) 55%, transparent))
+    drop-shadow(0 4px 5px oklch(0 0 0 / 0.5));
+  /* Standaardkleur (bv. rang 13+, buiten de gedefinieerde reeks hieronder,
+     al zal een Game Night dat in de praktijk nooit halen). */
+  --mk-rank-color: var(--gnv2-text-faint);
+}
+
+.gnv2-mk-rank-suffix {
+  font-size: 0.48em;
+  font-style: italic;
+  font-weight: 800;
+  color: #fff;
+  -webkit-text-stroke: 1.1px var(--mk-rank-color);
 }
 
 .gnv2-mk-rank-first {
-  width: 2.75rem;
-  height: 2.75rem;
-  font-size: 1.3rem;
-  background: linear-gradient(
-    155deg,
-    var(--gnv2-accent-warm-strong),
-    var(--gnv2-accent-warm)
-  );
-  border-color: var(--gnv2-accent-warm-strong);
-  color: var(--gnv2-accent-warm-contrast);
-  box-shadow:
-    0 4px 12px -3px oklch(0 0 0 / 0.55),
-    0 0 16px 1px
-      color-mix(in oklch, var(--gnv2-accent-warm-strong) 65%, transparent);
+  font-size: 2.3rem;
+  filter: drop-shadow(0 2px 0 oklch(0.08 0 0))
+    drop-shadow(0 0 10px color-mix(in oklch, var(--mk-rank-color) 70%, transparent))
+    drop-shadow(0 4px 6px oklch(0 0 0 / 0.55));
+}
+
+/* Podium (1-3) + regenboogcyclus (4-12) — bewust geen letterlijke Mario
+   Kart-kleurwaarden overgenomen, alleen dezelfde "elke positie zijn eigen
+   herkenbare kleur"-taal. De iets verzadigdere tint uit het vorige
+   kleurverloop (was --mk-rank-b) dient hier als omlijning/gloed-kleur. */
+.gnv2-mk-rank[data-rank="1"] {
+  --mk-rank-color: #d4af37;
+}
+.gnv2-mk-rank[data-rank="2"] {
+  --mk-rank-color: #9a9a9a;
+}
+.gnv2-mk-rank[data-rank="3"] {
+  --mk-rank-color: #8a5a2b;
+}
+.gnv2-mk-rank[data-rank="4"] {
+  --mk-rank-color: #ff5a3c;
+}
+.gnv2-mk-rank[data-rank="5"] {
+  --mk-rank-color: #e0218a;
+}
+.gnv2-mk-rank[data-rank="6"] {
+  --mk-rank-color: #1fae62;
+}
+.gnv2-mk-rank[data-rank="7"] {
+  --mk-rank-color: #1f7ae0;
+}
+.gnv2-mk-rank[data-rank="8"] {
+  --mk-rank-color: #ff3d3d;
+}
+.gnv2-mk-rank[data-rank="9"] {
+  --mk-rank-color: #5b2ee0;
+}
+.gnv2-mk-rank[data-rank="10"] {
+  --mk-rank-color: #16b6cf;
+}
+.gnv2-mk-rank[data-rank="11"] {
+  --mk-rank-color: #ffb020;
+}
+.gnv2-mk-rank[data-rank="12"] {
+  --mk-rank-color: #7cd62c;
 }
 
 /* Bewust GEEN cirkel/rand om het character heen — dezelfde "kaderloze"
