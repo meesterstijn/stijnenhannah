@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect } from "react";
 import { HashRouter, Routes, Route, useLocation } from "react-router-dom";
+import "@/features/game-night/guest.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { RequireAppAccess } from "@/components/RequireAppAccess";
@@ -128,6 +129,7 @@ const CharacterAssetQaGrid = lazy(
   () => import("@/features/game-night/v2/CharacterAssetQaGrid"),
 );
 const GameNightJoin = lazy(() => import("@/pages/game-night/GameNightJoin"));
+const GameNightGuest = lazy(() => import("@/pages/game-night/GameNightGuest"));
 
 const queryClient = new QueryClient();
 
@@ -173,6 +175,26 @@ function ScrollToTop() {
 
 function AppRoutes() {
   const { session, loading } = useAuth();
+  const { pathname } = useLocation();
+
+  // These routes validate a separate guest credential, regardless of the
+  // current site's auth session or role. Site access stays owner-controlled.
+  if (/^\/game-night\/(join|guest)(\/|$)/.test(pathname)) {
+    return (
+      <div className="gamenight-theme">
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/game-night/join/:token" element={<GameNightJoin />} />
+            <Route
+              path="/game-night/guest/:sessionId"
+              element={<GameNightGuest />}
+            />
+            <Route path="*" element={<GameNightJoin />} />
+          </Routes>
+        </Suspense>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -186,11 +208,6 @@ function AppRoutes() {
     return (
       <Suspense fallback={<PageLoader />}>
         <Routes>
-          {/* Game Night V2.4 (sectie 12-13): de enige route die zonder
-              login bereikbaar mag zijn — self-service signup is uitsluitend
-              toegankelijk binnen een geldig join-token, dat hier letterlijk
-              in de URL zit. Elk ander pad valt terug op de gewone Login. */}
-          <Route path="/game-night/join/:token" element={<GameNightJoin />} />
           <Route path="*" element={<Login />} />
         </Routes>
       </Suspense>
@@ -291,9 +308,6 @@ function AppRoutes() {
                 path="dev/character-qa"
                 element={<CharacterAssetQaGrid />}
               />
-              {/* Ook bereikbaar terwijl al ingelogd — bestaand account dat
-                  opnieuw scant (sectie 15), of owner die zelf test. */}
-              <Route path="join/:token" element={<GameNightJoin />} />
               <Route path="spellen" element={<GameNightGames />} />
               <Route
                 path="spellen/:gameSlug"

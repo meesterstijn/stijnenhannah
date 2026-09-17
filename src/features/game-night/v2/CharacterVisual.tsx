@@ -7,6 +7,7 @@ import {
   type ResolvedCharacterLayer,
 } from "@/features/game-night/lib/gameNightCharacter";
 import { useSignedFaceUrl } from "@/features/game-night/hooks/useSignedFaceUrl";
+import { guestFaceEmoji } from "@/features/game-night/lib/guestIdentity";
 
 // De "personal-face"-laag (zie personalFaceLayer() in gameNightCharacter.ts)
 // wijst naar een storage-PAD in de privé game-night-player-faces-bucket
@@ -105,7 +106,7 @@ export function CharacterVisual({
   layers,
   loading = "lazy",
 }: {
-  player: GameNightPlayer;
+  player: Pick<GameNightPlayer, "name" | "nickname" | "guest_face">;
   characterId?: string | null;
   layers?: ResolvedCharacterLayer[];
   loading?: "eager" | "lazy";
@@ -114,6 +115,27 @@ export function CharacterVisual({
     new Set(),
   );
   const [failedFor, setFailedFor] = useState<string | null>(null);
+
+  const guestFace = guestFaceEmoji(player.guest_face);
+  if (guestFace) {
+    return (
+      <span className="gnv2-guest-character">
+        {layers?.length ? (
+          <CharacterVisual
+            player={{ ...player, guest_face: null }}
+            layers={layers}
+            loading={loading}
+          />
+        ) : null}
+        <span
+          className={`gnv2-guest-face ${layers?.length ? "" : "gnv2-guest-face-only"}`}
+          aria-hidden="true"
+        >
+          {guestFace}
+        </span>
+      </span>
+    );
+  }
 
   if (layers && layers.length > 0) {
     const visible = resolveVisibleLayers(layers, failedLayerKeys);

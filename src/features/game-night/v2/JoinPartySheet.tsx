@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
-import { RefreshCw, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Copy, Loader2, RefreshCw, X } from "lucide-react";
 import type { GameNightSession } from "@/lib/supabase";
 import { QrCodeDisplay } from "@/components/qr-code-display";
 import {
@@ -28,8 +28,13 @@ export function JoinPartySheet({
   session: GameNightSession;
   onClose: () => void;
 }) {
-  const { data: activeToken, isLoading } = useActiveJoinToken(session.id);
+  const {
+    data: activeToken,
+    isLoading,
+    error: tokenError,
+  } = useActiveJoinToken(session.id);
   const generate = useGenerateJoinToken(session.id);
+  const [copyMessage, setCopyMessage] = useState("");
 
   const token = activeToken?.token;
 
@@ -59,14 +64,14 @@ export function JoinPartySheet({
   }
 
   const joinUrl = token
-    ? `${window.location.origin}/#/game-night/join/${token}`
+    ? `${window.location.origin}${window.location.pathname}#/game-night/join/${token}`
     : null;
 
   // Alleen een echte, permanente fout tonen als er ook geen (nog geldig)
   // token is om op terug te vallen — een mislukte "QR vernieuwen"-poging
   // terwijl de oude QR nog geldig is, mag die oude QR niet vervangen door
   // een foutmelding.
-  const showError = generate.isError && !token && !isLoading;
+  const showError = (generate.isError || !!tokenError) && !token && !isLoading;
 
   return (
     <div
@@ -76,7 +81,10 @@ export function JoinPartySheet({
       aria-modal="true"
       aria-label="Join met telefoon"
     >
-      <div className="gnv2-sheet-card" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="gnv2-sheet-card gnv2-guest-qr-sheet"
+        onClick={(e) => e.stopPropagation()}
+      >
         <button
           type="button"
           onClick={onClose}
@@ -88,6 +96,9 @@ export function JoinPartySheet({
 
         <p className="gnv2-sheet-eyebrow">{session.name}</p>
         <p className="gnv2-sheet-title">Scan om aan te schuiven</p>
+        <p className="gnv2-dialog-muted text-sm">
+          Kies je naam en avatar. Je hebt geen account nodig.
+        </p>
 
         {showError ? (
           <div className="gnv2-sheet-qr flex flex-col items-center justify-center gap-2 text-center">
@@ -95,10 +106,18 @@ export function JoinPartySheet({
               QR kon niet worden geladen
             </p>
             <p className="gnv2-dialog-faint max-w-[16rem] text-xs">
-              {generate.error instanceof Error
-                ? generate.error.message
+              {(generate.error ?? tokenError) instanceof Error
+                ? (generate.error ?? tokenError)?.message
                 : "Onbekende fout bij het aanmaken van de join-link."}
             </p>
+          </div>
+        ) : !joinUrl ? (
+          <div
+            className="gnv2-sheet-qr flex items-center justify-center"
+            role="status"
+            aria-label="QR-code laden"
+          >
+            <Loader2 className="h-8 w-8 animate-spin text-slate-600" />
           </div>
         ) : (
           <div className="gnv2-sheet-qr">
@@ -106,14 +125,32 @@ export function JoinPartySheet({
           </div>
         )}
 
-        {/* Debug-info — deze sheet is functioneel al owner-only (de
-            onderliggende RPC's weigeren elke andere rol server-side), dus
-            veilig om de opgebouwde link hier ook als platte tekst te tonen
-            (geen extra gegevens t.o.v. wat de QR zelf al scanbaar bevat). */}
         {joinUrl && (
-          <p className="gnv2-dialog-faint max-w-[18rem] break-all text-center text-[10px]">
-            {joinUrl}
-          </p>
+          <>
+            <button
+              type="button"
+              className="gnv2-btn gnv2-btn-ghost"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(joinUrl);
+                  setCopyMessage("Link gekopieerd");
+                } catch {
+                  setCopyMessage(
+                    "Kopiëren lukt niet. Houd de link hieronder ingedrukt om hem te delen.",
+                  );
+                }
+              }}
+            >
+              <Copy className="h-4 w-4" />
+              Uitnodiging kopiëren
+            </button>
+            <p role="status" className="gnv2-dialog-muted text-xs">
+              {copyMessage}
+            </p>
+            <a href={joinUrl} className="gnv2-dialog-faint text-xs underline">
+              Uitnodiging openen
+            </a>
+          </>
         )}
 
         <button

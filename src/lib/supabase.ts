@@ -596,6 +596,7 @@ export type GameNightGame = {
 export type GameNightPlayer = {
   id: string;
   name: string;
+  guest_face?: string | null;
   avatar_url: string | null;
   color: string | null;
   sort_order: number;

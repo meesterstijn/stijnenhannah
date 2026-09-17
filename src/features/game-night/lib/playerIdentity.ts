@@ -9,11 +9,15 @@ import type {
 // gedupliceerd in GameNightLobby.tsx en PlayerChip.tsx; nu één plek, zodat
 // Live Play (later) exact dezelfde speleridentiteit kan hergebruiken.
 
-export function getPlayerDisplayName(player: GameNightPlayer): string {
+export function getPlayerDisplayName(
+  player: Pick<GameNightPlayer, "name" | "nickname">,
+): string {
   return player.nickname?.trim() || player.name;
 }
 
-export function getPlayerInitial(player: GameNightPlayer): string {
+export function getPlayerInitial(
+  player: Pick<GameNightPlayer, "name" | "nickname">,
+): string {
   return getPlayerDisplayName(player).charAt(0).toUpperCase();
 }
 

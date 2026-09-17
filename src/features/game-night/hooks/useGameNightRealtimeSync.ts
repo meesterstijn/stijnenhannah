@@ -89,6 +89,14 @@ export function useGameNightRealtimeSync(): GameNightRealtimeInfo {
         { event: "*", schema: "public", table: "game_night_players" },
         (payload) => {
           queryClient.invalidateQueries({ queryKey: ANALYTICS_KEY });
+          // The host lobby reads embedded player rows from party-seats,
+          // not analytics. Refresh those too after a guest edits their avatar.
+          queryClient.invalidateQueries({
+            queryKey: ["game-night", "players"],
+          });
+          queryClient.invalidateQueries({
+            queryKey: ["game-night", "party-seats"],
+          });
           setLastEvent({
             table: "game_night_players",
             eventType: payload.eventType,

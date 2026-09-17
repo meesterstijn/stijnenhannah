@@ -1,0 +1,365 @@
+/* The guest pages use the Game Night palette, with normal document scrolling
+   so small screens, landscape and the software keyboard remain usable. */
+.gnv2-scene.gnv2-guest-scene {
+  min-height: 100svh;
+  overflow: clip;
+}
+.gnv2-guest-shell {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 48rem);
+  margin-inline: auto;
+  padding: max(1.25rem, env(safe-area-inset-top))
+    max(1rem, env(safe-area-inset-right)) max(2rem, env(safe-area-inset-bottom))
+    max(1rem, env(safe-area-inset-left));
+}
+.gnv2-guest-heading {
+  margin: 1rem 0 1.5rem;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.gnv2-guest-heading h1 {
+  font-family: var(--gnv2-font-display);
+  font-size: clamp(1.6rem, 5vw, 2.5rem);
+  margin: 0.4rem 0;
+}
+.gnv2-guest-heading > p:last-child,
+.gnv2-guest-panel > p {
+  color: var(--gnv2-text-muted);
+  line-height: 1.6;
+}
+.gnv2-guest-panel {
+  padding: clamp(1rem, 4vw, 1.75rem);
+  border: 1px solid var(--gnv2-border-strong);
+  border-radius: var(--gnv2-radius-lg);
+  background: var(--gnv2-surface-strong);
+  margin-bottom: 1rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.gnv2-guest-panel h2 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+.gnv2-guest-editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+  min-width: 0;
+}
+.gnv2-guest-editor fieldset,
+.gnv2-guest-fields {
+  min-width: 0;
+}
+.gnv2-guest-preview {
+  position: relative;
+  width: min(60vw, 220px);
+  aspect-ratio: 1;
+  margin-inline: auto;
+  border: 2px solid;
+  border-radius: 1.5rem;
+  background: var(--gnv2-bg-base);
+  overflow: hidden;
+}
+.gnv2-guest-label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin: 0.75rem 0 0.5rem;
+}
+.gnv2-guest-editor .gnv2-input {
+  font-size: 1rem;
+  min-height: 48px;
+  width: 100%;
+}
+.gnv2-guest-faces {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+.gnv2-guest-face-choice,
+.gnv2-guest-outfit-choice,
+.gnv2-guest-color-choice {
+  position: relative;
+  cursor: pointer;
+  border: 2px solid transparent;
+  border-radius: 0.8rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 44px;
+}
+.gnv2-guest-face-choice {
+  font-size: 1.75rem;
+  padding: 0.3rem;
+  background: var(--gnv2-surface);
+}
+.gnv2-guest-face-choice input,
+.gnv2-guest-outfit-choice input,
+.gnv2-guest-color-choice input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+.gnv2-guest-face-choice:has(:checked),
+.gnv2-guest-outfit-choice:has(:checked) {
+  border-color: var(--gnv2-accent-warm);
+  background: var(--gnv2-surface-strong);
+  box-shadow: 0 0 0 1px var(--gnv2-accent-warm);
+}
+.gnv2-guest-editor label:has(:focus-visible) {
+  outline: 3px solid var(--gnv2-text);
+  outline-offset: 3px;
+}
+.gnv2-guest-editor:disabled label {
+  cursor: wait;
+  opacity: 0.65;
+}
+.gnv2-guest-colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.gnv2-guest-color-choice {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+}
+.gnv2-guest-color-choice:has(:checked) {
+  outline: 2px solid var(--gnv2-text);
+  outline-offset: 2px;
+}
+.gnv2-guest-color-choice svg {
+  color: #fff;
+  filter: drop-shadow(0 1px 2px #000);
+}
+.gnv2-guest-outfits {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.6rem;
+  max-height: 19rem;
+  overflow-y: auto;
+  padding: 0.25rem;
+  overscroll-behavior: contain;
+}
+.gnv2-guest-outfit-choice {
+  flex-direction: column;
+  background: var(--gnv2-bg-base);
+  min-width: 0;
+  padding: 0.3rem;
+}
+.gnv2-guest-outfit-choice img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: contain;
+}
+.gnv2-guest-outfit-choice > span {
+  font-size: 0.7rem;
+  line-height: 1.4;
+  text-align: center;
+  padding: 0.3rem;
+}
+.gnv2-guest-form-actions {
+  display: grid;
+  gap: 0.75rem;
+}
+.gnv2-guest-form-actions .gnv2-btn {
+  min-height: 48px;
+}
+.gnv2-guest-error {
+  color: #ffb5b5;
+  font-size: 0.9rem;
+}
+.gnv2-guest-footnote {
+  font-size: 0.75rem;
+  line-height: 1.6;
+  text-align: center;
+  color: var(--gnv2-text-muted);
+  margin-top: 1rem;
+}
+.gnv2-guest-character {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  container-type: inline-size;
+}
+.gnv2-guest-face {
+  position: absolute;
+  z-index: 1;
+  left: 29%;
+  top: 13%;
+  width: 42%;
+  height: 40%;
+  font-family:
+    "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+  font-size: 35cqw;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+}
+.gnv2-guest-face-only {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  font-size: 64cqw;
+}
+.gnv2-guest-welcome {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.gnv2-guest-welcome > div:last-child {
+  min-width: 0;
+}
+.gnv2-guest-welcome .gnv2-btn {
+  padding: 0.65rem 0.4rem;
+  font-size: 0.8rem;
+  text-align: left;
+  white-space: normal;
+}
+.gnv2-guest-my-avatar {
+  width: clamp(80px, 25vw, 150px);
+  aspect-ratio: 1;
+  flex-shrink: 0;
+  position: relative;
+  border: 2px solid var(--gnv2-border-strong);
+  border-radius: 1rem;
+  overflow: hidden;
+}
+.gnv2-guest-presence {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  color: var(--gnv2-accent-cool);
+  margin-bottom: 0.3rem;
+}
+.gnv2-guest-roster {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin-top: 1rem;
+}
+.gnv2-guest-roster li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border: 1px solid var(--gnv2-border-strong);
+  border-radius: 0.8rem;
+  min-width: 0;
+  background: var(--gnv2-bg-base);
+}
+.gnv2-guest-roster-avatar {
+  width: 48px;
+  height: 48px;
+  position: relative;
+  flex-shrink: 0;
+}
+.gnv2-guest-roster li > span {
+  min-width: 0;
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+.gnv2-guest-roster small {
+  display: block;
+  color: var(--gnv2-text-muted);
+}
+
+.gnv2-guest-player-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+.gnv2-guest-player-choice {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.85rem 0.6rem;
+  border: 1px solid var(--gnv2-border-strong);
+  border-radius: 1rem;
+  background: var(--gnv2-bg-base);
+  cursor: pointer;
+}
+.gnv2-guest-player-choice:hover,
+.gnv2-guest-player-choice:focus-visible {
+  border-color: var(--gnv2-accent-warm);
+  outline: 2px solid var(--gnv2-accent-warm);
+  outline-offset: 2px;
+}
+.gnv2-guest-player-choice:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+.gnv2-guest-player-avatar {
+  position: relative;
+  display: block;
+  width: min(100%, 130px);
+  aspect-ratio: 1;
+  border: 2px solid var(--gnv2-border-strong);
+  border-radius: 0.8rem;
+  overflow: hidden;
+}
+.gnv2-guest-player-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.gnv2-guest-player-choice small {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.65rem;
+  color: var(--gnv2-text-muted);
+}
+.gnv2-guest-qr-sheet {
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  padding: 2.5rem 1rem 1.5rem;
+}
+.gnv2-guest-qr-sheet .gnv2-sheet-qr {
+  width: min(100%, 312px);
+  aspect-ratio: 1;
+}
+.gnv2-guest-qr-sheet .gnv2-sheet-qr > div {
+  width: 100% !important;
+  height: auto !important;
+  aspect-ratio: 1;
+}
+.gnv2-guest-qr-sheet .gnv2-sheet-qr canvas,
+.gnv2-guest-qr-sheet .gnv2-sheet-qr svg {
+  width: 100%;
+  height: auto;
+}
+@media (min-width: 580px) {
+  .gnv2-guest-editor {
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1fr);
+    align-items: center;
+  }
+  .gnv2-guest-preview {
+    width: 100%;
+    max-width: 260px;
+  }
+  .gnv2-guest-outfits-field,
+  .gnv2-guest-form-actions {
+    grid-column: 1 / -1;
+  }
+  .gnv2-guest-outfits {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+  .gnv2-guest-roster {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 359px) {
+  .gnv2-guest-roster {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

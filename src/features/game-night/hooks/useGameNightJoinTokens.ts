@@ -31,6 +31,7 @@ export function useActiveJoinToken(sessionId: string | undefined) {
       return data;
     },
     enabled: !!sessionId,
+    refetchInterval: 30_000,
   });
 }
 
@@ -46,8 +47,9 @@ export function useGenerateJoinToken(sessionId: string | undefined) {
       if (error) throw error;
       return data as GameNightJoinToken;
     },
-    onSuccess: () => {
+    onSuccess: (token) => {
       if (sessionId) {
+        queryClient.setQueryData(ACTIVE_TOKEN_KEY(sessionId), token);
         queryClient.invalidateQueries({
           queryKey: ACTIVE_TOKEN_KEY(sessionId),
         });
