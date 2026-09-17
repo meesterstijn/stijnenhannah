@@ -363,3 +363,10 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+.gnv2-guest-photo-editor {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: #16120f;
+  overflow: auto;
+}

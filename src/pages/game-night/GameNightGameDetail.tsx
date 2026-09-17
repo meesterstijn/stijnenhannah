@@ -1,3 +1,4 @@
+import { GnV2HomeLink } from "@/features/game-night/v2/GnV2HomeLink";
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, Images, Settings, Skull, Trophy } from "lucide-react";
@@ -400,7 +401,7 @@ export default function GameNightGameDetail() {
           <p className="gnv2-identity-eyebrow">Game Night</p>
           <p className="gnv2-identity-date">Speldetail</p>
         </div>
-        <div className="gnv2-topbar-spacer" aria-hidden />
+        <GnV2HomeLink />
       </header>
 
       <main className="gnv2-content-main">

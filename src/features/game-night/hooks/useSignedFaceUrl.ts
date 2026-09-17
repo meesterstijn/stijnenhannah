@@ -1,4 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
+import { useContext } from "react";
+import { GuestFaceAccessContext, readGuestFace } from "../lib/guestFaceStorage";
 import { supabase } from "@/lib/supabase";
 import { PLAYER_FACES_BUCKET } from "@/features/game-night/lib/gameNightFaceStorage";
 
@@ -35,10 +37,18 @@ export function useSignedFaceUrl(
   storagePath: string | null | undefined,
   revision?: string | null,
 ) {
+  const guestAccess = useContext(GuestFaceAccessContext);
   return useQuery({
-    queryKey: ["game-night", "signed-face-url", storagePath, revision ?? null],
+    queryKey: [
+      "game-night",
+      "signed-face-url",
+      storagePath,
+      revision ?? null,
+      guestAccess,
+    ],
     queryFn: async (): Promise<string> => {
       if (!storagePath) throw new Error("Geen storage-pad opgegeven");
+      if (guestAccess) return readGuestFace(guestAccess, storagePath);
       const { data, error } = await supabase.storage
         .from(PLAYER_FACES_BUCKET)
         .createSignedUrl(storagePath, EXPIRES_IN_SECONDS);

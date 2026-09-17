@@ -66,6 +66,8 @@ export function GuestPlayerPicker({
                   name={player.name}
                   face={player.guest_face}
                   body={player.body}
+                  photoPath={player.face_asset_path}
+                  photoRevision={player.face_revision}
                 />
               </span>
               <span className="gnv2-guest-player-name">{player.name}</span>

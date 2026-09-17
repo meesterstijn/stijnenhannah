@@ -10,6 +10,8 @@ export type GuestPlayer = {
   id: string;
   name: string;
   guest_face: GuestFace | null;
+  face_asset_path: string | null;
+  face_revision: string | null;
   color_id: string | null;
   color: string | null;
   body: GameNightCharacterPart | null;
@@ -42,7 +44,7 @@ export type GuestProfileInput = {
   p_name: string;
   p_color_id: string | null;
   p_base_part_id: string | null;
-  p_guest_face: GuestFace;
+  p_guest_face: GuestFace | null;
 };
 
 export function useGuestPlayers(joinToken?: string) {

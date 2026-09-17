@@ -117,7 +117,7 @@ export function CharacterVisual({
   const [failedFor, setFailedFor] = useState<string | null>(null);
 
   const guestFace = guestFaceEmoji(player.guest_face);
-  if (guestFace) {
+  if (guestFace && !layers?.some((layer) => layer.partId === "personal-face")) {
     return (
       <span className="gnv2-guest-character">
         {layers?.length ? (
@@ -138,7 +138,13 @@ export function CharacterVisual({
   }
 
   if (layers && layers.length > 0) {
-    const visible = resolveVisibleLayers(layers, failedLayerKeys);
+    const visible = resolveVisibleLayers(
+      layers.map((layer) => ({
+        ...layer,
+        key: `${layer.key}:${layer.assetPath}:${layer.revision ?? ""}`,
+      })),
+      failedLayerKeys,
+    );
     if (visible.length > 0) {
       return (
         <span className="gnv2-character-layers">

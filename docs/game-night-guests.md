@@ -2,7 +2,8 @@
 
 De host logt in met het bestaande owner-account, opent een avond en toont de
 QR-code. Terugkerende gasten kiezen hun opgeslagen speler zonder pincode of
-bevestiging. Nieuwe gasten kiezen een naam, kleur, outfit en gezicht. Naam en
+bevestiging. Nieuwe gasten kiezen een naam, kleur en outfit, en maken of kiezen
+een gezichtsfoto met dezelfde foto-, crop- en contourbewerker als accountspelers. Naam en
 avatar worden blijvend opgeslagen; de volgende avond hoeft dit niet opnieuw.
 Dezelfde speler-ID behoudt de spelhistorie. Gasten krijgen een eigen telefoonlobby
 en kunnen hun speler aanpassen. De host beheert de tafel, spellen en uitslagen.
@@ -12,18 +13,37 @@ en kunnen hun speler aanpassen. De host beheert de tafel, spellen en uitslagen.
 1. Voer na de bestaande migraties
    `supabase/migrations/20260926000000_game_night_guests.sql` en daarna
    `supabase/migrations/20260927000000_game_night_player_selection.sql` uit in
-   Supabase (SQL Editor, of de gebruikelijke migratiedeploy). Beide bestanden
-   zijn een transactie. Is de eerste migratie al uitgevoerd, voer dan alleen
-   de tweede uit.
-2. Publiceer de nieuwe websitebuild met de gebruikelijke deployprocedure.
-3. Open als host een Game Night. Scan de QR met twee verschillende telefoons,
+   Supabase (SQL Editor, of de gebruikelijke migratiedeploy).
+   **Zijn die twee al uitgevoerd? Voer ze niet opnieuw uit.** Voer voor de
+   gezichtsfoto's alleen het nieuwe bestand
+   `supabase/migrations/20260928000000_game_night_guest_faces.sql` uit.
+   Plak de volledige inhoud van het bestand in een lege SQL-query, zonder
+   Markdown-codebloktekens. Deze nieuwe migratie is heruitvoerbaar.
+2. Deploy de Edge Function `game-night-guest-faces`:
+
+   ```sh
+   npx supabase functions deploy game-night-guest-faces --project-ref lrqivcfuiuskqkpmyxfo
+   ```
+
+   De CLI moet hiervoor ingelogd zijn op het juiste Supabase-account.
+   Zonder CLI kan dit via **Supabase → Edge Functions → Deploy a new function
+   → Via Editor**: noem de functie `game-night-guest-faces`, vervang `index.ts`
+   door de volledige inhoud van
+   `supabase/functions/game-night-guest-faces/index.ts` en deploy.
+   Zet bij deze functie **Verify JWT / Enforce JWT Verification uit**.
+   Bij CLI-deploy regelt `supabase/config.toml` dit al. De functie controleert
+   zelf de bestaande gastcode of geldige QR-uitnodiging via de database.
+   `SUPABASE_URL` en `SUPABASE_SERVICE_ROLE_KEY` zijn standaard beschikbaar in
+   Supabase Edge Functions; zet deze geheime sleutel nooit in de website.
+3. Publiceer de nieuwe websitebuild met de gebruikelijke deployprocedure.
+4. Open als host een Game Night. Scan de QR met twee verschillende telefoons,
    kies verschillende avatars en ververs beide pagina's. Controleer ook dat
    een gewijzigde naam/avatar op het hostscherm verschijnt. Open een volgende
    avond, scan de nieuwe QR en kies je bestaande speler. Controleer dit ook
    vanuit een andere browser: de speler en avatar moeten hetzelfde blijven.
 
-Er is geen Auth-configuratiewijziging, SMTP, gedeeld account, service-role-key
-in de browser of extra Edge Function nodig. Deze wijziging maakt geen
+Er is geen Auth-configuratiewijziging, SMTP, gedeeld account of service-role-key
+in de browser nodig. Deze wijziging maakt geen
 `auth.users`- of `profiles`-rijen aan. Database- en verkeerslimieten blijven gelden.
 De deployvolgorde is belangrijk: de oude website blijft met de nieuwe migratie
 werken; de nieuwe website heeft de nieuwe RPC's nodig.
@@ -32,7 +52,37 @@ De outfitcatalogus blijft dezelfde databasecatalogus als voor de bestaande
 creator. Nieuwe bestanden worden met `npm run game-night:generate-assets`
 geïnventariseerd; de bestaande `supabase/generated/game_night_custom_bodies.sql`
 kan gebruikt worden om de catalogus bij te werken. Dat is geen vereiste voor
-gasttoegang: zonder outfits kan een gast nog steeds een gezicht kiezen.
+gasttoegang: zonder outfits kan een gast nog steeds een gezichtsfoto kiezen.
+
+## Gezichtsfoto's
+
+- **Foto maken of kiezen** opent de bestaande bewerker: systeemcamera/galerij,
+  positioneren en zoomen, lokale achtergrondverwijdering, handmatige hoofdcontour
+  en een voorbeeld op de gekozen outfit. De emoji-keuzelijst is verwijderd.
+- De foto wordt voorbereid op het apparaat en samen met **Aan tafel!** of
+  **Mijn speler opslaan** bewaard. Annuleren van de fotobewerker behoudt de
+  ingevoerde naam, kleur, outfit en eerder gekozen foto. Zonder foto kan iemand
+  ook aansluiten en later via **Naam en avatar aanpassen** een foto toevoegen.
+- Het origineel en de transparante 512×512 PNG blijven in de bestaande privébucket
+  `game-night-player-faces`. De functie geeft tijdelijke upload- en leesrechten,
+  na controle van de gasttoegang. Gasten kunnen alleen hun eigen foto opslaan
+  zolang zij aan tafel zitten in een niet-afgelopen avond.
+- Een geldige QR geeft toegang tot de uitgesneden gezichten in de spelerkiezer.
+  Een toegelaten apparaat kan de gezichten in zijn eigen lobby zien. Het
+  oorspronkelijke fotobestand wordt niet aan andere gasten verstrekt.
+- Een upload gebruikt nieuwe paden. Pas wanneer beide bestanden bestaan, wordt
+  de spelersrij bijgewerkt. Een mislukte vervanging beschadigt zo de vorige foto
+  niet; opnieuw proberen vereist geen nieuwe foto of nieuw spelersprofiel.
+  Oude/afgebroken uploads worden niet automatisch verwijderd.
+- Naam, outfit en gezicht blijven gekoppeld aan dezelfde speler-ID, ook na
+  verversen of vrij terugkiezen op een ander apparaat. Het bestaande hostscherm
+  gebruikt dezelfde foto via de bestaande opslagrechten.
+
+De gedeelde bewerker staat in `src/features/game-night/components/FacePhotoEditor.tsx`.
+`GameNightFaceSetup.tsx` blijft de ingang voor accountspelers; `GuestProfileForm.tsx`
+gebruikt dezelfde bewerker voor gasten. De uploadhulpfunctie staat in
+`src/features/game-night/lib/guestFaceStorage.ts`. De aanpak volgt Supabase's
+[toegangscontrole voor Edge Functions](https://supabase.com/docs/guides/functions/auth).
 
 ## Identiteit en toegang
 
@@ -52,9 +102,10 @@ gasttoegang: zonder outfits kan een gast nog steeds een gezicht kiezen.
   toegelaten, bijgehouden in `private.game_night_guest_sessions`. Een nieuwe
   telefoon die een bestaande speler kiest krijgt dus geen automatische toegang
   tot andere avonden waarin die speler eerder deelnam.
-  De respons bevat geen account-IDs, privéfoto's, scores van andere avonden of
-  beheerrechten. Accountspelers krijgen op het gastscherm een initiaal als hun
-  gezicht alleen via privé-opslag beschikbaar is.
+  De respons bevat geen account-IDs, originele foto's, scores van andere avonden of
+  beheerrechten. Voor gezichten bevat hij alleen het opslagpad van de uitgesneden
+  avatar en de wijzigingsdatum; de Edge Function controleert toegang opnieuw
+  voordat hij een tijdelijke lees-URL verstrekt.
 - Een herhaalde aanvraag is idempotent. Een gast die door de host van tafel is
   gehaald, komt niet automatisch terug door te verversen of opnieuw te scannen.
   De host kan die speler via de bestaande lobby weer toevoegen.
@@ -95,7 +146,8 @@ npx tsc --noEmit
 
 De databasetests draaien echte Game Night-migraties in lokaal PostgreSQL/WASM
 (PGlite), met minimale vervangers voor Supabase Auth en Storage. Ze schrijven
-niets naar Supabase.
+niets naar Supabase. De fototests controleren ook privé-originelen, eigen
+uploadpaden, ontbrekende uploads, ingetrokken toegang en behoud van oude foto's.
 
 Start voor de browsertest `npm run dev`. Installeer een Playwright Chromium met
 `npx playwright install chromium`, of wijs naar een bestaande Chromium:
@@ -109,5 +161,12 @@ de testdatabase. Hij controleert 320–1280 px, twee telefoons, herstel na een
 verloren join-antwoord, verversen, profielbewerking, polling, afgeschermde avonden,
 verlopen QR-codes, netwerkfouten en geblokkeerde browseropslag. Daarnaast test hij
 vrij kiezen op een andere telefoon en hergebruik tijdens een volgende avond.
+Hij doorloopt ook de echte foto-/crop-/MediaPipe-/contourpipeline, controleert
+het resultaat van 512×512 pixels en herstelt na een onderbroken foto-upload.
+De werkelijke Edge Function draait lokaal tegen de SQL-testdatabase; alleen
+Supabase Storage wordt nagebootst. De MediaPipe-runtime komt uit de lokaal
+geïnstalleerde package. Dit controleert de integratie zonder productieaanvragen;
+controleer na deploy nog één keer de echte Supabase-opslag en de telefooncamera.
 Screenshots staan na afloop in `/tmp/game-night-guest-join.png`,
-`/tmp/game-night-guest-lobby.png` en `/tmp/game-night-player-picker.png`.
+`/tmp/game-night-guest-lobby.png`, `/tmp/game-night-player-picker.png` en
+`/tmp/game-night-guest-face-preview.png`.

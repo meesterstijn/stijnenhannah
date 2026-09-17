@@ -1,3 +1,4 @@
+import { GnV2HomeLink } from "@/features/game-night/v2/GnV2HomeLink";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
@@ -176,7 +177,7 @@ export default function GameNightHistory() {
           <p className="gnv2-identity-eyebrow">Game Night</p>
           <p className="gnv2-identity-date">Geschiedenis</p>
         </div>
-        <div className="gnv2-topbar-spacer" aria-hidden />
+        <GnV2HomeLink />
       </header>
 
       <main className="gnv2-content-main">

@@ -412,3 +412,6 @@ enabled = true
 # declarative_schema_path = "./database"
 # JSON string passed through to pg-delta SQL formatting.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":80,\"commaStyle\":\"trailing\"}"
+[functions.game-night-guest-faces]
+# Uses scoped Game Night credentials/QR tokens, not Supabase Auth users.
+verify_jwt = false

@@ -1,6 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
+import { GnV2Scene } from "@/features/game-night/v2/GnV2Scene";
+import { GnV2HomeLink } from "@/features/game-night/v2/GnV2HomeLink";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { Crown, LogOut, Check, Loader2, Sparkles, Camera } from "lucide-react";
+import {
+  ArrowLeft,
+  Crown,
+  LogOut,
+  Check,
+  Loader2,
+  Sparkles,
+  Camera,
+} from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { useGameNightAnalytics } from "@/features/game-night/hooks/useGameNightAnalytics";
@@ -22,19 +32,31 @@ import { CharacterVisual } from "@/features/game-night/v2/CharacterVisual";
 
 const NICKNAME_MAX_LENGTH = 40;
 
-// Game Night V2.3 (sectie 11-13) — de eerste echte member-pagina. Bewust
-// functioneel/clean, GEEN character-design of visuele redesign (sectie 27):
-// dezelfde algemene .gn-panel-elevated/.gn-plaque-action-stijl als
-// GameNightPlayerProfile.tsx, gewone scrollbare `max-w-2xl`-layout — niet
-// de vaste tabletop-viewport van GameNightHome (dit is een telefoonpagina).
-// Alle cijfers komen uit de bestaande analytics-laag (useGameNightAnalytics/
-// buildPlayerStats/titlesForPlayer) — geen tweede stats-engine.
-//
-// V2.9C (sectie 2/22): character kiezen/samenstellen verhuisde volledig
-// naar de eigen /game-night/me/character-Creator — deze pagina toont hier
-// alleen nog een read-only preview van het HUIDIGE (modulair-voorrang,
-// anders legacy) character + een duidelijke "Mijn character"-actie. Geen
-// tweede editor meer hier (was de V2.8/V2.9-CharacterSelector-chipgrid).
+function ProfileScene({ children }: { children: ReactNode }) {
+  return (
+    <GnV2Scene className="gnv2-me-scene">
+      <header className="gnv2-topbar gnv2-topbar-compact">
+        <Link
+          to="/game-night"
+          className="gnv2-nav-btn"
+          aria-label="Terug naar Game Night"
+          title="Terug"
+        >
+          <ArrowLeft className="h-[18px] w-[18px]" />
+        </Link>
+        <div className="gnv2-identity gnv2-identity-center">
+          <p className="gnv2-identity-eyebrow">Game Night</p>
+          <h1 className="gnv2-identity-date">Mijn profiel</h1>
+        </div>
+        <GnV2HomeLink />
+      </header>
+      <main className="gnv2-me-content mx-auto w-full max-w-2xl space-y-6 px-4 py-6 sm:px-6">
+        {children}
+      </main>
+    </GnV2Scene>
+  );
+}
+
 export default function GameNightMe() {
   const { session, isOwner } = useAuth();
   const { data, isLoading } = useGameNightAnalytics();
@@ -75,17 +97,22 @@ export default function GameNightMe() {
     if (!myPlayer) return;
     const trimmed = nickname.trim();
     if (!trimmed || trimmed.length > NICKNAME_MAX_LENGTH) return;
-    await updateProfile.mutateAsync({
-      nickname: trimmed,
-      colorId,
-      // Read-only hier sinds V2.9C (zie bestandscommentaar) — de RPC
-      // vereist dit veld altijd, dus de HUIDIGE waarde ongewijzigd
-      // meesturen i.p.v.'m via deze pagina te laten wijzigen. Zelfde
-      // redenering geldt sinds V2.9E voor bodyShape — deze pagina bewerkt
-      // "Lichaamsbouw" niet (dat gebeurt in de Character Creator).
-      characterId: myPlayer.character_id,
-      bodyShape: myPlayer.body_shape,
-    });
+    try {
+      await updateProfile.mutateAsync({
+        nickname: trimmed,
+        colorId,
+        // Read-only hier sinds V2.9C (zie bestandscommentaar) — de RPC
+        // vereist dit veld altijd, dus de HUIDIGE waarde ongewijzigd
+        // meesturen i.p.v.'m via deze pagina te laten wijzigen. Zelfde
+        // redenering geldt sinds V2.9E voor bodyShape — deze pagina bewerkt
+        // "Lichaamsbouw" niet (dat gebeurt in de Character Creator).
+        characterId: myPlayer.character_id,
+        bodyShape: myPlayer.body_shape,
+      });
+    } catch {
+      // The mutation error is shown next to the save button.
+      return;
+    }
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }
@@ -100,9 +127,11 @@ export default function GameNightMe() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto flex max-w-2xl justify-center py-14">
-        <Loader2 className="gn-faint h-5 w-5 animate-spin" />
-      </div>
+      <ProfileScene>
+        <div className="flex justify-center py-14">
+          <Loader2 className="gnv2-faint h-5 w-5 animate-spin" />
+        </div>
+      </ProfileScene>
     );
   }
 
@@ -110,26 +139,20 @@ export default function GameNightMe() {
   // automatisch aangemaakt profiel, geen crash.
   if (!myPlayer) {
     return (
-      <div className="mx-auto max-w-2xl space-y-6 text-center">
-        <div>
-          <p className="gn-eyebrow mb-1.5">Game Night</p>
-          <h1 className="gn-display text-2xl font-semibold sm:text-3xl">
-            Mijn profiel
-          </h1>
-        </div>
-        <div className="gn-panel-elevated px-6 py-8">
-          <p className="gn-muted text-sm">
+      <ProfileScene>
+        <div className="gnv2-panel-elevated px-6 py-8">
+          <p className="gnv2-muted text-sm">
             Dit account is nog niet gekoppeld aan een spelersprofiel.
           </p>
           {isOwner ? (
             <Link
               to="/game-night/spelers"
-              className="gn-muted mt-3 inline-block text-xs underline"
+              className="gnv2-muted mt-3 inline-block text-xs underline"
             >
               Koppel een account via Spelersbeheer
             </Link>
           ) : (
-            <p className="gn-faint mt-2 text-xs">
+            <p className="gnv2-faint mt-2 text-xs">
               Vraag de eigenaar om je account te koppelen.
             </p>
           )}
@@ -137,11 +160,11 @@ export default function GameNightMe() {
         <button
           type="button"
           onClick={() => supabase.auth.signOut()}
-          className="gn-muted inline-flex items-center gap-1.5 text-xs underline"
+          className="gnv2-muted inline-flex items-center gap-1.5 text-xs underline"
         >
           <LogOut className="h-3.5 w-3.5" /> Uitloggen
         </button>
-      </div>
+      </ProfileScene>
     );
   }
 
@@ -151,33 +174,18 @@ export default function GameNightMe() {
   const ringColor = activeColor?.hex ?? myPlayer.color;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="gn-eyebrow mb-1.5">Game Night</p>
-          <h1 className="gn-display text-2xl font-semibold sm:text-3xl">
-            Mijn profiel
-          </h1>
-        </div>
+    <ProfileScene>
+      <div className="flex justify-end">
         <button
           type="button"
           onClick={() => supabase.auth.signOut()}
-          className="gn-muted flex min-h-[44px] items-center gap-1.5 px-2 text-xs underline"
+          className="gnv2-muted flex min-h-[44px] items-center gap-1.5 px-2 text-xs underline"
         >
           <LogOut className="h-3.5 w-3.5" /> Uitloggen
         </button>
       </div>
 
-      <div className="gn-panel-elevated px-4 py-6 text-center sm:px-6">
-        {/* Visuele consistentieronde (sectie 6): het character was hier
-            80px groot binnen een gn-player-avatar-xl-rondje — veel te
-            klein nu er echte, herkenbare characters bestaan. Hergebruikt
-            bewust de BESTAANDE V2-preview-ringframe uit de Character
-            Creator (.gnv2-creator-preview-frame, zelfde --gnv2-ring-
-            aanpak als daar) i.p.v. een nieuwe hero-component te bouwen —
-            zelfde primitief, geen tweede CSS-implementatie. Werkt hier
-            zonder een <GnV2Scene>-wrapper omdat de --gnv2-*-tokens sinds
-            deze ronde op .gamenight-theme zelf staan (zie styles.css). */}
+      <div className="gnv2-panel-elevated px-4 py-6 text-center sm:px-6">
         <div
           className="gnv2-creator-preview-frame mx-auto"
           style={{
@@ -191,14 +199,14 @@ export default function GameNightMe() {
             loading="eager"
           />
         </div>
-        <h2 className="gn-display mt-4 text-2xl font-semibold sm:text-3xl">
+        <h2 className="gnv2-display mt-4 text-2xl font-semibold sm:text-3xl">
           {(myPlayer.nickname ?? myPlayer.name).toUpperCase()}
         </h2>
-        <p className="gn-faint mt-1 text-xs">Echte naam: {myPlayer.name}</p>
+        <p className="gnv2-faint mt-1 text-xs">Echte naam: {myPlayer.name}</p>
         {titles[0] && (
           <p
             className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold"
-            style={{ color: "var(--gn-brass)" }}
+            style={{ color: "var(--gnv2-accent-warm-strong)" }}
           >
             <Crown className="h-3.5 w-3.5" /> {titles[0].title}
           </p>
@@ -209,7 +217,7 @@ export default function GameNightMe() {
         <div className="mt-4 flex flex-col gap-2 sm:flex-row">
           <Link
             to="/game-night/me/character"
-            className="gn-plaque-action flex min-h-[48px] flex-1 items-center justify-center gap-2 px-6 text-sm font-semibold"
+            className="gnv2-btn gnv2-btn-ghost flex min-h-[48px] flex-1 items-center justify-center gap-2 px-6 text-sm font-semibold"
           >
             <Sparkles className="h-4 w-4" />
             Mijn character
@@ -219,7 +227,7 @@ export default function GameNightMe() {
               face is ingesteld (opdracht sectie 16: "Gezicht wijzigen"). */}
           <Link
             to="/game-night/me/face"
-            className="gn-plaque-action flex min-h-[48px] flex-1 items-center justify-center gap-2 px-6 text-sm font-semibold"
+            className="gnv2-btn gnv2-btn-ghost flex min-h-[48px] flex-1 items-center justify-center gap-2 px-6 text-sm font-semibold"
           >
             <Camera className="h-4 w-4" />
             {myPlayer.face_asset_path
@@ -231,10 +239,13 @@ export default function GameNightMe() {
 
       {/* Sectie 12: profiel aanpassen — nickname + kleur uit het actieve
           palet, opslaan via de smalle RPC (useUpdateMyProfile). */}
-      <div className="gn-panel-elevated px-5 py-5">
-        <p className="gn-eyebrow mb-3">Profiel aanpassen</p>
+      <div className="gnv2-panel-elevated px-5 py-5">
+        <p className="gnv2-eyebrow mb-3">Profiel aanpassen</p>
 
-        <label className="gn-muted mb-1 block text-xs" htmlFor="gn-me-nickname">
+        <label
+          className="gnv2-muted mb-1 block text-xs"
+          htmlFor="gn-me-nickname"
+        >
           Nickname
         </label>
         <input
@@ -243,7 +254,7 @@ export default function GameNightMe() {
           value={nickname}
           onChange={(e) => setNickname(e.target.value)}
           maxLength={NICKNAME_MAX_LENGTH}
-          className="mb-1 w-full"
+          className="gnv2-input mb-1 w-full"
           placeholder={myPlayer.name}
         />
         {!nicknameValid && (
@@ -252,7 +263,7 @@ export default function GameNightMe() {
           </p>
         )}
 
-        <p className="gn-muted mb-1.5 mt-3 block text-xs">Kleur</p>
+        <p className="gnv2-muted mb-1.5 mt-3 block text-xs">Kleur</p>
         <div className="flex flex-wrap gap-2">
           {palette.map((c) => (
             <button
@@ -260,11 +271,14 @@ export default function GameNightMe() {
               type="button"
               onClick={() => setColorId(c.id)}
               aria-label={c.label ?? c.hex}
-              className="flex h-9 w-9 items-center justify-center rounded-full border-2 transition-transform"
+              aria-pressed={colorId === c.id}
+              className="flex h-11 w-11 items-center justify-center rounded-full border-2 transition-transform"
               style={{
                 background: c.hex,
                 borderColor:
-                  colorId === c.id ? "var(--gn-brass)" : "transparent",
+                  colorId === c.id
+                    ? "var(--gnv2-accent-warm-strong)"
+                    : "transparent",
                 transform: colorId === c.id ? "scale(1.1)" : undefined,
               }}
             >
@@ -279,9 +293,9 @@ export default function GameNightMe() {
           type="button"
           onClick={handleSave}
           disabled={!nicknameValid || !dirty || updateProfile.isPending}
-          className="gn-plaque-action gn-plaque-action-primary mt-4 flex min-h-[48px] w-full items-center justify-center px-6"
+          className="gnv2-btn gnv2-btn-primary mt-4 flex min-h-[48px] w-full items-center justify-center px-6"
         >
-          <span className="gn-display text-sm font-semibold tracking-wide">
+          <span className="gnv2-display text-sm font-semibold tracking-wide">
             {updateProfile.isPending
               ? "Opslaan..."
               : saved
@@ -297,42 +311,42 @@ export default function GameNightMe() {
       </div>
 
       {stats && (
-        <div className="gn-panel-elevated grid grid-cols-2 gap-3 px-5 py-4 sm:grid-cols-4">
+        <div className="gnv2-panel-elevated grid grid-cols-2 gap-3 px-5 py-4 sm:grid-cols-4">
           <div>
-            <p className="gn-display text-lg font-semibold">
+            <p className="gnv2-display text-lg font-semibold">
               {stats.gameNightsAttended}
             </p>
-            <p className="gn-faint text-xs">Game Nights</p>
+            <p className="gnv2-faint text-xs">Game Nights</p>
           </div>
           <div>
-            <p className="gn-display text-lg font-semibold">
+            <p className="gnv2-display text-lg font-semibold">
               {stats.gameSessionsPlayed}
             </p>
-            <p className="gn-faint text-xs">spellen gespeeld</p>
+            <p className="gnv2-faint text-xs">spellen gespeeld</p>
           </div>
           <div>
-            <p className="gn-display text-lg font-semibold">
+            <p className="gnv2-display text-lg font-semibold">
               {stats.canonicalWins}
             </p>
-            <p className="gn-faint text-xs">lifetime WINs</p>
+            <p className="gnv2-faint text-xs">lifetime WINs</p>
           </div>
           {stats.mostPlayed && (
             <div>
-              <p className="gn-display text-lg font-semibold">
+              <p className="gnv2-display text-lg font-semibold">
                 {stats.mostPlayed.count}×
               </p>
-              <p className="gn-faint text-xs">{stats.mostPlayed.game.name}</p>
+              <p className="gnv2-faint text-xs">{stats.mostPlayed.game.name}</p>
             </div>
           )}
         </div>
       )}
 
       {titles.length > 1 && (
-        <div className="gn-panel-elevated px-5 py-4">
-          <p className="gn-eyebrow mb-2">Titels</p>
+        <div className="gnv2-panel-elevated px-5 py-4">
+          <p className="gnv2-eyebrow mb-2">Titels</p>
           <div className="flex flex-wrap gap-2">
             {titles.map((t) => (
-              <span key={t.title} className="gn-chip gn-chip-felt">
+              <span key={t.title} className="gnv2-chip">
                 {t.title}
               </span>
             ))}
@@ -342,10 +356,10 @@ export default function GameNightMe() {
 
       <Link
         to={`/game-night/spelers/${myPlayer.id}`}
-        className="gn-muted block text-center text-xs underline"
+        className="gnv2-muted block text-center text-xs underline"
       >
         Volledig profiel bekijken
       </Link>
-    </div>
+    </ProfileScene>
   );
 }

@@ -36,12 +36,16 @@ export async function createGuestTestDb({ playerSelection = true } = {}) {
     "20260914000000_game_night_character_parts.sql",
     "20260914010000_game_night_character_equipment.sql",
     "20260915000000_game_night_character_v2_slots.sql",
+    "20260918000000_game_night_player_face.sql",
     "20260919000000_game_night_join_token_rpc_security_definer_fix.sql",
     "20260921000000_game_night_character_custom_base_bodies.sql",
     "20260923000000_game_night_character_manbody_canonical_rename.sql",
     "20260926000000_game_night_guests.sql",
     ...(playerSelection
-      ? ["20260927000000_game_night_player_selection.sql"]
+      ? [
+          "20260927000000_game_night_player_selection.sql",
+          "20260928000000_game_night_guest_faces.sql",
+        ]
       : []),
   ];
   for (const migration of migrations) {
@@ -81,6 +85,8 @@ const FUNCTIONS = new Set([
   "game_night_guest_state",
   "game_night_join_as_guest",
   "game_night_update_guest",
+  "game_night_guest_face_access",
+  "game_night_update_guest_face",
   "game_night_generate_join_token",
   "game_night_add_to_party",
   "game_night_remove_from_party",

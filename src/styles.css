@@ -1589,31 +1589,9 @@ body:has(.guitar-theme) {
   color: var(--gn-text);
 }
 
-/* Laag 1 (section 2): de echte houten-tafelfoto (public/game-night/table-wood.jpg,
-   aangeleverd door de gebruiker) als fullscreen achtergrond, met een warme
-   bovenlicht-gloed + verticale vignet erover voor contrast — zelfde
-   `body:has()`-patroon als .cocktail-theme/.guitar-theme, nu met een echt
-   fotobestand i.p.v. alleen CSS-gradients. */
+/* Match the scene at viewport edges and during route/loading transitions. */
 body:has(.gamenight-theme) {
-  background-color: oklch(0.1 0.01 55);
-  background-image:
-    radial-gradient(
-      ellipse 1200px 650px at 50% -8%,
-      oklch(0.55 0.09 75 / 0.28),
-      transparent 62%
-    ),
-    linear-gradient(
-      180deg,
-      oklch(0.05 0.01 55 / 0.6) 0%,
-      oklch(0.05 0.01 55 / 0.1) 24%,
-      oklch(0.05 0.01 55 / 0.12) 68%,
-      oklch(0.05 0.01 55 / 0.65) 94%
-    ),
-    url("/game-night/table-wood.jpg");
-  background-size: cover, cover, cover;
-  background-position: center, center, center;
-  background-repeat: no-repeat;
-  background-attachment: fixed;
+  background: oklch(0.15 0.032 300);
 }
 
 /* De globale basisregel (h1,h2,h3,.font-serif { font-family: var(--font-serif) },
@@ -1816,23 +1794,23 @@ body:has(.gamenight-theme) {
   pointer-events: none;
 }
 
-.gamenight-theme input,
-.gamenight-theme textarea,
-.gamenight-theme select {
+:where(.gamenight-theme) input,
+:where(.gamenight-theme) textarea,
+:where(.gamenight-theme) select {
   background: var(--gn-bg-elevated);
   border: 1px solid var(--gn-border);
   border-radius: 0.6rem;
   color: var(--gn-text);
 }
 
-.gamenight-theme input::placeholder,
-.gamenight-theme textarea::placeholder {
+:where(.gamenight-theme) input::placeholder,
+:where(.gamenight-theme) textarea::placeholder {
   color: var(--gn-text-faint);
 }
 
-.gamenight-theme input:focus,
-.gamenight-theme textarea:focus,
-.gamenight-theme select:focus {
+:where(.gamenight-theme) input:focus,
+:where(.gamenight-theme) textarea:focus,
+:where(.gamenight-theme) select:focus {
   outline: none;
   box-shadow: 0 0 0 3px var(--gn-brass-soft);
   border-color: var(--gn-brass);
@@ -3504,6 +3482,8 @@ a.gn-plaque-mini:hover {
 }
 
 .gnv2-identity {
+  min-width: 0;
+  overflow-wrap: anywhere;
   display: flex;
   flex-direction: column;
   gap: 0.05rem;
@@ -4459,7 +4439,7 @@ a.gn-plaque-mini:hover {
 
 .gnv2-topbar-compact {
   display: grid;
-  grid-template-columns: 2.75rem 1fr 2.75rem;
+  grid-template-columns: 2.75rem minmax(0, 1fr) 2.75rem;
   align-items: center;
 }
 
@@ -5541,7 +5521,7 @@ a.gn-plaque-mini:hover {
 /* ── Arena-topbar-variant: 3 toolbar-knoppen i.p.v. 1 spacer ── */
 
 .gnv2-arena-topbar {
-  grid-template-columns: 2.75rem 1fr auto;
+  grid-template-columns: 2.75rem minmax(0, 1fr) auto;
   /* Bugfix (V2.8-bugfix sectie root cause): .gnv2-topbar en .gnv2-arena-main
      zijn beide "position:relative; z-index:2" — twee GELIJKE stacking-
      contexts als directe kinderen van .gnv2-arena-root. Bij een z-index-
@@ -5559,6 +5539,8 @@ a.gn-plaque-mini:hover {
 
 .gnv2-arena-toolbar {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   align-items: center;
   gap: 0.5rem;
   justify-self: end;
@@ -5696,6 +5678,14 @@ a.gn-plaque-mini:hover {
 }
 
 .gnv2-arena-intro {
+  position: relative;
+  top: auto;
+  left: auto;
+  transform: none;
+  flex: 0 0 auto;
+  align-self: center;
+  margin: 0.5rem 1rem 0;
+  pointer-events: none;
   border: 1px solid oklch(0.74 0.11 200 / 0.5);
 }
 
@@ -5745,32 +5735,26 @@ a.gn-plaque-mini:hover {
   overflow: hidden;
 }
 
-/* Game Night V2.10.8 (Arena Fase 1.1 — "nieuwe arena geometrie") — vervangt
-   de vorige absolute ring (top/left-percentages, getuned voor de oude
-   kleine avatar) door twee gewone, wrappende flex-rijen rond het spelvlak.
-   `.gnv2-arena-table` vult de VOLLEDIGE beschikbare rechthoek van
-   `.gnv2-arena-scene-stage` (zelf al `flex:1;min-height:0` binnen
-   `.gnv2-arena-main`/`.gnv2-arena-root`, die op hun beurt topbar/footer al
-   aftrekken van 100dvh) — de rijen zijn bewust `flex:0 0 auto` (hun hoogte
-   volgt uitsluitend uit de charactermaat hieronder, nooit uit de
-   beschikbare ruimte), de board-zone is `flex:1;min-height:0` en krijgt dus
-   automatisch precies wat overblijft. `--gnv2-party-char-size` wordt per
-   `data-count` gezet via `min(voorkeursmaat, resterende-ruimte)` — zelfde
-   bewezen patroon als de Lobby (.gnv2-stage-grid) en de scènerotatie
-   (ArenaScenes.tsx): een vaste, veilige voorkeursmaat binnen de
-   120-170px-richtlijn, met de calc() als vangnet voor kortere viewports. */
+/* Table grows to its content inside the bounded, scrollable arena stage.
+   On wide screens players sit above/below the game; phones use a grid. */
 .gnv2-arena-table {
   --gnv2-arena-overhead-1row: 195px;
   --gnv2-arena-overhead-2row: 250px;
   --gnv2-party-char-size: 165px;
-  flex: 1;
-  min-height: 0;
+  flex: none;
+  min-height: 100%;
   width: 100%;
-  height: 100%;
+  height: auto;
   display: flex;
   flex-direction: column;
   justify-content: center;
   gap: 0.85rem;
+}
+
+/* Cap each character using the actual space left below the toolbar/footer.
+   The table scrolls when several rows no longer fit. */
+.gnv2-arena-table .gnv2-arena-character {
+  width: min(var(--gnv2-party-char-size), max(3rem, calc(100cqh - 4rem)));
 }
 
 .gnv2-arena-row {
@@ -5784,7 +5768,7 @@ a.gn-plaque-mini:hover {
 }
 
 .gnv2-arena-board-zone {
-  flex: 1;
+  flex: 1 0 auto;
   min-height: 0;
   display: flex;
   align-items: center;
@@ -6467,6 +6451,18 @@ button.gnv2-arena-character:disabled {
 
 /* ── Game Recap (sectie 30-32) ── */
 
+.gnv2-scene.gnv2-recap-scene,
+.gnv2-scene.gnv2-nightrecap-scene {
+  height: 100dvh;
+}
+
+.gnv2-recap-root > *,
+.gnv2-nightrecap-root > * {
+  flex-shrink: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
 .gnv2-recap-root {
   position: relative;
   z-index: 2;
@@ -6475,9 +6471,10 @@ button.gnv2-arena-character:disabled {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: safe center;
   gap: 0.75rem;
-  padding: 2rem 1.5rem;
+  padding: max(2rem, env(safe-area-inset-top)) 1.5rem
+    max(2rem, env(safe-area-inset-bottom));
   text-align: center;
   overflow-y: auto;
 }
@@ -6529,6 +6526,8 @@ button.gnv2-arena-character:disabled {
 }
 
 .gnv2-recap-standing-row {
+  gap: 1rem;
+  text-align: left;
   display: flex;
   justify-content: space-between;
   font-size: 0.9rem;
@@ -6658,21 +6657,54 @@ button.gnv2-arena-character:disabled {
   }
 }
 
-/* ── Responsive: telefoon (sectie 10, "geen desktop-ring verkleinen") —
-   op een smalle telefoon wrapt `.gnv2-arena-row` de zetels vanzelf naar 2
-   (soms 3) per regel zodra de voorkeursmaat + gap niet meer allemaal op
-   één regel past — geen aparte grid-kolomlogica nodig, hetzelfde
-   wrap-mechanisme als de bredere tiers hierboven, alleen met een kleinere
-   voorkeursmaat en krappere paddings/gaps. ── */
+@media (max-width: 640px) {
+  .gnv2-lobby-scene .gnv2-topbar {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .gnv2-lobby-scene .gnv2-identity {
+    width: 100%;
+  }
+  .gnv2-lobby-scene .gnv2-nav {
+    margin-left: auto;
+  }
+}
+
+/* Phones use a separate toolbar row and a compact player grid. */
+@media (max-width: 800px) {
+  .gnv2-arena-topbar {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.5rem;
+  }
+  .gnv2-arena-topbar > .gnv2-topbar-spacer {
+    display: none;
+  }
+  .gnv2-arena-toolbar {
+    justify-self: center;
+  }
+}
+
 @media (max-width: 640px) {
   .gnv2-arena-main {
     padding: 0.4rem 0.6rem;
   }
   .gnv2-arena-table {
-    gap: 0.5rem;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-content: start;
+    justify-items: center;
+    gap: 0.75rem;
+  }
+  .gnv2-arena-board-zone {
+    grid-column: 1 / -1;
+    grid-row: 1;
   }
   .gnv2-arena-row {
-    gap: 0.5rem 0.6rem;
+    display: contents;
+  }
+  .gnv2-arena-seat {
+    min-width: 0;
+    max-width: 100%;
   }
   .gnv2-setup-photo {
     width: clamp(110px, 18vh, 150px);
@@ -6878,7 +6910,9 @@ button.gnv2-arena-character:disabled {
   color: #fff;
   -webkit-text-stroke: 1.75px var(--mk-rank-color);
   filter: drop-shadow(0 2px 0 oklch(0.08 0 0))
-    drop-shadow(0 0 6px color-mix(in oklch, var(--mk-rank-color) 55%, transparent))
+    drop-shadow(
+      0 0 6px color-mix(in oklch, var(--mk-rank-color) 55%, transparent)
+    )
     drop-shadow(0 4px 5px oklch(0 0 0 / 0.5));
   /* Standaardkleur (bv. rang 13+, buiten de gedefinieerde reeks hieronder,
      al zal een Game Night dat in de praktijk nooit halen). */
@@ -6896,7 +6930,9 @@ button.gnv2-arena-character:disabled {
 .gnv2-mk-rank-first {
   font-size: 2.3rem;
   filter: drop-shadow(0 2px 0 oklch(0.08 0 0))
-    drop-shadow(0 0 10px color-mix(in oklch, var(--mk-rank-color) 70%, transparent))
+    drop-shadow(
+      0 0 10px color-mix(in oklch, var(--mk-rank-color) 70%, transparent)
+    )
     drop-shadow(0 4px 6px oklch(0 0 0 / 0.55));
 }
 
@@ -6968,7 +7004,11 @@ button.gnv2-arena-character:disabled {
   border-radius: 50%;
   background: radial-gradient(
     ellipse,
-    color-mix(in oklch, var(--gnv2-ring, var(--gnv2-accent-warm)) 60%, transparent),
+    color-mix(
+      in oklch,
+      var(--gnv2-ring, var(--gnv2-accent-warm)) 60%,
+      transparent
+    ),
     transparent 72%
   );
   filter: blur(10px);
@@ -7100,13 +7140,17 @@ button.gnv2-arena-character:disabled {
    entrance-animatie opnieuw triggert; puur opacity+lichte
    schaal/verschuiving, geen zware animatielibrary. ── */
 .gnv2-arena-scene-stage {
+  container-type: size;
   flex: 1;
   min-height: 0;
   display: flex;
-  align-items: center;
   justify-content: center;
   width: 100%;
   animation: gnv2-scene-fade-in 420ms ease-out both;
+  align-self: stretch;
+  overflow-y: auto;
+  align-items: safe center;
+  overscroll-behavior-y: contain;
 }
 
 @keyframes gnv2-scene-fade-in {
@@ -7426,9 +7470,10 @@ button.gnv2-arena-character:disabled {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: safe center;
   gap: 0.65rem;
-  padding: 2rem 1.5rem;
+  padding: max(2rem, env(safe-area-inset-top)) 1.5rem
+    max(2rem, env(safe-area-inset-bottom));
   text-align: center;
   overflow-y: auto;
 }
@@ -8143,6 +8188,12 @@ a.gnv2-content-card:hover {
    zodat contentpagina's niet meer op de warme .gn-*-tokens hoeven terug te
    vallen. ── */
 
+.gnv2-me-content {
+  position: relative;
+  z-index: 2;
+  overflow-wrap: anywhere;
+}
+
 .gnv2-panel {
   background: var(--gnv2-surface);
   border: 1px solid var(--gnv2-border);
@@ -8788,6 +8839,24 @@ button.gnv2-list-row:hover {
   .gnv2-creator-body-right .gnv2-creator-footer {
     padding-left: 0;
     padding-right: 0;
+  }
+}
+
+/* On short viewports the entire character editor scrolls. Its preview and
+   controls must not consume more space than the fixed shell can provide. */
+@media (max-height: 600px) {
+  .gnv2-creator-scene:has(.gnv2-creator-body) {
+    overflow-y: auto;
+  }
+  .gnv2-creator-body {
+    flex: 0 0 auto;
+  }
+  .gnv2-creator-scene .gnv2-creator-grid-wrap {
+    flex: none;
+    overflow: visible;
+  }
+  .gnv2-creator-scene .gnv2-creator-preview-frame {
+    width: min(40dvh, 58vw, 160px);
   }
 }
 

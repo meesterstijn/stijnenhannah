@@ -5,7 +5,14 @@ import {
   useState,
   type CSSProperties,
 } from "react";
-import { Camera, Flag, Music, MoreHorizontal, Trophy, Undo2 } from "lucide-react";
+import {
+  Camera,
+  Flag,
+  Music,
+  MoreHorizontal,
+  Trophy,
+  Undo2,
+} from "lucide-react";
 import type {
   GameNightCheckpointPhotoType,
   GameNightPlayer,
@@ -191,9 +198,15 @@ export function GameNightV2Arena({
     );
     if (!found) return;
     setIntro(found);
+  }, [analyticsData, gameSession.game_id, gameSession.id]);
+
+  // Keep the expiry independent of analytics refetches and StrictMode's
+  // effect replay; otherwise cleanup can leave the introduction on screen.
+  useEffect(() => {
+    if (!intro) return;
     const timer = setTimeout(() => setIntro(null), INTRO_MS);
     return () => clearTimeout(timer);
-  }, [analyticsData, gameSession.game_id, gameSession.id]);
+  }, [intro]);
 
   const participantsById = useMemo(
     () => new Map(participants.map((p) => [p.id, p])),

@@ -54,7 +54,9 @@ export function GameNightV2Lobby({
   onCloseGameNight: () => void;
 }) {
   const { isGameNightMember } = useAuth();
-  const { data: atTable = [] } = useActivePartySeats(session.id);
+  const { data: atTable = [], isSuccess: seatsLoaded } = useActivePartySeats(
+    session.id,
+  );
   const { data: allPlayers = [] } = usePlayers();
   const { data: palette = [] } = useGameNightColorPalette();
   const { data: analyticsData } = useGameNightAnalytics();
@@ -76,34 +78,45 @@ export function GameNightV2Lobby({
   const [joinToasts, setJoinToasts] = useState<{ id: string; text: string }[]>(
     [],
   );
-  const prevSeatIdsRef = useRef<Set<string> | null>(null);
+  const previousSeats = useRef<{ sessionId: string; ids: Set<string> } | null>(
+    null,
+  );
 
-  // Sectie 11: een klein sociaal moment wanneer iemand via de telefoon
-  // joint — puur afgeleid uit echte data (source === 'qr_join'), nooit een
-  // verzonnen event. De eerste keer dat de party laadt slaan we bewust over
-  // (anders "verschijnt" iedereen die al aan tafel zat als nieuwkomer).
+  // The first successful snapshot is the baseline, even when the query first
+  // renders an empty loading state. Only subsequent QR arrivals get a toast.
   useEffect(() => {
-    const currentIds = new Set(atTable.map((s) => s.player_id));
-    if (prevSeatIdsRef.current) {
-      const prev = prevSeatIdsRef.current;
-      const arrived = atTable.filter(
-        (s) => !prev.has(s.player_id) && s.source === "qr_join",
-      );
-      if (arrived.length > 0) {
-        const next = arrived.map((s) => ({
-          id: `${s.player_id}-${Date.now()}`,
-          text: `${s.player.nickname?.trim() || s.player.name} schuift aan`,
-        }));
-        setJoinToasts((cur) => [...cur, ...next]);
-        next.forEach((toast) => {
-          setTimeout(() => {
-            setJoinToasts((cur) => cur.filter((t) => t.id !== toast.id));
-          }, 4200);
-        });
-      }
+    if (!seatsLoaded) return;
+    const previous = previousSeats.current;
+    previousSeats.current = {
+      sessionId: session.id,
+      ids: new Set(atTable.map((seat) => seat.player_id)),
+    };
+    if (!previous || previous.sessionId !== session.id) {
+      setJoinToasts([]);
+      return;
     }
-    prevSeatIdsRef.current = currentIds;
-  }, [atTable]);
+    const arrived = atTable.filter(
+      (seat) => !previous.ids.has(seat.player_id) && seat.source === "qr_join",
+    );
+    if (arrived.length === 0) return;
+    const toast = {
+      id: `${arrived[0].player_id}-${Date.now()}`,
+      text:
+        arrived.length === 1
+          ? `${arrived[0].player.nickname?.trim() || arrived[0].player.name} schuift aan`
+          : `${arrived.length} spelers schuiven aan`,
+    };
+    setJoinToasts((current) => [...current, toast].slice(-2));
+  }, [atTable, seatsLoaded, session.id]);
+
+  useEffect(() => {
+    if (joinToasts.length === 0) return;
+    const timer = setTimeout(
+      () => setJoinToasts((current) => current.slice(1)),
+      4200,
+    );
+    return () => clearTimeout(timer);
+  }, [joinToasts]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),

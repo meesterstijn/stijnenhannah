@@ -13,8 +13,9 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "game-night:generate-assets": "node scripts/generate-custom-body-manifest.mjs",
-    "game-night:test-guests": "node tests/game-night/guests.test.mjs && node tests/game-night/player-selection.test.mjs",
-    "game-night:test-guests-browser": "node tests/game-night/guests.browser.mjs"
+    "game-night:test-guests": "node tests/game-night/guests.test.mjs && node tests/game-night/player-selection.test.mjs && node tests/game-night/guest-faces.test.mjs",
+    "game-night:test-guests-browser": "node tests/game-night/guests.browser.mjs",
+    "game-night:test-layout-browser": "node tests/game-night/layout.browser.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

@@ -19,6 +19,11 @@ import { GuestProfileForm } from "@/features/game-night/v2/GuestProfileForm";
 import { GuestPlayerPicker } from "@/features/game-night/v2/GuestPlayerPicker";
 import { GnV2Scene } from "@/features/game-night/v2/GnV2Scene";
 import { GnV2Loading } from "@/features/game-night/v2/GnV2Loading";
+import {
+  GuestFaceAccessContext,
+  saveGuestFace,
+} from "@/features/game-night/lib/guestFaceStorage";
+import type { PreparedFacePhoto } from "@/features/game-night/components/FacePhotoEditor";
 
 export default function GameNightJoin() {
   const { token } = useParams<{ token: string }>();
@@ -32,7 +37,9 @@ export default function GameNightJoin() {
   const attempt = useRef<{ key: string; credential: string } | null>(null);
   const join = useMutation({
     mutationFn: async (
-      input: { player: GuestPlayer } | { profile: GuestProfileInput },
+      input:
+        | { player: GuestPlayer }
+        | { profile: GuestProfileInput; photo?: PreparedFacePhoto },
     ) => {
       const key = "player" in input ? input.player.id : "new";
       if (attempt.current?.key !== key) {
@@ -60,6 +67,13 @@ export default function GameNightJoin() {
               ...input.profile,
             });
       if (error) throw error;
+      if ("profile" in input && input.photo) {
+        await saveGuestFace(
+          attempt.current.credential,
+          data.session_id,
+          input.photo,
+        );
+      }
       return data as { session_id: string };
     },
     onSuccess: (result) =>
@@ -79,91 +93,93 @@ export default function GameNightJoin() {
   const showCreate = creating || players.length === 0;
 
   return (
-    <GnV2Scene className="gnv2-guest-scene">
-      <main className="gnv2-guest-shell">
-        <header className="gnv2-guest-heading">
-          <p className="gnv2-identity-eyebrow">Game Night · schuif aan</p>
-          <h1>
-            {valid
-              ? options.data?.invitation?.game_night_name
-              : "Welkom aan tafel"}
-          </h1>
-          {valid && (
-            <p>
-              {showCreate
-                ? "Maak je speler één keer aan. Je naam en avatar bewaren we voor de volgende avond."
-                : "Welkom terug! Kies je speler en schuif aan."}
-            </p>
-          )}
-        </header>
-        {loadError ? (
-          <div className="gnv2-guest-panel" role="alert">
-            <p>{guestErrorMessage(loadError)}</p>
-            <button
-              className="gnv2-btn gnv2-btn-primary mt-4"
-              onClick={() => {
-                void options.refetch();
-                void playerList.refetch();
-                if (guestToken) void restored.refetch();
-              }}
-            >
-              Opnieuw proberen
-            </button>
-          </div>
-        ) : !valid || !options.data ? (
-          <div className="gnv2-guest-panel">
-            <h2>Deze uitnodiging is verlopen</h2>
-            <p>Vraag de host om de nieuwste QR-code en scan die opnieuw.</p>
-          </div>
-        ) : (
-          <div className="gnv2-guest-panel">
-            {showCreate ? (
-              <GuestProfileForm
-                options={options.data}
-                pending={join.isPending}
-                error={join.error ? guestErrorMessage(join.error) : null}
-                onSubmit={(profile) => join.mutate({ profile })}
-                onCancel={
-                  players.length
-                    ? () => {
-                        join.reset();
-                        setCreating(false);
-                      }
-                    : undefined
-                }
-                cancelLabel="Terug naar spelers kiezen"
-              />
-            ) : (
-              <>
-                <GuestPlayerPicker
-                  players={players}
-                  rememberedId={options.data.me?.id}
-                  pending={join.isPending}
-                  onChoose={(player) => join.mutate({ player })}
-                  onCreate={() => {
-                    join.reset();
-                    setCreating(true);
-                  }}
-                />
-                {join.isPending && (
-                  <p role="status" className="gnv2-guest-footnote">
-                    Je schuift aan…
-                  </p>
-                )}
-                {join.error && (
-                  <p role="alert" className="gnv2-guest-error mt-4">
-                    {guestErrorMessage(join.error)}
-                  </p>
-                )}
-              </>
+    <GuestFaceAccessContext.Provider value={{ joinToken: token }}>
+      <GnV2Scene className="gnv2-guest-scene">
+        <main className="gnv2-guest-shell">
+          <header className="gnv2-guest-heading">
+            <p className="gnv2-identity-eyebrow">Game Night · schuif aan</p>
+            <h1>
+              {valid
+                ? options.data?.invitation?.game_night_name
+                : "Welkom aan tafel"}
+            </h1>
+            {valid && (
+              <p>
+                {showCreate
+                  ? "Maak je speler één keer aan. Je naam en avatar bewaren we voor de volgende avond."
+                  : "Welkom terug! Kies je speler en schuif aan."}
+              </p>
             )}
-            <p className="gnv2-guest-footnote">
-              Geen account of wachtwoord nodig. De volgende keer kies je gewoon
-              weer je eigen speler, ook op een andere telefoon.
-            </p>
-          </div>
-        )}
-      </main>
-    </GnV2Scene>
+          </header>
+          {loadError ? (
+            <div className="gnv2-guest-panel" role="alert">
+              <p>{guestErrorMessage(loadError)}</p>
+              <button
+                className="gnv2-btn gnv2-btn-primary mt-4"
+                onClick={() => {
+                  void options.refetch();
+                  void playerList.refetch();
+                  if (guestToken) void restored.refetch();
+                }}
+              >
+                Opnieuw proberen
+              </button>
+            </div>
+          ) : !valid || !options.data ? (
+            <div className="gnv2-guest-panel">
+              <h2>Deze uitnodiging is verlopen</h2>
+              <p>Vraag de host om de nieuwste QR-code en scan die opnieuw.</p>
+            </div>
+          ) : (
+            <div className="gnv2-guest-panel">
+              {showCreate ? (
+                <GuestProfileForm
+                  options={options.data}
+                  pending={join.isPending}
+                  error={join.error ? guestErrorMessage(join.error) : null}
+                  onSubmit={(profile, photo) => join.mutate({ profile, photo })}
+                  onCancel={
+                    players.length
+                      ? () => {
+                          join.reset();
+                          setCreating(false);
+                        }
+                      : undefined
+                  }
+                  cancelLabel="Terug naar spelers kiezen"
+                />
+              ) : (
+                <>
+                  <GuestPlayerPicker
+                    players={players}
+                    rememberedId={options.data.me?.id}
+                    pending={join.isPending}
+                    onChoose={(player) => join.mutate({ player })}
+                    onCreate={() => {
+                      join.reset();
+                      setCreating(true);
+                    }}
+                  />
+                  {join.isPending && (
+                    <p role="status" className="gnv2-guest-footnote">
+                      Je schuift aan…
+                    </p>
+                  )}
+                  {join.error && (
+                    <p role="alert" className="gnv2-guest-error mt-4">
+                      {guestErrorMessage(join.error)}
+                    </p>
+                  )}
+                </>
+              )}
+              <p className="gnv2-guest-footnote">
+                Geen account of wachtwoord nodig. De volgende keer kies je
+                gewoon weer je eigen speler, ook op een andere telefoon.
+              </p>
+            </div>
+          )}
+        </main>
+      </GnV2Scene>
+    </GuestFaceAccessContext.Provider>
   );
 }
