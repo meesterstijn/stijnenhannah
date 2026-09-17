@@ -23,7 +23,14 @@ async function faceRequest<T>(body: Record<string, unknown>): Promise<T> {
       "Je foto kon niet worden geladen of opgeslagen. Probeer het opnieuw.";
     if (error.context instanceof Response) {
       const details = await error.context.json().catch(() => null);
-      if (details?.error) message = details.error;
+      // A missing deployment is rejected by the gateway before our function
+      // runs. Its response uses { code, message }, not our { error } format.
+      if (error.context.status === 404 && details?.code === "NOT_FOUND") {
+        message =
+          "Gezichtsfoto’s zijn nog niet beschikbaar. Vraag de host om dit te activeren en probeer daarna opnieuw.";
+      } else if (typeof details?.error === "string") {
+        message = details.error;
+      }
     }
     throw new Error(message);
   }

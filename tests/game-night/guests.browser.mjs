@@ -16,6 +16,7 @@ const base = process.env.GAME_NIGHT_TEST_URL ?? "http://127.0.0.1:5173";
 let queue = Promise.resolve();
 let lostResponse = false;
 let failOptions = false;
+let faceFunctionMissing = false;
 let authCalls = 0;
 const errors = [];
 function enqueue(action) {
@@ -49,6 +50,18 @@ async function newPhone() {
     const path = new URL(request.url()).pathname;
     if (request.method() === "OPTIONS") return route.fulfill({ status: 204 });
     if (path.startsWith("/auth/")) authCalls++;
+    if (
+      path.startsWith("/functions/v1/game-night-guest-faces") &&
+      faceFunctionMissing
+    ) {
+      return route.fulfill({
+        status: 404,
+        json: {
+          code: "NOT_FOUND",
+          message: "Requested function was not found",
+        },
+      });
+    }
     if (
       path.startsWith("/functions/v1/game-night-guest-faces") ||
       path.startsWith("/storage/v1/")
@@ -222,9 +235,27 @@ try {
   await page.getByRole("button", { name: "Naam en avatar aanpassen" }).click();
   await page.getByLabel("Hoe heet je?").fill("Stijn speelt mee");
   await addPhoto(page);
-  faceEdge.failNextFaceUpload = true;
+  // Match the production gateway response when the function is not deployed.
+  // Activating it must allow retrying the same prepared photo, without a retake.
+  faceFunctionMissing = true;
   await page.getByRole("button", { name: "Mijn speler opslaan" }).click();
   await page.getByRole("alert").waitFor();
+  assert.match(
+    await page.getByRole("alert").innerText(),
+    /Gezichtsfoto’s zijn nog niet beschikbaar/,
+  );
+  assert.equal(faceEdge.files.size, 0, "no uploads before function deployment");
+  assert.equal(
+    await page.getByLabel("Hoe heet je?").inputValue(),
+    "Stijn speelt mee",
+  );
+  faceFunctionMissing = false;
+  faceEdge.failNextFaceUpload = true;
+  await page.getByRole("button", { name: "Mijn speler opslaan" }).click();
+  await page
+    .getByRole("alert")
+    .filter({ hasText: /uploaden mislukt/ })
+    .waitFor();
   assert.match(await page.getByRole("alert").innerText(), /uploaden mislukt/);
   await page.getByRole("button", { name: "Mijn speler opslaan" }).click();
   await page

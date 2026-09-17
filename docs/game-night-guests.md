@@ -48,6 +48,24 @@ in de browser nodig. Deze wijziging maakt geen
 De deployvolgorde is belangrijk: de oude website blijft met de nieuwe migratie
 werken; de nieuwe website heeft de nieuwe RPC's nodig.
 
+### Foto opslaan meldt een fout
+
+Geeft `/functions/v1/game-night-guest-faces` HTTP **404** met
+`{"code":"NOT_FOUND","message":"Requested function was not found"}`? Dan is de
+Edge Function nog niet gedeployed onder die exacte naam in dit project.
+Het uitvoeren van de SQL of publiceren van de website maakt deze functie niet
+aan. Voer stap 2 hierboven uit. De fotomigratie hoeft daarvoor niet opnieuw.
+
+De website herkent deze fout nu als “Gezichtsfoto’s zijn nog niet beschikbaar”.
+Laat het formulier open: de gekozen en bijgesneden foto blijft in het formulier
+staan. Na het deployen kan dezelfde opslaanknop opnieuw worden gebruikt.
+Verversen vóór het opslaan verliest de nog niet geüploade foto.
+
+Deze oorzaak is op 17 september 2026 bevestigd met een live, niet-mutatieve
+controle: de fotofunctie gaf `404 NOT_FOUND`, terwijl de databasefunctie
+`game_night_guest_face_access` wel aanwezig was en toegang zonder gastcode correct
+weigerde. Beheerderstoegang tot Supabase is nodig om de Edge Function te deployen.
+
 De outfitcatalogus blijft dezelfde databasecatalogus als voor de bestaande
 creator. Nieuwe bestanden worden met `npm run game-night:generate-assets`
 geïnventariseerd; de bestaande `supabase/generated/game_night_custom_bodies.sql`
