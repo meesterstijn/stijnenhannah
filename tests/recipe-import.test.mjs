@@ -1,0 +1,32 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import ts from "typescript";
+
+const source = readFileSync(new URL("../src/lib/recipe-import.ts", import.meta.url), "utf8");
+const { outputText } = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } });
+const { parseRecipe, recipeServings } = await import(`data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`);
+
+const recipe = parseRecipe("```markdown\r\n# Pasta\r\n**Tijd:** 25 min\r\n**Personen:** 2\r\n## Ingrediënten\r\n- 200 g pasta\r\n- ½ tl zout\r\n## Bereiding\r\n1. Kook de pasta.\r\n2. Voeg zout toe.\r\n```");
+assert.deepEqual(recipe, { title: "Pasta", time: "25 min", servings: "2", ingredients: "200 g pasta\n½ tl zout", steps: "1. Kook de pasta.\n2. Voeg zout toe.", category: "Gerechten" });
+const plain = parseRecipe("Soep\nVoor 4 personen\nIngrediënten:\n• 1 ui\nBereidingswijze:\nSnijd de ui.");
+assert.equal(plain.servings, "4");
+assert.equal(plain.ingredients, "1 ui");
+assert.equal(plain.steps, "Snijd de ui.");
+const incomplete = parseRecipe("Mijn gerecht\nEen vrije beschrijving\nMet nog een regel");
+assert.equal(incomplete.ingredients, "");
+assert.equal(incomplete.servings, "");
+assert.equal(incomplete.steps, "Een vrije beschrijving\nMet nog een regel");
+assert.equal(parseRecipe("Hier is je recept:\n# Curry\n## Ingredients\n- rice\n## Instructions\nCook.").title, "Curry");
+assert.equal(parseRecipe("# Brood\n- **Tijd:** 2 uur\nCategorie: Brood").category, "Brood");
+assert.equal(parseRecipe("# Brood\n- **Tijd:** 2 uur").time, "2 uur");
+assert.equal(recipeServings("2"), 2);
+assert.equal(recipeServings(""), undefined);
+for (const invalid of ["0", "-1", "2 personen", "2.5", "Infinity", "2147483648"]) assert.throws(() => recipeServings(invalid));
+const ingredientSource = readFileSync(new URL("../src/lib/ingredients.ts", import.meta.url), "utf8");
+const ingredientCode = ts.transpileModule(ingredientSource, { compilerOptions: { module: ts.ModuleKind.ESNext } }).outputText;
+const { textToIngredients, ingredientsToText } = await import(`data:text/javascript;base64,${Buffer.from(ingredientCode).toString("base64")}`);
+const parsedIngredients = textToIngredients(recipe.ingredients);
+assert.deepEqual(parsedIngredients, [{ amount: "200 g", name: "pasta" }, { amount: "½ tl", name: "zout" }]);
+assert.deepEqual(textToIngredients(ingredientsToText(parsedIngredients)), parsedIngredients);
+assert.deepEqual(textToIngredients("2 eieren\npeper naar smaak\n1 1/2 el olie"), [{ amount: "2", name: "eieren" }, { amount: "", name: "peper naar smaak" }, { amount: "1 1/2 el", name: "olie" }]);
+console.log("Recipe import checks passed.");

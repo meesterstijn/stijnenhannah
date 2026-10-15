@@ -11,6 +11,8 @@ import {
 } from "@/components/ui/dialog";
 import { HistoryPicker } from "@/components/history-picker";
 import { KitchenTimer } from "@/components/kitchen-timer";
+import { RecipeImport } from "@/components/recipe-import";
+import { recipeServings } from "@/lib/recipe-import";
 import {
   type Ingredient,
   ingredientsToText,
@@ -27,7 +29,7 @@ import {
   Plus, Clock, Users, Trash2, ChefHat, Loader2, X, Check, ShoppingBasket, Pencil, Download,
 } from "lucide-react";
 
-const RECIPE_CATEGORIES = ["Brood", "Gebak", "Gerechten"] as const;
+const RECIPE_CATEGORIES = ["Brood", "Gebak", "Gerechten", "Saus"] as const;
 type RecipeCategory = typeof RECIPE_CATEGORIES[number];
 
 const empty = { title: "", time: "", servings: "", ingredients: "", steps: "", category: "Gerechten" };
@@ -184,6 +186,9 @@ export default function Recepten() {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(empty);
+  const [importStage, setImportStage] = useState<"input" | "review">("input");
+  const [imported, setImported] = useState(false);
+  const [savedFeedback, setSavedFeedback] = useState(false);
   const [ingredientList, setIngredientList] = useState<Ingredient[]>([]);
   const [view, setView] = useState<Recipe | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -196,9 +201,12 @@ export default function Recepten() {
   const [editDraft, setEditDraft] = useState(empty);
   const [editIngredients, setEditIngredients] = useState<Ingredient[]>([]);
 
-  const { data: recipes = [], isLoading } = useQuery({
+  const { data: recipes = [], isLoading, isError, refetch } = useQuery({
     queryKey: ["recipes"],
     queryFn: fetchRecipes,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   });
 
   function handleExport() {
@@ -218,18 +226,25 @@ export default function Recepten() {
 
   const addRecipe = useMutation({
     mutationFn: async (recipe: typeof empty) => {
+      if (!session) throw new Error("Log opnieuw in om je recept op te slaan.");
       const { error } = await supabase.from("recipes").insert({
         ...recipe,
+        title: recipe.title.trim(),
+        servings: recipeServings(recipe.servings),
         created_by: session?.user.id,
       });
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["recipes"] });
+      queryClient.invalidateQueries({ queryKey: ["recipe-options"] });
       setDraft(empty);
       setIngredientList([]);
       setSaveError(null);
       setOpen(false);
+      setImportStage("input");
+      setImported(false);
+      setSavedFeedback(true);
     },
     onError: (err: Error) => setSaveError(err.message),
   });
@@ -247,11 +262,12 @@ export default function Recepten() {
 
   const updateRecipe = useMutation({
     mutationFn: async ({ id, ...fields }: { id: string } & typeof empty) => {
-      const { error } = await supabase.from("recipes").update(fields).eq("id", id);
+      const { error } = await supabase.from("recipes").update({ ...fields, servings: recipeServings(fields.servings) }).eq("id", id);
       if (error) throw error;
     },
     onSuccess: (_, { id, ...fields }) => {
       queryClient.invalidateQueries({ queryKey: ["recipes"] });
+      queryClient.invalidateQueries({ queryKey: ["recipe-options"] });
       setView((prev) => (prev && prev.id === id ? { ...prev, ...fields } : prev));
       setEditMode(false);
       setSaveError(null);
@@ -275,8 +291,10 @@ export default function Recepten() {
   });
 
   function handleOpenDialog(val: boolean) {
+    if (addRecipe.isPending) return;
     setOpen(val);
-    if (!val) { setDraft(empty); setIngredientList([]); }
+    setSaveError(null);
+    if (val) setSavedFeedback(false);
   }
 
   function addIngredientFromHistory(names: string[]) {
@@ -306,7 +324,7 @@ export default function Recepten() {
     setEditDraft({
       title: view.title,
       time: view.time || "",
-      servings: view.servings || "",
+      servings: String(view.servings || ""),
       ingredients: view.ingredients || "",
       steps: view.steps || "",
       category: view.category || "Gerechten",
@@ -364,11 +382,32 @@ export default function Recepten() {
               <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle className="font-serif text-2xl">
-                    Nieuw recept
+                    {importStage === "input" ? "Nieuw recept" : "Controleer je recept"}
                   </DialogTitle>
                 </DialogHeader>
-                <div className="space-y-4">
+                <div hidden={importStage !== "input"}>
+                  <RecipeImport onImport={(recipe) => {
+                    setDraft(recipe);
+                    setIngredientList(textToIngredients(recipe.ingredients));
+                    setImported(true);
+                    setImportStage("review");
+                    setSaveError(null);
+                  }} onManual={() => { setImported(false); setImportStage("review"); }} />
+                </div>
+                {importStage === "review" && <>
+                <p className="text-sm text-muted-foreground">Controleer de velden hieronder. Na opslaan staat je recept in Supabase en kun je het op je andere apparaten openen.</p>
+                {imported && (!draft.title || !ingredientList.length || !draft.steps || !draft.time || !draft.servings) && (
+                  <p role="status" className="text-sm rounded-xl bg-muted p-3">Niet alles is herkend. Controleer vooral: {[
+                    !draft.title && "titel", !ingredientList.length && "ingrediënten", !draft.steps && "bereiding", !draft.time && "tijd", !draft.servings && "personen",
+                  ].filter(Boolean).join(", ")}. Ontbrekende tijd en personen mag je leeg laten; zonder personen gebruikt de database de standaard van 4.</p>
+                )}
+                {draft.title.trim() && recipes.some((recipe) => recipe.title.trim().toLocaleLowerCase() === draft.title.trim().toLocaleLowerCase()) && (
+                  <p role="status" className="text-sm rounded-xl bg-muted p-3">Er bestaat al een recept met deze naam. Controleer of je het nogmaals wilt toevoegen.</p>
+                )}
+                <fieldset disabled={addRecipe.isPending} className="space-y-4">
+                  <label htmlFor="recipe-title" className="block text-sm font-medium">Naam van het gerecht</label>
                   <Input
+                    id="recipe-title"
                     placeholder="Naam van het gerecht"
                     value={draft.title}
                     onChange={(e) =>
@@ -380,20 +419,21 @@ export default function Recepten() {
                     onChange={(cat) => setDraft({ ...draft, category: cat })}
                   />
                   <div className="grid grid-cols-2 gap-3">
-                    <Input
+                    <label className="space-y-1 text-sm">Tijd<Input
                       placeholder="Tijd (bv. 30 min)"
                       value={draft.time}
                       onChange={(e) =>
                         setDraft({ ...draft, time: e.target.value })
                       }
-                    />
-                    <Input
+                    /></label>
+                    <label className="space-y-1 text-sm">Personen<Input
+                      type="number" min="1" step="1"
                       placeholder="Personen (bv. 2)"
                       value={draft.servings}
                       onChange={(e) =>
                         setDraft({ ...draft, servings: e.target.value })
                       }
-                    />
+                    /></label>
                   </div>
 
                   <IngredientsEditor
@@ -402,7 +442,8 @@ export default function Recepten() {
                     onPickFromHistory={() => openPicker("add")}
                   />
 
-                  <Textarea
+                  <label htmlFor="recipe-steps" className="block text-sm font-medium">Bereiding</label>
+                  <Textarea id="recipe-steps"
                     placeholder="Bereiding"
                     rows={5}
                     value={draft.steps}
@@ -410,11 +451,12 @@ export default function Recepten() {
                       setDraft({ ...draft, steps: e.target.value })
                     }
                   />
-                </div>
+                </fieldset>
                 {saveError && (
-                  <p className="text-sm text-destructive">{saveError}</p>
+                  <p role="alert" className="text-sm text-destructive">Opslaan is niet gelukt. Je recept blijft hier staan. {saveError}</p>
                 )}
                 <DialogFooter>
+                  <Button variant="ghost" disabled={addRecipe.isPending} onClick={() => setImportStage("input")}>Terug naar invoer</Button>
                   <Button
                     onClick={handleSave}
                     disabled={!draft.title.trim() || addRecipe.isPending}
@@ -423,15 +465,18 @@ export default function Recepten() {
                     {addRecipe.isPending ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
-                      "Opslaan"
+                      "Recept opslaan"
                     )}
                   </Button>
                 </DialogFooter>
+                </>}
               </DialogContent>
             </Dialog>
           </>
         }
       />
+
+      {savedFeedback && <p role="status" className="text-sm text-primary">Je recept is opgeslagen en beschikbaar op je andere apparaten wanneer je bent ingelogd.</p>}
 
       <ModernSection title="Keukentimers">
         <div className="grid grid-cols-3 gap-2 sm:gap-4">
@@ -460,7 +505,9 @@ export default function Recepten() {
           </div>
         )}
 
-        {isLoading ? (
+        {isError ? (
+          <div role="alert" className="space-y-2 text-sm"><p>Je recepten konden niet worden geladen. Controleer je verbinding.</p><Button variant="outline" onClick={() => refetch()}>Opnieuw proberen</Button></div>
+        ) : isLoading ? (
           <div className="flex justify-center text-muted-foreground py-12">
             <Loader2 className="h-5 w-5 animate-spin" />
           </div>
