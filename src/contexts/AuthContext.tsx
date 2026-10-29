@@ -87,14 +87,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // opgeslagen sessie wachten we daarom maximaal OFFLINE_GRACE_MS en gaan
     // dan offline verder; het latere antwoord van getSession wint alsnog.
     let settled = false;
-    const graceTimer = setTimeout(() => {
+    const goOffline = () => {
       if (settled) return;
       const stored = readStoredSession();
       if (!stored) return;
       setSession(stored);
       setIsOfflineSession(true);
       setLoading(false);
-    }, OFFLINE_GRACE_MS);
+    };
+    // Weet de browser al dat er geen netwerk is en is het token verlopen,
+    // dan niet wachten maar meteen offline verder.
+    const stored = navigator.onLine === false ? readStoredSession() : null;
+    if (stored && (stored.expires_at ?? 0) * 1000 < Date.now()) goOffline();
+    const graceTimer = setTimeout(goOffline, OFFLINE_GRACE_MS);
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       settled = true;

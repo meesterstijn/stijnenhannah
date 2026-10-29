@@ -34,6 +34,17 @@
   --chart-4: oklch(0.72 0.04 230);
   --chart-5: oklch(0.85 0.04 85);
 
+  /* Grafiekreeksen, vaste volgorde (gevalideerd op kleurenblindheid en
+     contrast op het donkere oppervlak, zie docs/schietsport.md). Identiteit:
+     1 = officiële wedstrijd, 2 = oefenwedstrijd, 3 = vrije kaart. */
+  --ss-series-1: #c8702f;
+  --ss-series-2: #3987e5;
+  --ss-series-3: #199e70;
+  --ss-series-4: #c98500;
+  --ss-series-5: #d55181;
+  --ss-series-6: #9085e9;
+  --ss-grid: oklch(1 0 0 / 0.07);
+
   /* Eigen accenten */
   --ss-copper: oklch(0.7 0.115 58);
   --ss-amber: oklch(0.82 0.13 78);

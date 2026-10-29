@@ -57,7 +57,7 @@ export default function SchietsportWapens() {
           />
         </Panel>
       ) : (
-        <div className="grid gap-3 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
           {active.map((weapon) => (
             <WeaponCard key={weapon.id} weapon={weapon} sessions={sessions} />
           ))}

@@ -143,27 +143,21 @@ export function QuickAction({
   icon: Icon,
   title,
   detail,
-  accent = "copper",
+  iconClassName = "text-foreground bg-white/5",
 }: {
   to: string;
   icon: LucideIcon;
   title: string;
   detail: string;
-  accent?: "copper" | "amber" | "olive" | "neutral";
+  iconClassName?: string;
 }) {
-  const iconColor = {
-    copper: "text-[var(--ss-copper)] bg-[oklch(0.7_0.115_58/0.14)]",
-    amber: "text-[var(--ss-amber)] bg-[oklch(0.82_0.13_78/0.12)]",
-    olive: "text-[var(--ss-olive)] bg-[oklch(0.66_0.09_118/0.14)]",
-    neutral: "text-foreground bg-white/5",
-  }[accent];
   return (
     <Link
       to={to}
       className="ss-card ss-card-interactive flex items-center gap-3 p-3.5 sm:flex-col sm:items-start sm:gap-3 sm:p-4"
     >
       <span
-        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconColor}`}
+        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconClassName}`}
       >
         <Icon className="h-5 w-5" strokeWidth={1.8} />
       </span>

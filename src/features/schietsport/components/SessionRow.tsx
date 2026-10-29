@@ -22,18 +22,21 @@ export const TYPE_STYLE: Record<
 > = {
   match: {
     icon: Trophy,
-    className: "text-[var(--ss-copper)] bg-[oklch(0.7_0.115_58/0.14)]",
-    color: "var(--ss-copper)",
+    className:
+      "text-[var(--ss-series-1)] bg-[color-mix(in_oklab,var(--ss-series-1)_16%,transparent)]",
+    color: "var(--ss-series-1)",
   },
   practice_match: {
     icon: Layers,
-    className: "text-[var(--ss-olive)] bg-[oklch(0.66_0.09_118/0.14)]",
-    color: "var(--ss-olive)",
+    className:
+      "text-[var(--ss-series-2)] bg-[color-mix(in_oklab,var(--ss-series-2)_16%,transparent)]",
+    color: "var(--ss-series-2)",
   },
   free_card: {
     icon: Target,
-    className: "text-[var(--ss-amber)] bg-[oklch(0.82_0.13_78/0.12)]",
-    color: "var(--ss-amber)",
+    className:
+      "text-[var(--ss-series-3)] bg-[color-mix(in_oklab,var(--ss-series-3)_16%,transparent)]",
+    color: "var(--ss-series-3)",
   },
 };
 

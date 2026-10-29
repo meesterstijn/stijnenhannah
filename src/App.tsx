@@ -152,6 +152,15 @@ const SchietsportSessieDetail = lazy(
 const SchietsportSessieBewerken = lazy(
   () => import("@/pages/schietsport/SchietsportSessieBewerken"),
 );
+const SchietsportWapenDetail = lazy(
+  () => import("@/pages/schietsport/SchietsportWapenDetail"),
+);
+const SchietsportWapensVergelijken = lazy(
+  () => import("@/pages/schietsport/SchietsportWapensVergelijken"),
+);
+const SchietsportCompetitieDetail = lazy(
+  () => import("@/pages/schietsport/SchietsportCompetitieDetail"),
+);
 const SchietsportCompetities = lazy(
   () => import("@/pages/schietsport/SchietsportCompetities"),
 );
@@ -340,7 +349,19 @@ function AppRoutes() {
                 element={<SchietsportStatistieken />}
               />
               <Route path="wapens" element={<SchietsportWapens />} />
+              <Route
+                path="wapens/vergelijken"
+                element={<SchietsportWapensVergelijken />}
+              />
+              <Route
+                path="wapens/:id"
+                element={<SchietsportWapenDetail />}
+              />
               <Route path="competities" element={<SchietsportCompetities />} />
+              <Route
+                path="competities/:id"
+                element={<SchietsportCompetitieDetail />}
+              />
               <Route
                 path="instellingen"
                 element={<SchietsportInstellingen />}

@@ -143,11 +143,13 @@ export function FilterBar({
   onChange,
   showCompetition = false,
   showTypes = true,
+  showWeapons = true,
 }: {
   filter: UiFilter;
   onChange: (filter: UiFilter) => void;
   showCompetition?: boolean;
   showTypes?: boolean;
+  showWeapons?: boolean;
 }) {
   const weapons = useWeapons({ includeArchived: true }) ?? [];
   const disciplines = useDisciplines({ includeArchived: true }) ?? [];
@@ -169,34 +171,36 @@ export function FilterBar({
 
   return (
     <div className="-mx-4 flex items-center gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
-      <Chip
-        label="Wapen"
-        summary={summarize(filter.weaponIds.map(weaponName))}
-        active={filter.weaponIds.length > 0}
-      >
-        {weapons.map((weapon) => (
+      {showWeapons && (
+        <Chip
+          label="Wapen"
+          summary={summarize(filter.weaponIds.map(weaponName))}
+          active={filter.weaponIds.length > 0}
+        >
+          {weapons.map((weapon) => (
+            <Option
+              key={weapon.id}
+              checked={filter.weaponIds.includes(weapon.id)}
+              onClick={() =>
+                set({ weaponIds: toggle(filter.weaponIds, weapon.id) })
+              }
+            >
+              {weapon.name}
+              {weapon.archivedAt && (
+                <span className="text-muted-foreground"> · archief</span>
+              )}
+            </Option>
+          ))}
           <Option
-            key={weapon.id}
-            checked={filter.weaponIds.includes(weapon.id)}
+            checked={filter.weaponIds.includes(UNKNOWN_WEAPON)}
             onClick={() =>
-              set({ weaponIds: toggle(filter.weaponIds, weapon.id) })
+              set({ weaponIds: toggle(filter.weaponIds, UNKNOWN_WEAPON) })
             }
           >
-            {weapon.name}
-            {weapon.archivedAt && (
-              <span className="text-muted-foreground"> · archief</span>
-            )}
+            Onbekend / geleend zonder profiel
           </Option>
-        ))}
-        <Option
-          checked={filter.weaponIds.includes(UNKNOWN_WEAPON)}
-          onClick={() =>
-            set({ weaponIds: toggle(filter.weaponIds, UNKNOWN_WEAPON) })
-          }
-        >
-          Onbekend / geleend zonder profiel
-        </Option>
-      </Chip>
+        </Chip>
+      )}
 
       <Chip
         label="Afstand"

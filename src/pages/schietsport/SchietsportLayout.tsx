@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import "@/features/schietsport/schietsport.css";
 import { SchietsportSidebar } from "@/features/schietsport/components/SchietsportSidebar";
@@ -13,6 +14,17 @@ import { Toaster } from "@/components/ui/sonner";
 // Full-bleed (SiteLayout geeft hier geen container), zodat het donkere
 // thema de hele viewport vult.
 export default function SchietsportLayout() {
+  // Donkere paginaachtergrond (ook bij overscroll en in de iOS-statusbalk)
+  // zolang de module open is; daarna weer zoals de rest van de site.
+  useEffect(() => {
+    const html = document.documentElement;
+    const previous = html.style.backgroundColor;
+    html.style.backgroundColor = "#121210";
+    return () => {
+      html.style.backgroundColor = previous;
+    };
+  }, []);
+
   return (
     <SchietsportProvider>
       <div className="schietsport-theme min-h-dvh">
@@ -20,7 +32,7 @@ export default function SchietsportLayout() {
           <div className="md:hidden">
             <SchietsportMobileTopBar />
           </div>
-          <div className="grid gap-8 md:grid-cols-[210px_1fr] lg:grid-cols-[230px_1fr]">
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-[210px_minmax(0,1fr)] lg:grid-cols-[230px_minmax(0,1fr)]">
             <div className="hidden md:block">
               <SchietsportSidebar />
             </div>

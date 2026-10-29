@@ -371,3 +371,28 @@ export async function saveDraft(
 export async function deleteDraft(db: SchietsportDatabase, id: string) {
   await db.drafts.delete(id);
 }
+
+// ── Geweigerde wijziging weggooien ───────────────────────────────────
+
+// Een door de server geweigerde wijziging laten vallen: nooit
+// gesynchroniseerde records verdwijnen lokaal; van bestaande records wordt
+// bij de volgende sync de serverversie opnieuw opgehaald.
+export async function discardLocalChange(
+  db: SchietsportDatabase,
+  entity: EntityName,
+  id: string,
+) {
+  const table = db.entityTable(entity);
+  await db.transaction("rw", table, db.outbox, db.meta, async () => {
+    const record = await table.get(id);
+    await db.outbox.delete(id);
+    if (!record) return;
+    if (record.version === 0) {
+      await table.delete(id);
+    } else {
+      await table.update(id, { syncState: "synced", syncError: null } as never);
+      await db.meta.put({ key: "cursor", value: 0 });
+    }
+  });
+  notifyChange();
+}

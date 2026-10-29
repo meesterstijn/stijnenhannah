@@ -104,8 +104,8 @@ export function CardEditor({
               aria-pressed={card.mode === mode}
               className={`rounded-md px-2.5 py-1.5 transition-colors ${
                 card.mode === mode
-                  ? "bg-white/10 text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
+                  ? "bg-[oklch(0.7_0.115_58/0.2)] text-foreground shadow-[inset_0_0_0_1px_oklch(0.7_0.115_58/0.55)]"
+                  : "bg-transparent text-muted-foreground hover:text-foreground"
               }`}
             >
               {mode === "score" ? "Score" : "Schoten"}
