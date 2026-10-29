@@ -1,13 +1,14 @@
-import { readFile } from "node:fs/promises";
-import { PGlite } from "@electric-sql/pglite";
+import type { PGlite } from "@electric-sql/pglite";
 import { beforeAll, describe, expect, it } from "vitest";
+import {
+  OWNER_A as A,
+  OWNER_B as B,
+  R6_PLAYER as R6,
+  createSchietsportTestDb,
+  runAs,
+} from "./harness";
 
-// Draait de echte Schietsport-migratie in lokale PostgreSQL (PGlite/WASM),
-// met alleen de omliggende Supabase-onderdelen gestubd. Nooit productie.
-
-const A = "a0000000-0000-4000-8000-00000000000a"; // owner
-const B = "b0000000-0000-4000-8000-00000000000b"; // tweede owner
-const R6 = "c0000000-0000-4000-8000-00000000000c"; // r6_player
+// Draait de echte Schietsport-migratie in lokale PostgreSQL (PGlite/WASM).
 
 const uuid = (n: number) =>
   `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
@@ -16,21 +17,11 @@ let db: PGlite;
 let counter = 1000;
 const nextId = () => uuid(++counter);
 
-async function as<T = Record<string, unknown>>(
+const as = <T = Record<string, unknown>>(
   user: string | null,
   sql: string,
   params: unknown[] = [],
-): Promise<T[]> {
-  await db.query("select set_config('request.jwt.claim.sub', $1, false)", [
-    user ?? "",
-  ]);
-  await db.exec(`set role ${user ? "authenticated" : "anon"}`);
-  try {
-    return (await db.query<T>(sql, params)).rows;
-  } finally {
-    await db.exec("reset role");
-  }
-}
+) => runAs<T>(db, user, sql, params);
 
 type PushResult = { status: "ok" | "conflict"; row: Record<string, unknown> };
 
@@ -101,38 +92,7 @@ let dA: string; // discipline van A
 let dB: string; // discipline van B
 
 beforeAll(async () => {
-  db = new PGlite();
-  await db.exec(`
-    create role anon; create role authenticated; create role service_role;
-    create schema auth; create schema private; create schema storage;
-    grant usage on schema public, auth, private, storage to anon, authenticated;
-    create table auth.users (id uuid primary key);
-    create table public.profiles (id uuid primary key, app_role text);
-    create function auth.uid() returns uuid language sql stable as
-      $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
-    create function private.current_app_role() returns text language sql stable
-      security definer set search_path = '' as
-      $$ select app_role from public.profiles where id = auth.uid() $$;
-    create function private.storage_first_segment_uuid(path text) returns uuid
-      language plpgsql stable as
-      $$ begin return split_part(path, '/', 1)::uuid; exception when others then return null; end $$;
-    create table storage.buckets (id text primary key, name text, public boolean,
-      file_size_limit bigint, allowed_mime_types text[]);
-    create table storage.objects (id uuid default gen_random_uuid(), bucket_id text, name text);
-    alter table storage.objects enable row level security;
-    grant select, insert, update, delete on storage.objects to authenticated;
-    insert into auth.users values ('${A}'), ('${B}'), ('${R6}');
-    insert into public.profiles values ('${A}', 'owner'), ('${B}', 'owner'), ('${R6}', 'r6_player');
-  `);
-  await db.exec(
-    await readFile(
-      new URL(
-        "../../supabase/migrations/20261029000000_schietsport.sql",
-        import.meta.url,
-      ),
-      "utf8",
-    ),
-  );
+  db = await createSchietsportTestDb();
   dA = nextId();
   dB = nextId();
   await push(A, "discipline", discipline(dA));

@@ -1,11 +1,15 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
-import tsconfigPaths from "vite-tsconfig-paths";
 
 // Los van vite.config.ts zodat de PWA-plugin en asset-generatie niet
 // meedraaien bij unit tests. Unit tests staan naast de code
-// (src/**/*.test.ts); databasetests (PGlite) in tests/**/*.test.ts.
+// (src/**/*.test.ts); database- en synctests (PGlite) in tests/**/*.test.ts.
+// Expliciete @-alias i.p.v. vite-tsconfig-paths: die werkt alleen voor
+// bestanden binnen tsconfig's include (src/), niet voor tests/.
 export default defineConfig({
-  plugins: [tsconfigPaths()],
+  resolve: {
+    alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
+  },
   test: {
     include: ["src/**/*.test.ts", "tests/**/*.test.ts"],
     testTimeout: 30000,

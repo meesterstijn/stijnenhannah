@@ -25,10 +25,7 @@ export function SchietsportPlaceholder({
         description={description}
       />
       <Panel title="Nog in aanbouw">
-        <PanelEmpty
-          icon={Hammer}
-          text={`Dit onderdeel komt in ${comingIn}.`}
-        />
+        <PanelEmpty icon={Hammer} text={`Dit onderdeel komt in ${comingIn}.`} />
       </Panel>
     </div>
   );

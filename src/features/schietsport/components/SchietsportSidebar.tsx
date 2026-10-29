@@ -5,6 +5,7 @@ import {
   SCHIETSPORT_NEW_PATH,
   isNavItemActive,
 } from "@/features/schietsport/nav";
+import { SyncIndicator } from "@/features/schietsport/components/SyncIndicator";
 
 // Desktop-navigatie: vaste linkerkolom, zelfde opzet als GitaarLayout's
 // sidebar. De generieke SiteLayout-header staat voor /schietsport uit, dus
@@ -46,7 +47,9 @@ export function SchietsportSidebar() {
             <Link
               key={item.to}
               to={item.to}
-              aria-current={isNavItemActive(item, pathname) ? "page" : undefined}
+              aria-current={
+                isNavItemActive(item, pathname) ? "page" : undefined
+              }
               className="ss-nav-link"
             >
               <Icon className="h-4 w-4" strokeWidth={1.8} />
@@ -55,6 +58,10 @@ export function SchietsportSidebar() {
           );
         })}
       </nav>
+
+      <div className="border-t border-white/10 pt-4">
+        <SyncIndicator />
+      </div>
     </aside>
   );
 }

@@ -12,6 +12,7 @@ import {
   SCHIETSPORT_NEW_PATH,
   isNavItemActive,
 } from "@/features/schietsport/nav";
+import { SyncIndicator } from "@/features/schietsport/components/SyncIndicator";
 
 const primary = SCHIETSPORT_NAV.filter((item) => item.mobilePrimary);
 const secondary = SCHIETSPORT_NAV.filter((item) => !item.mobilePrimary);
@@ -38,44 +39,47 @@ export function SchietsportMobileTopBar() {
           Schietsport
         </span>
       </div>
-      <Sheet open={open} onOpenChange={setOpen}>
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          aria-label="Meer"
-          className={roundButton}
-        >
-          <Menu className="h-[18px] w-[18px]" />
-        </button>
-        {/* Portal buiten de layout: thema-klasse hier opnieuw zetten. */}
-        <SheetContent
-          side="bottom"
-          className="schietsport-theme rounded-t-3xl border-white/10 pb-10"
-        >
-          <SheetHeader>
-            <SheetTitle className="text-left">Meer</SheetTitle>
-          </SheetHeader>
-          <nav className="mt-2 flex flex-col gap-1">
-            {secondary.map((item) => {
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  onClick={() => setOpen(false)}
-                  aria-current={
-                    isNavItemActive(item, pathname) ? "page" : undefined
-                  }
-                  className="ss-nav-link py-3 text-base"
-                >
-                  <Icon className="h-5 w-5" strokeWidth={1.8} />
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
-        </SheetContent>
-      </Sheet>
+      <div className="flex items-center gap-2">
+        <SyncIndicator compact />
+        <Sheet open={open} onOpenChange={setOpen}>
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            aria-label="Meer"
+            className={roundButton}
+          >
+            <Menu className="h-[18px] w-[18px]" />
+          </button>
+          {/* Portal buiten de layout: thema-klasse hier opnieuw zetten. */}
+          <SheetContent
+            side="bottom"
+            className="schietsport-theme rounded-t-3xl border-white/10 pb-10"
+          >
+            <SheetHeader>
+              <SheetTitle className="text-left">Meer</SheetTitle>
+            </SheetHeader>
+            <nav className="mt-2 flex flex-col gap-1">
+              {secondary.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    onClick={() => setOpen(false)}
+                    aria-current={
+                      isNavItemActive(item, pathname) ? "page" : undefined
+                    }
+                    className="ss-nav-link py-3 text-base"
+                  >
+                    <Icon className="h-5 w-5" strokeWidth={1.8} />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </nav>
+          </SheetContent>
+        </Sheet>
+      </div>
     </div>
   );
 }
