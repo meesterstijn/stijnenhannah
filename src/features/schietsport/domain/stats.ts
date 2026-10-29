@@ -71,11 +71,11 @@ export function resolvePeriod(
   }
 }
 
-export function filterSessions(
-  sessions: readonly ShootingSession[],
+export function filterSessions<T extends ShootingSession>(
+  sessions: readonly T[],
   filter: SessionFilter,
   competitionEntries: readonly CompetitionEntry[] = [],
-): ShootingSession[] {
+): T[] {
   const inCompetition = filter.competitionId
     ? new Set(
         competitionEntries
@@ -106,9 +106,9 @@ export function filterSessions(
 
 // ── Basis ──────────────────────────────────────────────────────────────
 
-export function sortChronological(
-  sessions: readonly ShootingSession[],
-): ShootingSession[] {
+export function sortChronological<T extends ShootingSession>(
+  sessions: readonly T[],
+): T[] {
   return [...sessions].sort(
     (a, b) =>
       a.sessionDate.localeCompare(b.sessionDate) ||

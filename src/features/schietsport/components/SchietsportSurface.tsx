@@ -52,14 +52,21 @@ export function SchietsportPageHeader({
   title,
   description,
   actions,
+  hideOnMobile = false,
 }: {
   icon: LucideIcon;
   title: string;
   description?: string;
   actions?: ReactNode;
+  // Op mobiel weglaten waar snelheid telt (invoerscherm): de bovenbalk zegt
+  // al waar je bent.
+  hideOnMobile?: boolean;
 }) {
   return (
-    <header className="ss-hero" style={heroStyle}>
+    <header
+      className={`ss-hero ${hideOnMobile ? "hidden md:block" : ""}`}
+      style={heroStyle}
+    >
       <div className="ss-hero-media" aria-hidden />
       <div className="relative flex flex-wrap items-center justify-between gap-4 p-5 sm:px-7 sm:py-6">
         <div className="flex min-w-0 items-center gap-3.5">

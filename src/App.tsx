@@ -146,6 +146,12 @@ const SchietsportStatistieken = lazy(
 const SchietsportWapens = lazy(
   () => import("@/pages/schietsport/SchietsportWapens"),
 );
+const SchietsportSessieDetail = lazy(
+  () => import("@/pages/schietsport/SchietsportSessieDetail"),
+);
+const SchietsportSessieBewerken = lazy(
+  () => import("@/pages/schietsport/SchietsportSessieBewerken"),
+);
 const SchietsportCompetities = lazy(
   () => import("@/pages/schietsport/SchietsportCompetities"),
 );
@@ -321,6 +327,14 @@ function AppRoutes() {
               <Route index element={<SchietsportDashboard />} />
               <Route path="nieuw" element={<SchietsportNieuw />} />
               <Route path="logboek" element={<SchietsportLogboek />} />
+              <Route
+                path="logboek/:id"
+                element={<SchietsportSessieDetail />}
+              />
+              <Route
+                path="logboek/:id/bewerken"
+                element={<SchietsportSessieBewerken />}
+              />
               <Route
                 path="statistieken"
                 element={<SchietsportStatistieken />}

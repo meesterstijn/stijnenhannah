@@ -76,14 +76,28 @@ export function classifyError(error: {
 }
 
 const PHOTO_BUCKET = "shooting-weapon-photos";
+const REQUEST_TIMEOUT_MS = 15_000;
 
 export function createSupabaseTransport(client: SupabaseClient): SyncTransport {
   const call = async <T>(fn: string, args: Row): Promise<T> => {
     let result;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
-      result = await client.rpc(fn, args);
+      // Time-out: bij slecht bereik of een tokenrefresh die blijft hangen
+      // liever snel "offline" melden en later opnieuw proberen.
+      result = await Promise.race([
+        client.rpc(fn, args),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(
+            () => reject(new Error("Time-out")),
+            REQUEST_TIMEOUT_MS,
+          );
+        }),
+      ]);
     } catch (error) {
       throw new SyncError("network", String(error));
+    } finally {
+      clearTimeout(timer);
     }
     if (result.error) {
       throw classifyError({ ...result.error, status: result.status });

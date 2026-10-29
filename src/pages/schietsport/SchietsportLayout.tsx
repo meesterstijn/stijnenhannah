@@ -6,6 +6,7 @@ import {
   SchietsportMobileTopBar,
 } from "@/features/schietsport/components/SchietsportMobileNav";
 import { SchietsportProvider } from "@/features/schietsport/hooks/SchietsportProvider";
+import { Toaster } from "@/components/ui/sonner";
 
 // Geneste layout voor /schietsport, zelfde opzet als GitaarLayout: desktop
 // een linkerkolom, mobiel een bovenbalk + vaste onderbalk met plusknop.
@@ -31,6 +32,7 @@ export default function SchietsportLayout() {
         <div className="md:hidden">
           <SchietsportBottomNav />
         </div>
+        <Toaster position="top-center" theme="dark" />
       </div>
     </SchietsportProvider>
   );

@@ -3,6 +3,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useSyncExternalStore,
   type ReactNode,
 } from "react";
@@ -35,7 +36,11 @@ const CHANGE_DEBOUNCE_MS = 800;
 // wanneer er gesynchroniseerd wordt: bij openen, na elke lokale wijziging,
 // bij terugkeer van het netwerk of de app, en periodiek.
 export function SchietsportProvider({ children }: { children: ReactNode }) {
-  const { session } = useAuth();
+  const { session, isOfflineSession } = useAuth();
+  // Met alleen een offline geldige sessie (verlopen token) heeft syncen geen
+  // zin; zodra het token ververst is wordt dit false en syncen we weer.
+  const offlineSessionRef = useRef(isOfflineSession);
+  offlineSessionRef.current = isOfflineSession;
   // SchietsportLayout staat binnen de ingelogde routes; session is er altijd.
   const userId = session!.user.id;
 
@@ -46,11 +51,17 @@ export function SchietsportProvider({ children }: { children: ReactNode }) {
       createSupabaseTransport(supabase),
       userId,
       {
-        isOnline: () => navigator.onLine !== false,
+        isOnline: () =>
+          navigator.onLine !== false && !offlineSessionRef.current,
       },
     );
     return { db, engine, userId };
   }, [userId]);
+
+  // Token weer geldig (netwerk terug): meteen synchroniseren.
+  useEffect(() => {
+    if (!isOfflineSession) void value.engine.sync();
+  }, [isOfflineSession, value]);
 
   useEffect(() => {
     const { db, engine } = value;
@@ -64,13 +75,10 @@ export function SchietsportProvider({ children }: { children: ReactNode }) {
     // (vooral iOS Safari). Mislukt stil als het niet kan.
     void navigator.storage?.persist?.().catch(() => undefined);
 
-    // Eerst synchroniseren (bestaande gegevens ophalen), dan pas eventueel
-    // de standaarddisciplines klaarzetten.
-    void engine.sync().then(async () => {
-      if (cancelled) return;
-      await ensureDefaultDisciplines(db, userId);
-      run();
-    });
+    // Standaarddisciplines meteen klaarzetten (ook offline bij het eerste
+    // gebruik), daarna synchroniseren. Veilig op meerdere apparaten: de ids
+    // zijn deterministisch en bij een conflict wint stil de server.
+    void ensureDefaultDisciplines(db, userId).then(run, run);
 
     const onVisible = () => {
       if (document.visibilityState === "visible") run();
@@ -96,10 +104,7 @@ export function SchietsportProvider({ children }: { children: ReactNode }) {
   // Bij wisselen van gebruiker de oude database sluiten. autoOpen blijft aan:
   // React StrictMode draait effecten in dev twee keer, en een volgende query
   // moet de database dan gewoon weer openen.
-  useEffect(
-    () => () => value.db.close({ disableAutoOpen: false }),
-    [value],
-  );
+  useEffect(() => () => value.db.close({ disableAutoOpen: false }), [value]);
 
   return (
     <SchietsportContext.Provider value={value}>
