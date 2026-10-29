@@ -37,7 +37,7 @@ export function competitionFigures(
       const standings = periodStandings(c, sessions, todayYmd());
       const totals = periodTotals(standings);
       return [
-        { label: "Totaal", value: totals.total, accent: true },
+        { label: "Eindstand", value: totals.total, accent: true },
         {
           label: "Periode",
           value: `${totals.current ? totals.current.index + 1 : "—"}/${standings.length}`,

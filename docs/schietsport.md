@@ -154,9 +154,9 @@ te passen.
     openen automatisch .22 LR (zolang de naam niet is aangepast); maak je het
     kaliber bewust leeg, dan komt .22 LR terug. Ook het tweede owner-account
     krijgt ze in zijn eigen lijst.
-22. **Puntenbord-totaal**: de vereniging gaf niet aan hoe de periodes tot één
-    eindstand worden gecombineerd; de app toont de som en het gemiddelde per
-    periode met score.
+22. **Puntenbord-eindstand** (bevestigd): de som van de beste score per
+    periode is de eindstand aan het eind van het jaar. Het gemiddelde per
+    periode wordt er als extra informatie naast getoond.
 23. **Periodes die al voorbij waren bij het aanmaken** van een competitie zijn
     “aan te vullen”: daar tellen ook later ingevoerde oude uitslagen en ze
     worden niet vastgezet. Zo kun je dit jaar alsnog compleet maken.
