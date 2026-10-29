@@ -11,7 +11,8 @@ import {
   useTrainingScheme,
 } from "@/features/training/components/TrainingChrome";
 
-const INTER = "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap";
+const INTER =
+  "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap";
 
 // Geneste layout voor /training: eigen boven- en onderbalk (met de link
 // terug naar Ons Huisje), full-bleed zodat de achtergrond de viewport vult.
@@ -43,7 +44,9 @@ function Shell() {
 
   return (
     <div className="training-theme min-h-dvh" data-tr-scheme={scheme}>
-      <div className={`mx-auto max-w-5xl px-4 sm:px-6 ${inWorkout ? "pb-8" : "pb-28 md:pb-12"}`}>
+      <div
+        className={`mx-auto max-w-5xl px-4 sm:px-6 ${inWorkout ? "pb-8" : "pb-28 md:pb-12"}`}
+      >
         {!inWorkout && <TopBar />}
         {!inWorkout && <OpenSessionBanner />}
         <Outlet />

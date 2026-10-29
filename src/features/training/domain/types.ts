@@ -32,7 +32,11 @@ export type ExerciseType = "compound" | "isolation" | "core" | "conditioning";
 //   bodyweight_reps herhalingen, optioneel met extra gewicht
 //   duration        tijd (bv. plank)
 //   jump_rope       tijd per ronde, optioneel aantal sprongen
-export type Tracking = "weight_reps" | "bodyweight_reps" | "duration" | "jump_rope";
+export type Tracking =
+  | "weight_reps"
+  | "bodyweight_reps"
+  | "duration"
+  | "jump_rope";
 
 // Hoe het gewicht geladen wordt (voor de schijvencalculator).
 //   barbell         lange stang, gewicht = totaal
@@ -237,7 +241,11 @@ export type PlateStock = { weightKg: number; count: number };
 
 export type EquipmentConfig = {
   // Gewicht onbekend = null; de calculator vraagt er dan om.
-  barbell: { owned: boolean; weightKg: number | null; maxLoadKg: number | null };
+  barbell: {
+    owned: boolean;
+    weightKg: number | null;
+    maxLoadKg: number | null;
+  };
   dumbbells: {
     count: number;
     handleWeightKg: number | null; // per stang

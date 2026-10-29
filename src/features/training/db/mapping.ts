@@ -6,7 +6,14 @@ import type { EntityName, LocalRecord } from "./database";
 
 type Row = Record<string, unknown>;
 
-const COMMON = ["id", "userId", "createdAt", "updatedAt", "deletedAt", "version"];
+const COMMON = [
+  "id",
+  "userId",
+  "createdAt",
+  "updatedAt",
+  "deletedAt",
+  "version",
+];
 
 const FIELDS: Record<EntityName, string[]> = {
   profile: [...COMMON, "settings", "equipment", "exercisePrefs"],
@@ -66,11 +73,16 @@ const TIMESTAMPS = new Set([
 ]);
 const NUMERIC = new Set(["weightKg", "rpe"]);
 
-const snake = (key: string) => RENAMES[key] ?? key.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
+const snake = (key: string) =>
+  RENAMES[key] ?? key.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
 
 // Push: de client stelt "basisversie + 1" voor; de server controleert dat
 // (zie training_touch in de migratie).
-export function toServerRow<E extends EntityName>(entity: E, record: LocalRecord<E>, changeId: string): Row {
+export function toServerRow<E extends EntityName>(
+  entity: E,
+  record: LocalRecord<E>,
+  changeId: string,
+): Row {
   const row: Row = {};
   const source = record as unknown as Row;
   for (const field of FIELDS[entity]) {
@@ -83,12 +95,16 @@ export function toServerRow<E extends EntityName>(entity: E, record: LocalRecord
 
 // Server → lokaal. Tijdstempels worden ISO met "Z" (sorteerbaar als tekst),
 // numeric-velden altijd number.
-export function fromServerRow<E extends EntityName>(entity: E, row: Row): LocalRecord<E> {
+export function fromServerRow<E extends EntityName>(
+  entity: E,
+  row: Row,
+): LocalRecord<E> {
   const record: Row = {};
   for (const field of FIELDS[entity]) {
     let value = row[snake(field)];
     if (value === undefined) value = null;
-    if (value !== null && TIMESTAMPS.has(field)) value = new Date(value as string).toISOString();
+    if (value !== null && TIMESTAMPS.has(field))
+      value = new Date(value as string).toISOString();
     if (value !== null && NUMERIC.has(field)) value = Number(value);
     record[field] = value;
   }

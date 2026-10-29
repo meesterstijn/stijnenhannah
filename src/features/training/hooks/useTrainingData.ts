@@ -1,7 +1,14 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { useCallback, useMemo } from "react";
-import { normalizeProfile, defaultProfile } from "@/features/training/domain/defaults";
-import { SYSTEM_EXERCISES, systemExercise, unknownExercise } from "@/features/training/domain/exercises";
+import {
+  normalizeProfile,
+  defaultProfile,
+} from "@/features/training/domain/defaults";
+import {
+  SYSTEM_EXERCISES,
+  systemExercise,
+  unknownExercise,
+} from "@/features/training/domain/exercises";
 import { buildHistoryIndex } from "@/features/training/domain/performance";
 import { toLocalDate } from "@/features/training/domain/schedule";
 import type {
@@ -25,7 +32,10 @@ export function useProfile(): Profile {
   const { db, userId } = useTraining();
   const stored = useLiveQuery(() => db.profiles.get(userId), [db, userId]);
   return useMemo(
-    () => normalizeProfile(stored ?? defaultProfile(userId, new Date(0).toISOString())),
+    () =>
+      normalizeProfile(
+        stored ?? defaultProfile(userId, new Date(0).toISOString()),
+      ),
     [stored, userId],
   );
 }
@@ -41,15 +51,24 @@ export function usePrograms(): Program[] | undefined {
   );
 }
 
-export function useProgram(id: string | null | undefined): Program | null | undefined {
+export function useProgram(
+  id: string | null | undefined,
+): Program | null | undefined {
   const { db } = useTraining();
-  return useLiveQuery(async () => (id ? ((await db.programs.get(id)) ?? null) : null), [db, id]);
+  return useLiveQuery(
+    async () => (id ? ((await db.programs.get(id)) ?? null) : null),
+    [db, id],
+  );
 }
 
 export function useActiveProgram(): Program | null | undefined {
   const profile = useProfile();
   const program = useProgram(profile.settings.activeProgramId);
-  return program && !program.deletedAt && !program.archivedAt ? program : program === undefined ? undefined : null;
+  return program && !program.deletedAt && !program.archivedAt
+    ? program
+    : program === undefined
+      ? undefined
+      : null;
 }
 
 export function useSessions(): TrainingSession[] | undefined {
@@ -68,10 +87,17 @@ export function useSets(): TrainingSet[] | undefined {
   return useLiveQuery(() => db.sets.toArray(), [db]);
 }
 
-export function useSessionSets(sessionId: string | null | undefined): TrainingSet[] | undefined {
+export function useSessionSets(
+  sessionId: string | null | undefined,
+): TrainingSet[] | undefined {
   const { db } = useTraining();
   return useLiveQuery(
-    async () => (sessionId ? (await db.sets.where("sessionId").equals(sessionId).toArray()).filter((s) => !s.deletedAt) : []),
+    async () =>
+      sessionId
+        ? (await db.sets.where("sessionId").equals(sessionId).toArray()).filter(
+            (s) => !s.deletedAt,
+          )
+        : [],
     [db, sessionId],
   );
 }
@@ -80,7 +106,9 @@ export function useSessionSets(sessionId: string | null | undefined): TrainingSe
 export function useOpenSession(): TrainingSession | null | undefined {
   const { db } = useTraining();
   return useLiveQuery(async () => {
-    const open = (await db.sessions.where("status").anyOf("active", "paused").toArray()).filter((s) => !s.deletedAt);
+    const open = (
+      await db.sessions.where("status").anyOf("active", "paused").toArray()
+    ).filter((s) => !s.deletedAt);
     open.sort((a, b) => b.startedAt.localeCompare(a.startedAt));
     return open[0] ?? null;
   }, [db]);
@@ -99,7 +127,10 @@ export function useBodyMetrics(): BodyMetric[] | undefined {
 
 export function useCustomExercises(): CustomExerciseRecord[] | undefined {
   const { db } = useTraining();
-  return useLiveQuery(async () => (await db.exercises.toArray()).filter((e) => !e.deletedAt), [db]);
+  return useLiveQuery(
+    async () => (await db.exercises.toArray()).filter((e) => !e.deletedAt),
+    [db],
+  );
 }
 
 export const customToExercise = (r: CustomExerciseRecord): Exercise => ({
@@ -115,10 +146,18 @@ export function useExercises() {
   const custom = useCustomExercises();
   return useMemo(() => {
     const own = (custom ?? EMPTY).map(customToExercise);
-    const byId = new Map<string, Exercise>([...SYSTEM_EXERCISES, ...own].map((e) => [e.id, e]));
+    const byId = new Map<string, Exercise>(
+      [...SYSTEM_EXERCISES, ...own].map((e) => [e.id, e]),
+    );
     const lookup = (id: string) => byId.get(id) ?? systemExercise(id);
-    const get = (id: string, fallbackName?: string) => lookup(id) ?? unknownExercise(id, fallbackName);
-    return { all: [...SYSTEM_EXERCISES, ...own], lookup, get, loaded: custom !== undefined };
+    const get = (id: string, fallbackName?: string) =>
+      lookup(id) ?? unknownExercise(id, fallbackName);
+    return {
+      all: [...SYSTEM_EXERCISES, ...own],
+      lookup,
+      get,
+      loaded: custom !== undefined,
+    };
   }, [custom]);
 }
 
@@ -142,7 +181,10 @@ export function usePendingCount(): number {
 }
 
 export function useToday() {
-  const timeZone = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
+  const timeZone = useMemo(
+    () => Intl.DateTimeFormat().resolvedOptions().timeZone,
+    [],
+  );
   const today = toLocalDate(new Date(), timeZone);
   return { today, timeZone };
 }

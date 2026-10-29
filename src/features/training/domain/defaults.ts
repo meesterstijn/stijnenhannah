@@ -54,7 +54,10 @@ export function normalizeProfile(profile: Profile): Profile {
     settings: { ...DEFAULT_SETTINGS, ...(profile.settings ?? {}) },
     equipment: {
       barbell: { ...DEFAULT_EQUIPMENT.barbell, ...(equipment.barbell ?? {}) },
-      dumbbells: { ...DEFAULT_EQUIPMENT.dumbbells, ...(equipment.dumbbells ?? {}) },
+      dumbbells: {
+        ...DEFAULT_EQUIPMENT.dumbbells,
+        ...(equipment.dumbbells ?? {}),
+      },
       collars: { ...DEFAULT_EQUIPMENT.collars, ...(equipment.collars ?? {}) },
       plates: Array.isArray(equipment.plates)
         ? equipment.plates

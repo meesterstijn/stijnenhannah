@@ -33,17 +33,31 @@ describe("statistiek", () => {
       completedWith("2026-10-03", "bench-press", [sv(45, 5)]),
       completedWith("2026-10-05", "bench-press", [sv(40, 12)]),
     ];
-    const index = buildHistoryIndex(runs.map((r) => r.session), runs.flatMap((r) => r.sets));
+    const index = buildHistoryIndex(
+      runs.map((r) => r.session),
+      runs.flatMap((r) => r.sets),
+    );
     const list = performances(index, "bench-press", { scope: "any" });
     const records = exerciseRecords(list);
-    expect(records.heaviest).toMatchObject({ value: 45, reps: 5, date: "2026-10-03" });
-    expect(records.bestVolume).toMatchObject({ value: 720, date: "2026-10-01" });
+    expect(records.heaviest).toMatchObject({
+      value: 45,
+      reps: 5,
+      date: "2026-10-03",
+    });
+    expect(records.bestVolume).toMatchObject({
+      value: 720,
+      date: "2026-10-01",
+    });
     expect(records.repsByWeight).toEqual([
       { weightKg: 45, reps: 5, date: "2026-10-03" },
       { weightKg: 40, reps: 12, date: "2026-10-05" },
     ]);
     const series = exerciseSeries(list);
-    expect(series.map((p) => p.date)).toEqual(["2026-10-01", "2026-10-03", "2026-10-05"]);
+    expect(series.map((p) => p.date)).toEqual([
+      "2026-10-01",
+      "2026-10-03",
+      "2026-10-05",
+    ]);
     expect(series[1].topWeightKg).toBe(45);
   });
 
@@ -52,15 +66,32 @@ describe("statistiek", () => {
       completedWith("2026-10-01", "bench-press", [sv(40, 10)]),
       completedWith("2026-10-05", "bench-press", [sv(42, 8)]),
     ];
-    const index = buildHistoryIndex(runs.map((r) => r.session), runs.flatMap((r) => r.sets));
+    const index = buildHistoryIndex(
+      runs.map((r) => r.session),
+      runs.flatMap((r) => r.sets),
+    );
     const found = latestRecords(index, () => "weight_reps");
-    expect(found).toEqual([expect.objectContaining({ kind: "heaviest", value: 42, date: "2026-10-05" })]);
+    expect(found).toEqual([
+      expect.objectContaining({
+        kind: "heaviest",
+        value: 42,
+        date: "2026-10-05",
+      }),
+    ]);
   });
 
   it("sessiesamenvatting", () => {
-    const run = completedWith("2026-10-01", "bench-press", [sv(40, 10), sv(40, 10)]);
+    const run = completedWith("2026-10-01", "bench-press", [
+      sv(40, 10),
+      sv(40, 10),
+    ]);
     const summary = sessionSummary(run.session, run.sets);
-    expect(summary).toMatchObject({ workSets: 2, volumeKg: 800, totalReps: 20, durationMin: 60 });
+    expect(summary).toMatchObject({
+      workSets: 2,
+      volumeKg: 800,
+      totalReps: 20,
+      durationMin: 60,
+    });
   });
 
   it("trainingen per week en reeks", () => {
@@ -76,8 +107,17 @@ describe("statistiek", () => {
   });
 
   it("sets per spiergroep: primair 1, secundair ½", () => {
-    const run = completedWith("2026-10-01", "bench-press", [sv(40, 10), sv(40, 10)]);
-    const counts = muscleSetCounts([run.session], run.sets, systemExercise, "2026-10-01", "2026-10-07");
+    const run = completedWith("2026-10-01", "bench-press", [
+      sv(40, 10),
+      sv(40, 10),
+    ]);
+    const counts = muscleSetCounts(
+      [run.session],
+      run.sets,
+      systemExercise,
+      "2026-10-01",
+      "2026-10-07",
+    );
     expect(counts.chest).toBe(2);
     expect(counts.triceps).toBe(1);
   });

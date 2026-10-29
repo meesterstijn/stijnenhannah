@@ -20,7 +20,10 @@ const meta = (at = "2026-10-01T10:00:00.000Z") => ({
   version: 1,
 });
 
-export const sv = (weightKg: number | null, reps: number | null): SetValues => ({
+export const sv = (
+  weightKg: number | null,
+  reps: number | null,
+): SetValues => ({
   weightKg,
   reps,
   durationSec: null,
@@ -71,7 +74,11 @@ export function session(
     localDate,
     timeZone: "Europe/Amsterdam",
     notes: null,
-    snapshot: { programName: "Full Body — 3 dagen", dayName: "Full Body A", exercises },
+    snapshot: {
+      programName: "Full Body — 3 dagen",
+      dayName: "Full Body A",
+      exercises,
+    },
     ...extra,
   };
 }
@@ -109,11 +116,21 @@ export function completedWith(
   values: SetValues[],
   extra: Partial<TrainingSession> = {},
 ) {
-  const s = session(localDate, [snapshotExercise(0, exerciseId, values)], extra);
-  return { session: s, sets: values.map((v, i) => doneSet(s, 0, exerciseId, i, v)) };
+  const s = session(
+    localDate,
+    [snapshotExercise(0, exerciseId, values)],
+    extra,
+  );
+  return {
+    session: s,
+    sets: values.map((v, i) => doneSet(s, 0, exerciseId, i, v)),
+  };
 }
 
-export function program(days: ProgramDay[], extra: Partial<Program> = {}): Program {
+export function program(
+  days: ProgramDay[],
+  extra: Partial<Program> = {},
+): Program {
   return {
     ...meta(),
     id: "p-1",

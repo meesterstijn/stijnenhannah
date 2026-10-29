@@ -32,10 +32,16 @@ const MAX_OPTIONS = 4;
 type Choice = { grams: number; perSide: number }[];
 
 // Alle mogelijke symmetrische beladingen (per kant), met hun gewicht.
-function enumerate(plates: PlateStock[], sides: number): { sideGrams: number; choice: Choice }[] {
+function enumerate(
+  plates: PlateStock[],
+  sides: number,
+): { sideGrams: number; choice: Choice }[] {
   const types = plates
     .filter((p) => p.weightKg > 0 && p.count > 0)
-    .map((p) => ({ grams: toGrams(p.weightKg), max: Math.floor(p.count / sides) }))
+    .map((p) => ({
+      grams: toGrams(p.weightKg),
+      max: Math.floor(p.count / sides),
+    }))
     .filter((p) => p.max > 0)
     .sort((a, b) => b.grams - a.grams);
   // Samenvoegen van gelijke gewichten (bv. twee regels "5 kg").
@@ -49,11 +55,17 @@ function enumerate(plates: PlateStock[], sides: number): { sideGrams: number; ch
   const results: { sideGrams: number; choice: Choice }[] = [];
   const walk = (i: number, sum: number, choice: Choice) => {
     if (i === merged.length) {
-      results.push({ sideGrams: sum, choice: choice.filter((c) => c.perSide > 0) });
+      results.push({
+        sideGrams: sum,
+        choice: choice.filter((c) => c.perSide > 0),
+      });
       return;
     }
     for (let n = merged[i].max; n >= 0; n--) {
-      walk(i + 1, sum + n * merged[i].grams, [...choice, { grams: merged[i].grams, perSide: n }]);
+      walk(i + 1, sum + n * merged[i].grams, [
+        ...choice,
+        { grams: merged[i].grams, perSide: n },
+      ]);
       if (results.length > 20000) return; // veiligheidsgrens bij enorme voorraad
     }
   };
@@ -64,7 +76,8 @@ function enumerate(plates: PlateStock[], sides: number): { sideGrams: number; ch
 const toCombo = (choice: Choice): PlateCombo =>
   choice.map((c) => ({ weightKg: fromGrams(c.grams), perSide: c.perSide }));
 
-const plateCount = (choice: Choice) => choice.reduce((n, c) => n + c.perSide, 0);
+const plateCount = (choice: Choice) =>
+  choice.reduce((n, c) => n + c.perSide, 0);
 
 export function calculatePlates(req: PlateRequest): PlateResult {
   const implementsCount = Math.max(1, Math.floor(req.implements));
@@ -86,7 +99,8 @@ export function calculatePlates(req: PlateRequest): PlateResult {
   for (const r of all) {
     const total = fixed + 2 * r.sideGrams;
     const known = totals.get(total);
-    if (!known || plateCount(r.choice) < plateCount(known)) totals.set(total, r.choice);
+    if (!known || plateCount(r.choice) < plateCount(known))
+      totals.set(total, r.choice);
   }
   let below: [number, Choice] | null = null;
   let above: [number, Choice] | null = null;
@@ -105,7 +119,9 @@ export function calculatePlates(req: PlateRequest): PlateResult {
     warnings.push("Dit gewicht is met je schijven niet exact te laden.");
   }
   if (implementsCount > 1 && exact.length === 0 && needed >= 0) {
-    const single = enumerate(req.plates, 2).some((r) => r.sideGrams * 2 === needed);
+    const single = enumerate(req.plates, 2).some(
+      (r) => r.sideGrams * 2 === needed,
+    );
     if (single) {
       warnings.push(
         "Met één dumbbell lukt het wel; voor twee dumbbells tegelijk heb je te weinig schijven.",
@@ -115,7 +131,9 @@ export function calculatePlates(req: PlateRequest): PlateResult {
   if (req.maxLoadKg != null && exact.length > 0) {
     const load = target - toGrams(req.barKg);
     if (load > toGrams(req.maxLoadKg)) {
-      warnings.push(`Let op: meer dan de opgegeven belastbaarheid van ${fromGrams(toGrams(req.maxLoadKg))} kg.`);
+      warnings.push(
+        `Let op: meer dan de opgegeven belastbaarheid van ${fromGrams(toGrams(req.maxLoadKg))} kg.`,
+      );
     }
   }
 
@@ -124,8 +142,12 @@ export function calculatePlates(req: PlateRequest): PlateResult {
     perSideKg: fromGrams(Math.max(0, needed) / 2),
     exact: exact.length > 0,
     options: exact.slice(0, MAX_OPTIONS).map((r) => toCombo(r.choice)),
-    nearestBelow: below ? { totalKg: fromGrams(below[0]), combo: toCombo(below[1]) } : null,
-    nearestAbove: above ? { totalKg: fromGrams(above[0]), combo: toCombo(above[1]) } : null,
+    nearestBelow: below
+      ? { totalKg: fromGrams(below[0]), combo: toCombo(below[1]) }
+      : null,
+    nearestAbove: above
+      ? { totalKg: fromGrams(above[0]), combo: toCombo(above[1]) }
+      : null,
     warnings,
   };
 }
@@ -153,8 +175,13 @@ export function plateRequestFor(
     return {
       targetKg,
       barKg: equipment.dumbbells.handleWeightKg,
-      collarKg: equipment.collars.useOnDumbbells ? equipment.collars.weightKg : 0,
-      implements: loadMode === "dumbbell_pair" ? Math.min(2, equipment.dumbbells.count) : 1,
+      collarKg: equipment.collars.useOnDumbbells
+        ? equipment.collars.weightKg
+        : 0,
+      implements:
+        loadMode === "dumbbell_pair"
+          ? Math.min(2, equipment.dumbbells.count)
+          : 1,
       plates: equipment.plates,
       maxLoadKg: equipment.dumbbells.maxLoadKg,
     };

@@ -84,7 +84,13 @@ export function buildSnapshot(
     const exercise = ctx.lookup(planned.exerciseId);
     if (!exercise) continue;
     exercises.push(
-      sessionExercise(exercises.length, exercise, planned, ctx, program?.id ?? null),
+      sessionExercise(
+        exercises.length,
+        exercise,
+        planned,
+        ctx,
+        program?.id ?? null,
+      ),
     );
   }
   return {
@@ -96,8 +102,12 @@ export function buildSnapshot(
 }
 
 // Standaardplanning voor een oefening die je los toevoegt.
-export function adHocPlan(exercise: Exercise, sets = 3): Omit<PlannedExercise, "id" | "exerciseId"> {
-  const timed = exercise.tracking === "duration" || exercise.tracking === "jump_rope";
+export function adHocPlan(
+  exercise: Exercise,
+  sets = 3,
+): Omit<PlannedExercise, "id" | "exerciseId"> {
+  const timed =
+    exercise.tracking === "duration" || exercise.tracking === "jump_rope";
   return {
     sets,
     warmupSets: 0,
@@ -133,8 +143,12 @@ export const activeExercises = (snapshot: SessionSnapshot) =>
 export function allPositions(snapshot: SessionSnapshot): Position[] {
   const result: Position[] = [];
   for (const e of activeExercises(snapshot)) {
-    e.warmup.forEach((_, index) => result.push({ slot: e.slot, kind: "warmup", index }));
-    e.work.forEach((_, index) => result.push({ slot: e.slot, kind: "work", index }));
+    e.warmup.forEach((_, index) =>
+      result.push({ slot: e.slot, kind: "warmup", index }),
+    );
+    e.work.forEach((_, index) =>
+      result.push({ slot: e.slot, kind: "work", index }),
+    );
   }
   return result;
 }
@@ -145,7 +159,9 @@ export function nextOpenPosition(
   from?: Position | null,
 ): Position | null {
   const positions = allPositions(snapshot);
-  const start = from ? positions.findIndex((p) => positionKey(p) === positionKey(from)) : -1;
+  const start = from
+    ? positions.findIndex((p) => positionKey(p) === positionKey(from))
+    : -1;
   // Eerst vooruit vanaf de huidige plek, daarna eventuele overgeslagen sets.
   for (let i = start + 1; i < positions.length; i++) {
     if (!done.has(positionKey(positions[i]))) return positions[i];
@@ -162,13 +178,17 @@ export function workProgress(snapshot: SessionSnapshot, done: DoneMap) {
   for (const e of activeExercises(snapshot)) {
     total += e.work.length;
     e.work.forEach((_, index) => {
-      if (done.has(positionKey({ slot: e.slot, kind: "work", index }))) completed++;
+      if (done.has(positionKey({ slot: e.slot, kind: "work", index })))
+        completed++;
     });
   }
   return { total, completed };
 }
 
-export function valuesAt(snapshot: SessionSnapshot, p: Position): SetValues | null {
+export function valuesAt(
+  snapshot: SessionSnapshot,
+  p: Position,
+): SetValues | null {
   const exercise = snapshot.exercises.find((e) => e.slot === p.slot);
   return exercise?.[p.kind][p.index] ?? null;
 }
@@ -183,21 +203,39 @@ export const LIMITS = {
 };
 
 // Geeft een melding als de waarden niet kunnen, anders null.
-export function validateSetValues(tracking: Tracking, v: SetValues): string | null {
+export function validateSetValues(
+  tracking: Tracking,
+  v: SetValues,
+): string | null {
   const bad = (n: number | null, max: number, integer: boolean) =>
-    n !== null && (!Number.isFinite(n) || n < 0 || n > max || (integer && !Number.isInteger(n)));
+    n !== null &&
+    (!Number.isFinite(n) ||
+      n < 0 ||
+      n > max ||
+      (integer && !Number.isInteger(n)));
   if (bad(v.weightKg, LIMITS.weightKg, false)) return "Ongeldig gewicht.";
-  if (v.weightKg !== null && Math.abs(Math.round(v.weightKg * 100) - v.weightKg * 100) > 1e-6) {
+  if (
+    v.weightKg !== null &&
+    Math.abs(Math.round(v.weightKg * 100) - v.weightKg * 100) > 1e-6
+  ) {
     return "Gewicht mag hooguit twee decimalen hebben.";
   }
-  if (bad(v.reps, LIMITS.reps, true)) return "Herhalingen moeten een heel getal van 0 of meer zijn.";
+  if (bad(v.reps, LIMITS.reps, true))
+    return "Herhalingen moeten een heel getal van 0 of meer zijn.";
   if (bad(v.durationSec, LIMITS.durationSec, true)) return "Ongeldige duur.";
   if (bad(v.jumps, LIMITS.jumps, true)) return "Ongeldig aantal sprongen.";
-  if (tracking === "weight_reps" && v.weightKg === null) return "Kies eerst een gewicht.";
-  if ((tracking === "weight_reps" || tracking === "bodyweight_reps") && v.reps === null) {
+  if (tracking === "weight_reps" && v.weightKg === null)
+    return "Kies eerst een gewicht.";
+  if (
+    (tracking === "weight_reps" || tracking === "bodyweight_reps") &&
+    v.reps === null
+  ) {
     return "Vul het aantal herhalingen in.";
   }
-  if ((tracking === "duration" || tracking === "jump_rope") && v.durationSec === null) {
+  if (
+    (tracking === "duration" || tracking === "jump_rope") &&
+    v.durationSec === null
+  ) {
     return "Vul de duur in.";
   }
   return null;
@@ -207,12 +245,32 @@ export function validateSetValues(tracking: Tracking, v: SetValues): string | nu
 export function cleanValues(tracking: Tracking, v: SetValues): SetValues {
   switch (tracking) {
     case "weight_reps":
-      return { weightKg: v.weightKg, reps: v.reps, durationSec: null, jumps: null };
+      return {
+        weightKg: v.weightKg,
+        reps: v.reps,
+        durationSec: null,
+        jumps: null,
+      };
     case "bodyweight_reps":
-      return { weightKg: v.weightKg || null, reps: v.reps, durationSec: null, jumps: null };
+      return {
+        weightKg: v.weightKg || null,
+        reps: v.reps,
+        durationSec: null,
+        jumps: null,
+      };
     case "duration":
-      return { weightKg: null, reps: null, durationSec: v.durationSec, jumps: null };
+      return {
+        weightKg: null,
+        reps: null,
+        durationSec: v.durationSec,
+        jumps: null,
+      };
     case "jump_rope":
-      return { weightKg: null, reps: null, durationSec: v.durationSec, jumps: v.jumps };
+      return {
+        weightKg: null,
+        reps: null,
+        durationSec: v.durationSec,
+        jumps: v.jumps,
+      };
   }
 }

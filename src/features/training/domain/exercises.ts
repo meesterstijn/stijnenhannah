@@ -8,7 +8,10 @@ import type { Exercise } from "./types";
 // Teksten zijn eigen beschrijvingen van algemeen bekende uitvoering; geen
 // overgenomen commerciële bibliotheek of beeldmateriaal.
 
-type Def = Omit<Exercise, "secondary" | "mistakes" | "safety" | "alternatives"> &
+type Def = Omit<
+  Exercise,
+  "secondary" | "mistakes" | "safety" | "alternatives"
+> &
   Partial<Pick<Exercise, "secondary" | "mistakes" | "safety" | "alternatives">>;
 
 const ex = (d: Def): Exercise => ({
@@ -159,7 +162,9 @@ export const SYSTEM_EXERCISES: Exercise[] = [
       "Ellebogen buigen en strekken (dan wordt het drukken).",
       "Te zwaar en te diep zakken.",
     ],
-    safety: ["Kies een licht gewicht; de schouder staat in een kwetsbare stand."],
+    safety: [
+      "Kies een licht gewicht; de schouder staat in een kwetsbare stand.",
+    ],
     defaultRestSec: 75,
     alternatives: ["db-bench-press", "push-up"],
   }),
@@ -181,11 +186,15 @@ export const SYSTEM_EXERCISES: Exercise[] = [
       "Laat de stang zakken tot je bovenarmen zacht de grond raken.",
       "Pauzeer kort en druk terug omhoog.",
     ],
-    mistakes: ["Ellebogen op de grond laten stuiteren.", "Polsen ver achterover knikken."],
+    mistakes: [
+      "Ellebogen op de grond laten stuiteren.",
+      "Polsen ver achterover knikken.",
+    ],
     safety: [
       "In- en uitstappen met de stang is het lastigste deel: oefen dat eerst met een lichte stang.",
     ],
-    homeNote: "Goed alternatief voor bankdrukken als je zonder spotter zwaarder wilt.",
+    homeNote:
+      "Goed alternatief voor bankdrukken als je zonder spotter zwaarder wilt.",
     defaultRestSec: 150,
     alternatives: ["db-floor-press", "bench-press"],
   }),
@@ -228,7 +237,11 @@ export const SYSTEM_EXERCISES: Exercise[] = [
       "Zak tot je borst vlak boven de grond is, ellebogen schuin naar achteren.",
       "Druk jezelf terug omhoog zonder dat je heupen doorzakken.",
     ],
-    mistakes: ["Doorzakkende heupen.", "Halve herhalingen.", "Hoofd vooruit steken."],
+    mistakes: [
+      "Doorzakkende heupen.",
+      "Halve herhalingen.",
+      "Hoofd vooruit steken.",
+    ],
     defaultRestSec: 75,
     alternatives: ["db-bench-press", "close-grip-push-up"],
   }),
@@ -253,7 +266,10 @@ export const SYSTEM_EXERCISES: Exercise[] = [
       "Trek de dumbbell richting je heup, elleboog langs je lichaam.",
       "Laat hem gecontroleerd zakken tot je arm gestrekt is.",
     ],
-    mistakes: ["Romp draaien om het gewicht omhoog te krijgen.", "Schouder optrekken."],
+    mistakes: [
+      "Romp draaien om het gewicht omhoog te krijgen.",
+      "Schouder optrekken.",
+    ],
     defaultRestSec: 90,
     alternatives: ["db-bent-over-row", "chest-supported-db-row"],
   }),
@@ -274,8 +290,14 @@ export const SYSTEM_EXERCISES: Exercise[] = [
       "Trek de stang naar je navel, schouderbladen naar elkaar.",
       "Laat de stang gecontroleerd zakken zonder rechtop te komen.",
     ],
-    mistakes: ["Ronde onderrug.", "Met de romp zwaaien.", "Steeds rechter gaan staan."],
-    safety: ["Stop als je je onderrug niet neutraal kunt houden; kies dan de eenarmige variant."],
+    mistakes: [
+      "Ronde onderrug.",
+      "Met de romp zwaaien.",
+      "Steeds rechter gaan staan.",
+    ],
+    safety: [
+      "Stop als je je onderrug niet neutraal kunt houden; kies dan de eenarmige variant.",
+    ],
     defaultRestSec: 120,
     alternatives: ["db-bent-over-row", "one-arm-db-row"],
   }),
@@ -362,7 +384,9 @@ export const SYSTEM_EXERCISES: Exercise[] = [
       "Breng hem in dezelfde boog terug boven je borst.",
     ],
     mistakes: ["Ellebogen ver buigen.", "Onderrug hol trekken."],
-    safety: ["Houd de dumbbell stevig vast aan de schijf, niet aan de sluiting."],
+    safety: [
+      "Houd de dumbbell stevig vast aan de schijf, niet aan de sluiting.",
+    ],
     defaultRestSec: 75,
     alternatives: ["db-fly"],
   }),
@@ -378,14 +402,18 @@ export const SYSTEM_EXERCISES: Exercise[] = [
     equipment: ["dumbbell", "bench"],
     tracking: "weight_reps",
     loadMode: "dumbbell_pair",
-    summary: "Zittend boven je hoofd drukken met de rugleuning (bijna) rechtop.",
+    summary:
+      "Zittend boven je hoofd drukken met de rugleuning (bijna) rechtop.",
     steps: [
       "Zet de rugleuning rechtop of net daaronder en ga zitten.",
       "Dumbbells op schouderhoogte, ellebogen iets voor je lichaam.",
       "Druk ze omhoog tot je armen bijna gestrekt zijn.",
       "Laat ze gecontroleerd zakken tot schouderhoogte.",
     ],
-    mistakes: ["Onderrug hol trekken.", "Dumbbells ver naar voren laten zakken."],
+    mistakes: [
+      "Onderrug hol trekken.",
+      "Dumbbells ver naar voren laten zakken.",
+    ],
     defaultRestSec: 120,
     alternatives: ["barbell-overhead-press"],
   }),
@@ -407,12 +435,16 @@ export const SYSTEM_EXERCISES: Exercise[] = [
       "Druk de stang recht omhoog; beweeg je hoofd even naar achteren om hem langs te laten.",
       "Eindig met de stang boven je middenvoet, armen gestrekt.",
     ],
-    mistakes: ["Ver achterover hangen.", "Stang voor je lichaam uit laten wijken."],
+    mistakes: [
+      "Ver achterover hangen.",
+      "Stang voor je lichaam uit laten wijken.",
+    ],
     safety: [
       "Alleen met een gewicht dat je technisch goed van de grond naar je schouders krijgt.",
       "Train dit niet tot falen; zakken met de stang boven je hoofd is lastig te redden.",
     ],
-    homeNote: "Zonder squat rack beperkt het oppakken het gewicht; dumbbell drukken is vaak praktischer.",
+    homeNote:
+      "Zonder squat rack beperkt het oppakken het gewicht; dumbbell drukken is vaak praktischer.",
     defaultRestSec: 150,
     alternatives: ["db-shoulder-press"],
   }),
@@ -425,13 +457,18 @@ export const SYSTEM_EXERCISES: Exercise[] = [
     equipment: ["dumbbell"],
     tracking: "weight_reps",
     loadMode: "dumbbell_pair",
-    summary: "Armen zijwaarts heffen tot schouderhoogte voor de zijkant van de schouders.",
+    summary:
+      "Armen zijwaarts heffen tot schouderhoogte voor de zijkant van de schouders.",
     steps: [
       "Sta rechtop met de dumbbells langs je lichaam, ellebogen licht gebogen.",
       "Hef je armen zijwaarts tot schouderhoogte, ellebogen iets hoger dan je polsen.",
       "Laat ze langzaam zakken.",
     ],
-    mistakes: ["Zwaaien met de romp.", "Schouders optrekken.", "Te zwaar beginnen."],
+    mistakes: [
+      "Zwaaien met de romp.",
+      "Schouders optrekken.",
+      "Te zwaar beginnen.",
+    ],
     defaultRestSec: 60,
     alternatives: ["db-front-raise"],
   }),
@@ -444,13 +481,17 @@ export const SYSTEM_EXERCISES: Exercise[] = [
     equipment: ["dumbbell"],
     tracking: "weight_reps",
     loadMode: "dumbbell_pair",
-    summary: "Armen voorwaarts heffen tot schouderhoogte, voor de voorkant van de schouders.",
+    summary:
+      "Armen voorwaarts heffen tot schouderhoogte, voor de voorkant van de schouders.",
     steps: [
       "Dumbbells voor je bovenbenen, armen bijna gestrekt.",
       "Hef ze voorwaarts tot schouderhoogte.",
       "Laat ze gecontroleerd zakken.",
     ],
-    mistakes: ["Achterover leunen.", "Hoger dan schouderhoogte heffen met zwaai."],
+    mistakes: [
+      "Achterover leunen.",
+      "Hoger dan schouderhoogte heffen met zwaai.",
+    ],
     defaultRestSec: 60,
     alternatives: ["db-lateral-raise"],
   }),
@@ -472,7 +513,9 @@ export const SYSTEM_EXERCISES: Exercise[] = [
       "Hef je armen zijwaarts tot ze in lijn met je romp zijn.",
       "Laat ze langzaam zakken.",
     ],
-    mistakes: ["Schouderbladen hard samenknijpen (dan doet de bovenrug het werk)."],
+    mistakes: [
+      "Schouderbladen hard samenknijpen (dan doet de bovenrug het werk).",
+    ],
     defaultRestSec: 60,
     alternatives: ["reverse-fly"],
   }),
@@ -488,7 +531,8 @@ export const SYSTEM_EXERCISES: Exercise[] = [
     equipment: ["dumbbell"],
     tracking: "weight_reps",
     loadMode: "dumbbell_pair",
-    summary: "Klassieke bicepsoefening, staand of zittend, tegelijk of om en om.",
+    summary:
+      "Klassieke bicepsoefening, staand of zittend, tegelijk of om en om.",
     steps: [
       "Dumbbells langs je lichaam, handpalmen naar voren.",
       "Buig je ellebogen en krul de dumbbells omhoog; ellebogen blijven naast je romp.",
@@ -527,7 +571,8 @@ export const SYSTEM_EXERCISES: Exercise[] = [
     tracking: "weight_reps",
     loadMode: "dumbbell_single",
     perSide: true,
-    summary: "Zittend, elleboog tegen de binnenkant van je dij: strikte bicepsoefening.",
+    summary:
+      "Zittend, elleboog tegen de binnenkant van je dij: strikte bicepsoefening.",
     steps: [
       "Ga op de bank zitten, benen gespreid.",
       "Zet je elleboog tegen de binnenkant van je dij.",
@@ -547,7 +592,8 @@ export const SYSTEM_EXERCISES: Exercise[] = [
     equipment: ["dumbbell", "bench"],
     tracking: "weight_reps",
     loadMode: "dumbbell_pair",
-    summary: "Curl achteroverleunend op een schuine bank: de biceps werkt vanuit een gestrekte positie.",
+    summary:
+      "Curl achteroverleunend op een schuine bank: de biceps werkt vanuit een gestrekte positie.",
     steps: [
       "Zet de bank op 45–60° en leun met je rug tegen de leuning.",
       "Laat je armen recht naar beneden hangen.",
@@ -576,7 +622,9 @@ export const SYSTEM_EXERCISES: Exercise[] = [
       "Laat hem gecontroleerd zakken.",
     ],
     mistakes: ["Achterover leunen.", "Stang laten vallen."],
-    safety: ["Voelt de rechte stang onprettig aan je polsen, kies dan dumbbells."],
+    safety: [
+      "Voelt de rechte stang onprettig aan je polsen, kies dan dumbbells.",
+    ],
     defaultRestSec: 75,
     alternatives: ["db-curl"],
   }),
@@ -589,7 +637,8 @@ export const SYSTEM_EXERCISES: Exercise[] = [
     equipment: ["barbell"],
     tracking: "weight_reps",
     loadMode: "barbell",
-    summary: "Curl met bovenhandse greep (handpalmen naar beneden), voor onderarmen en biceps.",
+    summary:
+      "Curl met bovenhandse greep (handpalmen naar beneden), voor onderarmen en biceps.",
     steps: [
       "Pak de stang met de handpalmen naar beneden, op schouderbreedte.",
       "Krul de stang omhoog met rechte polsen.",
@@ -610,7 +659,8 @@ export const SYSTEM_EXERCISES: Exercise[] = [
     equipment: ["dumbbell", "bench"],
     tracking: "weight_reps",
     loadMode: "dumbbell_pair",
-    summary: "Liggend op de bank de onderarmen buigen en strekken met twee dumbbells.",
+    summary:
+      "Liggend op de bank de onderarmen buigen en strekken met twee dumbbells.",
     steps: [
       "Lig op de bank met de dumbbells boven je borst, handpalmen naar elkaar.",
       "Houd je bovenarmen stil en buig je ellebogen tot de dumbbells naast je hoofd zijn.",
@@ -630,7 +680,8 @@ export const SYSTEM_EXERCISES: Exercise[] = [
     equipment: ["dumbbell"],
     tracking: "weight_reps",
     loadMode: "dumbbell_single",
-    summary: "Eén dumbbell met beide handen achter je hoofd laten zakken en strekken.",
+    summary:
+      "Eén dumbbell met beide handen achter je hoofd laten zakken en strekken.",
     steps: [
       "Zit of sta rechtop en houd één dumbbell met beide handen boven je hoofd.",
       "Laat hem achter je hoofd zakken door je ellebogen te buigen.",
@@ -651,7 +702,8 @@ export const SYSTEM_EXERCISES: Exercise[] = [
     equipment: ["barbell"],
     tracking: "weight_reps",
     loadMode: "barbell",
-    summary: "Floor press met een smalle greep (schouderbreedte) voor extra tricepswerk.",
+    summary:
+      "Floor press met een smalle greep (schouderbreedte) voor extra tricepswerk.",
     steps: [
       "Lig op de grond met de stang boven je borst, handen op schouderbreedte.",
       "Ellebogen dicht langs je lichaam laten zakken tot ze de grond raken.",
@@ -690,7 +742,8 @@ export const SYSTEM_EXERCISES: Exercise[] = [
     equipment: ["bodyweight"],
     tracking: "bodyweight_reps",
     loadMode: "none",
-    summary: "Push-up met de handen onder je schouders en ellebogen langs je lichaam.",
+    summary:
+      "Push-up met de handen onder je schouders en ellebogen langs je lichaam.",
     steps: [
       "Handen onder je schouders, lichaam in een rechte lijn.",
       "Zak met de ellebogen dicht langs je romp.",
@@ -720,8 +773,13 @@ export const SYSTEM_EXERCISES: Exercise[] = [
       "Zak tussen je knieën door zo diep als je met een neutrale rug kunt.",
       "Duw jezelf via je hele voet omhoog.",
     ],
-    mistakes: ["Knieën naar binnen laten vallen.", "Hielen van de grond.", "Ronde rug onderin."],
-    homeNote: "Wordt de dumbbell te licht, ga dan naar de Bulgaarse split squat.",
+    mistakes: [
+      "Knieën naar binnen laten vallen.",
+      "Hielen van de grond.",
+      "Ronde rug onderin.",
+    ],
+    homeNote:
+      "Wordt de dumbbell te licht, ga dan naar de Bulgaarse split squat.",
     defaultRestSec: 120,
     alternatives: ["db-squat", "bulgarian-split-squat"],
   }),
@@ -734,7 +792,8 @@ export const SYSTEM_EXERCISES: Exercise[] = [
     equipment: ["dumbbell"],
     tracking: "weight_reps",
     loadMode: "dumbbell_pair",
-    summary: "Squat met twee dumbbells langs je lichaam: meer gewicht dan een goblet squat.",
+    summary:
+      "Squat met twee dumbbells langs je lichaam: meer gewicht dan een goblet squat.",
     steps: [
       "Dumbbells langs je lichaam, voeten op heupbreedte.",
       "Zak zo diep als je met een rechte rug kunt.",
@@ -801,7 +860,8 @@ export const SYSTEM_EXERCISES: Exercise[] = [
     tracking: "weight_reps",
     loadMode: "dumbbell_pair",
     perSide: true,
-    summary: "Uitvalspas naar achteren; vaak prettiger voor de knieën dan naar voren.",
+    summary:
+      "Uitvalspas naar achteren; vaak prettiger voor de knieën dan naar voren.",
     steps: [
       "Sta rechtop met de dumbbells langs je lichaam.",
       "Stap met één been naar achteren en zak tot je achterste knie net boven de grond is.",
@@ -852,7 +912,11 @@ export const SYSTEM_EXERCISES: Exercise[] = [
       "Zak tot je een sterke rek in je hamstrings voelt, rug neutraal (meestal net onder de knie).",
       "Kom omhoog door je heupen naar voren te duwen.",
     ],
-    mistakes: ["Ronde rug.", "Stang van je benen af laten wijken.", "Knieën steeds verder buigen."],
+    mistakes: [
+      "Ronde rug.",
+      "Stang van je benen af laten wijken.",
+      "Knieën steeds verder buigen.",
+    ],
     safety: ["Hoe diep je zakt bepaalt je heupbeweeglijkheid, niet de vloer."],
     defaultRestSec: 150,
     alternatives: ["db-rdl", "single-leg-rdl"],
@@ -889,7 +953,8 @@ export const SYSTEM_EXERCISES: Exercise[] = [
     tracking: "weight_reps",
     loadMode: "dumbbell_single",
     perSide: true,
-    summary: "Scharnieren op één been: zwaar voor hamstrings en billen, en goed voor balans.",
+    summary:
+      "Scharnieren op één been: zwaar voor hamstrings en billen, en goed voor balans.",
     steps: [
       "Sta op één been, dumbbell in de tegenovergestelde hand.",
       "Kantel naar voren terwijl je vrije been naar achteren gaat.",
@@ -910,7 +975,8 @@ export const SYSTEM_EXERCISES: Exercise[] = [
     equipment: ["bodyweight"],
     tracking: "bodyweight_reps",
     loadMode: "none",
-    summary: "Heupen heffen vanuit ruglig; extra gewicht (dumbbell of schijf) op je heupen mag.",
+    summary:
+      "Heupen heffen vanuit ruglig; extra gewicht (dumbbell of schijf) op je heupen mag.",
     steps: [
       "Lig op je rug, knieën gebogen, voeten op heupbreedte.",
       "Duw je heupen omhoog tot je lichaam van knie tot schouder recht is.",
@@ -939,7 +1005,9 @@ export const SYSTEM_EXERCISES: Exercise[] = [
       "Zak gecontroleerd.",
     ],
     mistakes: ["Overstrekken in de onderrug.", "Voeten te ver weg."],
-    safety: ["Zorg dat de bank niet kan wegschuiven (bijvoorbeeld tegen een muur)."],
+    safety: [
+      "Zorg dat de bank niet kan wegschuiven (bijvoorbeeld tegen een muur).",
+    ],
     defaultRestSec: 120,
     alternatives: ["db-hip-thrust", "glute-bridge"],
   }),
@@ -1053,7 +1121,8 @@ export const SYSTEM_EXERCISES: Exercise[] = [
     equipment: ["bodyweight"],
     tracking: "duration",
     loadMode: "none",
-    summary: "Steunen op onderarmen en tenen met je lichaam in één rechte lijn.",
+    summary:
+      "Steunen op onderarmen en tenen met je lichaam in één rechte lijn.",
     steps: [
       "Ellebogen onder je schouders, benen gestrekt.",
       "Span buik en billen aan zodat je lichaam recht is.",
@@ -1074,7 +1143,8 @@ export const SYSTEM_EXERCISES: Exercise[] = [
     tracking: "duration",
     loadMode: "none",
     perSide: true,
-    summary: "Op één onderarm steunen met je lichaam zijwaarts in een rechte lijn.",
+    summary:
+      "Op één onderarm steunen met je lichaam zijwaarts in een rechte lijn.",
     steps: [
       "Lig op je zij, elleboog onder je schouder, voeten op elkaar.",
       "Til je heupen op tot je lichaam recht is.",
@@ -1094,7 +1164,8 @@ export const SYSTEM_EXERCISES: Exercise[] = [
     tracking: "bodyweight_reps",
     loadMode: "none",
     perSide: true,
-    summary: "Vanuit ruglig om en om tegenovergestelde arm en been strekken met een stabiele onderrug.",
+    summary:
+      "Vanuit ruglig om en om tegenovergestelde arm en been strekken met een stabiele onderrug.",
     steps: [
       "Lig op je rug, armen recht omhoog, heupen en knieën 90° gebogen.",
       "Druk je onderrug zacht tegen de grond.",
@@ -1114,7 +1185,8 @@ export const SYSTEM_EXERCISES: Exercise[] = [
     equipment: ["bodyweight"],
     tracking: "bodyweight_reps",
     loadMode: "none",
-    summary: "Gestrekte benen heffen vanuit ruglig (eventueel op de bank, handen achter je vastgepakt).",
+    summary:
+      "Gestrekte benen heffen vanuit ruglig (eventueel op de bank, handen achter je vastgepakt).",
     steps: [
       "Lig op je rug, handen naast of onder je billen.",
       "Hef je benen gestrekt tot ze verticaal zijn.",
@@ -1137,7 +1209,8 @@ export const SYSTEM_EXERCISES: Exercise[] = [
     equipment: ["jump_rope"],
     tracking: "jump_rope",
     loadMode: "none",
-    summary: "Conditietraining in rondes: springen op tijd, aantal sprongen optioneel.",
+    summary:
+      "Conditietraining in rondes: springen op tijd, aantal sprongen optioneel.",
     steps: [
       "Kies een touw waarvan de handvatten tot je oksels komen als je in het midden staat.",
       "Spring laag op je voorvoeten, ellebogen dicht bij je lichaam.",
@@ -1179,5 +1252,7 @@ export function unknownExercise(id: string, name?: string): Exercise {
 
 // Kan deze oefening met de apparatuur die de gebruiker heeft?
 export function isAvailable(exercise: Exercise, owned: Set<string>): boolean {
-  return exercise.equipment.every((kind) => kind === "bodyweight" || owned.has(kind));
+  return exercise.equipment.every(
+    (kind) => kind === "bodyweight" || owned.has(kind),
+  );
 }

@@ -13,7 +13,12 @@ import type { TrainingGoal } from "./types";
 // accessory isolatie/aanvullend
 // core      buik/romp, vaste doelen
 // conditioning touwspringen, vaste doelen
-export type TemplateRole = "main" | "secondary" | "accessory" | "core" | "conditioning";
+export type TemplateRole =
+  | "main"
+  | "secondary"
+  | "accessory"
+  | "core"
+  | "conditioning";
 
 export type TemplateExercise = {
   exerciseId: string;

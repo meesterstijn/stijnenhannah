@@ -37,18 +37,35 @@ export function Sheet({
   }, [open, onClose]);
   if (!open) return null;
   return (
-    <div className="tr-sheet-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div ref={ref} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} className="tr-sheet outline-none">
+    <div
+      className="tr-sheet-backdrop"
+      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div
+        ref={ref}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className="tr-sheet outline-none"
+      >
         <div className="mb-3 flex items-center justify-between gap-3">
           <h2 id={titleId} className="tr-h2 text-lg">
             {title}
           </h2>
-          <button type="button" className="tr-icon-btn -mr-2" onClick={onClose} aria-label="Sluiten">
+          <button
+            type="button"
+            className="tr-icon-btn -mr-2"
+            onClick={onClose}
+            aria-label="Sluiten"
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
         <div className="space-y-4">{children}</div>
-        {footer && <div className="mt-5 flex flex-wrap justify-end gap-2">{footer}</div>}
+        {footer && (
+          <div className="mt-5 flex flex-wrap justify-end gap-2">{footer}</div>
+        )}
       </div>
     </div>
   );
@@ -69,9 +86,17 @@ export function Switch({
     <label className="flex cursor-pointer items-center justify-between gap-4 py-2">
       <span className="min-w-0">
         <span className="block font-medium">{label}</span>
-        {description && <span className="tr-muted block text-sm">{description}</span>}
+        {description && (
+          <span className="tr-muted block text-sm">{description}</span>
+        )}
       </span>
-      <button type="button" role="switch" aria-checked={checked} className="tr-switch" onClick={() => onChange(!checked)}>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        className="tr-switch"
+        onClick={() => onChange(!checked)}
+      >
         <span className="sr-only">{label}</span>
       </button>
     </label>
@@ -92,7 +117,12 @@ export function Segment<T extends string | number>({
   return (
     <div className="tr-segment" role="group" aria-label={label}>
       {options.map((o) => (
-        <button key={String(o.value)} type="button" aria-pressed={o.value === value} onClick={() => onChange(o.value)}>
+        <button
+          key={String(o.value)}
+          type="button"
+          aria-pressed={o.value === value}
+          onClick={() => onChange(o.value)}
+        >
           {o.label}
         </button>
       ))}
@@ -100,7 +130,15 @@ export function Segment<T extends string | number>({
   );
 }
 
-export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: ReactNode; actions?: ReactNode }) {
+export function PageHeader({
+  title,
+  subtitle,
+  actions,
+}: {
+  title: string;
+  subtitle?: ReactNode;
+  actions?: ReactNode;
+}) {
   return (
     <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
       <div className="min-w-0">
@@ -112,7 +150,15 @@ export function PageHeader({ title, subtitle, actions }: { title: string; subtit
   );
 }
 
-export function EmptyState({ title, children, action }: { title: string; children?: ReactNode; action?: ReactNode }) {
+export function EmptyState({
+  title,
+  children,
+  action,
+}: {
+  title: string;
+  children?: ReactNode;
+  action?: ReactNode;
+}) {
   return (
     <div className="tr-card flex flex-col items-center gap-2 px-5 py-10 text-center">
       <p className="tr-h2">{title}</p>
@@ -122,7 +168,15 @@ export function EmptyState({ title, children, action }: { title: string; childre
   );
 }
 
-export function Stat({ label, value, hint }: { label: string; value: ReactNode; hint?: ReactNode }) {
+export function Stat({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: ReactNode;
+  hint?: ReactNode;
+}) {
   return (
     <div className="tr-card-flat px-3 py-3">
       <div className="tr-label">{label}</div>
@@ -156,12 +210,14 @@ export function NumberField({
   integer?: boolean;
   placeholder?: string;
 }) {
-  const format = (v: number | null) => (v === null || Number.isNaN(v) ? "" : String(v).replace(".", ","));
+  const format = (v: number | null) =>
+    v === null || Number.isNaN(v) ? "" : String(v).replace(".", ",");
   // Eigen tekst, zodat "42," tijdens het typen niet meteen "42" wordt.
   const [text, setText] = useState(() => format(value));
   useEffect(() => {
     setText((current) => {
-      const parsed = current.trim() === "" ? null : Number(current.replace(",", "."));
+      const parsed =
+        current.trim() === "" ? null : Number(current.replace(",", "."));
       return parsed === value ? current : format(value);
     });
   }, [value]);
@@ -186,7 +242,11 @@ export function NumberField({
             if (Number.isFinite(n)) onChange(n);
           }}
         />
-        {suffix && <span className="tr-muted pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm">{suffix}</span>}
+        {suffix && (
+          <span className="tr-muted pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm">
+            {suffix}
+          </span>
+        )}
       </div>
     </label>
   );

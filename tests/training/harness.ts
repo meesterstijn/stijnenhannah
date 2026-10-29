@@ -2,7 +2,11 @@ import { readFile } from "node:fs/promises";
 import { PGlite } from "@electric-sql/pglite";
 import type { EntityName } from "@/features/training/db/database";
 import { TABLES } from "@/features/training/db/mapping";
-import { SyncError, classifyError, type SyncTransport } from "@/features/training/sync/transport";
+import {
+  SyncError,
+  classifyError,
+  type SyncTransport,
+} from "@/features/training/sync/transport";
 
 // Lokale PostgreSQL (PGlite/WASM) met de echte trainingsmigratie; alleen de
 // omliggende Supabase-onderdelen zijn gestubd. Nooit productie.
@@ -29,7 +33,13 @@ export async function createTrainingTestDb(): Promise<PGlite> {
       ('${OWNER_A}', 'owner'), ('${OWNER_B}', 'owner'), ('${R6_PLAYER}', 'r6_player');
   `);
   await db.exec(
-    await readFile(new URL("../../supabase/migrations/20261029020000_training.sql", import.meta.url), "utf8"),
+    await readFile(
+      new URL(
+        "../../supabase/migrations/20261029020000_training.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
   );
   return db;
 }
@@ -40,7 +50,9 @@ export async function runAs<T = Record<string, unknown>>(
   sql: string,
   params: unknown[] = [],
 ): Promise<T[]> {
-  await db.query("select set_config('request.jwt.claim.sub', $1, false)", [user ?? ""]);
+  await db.query("select set_config('request.jwt.claim.sub', $1, false)", [
+    user ?? "",
+  ]);
   await db.exec(`set role ${user ? "authenticated" : "anon"}`);
   try {
     return (await db.query<T>(sql, params)).rows;
@@ -50,7 +62,12 @@ export async function runAs<T = Record<string, unknown>>(
 }
 
 // Doet wat PostgREST doet bij .upsert(row, { onConflict: "id" }).select().
-export async function upsertAs(db: PGlite, user: string | null, table: string, row: Record<string, unknown>) {
+export async function upsertAs(
+  db: PGlite,
+  user: string | null,
+  table: string,
+  row: Record<string, unknown>,
+) {
   const all = Object.keys(row);
   const columns = all.filter((c) => c !== "id");
   const rows = await runAs<{ r: Record<string, unknown> }>(
@@ -87,7 +104,9 @@ export class PgliteTransport implements SyncTransport {
   }
 
   async push(entity: EntityName, row: Record<string, unknown>) {
-    const result = await this.guard(() => upsertAs(this.pg, this.user, TABLES[entity], row));
+    const result = await this.guard(() =>
+      upsertAs(this.pg, this.user, TABLES[entity], row),
+    );
     this.pushes++;
     if (this.loseNextPushResponse) {
       this.loseNextPushResponse = false;
@@ -108,7 +127,12 @@ export class PgliteTransport implements SyncTransport {
     });
   }
 
-  pull(entity: EntityName, since: string | null, limit: number, inclusive: boolean) {
+  pull(
+    entity: EntityName,
+    since: string | null,
+    limit: number,
+    inclusive: boolean,
+  ) {
     return this.guard(async () => {
       const op = inclusive ? ">=" : ">";
       const rows = await runAs<{ r: Record<string, unknown> }>(

@@ -1,7 +1,14 @@
 import { addDays, weekStart } from "./schedule";
 import type { HistoryIndex, Performance } from "./performance";
 import { fromGrams, toGrams } from "./units";
-import type { Exercise, MuscleGroup, SetValues, Tracking, TrainingSession, TrainingSet } from "./types";
+import type {
+  Exercise,
+  MuscleGroup,
+  SetValues,
+  Tracking,
+  TrainingSession,
+  TrainingSet,
+} from "./types";
 
 // Statistiek en persoonlijke records. Alles wordt afgeleid uit de opgeslagen
 // sets, dus een correctie achteraf werkt overal vanzelf door.
@@ -9,7 +16,10 @@ import type { Exercise, MuscleGroup, SetValues, Tracking, TrainingSession, Train
 // Geschatte 1RM volgens Epley: gewicht × (1 + herhalingen / 30). Alleen een
 // indicatie, en alleen bij 1–12 herhalingen (daarboven is de schatting te
 // onbetrouwbaar).
-export function estimateOneRepMax(weightKg: number | null, reps: number | null): number | null {
+export function estimateOneRepMax(
+  weightKg: number | null,
+  reps: number | null,
+): number | null {
   if (!weightKg || !reps || reps < 1 || reps > 12) return null;
   if (reps === 1) return weightKg;
   return Math.round(weightKg * (1 + reps / 30) * 10) / 10;
@@ -34,11 +44,19 @@ export type SessionSummary = {
   exerciseCount: number;
 };
 
-export function sessionSummary(session: TrainingSession, sets: TrainingSet[]): SessionSummary {
+export function sessionSummary(
+  session: TrainingSession,
+  sets: TrainingSet[],
+): SessionSummary {
   const own = sets.filter((s) => s.sessionId === session.id && !s.deletedAt);
   const work = own.filter((s) => s.kind === "work");
   const durationMin = session.endedAt
-    ? Math.max(0, Math.round((Date.parse(session.endedAt) - Date.parse(session.startedAt)) / 60000))
+    ? Math.max(
+        0,
+        Math.round(
+          (Date.parse(session.endedAt) - Date.parse(session.startedAt)) / 60000,
+        ),
+      )
     : null;
   return {
     workSets: work.length,
@@ -68,15 +86,23 @@ export function exerciseSeries(list: Performance[]): ExercisePoint[] {
   return [...list].reverse().map((p) => {
     const top = p.work.reduce<SetValues | null>(
       (best, s) =>
-        !best || (s.weightKg ?? 0) > (best.weightKg ?? 0) ||
-        ((s.weightKg ?? 0) === (best.weightKg ?? 0) && (s.reps ?? 0) > (best.reps ?? 0))
+        !best ||
+        (s.weightKg ?? 0) > (best.weightKg ?? 0) ||
+        ((s.weightKg ?? 0) === (best.weightKg ?? 0) &&
+          (s.reps ?? 0) > (best.reps ?? 0))
           ? s
           : best,
       null,
     );
-    const e1rms = p.work.map((s) => estimateOneRepMax(s.weightKg, s.reps)).filter((v): v is number => v !== null);
-    const durations = p.work.map((s) => s.durationSec).filter((v): v is number => v !== null);
-    const jumps = p.work.map((s) => s.jumps).filter((v): v is number => v !== null);
+    const e1rms = p.work
+      .map((s) => estimateOneRepMax(s.weightKg, s.reps))
+      .filter((v): v is number => v !== null);
+    const durations = p.work
+      .map((s) => s.durationSec)
+      .filter((v): v is number => v !== null);
+    const jumps = p.work
+      .map((s) => s.jumps)
+      .filter((v): v is number => v !== null);
     return {
       date: p.date,
       sessionId: p.sessionId,
@@ -91,7 +117,12 @@ export function exerciseSeries(list: Performance[]): ExercisePoint[] {
   });
 }
 
-export type RecordEntry = { value: number; date: string; sessionId: string; detail?: string };
+export type RecordEntry = {
+  value: number;
+  date: string;
+  sessionId: string;
+  detail?: string;
+};
 
 export type ExerciseRecords = {
   heaviest: (RecordEntry & { reps: number | null }) | null;
@@ -121,20 +152,51 @@ export function exerciseRecords(list: Performance[]): ExerciseRecords {
       value !== null && value > 0 && (!current || value > current.value);
     for (const s of p.work) {
       if (better(records.heaviest, s.weightKg)) {
-        records.heaviest = { value: s.weightKg!, reps: s.reps, date: p.date, sessionId: p.sessionId };
+        records.heaviest = {
+          value: s.weightKg!,
+          reps: s.reps,
+          date: p.date,
+          sessionId: p.sessionId,
+        };
       }
       const e1rm = estimateOneRepMax(s.weightKg, s.reps);
-      if (better(records.bestE1rm, e1rm)) records.bestE1rm = { value: e1rm!, date: p.date, sessionId: p.sessionId };
-      if (better(records.mostReps, s.reps)) records.mostReps = { value: s.reps!, date: p.date, sessionId: p.sessionId };
-      if (better(records.longest, s.durationSec)) records.longest = { value: s.durationSec!, date: p.date, sessionId: p.sessionId };
-      if (better(records.mostJumps, s.jumps)) records.mostJumps = { value: s.jumps!, date: p.date, sessionId: p.sessionId };
+      if (better(records.bestE1rm, e1rm))
+        records.bestE1rm = {
+          value: e1rm!,
+          date: p.date,
+          sessionId: p.sessionId,
+        };
+      if (better(records.mostReps, s.reps))
+        records.mostReps = {
+          value: s.reps!,
+          date: p.date,
+          sessionId: p.sessionId,
+        };
+      if (better(records.longest, s.durationSec))
+        records.longest = {
+          value: s.durationSec!,
+          date: p.date,
+          sessionId: p.sessionId,
+        };
+      if (better(records.mostJumps, s.jumps))
+        records.mostJumps = {
+          value: s.jumps!,
+          date: p.date,
+          sessionId: p.sessionId,
+        };
       if (s.weightKg && s.reps) {
         const known = byWeight.get(s.weightKg);
-        if (!known || s.reps > known.reps) byWeight.set(s.weightKg, { reps: s.reps, date: p.date });
+        if (!known || s.reps > known.reps)
+          byWeight.set(s.weightKg, { reps: s.reps, date: p.date });
       }
     }
     const volume = volumeKg(p.work);
-    if (better(records.bestVolume, volume)) records.bestVolume = { value: volume, date: p.date, sessionId: p.sessionId };
+    if (better(records.bestVolume, volume))
+      records.bestVolume = {
+        value: volume,
+        date: p.date,
+        sessionId: p.sessionId,
+      };
   }
   records.repsByWeight = [...byWeight.entries()]
     .map(([weightKg, v]) => ({ weightKg, ...v }))
@@ -152,22 +214,41 @@ export type NewRecord = {
 
 // Records die in de meest recente uitvoering van een oefening zijn gezet
 // (vergeleken met alles daarvoor). Een eerste uitvoering is geen record.
-export function latestRecords(index: HistoryIndex, tracking: (id: string) => Tracking): NewRecord[] {
+export function latestRecords(
+  index: HistoryIndex,
+  tracking: (id: string) => Tracking,
+): NewRecord[] {
   const result: NewRecord[] = [];
   for (const [exerciseId, list] of index) {
     if (list.length < 2) continue;
     const [latest, ...earlier] = list;
     const before = exerciseRecords(earlier);
     const now = exerciseRecords([latest]);
-    const push = (kind: NewRecord["kind"], value: number | undefined, previous: number | undefined) => {
+    const push = (
+      kind: NewRecord["kind"],
+      value: number | undefined,
+      previous: number | undefined,
+    ) => {
       if (value !== undefined && previous !== undefined && value > previous) {
-        result.push({ exerciseId, sessionId: latest.sessionId, date: latest.date, kind, value });
+        result.push({
+          exerciseId,
+          sessionId: latest.sessionId,
+          date: latest.date,
+          kind,
+          value,
+        });
       }
     };
     const t = tracking(exerciseId);
     if (t === "weight_reps") {
       push("heaviest", now.heaviest?.value, before.heaviest?.value ?? 0);
-      if (!(now.heaviest && before.heaviest && now.heaviest.value > before.heaviest.value)) {
+      if (
+        !(
+          now.heaviest &&
+          before.heaviest &&
+          now.heaviest.value > before.heaviest.value
+        )
+      ) {
         push("e1rm", now.bestE1rm?.value, before.bestE1rm?.value ?? 0);
       }
     } else if (t === "bodyweight_reps") {
@@ -184,23 +265,38 @@ export function latestRecords(index: HistoryIndex, tracking: (id: string) => Tra
 const completed = (sessions: TrainingSession[]) =>
   sessions.filter((s) => s.status === "completed" && !s.deletedAt);
 
-export function weeklyCounts(sessions: TrainingSession[], today: string, weeks: number) {
+export function weeklyCounts(
+  sessions: TrainingSession[],
+  today: string,
+  weeks: number,
+) {
   const start = weekStart(today);
   const list = completed(sessions);
   return Array.from({ length: weeks }, (_, i) => {
     const from = addDays(start, -7 * (weeks - 1 - i));
     const to = addDays(from, 6);
-    return { weekStart: from, count: list.filter((s) => s.localDate >= from && s.localDate <= to).length };
+    return {
+      weekStart: from,
+      count: list.filter((s) => s.localDate >= from && s.localDate <= to)
+        .length,
+    };
   });
 }
 
-export function monthlyCounts(sessions: TrainingSession[], today: string, months: number) {
+export function monthlyCounts(
+  sessions: TrainingSession[],
+  today: string,
+  months: number,
+) {
   const [y, m] = today.split("-").map(Number);
   const list = completed(sessions);
   return Array.from({ length: months }, (_, i) => {
     const date = new Date(Date.UTC(y, m - 1 - (months - 1 - i), 1));
     const key = date.toISOString().slice(0, 7);
-    return { month: key, count: list.filter((s) => s.localDate.startsWith(key)).length };
+    return {
+      month: key,
+      count: list.filter((s) => s.localDate.startsWith(key)).length,
+    };
   });
 }
 
@@ -232,7 +328,8 @@ export function muscleSetCounts(
   );
   const result: Partial<Record<MuscleGroup, number>> = {};
   for (const set of sets) {
-    if (set.deletedAt || set.kind !== "work" || !inRange.has(set.sessionId)) continue;
+    if (set.deletedAt || set.kind !== "work" || !inRange.has(set.sessionId))
+      continue;
     const exercise = lookup(set.exerciseId);
     if (!exercise) continue;
     for (const m of exercise.primary) result[m] = (result[m] ?? 0) + 1;

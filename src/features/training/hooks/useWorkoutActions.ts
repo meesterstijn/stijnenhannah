@@ -3,7 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { startSession, updateProfile } from "@/features/training/db/repository";
 import { buildHistoryIndex } from "@/features/training/domain/performance";
 import { toLocalDate } from "@/features/training/domain/schedule";
-import type { Program, ProgramDay, SessionSnapshot, TrainingSession } from "@/features/training/domain/types";
+import type {
+  Program,
+  ProgramDay,
+  SessionSnapshot,
+  TrainingSession,
+} from "@/features/training/domain/types";
 import { buildSnapshot } from "@/features/training/domain/workout";
 import { useTraining } from "./TrainingProvider";
 import { useExercises, useProfile } from "./useTrainingData";
@@ -19,7 +24,10 @@ export function useWorkoutActions() {
   const context = useCallback(async () => {
     // Altijd vers uit de database: de opdracht moet uit de laatst
     // opgeslagen, voltooide sessies komen.
-    const [sessions, sets] = await Promise.all([db.sessions.toArray(), db.sets.toArray()]);
+    const [sessions, sets] = await Promise.all([
+      db.sessions.toArray(),
+      db.sets.toArray(),
+    ]);
     return {
       lookup,
       index: buildHistoryIndex(sessions, sets),
@@ -29,19 +37,28 @@ export function useWorkoutActions() {
   }, [db, lookup, profile]);
 
   const openSession = useCallback(async () => {
-    const open = await db.sessions.where("status").anyOf("active", "paused").toArray();
+    const open = await db.sessions
+      .where("status")
+      .anyOf("active", "paused")
+      .toArray();
     return open.find((s) => !s.deletedAt) ?? null;
   }, [db]);
 
   const begin = useCallback(
-    async (input: { program: Program | null; day: ProgramDay; snapshot?: SessionSnapshot }) => {
+    async (input: {
+      program: Program | null;
+      day: ProgramDay;
+      snapshot?: SessionSnapshot;
+    }) => {
       const existing = await openSession();
       if (existing) {
         navigate("/training/workout");
         return existing;
       }
       const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      const snapshot = input.snapshot ?? buildSnapshot(input.program, input.day, await context());
+      const snapshot =
+        input.snapshot ??
+        buildSnapshot(input.program, input.day, await context());
       const session = await startSession(db, userId, {
         programId: input.program?.id ?? null,
         programRevision: input.program?.revision ?? null,
@@ -65,7 +82,11 @@ export function useWorkoutActions() {
         programRevision: program.revision,
         dayId: day.id,
         name: day.name,
-        snapshot: { programName: program.name, dayName: day.name, exercises: [] },
+        snapshot: {
+          programName: program.name,
+          dayName: day.name,
+          exercises: [],
+        },
         localDate: toLocalDate(new Date(), timeZone),
         timeZone,
         status: "skipped",
@@ -96,7 +117,9 @@ export function useWorkoutActions() {
             startWeightKg: null,
           })),
       };
-      const program = old.programId ? ((await db.programs.get(old.programId)) ?? null) : null;
+      const program = old.programId
+        ? ((await db.programs.get(old.programId)) ?? null)
+        : null;
       return begin({ program, day });
     },
     [begin, db],
@@ -104,7 +127,10 @@ export function useWorkoutActions() {
 
   const activate = useCallback(
     (programId: string | null) =>
-      updateProfile(db, userId, (p) => ({ ...p, settings: { ...p.settings, activeProgramId: programId } })),
+      updateProfile(db, userId, (p) => ({
+        ...p,
+        settings: { ...p.settings, activeProgramId: programId },
+      })),
     [db, userId],
   );
 

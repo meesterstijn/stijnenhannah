@@ -48,7 +48,12 @@ export class SyncEngine {
   private running: Promise<SyncReport> | null = null;
   private again = false;
   private listeners = new Set<(status: SyncStatus) => void>();
-  status: SyncStatus = { phase: "idle", lastOutcome: null, lastSyncAt: null, lastError: null };
+  status: SyncStatus = {
+    phase: "idle",
+    lastOutcome: null,
+    lastSyncAt: null,
+    lastError: null,
+  };
 
   constructor(
     private db: TrainingDatabase,
@@ -89,7 +94,13 @@ export class SyncEngine {
 
   private async runOnce(): Promise<SyncReport> {
     this.setStatus({ phase: "syncing" });
-    const report: SyncReport = { pushed: 0, pulled: 0, conflicts: 0, rejected: 0, outcome: "ok" };
+    const report: SyncReport = {
+      pushed: 0,
+      pulled: 0,
+      conflicts: 0,
+      rejected: 0,
+      outcome: "ok",
+    };
     try {
       if (this.options.isOnline && !this.options.isOnline()) {
         throw new SyncError("network", "Geen internetverbinding");
@@ -98,10 +109,16 @@ export class SyncEngine {
       await this.pullAll(report);
       const at = new Date().toISOString();
       await setMeta(this.db, "lastSyncAt", at);
-      this.setStatus({ phase: "idle", lastOutcome: "ok", lastSyncAt: at, lastError: null });
+      this.setStatus({
+        phase: "idle",
+        lastOutcome: "ok",
+        lastSyncAt: at,
+        lastError: null,
+      });
     } catch (error) {
       const kind = error instanceof SyncError ? error.kind : null;
-      report.outcome = kind === "network" ? "offline" : kind === "auth" ? "auth" : "error";
+      report.outcome =
+        kind === "network" ? "offline" : kind === "auth" ? "auth" : "error";
       this.setStatus({
         phase: "idle",
         lastOutcome: report.outcome,
@@ -132,7 +149,9 @@ export class SyncEngine {
       return;
     }
     const row = toServerRow(entry.entity, record, current.changeId);
-    await this.db.outbox.update(entry.recordId, { attempts: current.attempts + 1 });
+    await this.db.outbox.update(entry.recordId, {
+      attempts: current.attempts + 1,
+    });
 
     let server: Row;
     try {
@@ -145,7 +164,10 @@ export class SyncEngine {
       }
       if (error instanceof SyncError && error.kind === "conflict") {
         const latest = await this.transport.fetch(entry.entity, entry.recordId);
-        if (latest && (await this.storeConflict(entry.entity, current, row, latest))) {
+        if (
+          latest &&
+          (await this.storeConflict(entry.entity, current, row, latest))
+        ) {
           report.conflicts++;
         }
         return;
@@ -158,7 +180,9 @@ export class SyncEngine {
       if (latest && latest.changeId !== current.changeId) {
         // Tijdens het pushen lokaal opnieuw gewijzigd: alleen de
         // basisversie bijwerken; de nieuwe inhoud gaat in de volgende ronde.
-        await table.update(entry.recordId, { version: server.version } as never);
+        await table.update(entry.recordId, {
+          version: server.version,
+        } as never);
         this.again = true;
         return;
       }
@@ -168,52 +192,75 @@ export class SyncEngine {
     report.pushed++;
   }
 
-  private async markRejected(entity: EntityName, entry: OutboxEntry, message: string) {
+  private async markRejected(
+    entity: EntityName,
+    entry: OutboxEntry,
+    message: string,
+  ) {
     const table = this.db.entityTable(entity);
     await this.db.transaction("rw", table, this.db.outbox, async () => {
       const latest = await this.db.outbox.get(entry.recordId);
       if (!latest || latest.changeId !== entry.changeId) return;
       await this.db.outbox.update(entry.recordId, { lastError: message });
-      await table.update(entry.recordId, { syncState: "rejected", syncError: message } as never);
+      await table.update(entry.recordId, {
+        syncState: "rejected",
+        syncError: message,
+      } as never);
     });
   }
 
   // true = echt conflict bewaard; false = opgelost zonder iets te verliezen.
-  private async storeConflict(entity: EntityName, entry: OutboxEntry, sentRow: Row, server: Row) {
+  private async storeConflict(
+    entity: EntityName,
+    entry: OutboxEntry,
+    sentRow: Row,
+    server: Row,
+  ) {
     const table = this.db.entityTable(entity);
-    return this.db.transaction("rw", table, this.db.outbox, this.db.conflicts, async () => {
-      const latest = await this.db.outbox.get(entry.recordId);
-      const record = await table.get(entry.recordId);
-      if (latest && latest.changeId !== entry.changeId) {
-        // Intussen weer lokaal gewijzigd: eerst die nieuwe versie proberen.
-        await table.update(entry.recordId, { version: server.version } as never);
-        this.again = true;
-        return false;
-      }
-      const stored = !record?.seeded;
-      if (stored) {
-        await this.db.conflicts.put({
-          id: entry.recordId,
-          entity,
-          local: sentRow,
-          server,
-          detectedAt: new Date().toISOString(),
-        });
-      }
-      await table.put(fromServerRow(entity, server));
-      await this.db.outbox.delete(entry.recordId);
-      return stored;
-    });
+    return this.db.transaction(
+      "rw",
+      table,
+      this.db.outbox,
+      this.db.conflicts,
+      async () => {
+        const latest = await this.db.outbox.get(entry.recordId);
+        const record = await table.get(entry.recordId);
+        if (latest && latest.changeId !== entry.changeId) {
+          // Intussen weer lokaal gewijzigd: eerst die nieuwe versie proberen.
+          await table.update(entry.recordId, {
+            version: server.version,
+          } as never);
+          this.again = true;
+          return false;
+        }
+        const stored = !record?.seeded;
+        if (stored) {
+          await this.db.conflicts.put({
+            id: entry.recordId,
+            entity,
+            local: sentRow,
+            server,
+            detectedAt: new Date().toISOString(),
+          });
+        }
+        await table.put(fromServerRow(entity, server));
+        await this.db.outbox.delete(entry.recordId);
+        return stored;
+      },
+    );
   }
 
   // ── Pull ───────────────────────────────────────────────────────────
 
   private async pullAll(report: SyncReport) {
-    const cursors = (await getMeta<Record<string, string>>(this.db, "cursors")) ?? {};
+    const cursors =
+      (await getMeta<Record<string, string>>(this.db, "cursors")) ?? {};
     const limit = this.options.pageSize ?? PAGE_SIZE;
     for (const entity of ENTITIES) {
       const known = cursors[entity] ?? null;
-      let since = known ? new Date(Date.parse(known) - PULL_OVERLAP_MS).toISOString() : null;
+      let since = known
+        ? new Date(Date.parse(known) - PULL_OVERLAP_MS).toISOString()
+        : null;
       let inclusive = true;
       let newest = known;
       for (;;) {
@@ -243,7 +290,12 @@ export class SyncEngine {
         // geeft (die detecteert een eventueel conflict).
         if (await this.db.outbox.get(id)) continue;
         const local = await table.get(id);
-        if (local && local.version >= (row.version as number) && local.syncState === "synced") continue;
+        if (
+          local &&
+          local.version >= (row.version as number) &&
+          local.syncState === "synced"
+        )
+          continue;
         await table.put(fromServerRow(entity, row));
       }
     });

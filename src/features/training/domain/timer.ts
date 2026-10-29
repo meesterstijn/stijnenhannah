@@ -50,7 +50,10 @@ export function isFinished(state: TimerState, now: number): boolean {
 // 0 (net begonnen) … 1 (klaar)
 export function progress(state: TimerState, now: number): number {
   if (state.status === "idle" || state.durationMs <= 0) return 0;
-  return Math.min(1, Math.max(0, 1 - remainingMs(state, now) / state.durationMs));
+  return Math.min(
+    1,
+    Math.max(0, 1 - remainingMs(state, now) / state.durationMs),
+  );
 }
 
 export function pauseTimer(state: TimerState, now: number): TimerState {
@@ -77,7 +80,11 @@ export function resumeTimer(state: TimerState, now: number): TimerState {
 
 // +15 s / −15 s. Nooit onder nul; de totale duur groeit mee zodat de
 // voortgangsbalk niet terugspringt.
-export function adjustTimer(state: TimerState, deltaMs: number, now: number): TimerState {
+export function adjustTimer(
+  state: TimerState,
+  deltaMs: number,
+  now: number,
+): TimerState {
   if (state.status === "running") {
     const remaining = Math.max(0, state.endsAt - now + deltaMs);
     return {
@@ -108,7 +115,13 @@ export function parseTimerState(raw: unknown): TimerState {
     return { status: "running", endsAt: s.endsAt, durationMs, label, slot };
   }
   if (s.status === "paused" && typeof s.remainingMs === "number") {
-    return { status: "paused", remainingMs: s.remainingMs, durationMs, label, slot };
+    return {
+      status: "paused",
+      remainingMs: s.remainingMs,
+      durationMs,
+      label,
+      slot,
+    };
   }
   return IDLE;
 }

@@ -112,15 +112,25 @@ export function buildHistoryIndex(
   }
   for (const list of index.values()) {
     list.sort((a, b) =>
-      a.at === b.at ? b.sessionId.localeCompare(a.sessionId) : b.at.localeCompare(a.at),
+      a.at === b.at
+        ? b.sessionId.localeCompare(a.sessionId)
+        : b.at.localeCompare(a.at),
     );
   }
   return index;
 }
 
-export type HistoryScope = { scope: "any" | "program"; programId?: string | null; excludeSessionId?: string };
+export type HistoryScope = {
+  scope: "any" | "program";
+  programId?: string | null;
+  excludeSessionId?: string;
+};
 
-export function performances(index: HistoryIndex, exerciseId: string, opts: HistoryScope): Performance[] {
+export function performances(
+  index: HistoryIndex,
+  exerciseId: string,
+  opts: HistoryScope,
+): Performance[] {
   return (index.get(exerciseId) ?? []).filter(
     (p) =>
       p.sessionId !== opts.excludeSessionId &&
@@ -167,7 +177,11 @@ export function defaultSet(input: PrescriptionInput): SetValues {
   };
 }
 
-function resize(list: SetValues[], count: number, filler: SetValues): SetValues[] {
+function resize(
+  list: SetValues[],
+  count: number,
+  filler: SetValues,
+): SetValues[] {
   const result = list.slice(0, count).map(values);
   while (result.length < count) {
     result.push(values(result[result.length - 1] ?? filler));
@@ -193,12 +207,17 @@ function performedList(
 }
 
 // Opwarmsets zonder historie: ~50% en ~75% van de eerste werkset.
-function defaultWarmups(count: number, firstWork: SetValues | undefined): SetValues[] {
+function defaultWarmups(
+  count: number,
+  firstWork: SetValues | undefined,
+): SetValues[] {
   const pct = [0.5, 0.75, 0.85];
   const reps = [8, 5, 3];
   return Array.from({ length: count }, (_, i) => ({
     weightKg:
-      firstWork?.weightKg != null ? Math.floor(firstWork.weightKg * pct[Math.min(i, 2)]) : null,
+      firstWork?.weightKg != null
+        ? Math.floor(firstWork.weightKg * pct[Math.min(i, 2)])
+        : null,
     reps: reps[Math.min(i, 2)],
     durationSec: null,
     jumps: null,
@@ -211,7 +230,9 @@ export function buildPrescription(
 ): Prescription {
   const filler = defaultSet(input);
   if (!previous || previous.work.length === 0) {
-    const work = Array.from({ length: Math.max(1, input.sets) }, () => ({ ...filler }));
+    const work = Array.from({ length: Math.max(1, input.sets) }, () => ({
+      ...filler,
+    }));
     return {
       work,
       warmup: defaultWarmups(input.warmupSets, work[0]),

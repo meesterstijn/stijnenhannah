@@ -9,8 +9,14 @@ import {
 } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
-import { TrainingDatabase, databaseNameFor } from "@/features/training/db/database";
-import { ensureProfile, onLocalChange } from "@/features/training/db/repository";
+import {
+  TrainingDatabase,
+  databaseNameFor,
+} from "@/features/training/db/database";
+import {
+  ensureProfile,
+  onLocalChange,
+} from "@/features/training/db/repository";
 import { SyncEngine, type SyncStatus } from "@/features/training/sync/engine";
 import { createSupabaseTransport } from "@/features/training/sync/transport";
 
@@ -80,7 +86,11 @@ export function TrainingProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => () => value.db.close({ disableAutoOpen: false }), [value]);
 
-  return <TrainingContext.Provider value={value}>{children}</TrainingContext.Provider>;
+  return (
+    <TrainingContext.Provider value={value}>
+      {children}
+    </TrainingContext.Provider>
+  );
 }
 
 export function useTraining(): TrainingContextValue {

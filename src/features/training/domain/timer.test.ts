@@ -52,7 +52,9 @@ describe("rusttimer (deadline)", () => {
   });
 
   it("herstelt na opnieuw openen uit opslag", () => {
-    const stored = JSON.parse(JSON.stringify(startTimer(90_000, T0, "Bankdrukken", 2)));
+    const stored = JSON.parse(
+      JSON.stringify(startTimer(90_000, T0, "Bankdrukken", 2)),
+    );
     const restored = parseTimerState(stored);
     expect(remainingMs(restored, T0 + 30_000)).toBe(60_000);
     expect(restored.status === "running" && restored.slot).toBe(2);

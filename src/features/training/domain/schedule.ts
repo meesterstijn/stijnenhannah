@@ -36,7 +36,8 @@ export function addDays(localDate: string, days: number): string {
   return new Date(parse(localDate) + days * DAY_MS).toISOString().slice(0, 10);
 }
 
-export const weekStart = (localDate: string) => addDays(localDate, -weekdayOf(localDate));
+export const weekStart = (localDate: string) =>
+  addDays(localDate, -weekdayOf(localDate));
 
 export const daysBetween = (from: string, to: string) =>
   Math.round((parse(to) - parse(from)) / DAY_MS);
@@ -62,14 +63,21 @@ export function planToday(
 ): TodayPlan {
   const days = program.content.days;
   const own = sessions.filter((s) => s.programId === program.id && counts(s));
-  const doneToday = own.some((s) => s.localDate === today && s.status === "completed");
+  const doneToday = own.some(
+    (s) => s.localDate === today && s.status === "completed",
+  );
 
-  if (program.content.scheduleMode === "sequence" || days.every((d) => d.weekdays.length === 0)) {
+  if (
+    program.content.scheduleMode === "sequence" ||
+    days.every((d) => d.weekdays.length === 0)
+  ) {
     const known = new Set(days.map((d) => d.id));
     const last = own
       .filter((s) => s.dayId && known.has(s.dayId))
       .sort((a, b) => b.startedAt.localeCompare(a.startedAt))[0];
-    const index = last ? (days.findIndex((d) => d.id === last.dayId) + 1) % days.length : 0;
+    const index = last
+      ? (days.findIndex((d) => d.id === last.dayId) + 1) % days.length
+      : 0;
     const day = days[index] ?? null;
     return {
       mode: "sequence",
@@ -82,7 +90,9 @@ export function planToday(
   }
 
   const monday = weekStart(today);
-  const thisWeek = own.filter((s) => s.localDate >= monday && s.localDate <= addDays(monday, 6));
+  const thisWeek = own.filter(
+    (s) => s.localDate >= monday && s.localDate <= addDays(monday, 6),
+  );
   const doneIds = new Set(thisWeek.map((s) => s.dayId));
   const todayIndex = weekdayOf(today);
   const plannedToday = days.filter((d) => d.weekdays.includes(todayIndex));
@@ -135,7 +145,9 @@ export function weekOverview(
     return {
       date,
       weekday: i,
-      planned: weekly ? (program?.content.days.filter((d) => d.weekdays.includes(i)) ?? []) : [],
+      planned: weekly
+        ? (program?.content.days.filter((d) => d.weekdays.includes(i)) ?? [])
+        : [],
       sessions: sessions.filter(
         (s) => !s.deletedAt && s.status === "completed" && s.localDate === date,
       ),

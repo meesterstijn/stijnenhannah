@@ -13,7 +13,14 @@ import type {
 // wordt eerst hier opgeslagen; de sync brengt het naar Supabase. Zo gaat een
 // training nooit verloren door slecht bereik in de sportruimte.
 
-export const ENTITIES = ["profile", "exercise", "program", "session", "set", "body_metric"] as const;
+export const ENTITIES = [
+  "profile",
+  "exercise",
+  "program",
+  "session",
+  "set",
+  "body_metric",
+] as const;
 export type EntityName = (typeof ENTITIES)[number];
 
 export type EntityMap = {
@@ -100,16 +107,30 @@ export class TrainingDatabase extends Dexie {
   }
 
   get entityTables() {
-    return [this.profiles, this.exercises, this.programs, this.sessions, this.sets, this.bodyMetrics];
+    return [
+      this.profiles,
+      this.exercises,
+      this.programs,
+      this.sessions,
+      this.sets,
+      this.bodyMetrics,
+    ];
   }
 }
 
 export const databaseNameFor = (userId: string) => `training-${userId}`;
 
-export async function getMeta<T>(db: TrainingDatabase, key: string): Promise<T | undefined> {
+export async function getMeta<T>(
+  db: TrainingDatabase,
+  key: string,
+): Promise<T | undefined> {
   return (await db.meta.get(key))?.value as T | undefined;
 }
 
-export async function setMeta(db: TrainingDatabase, key: string, value: unknown) {
+export async function setMeta(
+  db: TrainingDatabase,
+  key: string,
+  value: unknown,
+) {
   await db.meta.put({ key, value });
 }

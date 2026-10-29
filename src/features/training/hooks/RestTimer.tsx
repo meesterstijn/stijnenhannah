@@ -44,7 +44,10 @@ const RestTimerContext = createContext<RestTimerValue | null>(null);
 
 function beep() {
   try {
-    const AudioCtx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    const AudioCtx =
+      window.AudioContext ??
+      (window as unknown as { webkitAudioContext?: typeof AudioContext })
+        .webkitAudioContext;
     if (!AudioCtx) return;
     const ctx = new AudioCtx();
     const now = ctx.currentTime;
@@ -67,7 +70,11 @@ function beep() {
 
 async function notify(label: string) {
   try {
-    if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+    if (
+      typeof Notification === "undefined" ||
+      Notification.permission !== "granted"
+    )
+      return;
     const body = `${label}: tijd voor de volgende set.`;
     const registration = await navigator.serviceWorker?.getRegistration?.();
     if (registration) {
@@ -158,7 +165,8 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
       remainingMs: remainingMs(state, now),
       progress: progress(state, now),
       finished: isFinished(state, now),
-      start: (seconds, label, slot) => save(startTimer(seconds * 1000, Date.now(), label, slot)),
+      start: (seconds, label, slot) =>
+        save(startTimer(seconds * 1000, Date.now(), label, slot)),
       pause: () => save(pauseTimer(state, Date.now())),
       resume: () => save(resumeTimer(state, Date.now())),
       adjust: (seconds) => save(adjustTimer(state, seconds * 1000, Date.now())),
@@ -167,7 +175,11 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
     [state, now, save],
   );
 
-  return <RestTimerContext.Provider value={value}>{children}</RestTimerContext.Provider>;
+  return (
+    <RestTimerContext.Provider value={value}>
+      {children}
+    </RestTimerContext.Provider>
+  );
 }
 
 export function useRestTimer(): RestTimerValue {

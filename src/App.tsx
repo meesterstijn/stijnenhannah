@@ -169,6 +169,46 @@ const SchietsportCompetities = lazy(
 const SchietsportInstellingen = lazy(
   () => import("@/pages/schietsport/SchietsportInstellingen"),
 );
+const TrainingLayout = lazy(() => import("@/pages/training/TrainingLayout"));
+const TrainingDashboard = lazy(
+  () => import("@/pages/training/TrainingDashboard"),
+);
+const TrainingWorkout = lazy(() => import("@/pages/training/TrainingWorkout"));
+const TrainingSchemas = lazy(() => import("@/pages/training/TrainingSchemas"));
+const TrainingSchemaEditor = lazy(
+  () => import("@/pages/training/TrainingSchemaEditor"),
+);
+const TrainingBibliotheek = lazy(
+  () => import("@/pages/training/TrainingBibliotheek"),
+);
+const TrainingOefeningen = lazy(
+  () => import("@/pages/training/TrainingOefeningen"),
+);
+const TrainingOefeningDetail = lazy(
+  () => import("@/pages/training/TrainingOefeningDetail"),
+);
+const TrainingOefeningForm = lazy(
+  () => import("@/pages/training/TrainingOefeningForm"),
+);
+const TrainingHistorie = lazy(
+  () => import("@/pages/training/TrainingHistorie"),
+);
+const TrainingSessieDetail = lazy(
+  () => import("@/pages/training/TrainingSessieDetail"),
+);
+const TrainingVoortgang = lazy(
+  () => import("@/pages/training/TrainingVoortgang"),
+);
+const TrainingLichaam = lazy(() => import("@/pages/training/TrainingLichaam"));
+const TrainingInstellingen = lazy(
+  () => import("@/pages/training/TrainingInstellingen"),
+);
+const TrainingMeer = lazy(() => import("@/pages/training/TrainingMeer"));
+const TrainingSchijven = lazy(() =>
+  import("@/pages/training/TrainingMeer").then((m) => ({
+    default: m.TrainingSchijven,
+  })),
+);
 const GameNightJoin = lazy(() => import("@/pages/game-night/GameNightJoin"));
 const GameNightGuest = lazy(() => import("@/pages/game-night/GameNightGuest"));
 
@@ -368,6 +408,33 @@ function AppRoutes() {
                 path="instellingen"
                 element={<SchietsportInstellingen />}
               />
+            </Route>
+            <Route path="/training" element={<TrainingLayout />}>
+              <Route index element={<TrainingDashboard />} />
+              <Route path="workout" element={<TrainingWorkout />} />
+              <Route path="schemas" element={<TrainingSchemas />} />
+              <Route path="schemas/:id" element={<TrainingSchemaEditor />} />
+              <Route path="bibliotheek" element={<TrainingBibliotheek />} />
+              <Route path="oefeningen" element={<TrainingOefeningen />} />
+              <Route
+                path="oefeningen/nieuw"
+                element={<TrainingOefeningForm />}
+              />
+              <Route
+                path="oefeningen/:id"
+                element={<TrainingOefeningDetail />}
+              />
+              <Route
+                path="oefeningen/:id/bewerken"
+                element={<TrainingOefeningForm />}
+              />
+              <Route path="historie" element={<TrainingHistorie />} />
+              <Route path="historie/:id" element={<TrainingSessieDetail />} />
+              <Route path="voortgang" element={<TrainingVoortgang />} />
+              <Route path="lichaam" element={<TrainingLichaam />} />
+              <Route path="schijven" element={<TrainingSchijven />} />
+              <Route path="instellingen" element={<TrainingInstellingen />} />
+              <Route path="meer" element={<TrainingMeer />} />
             </Route>
             <Route path="/game-night" element={<GameNightLayout />}>
               <Route index element={<GameNightHome />} />

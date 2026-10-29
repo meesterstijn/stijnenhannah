@@ -1,4 +1,7 @@
-import { defaultProfile, normalizeProfile } from "@/features/training/domain/defaults";
+import {
+  defaultProfile,
+  normalizeProfile,
+} from "@/features/training/domain/defaults";
 import { cleanValues, type Position } from "@/features/training/domain/workout";
 import type {
   BodyMetric,
@@ -33,7 +36,11 @@ export function onLocalChange(listener: () => void): () => void {
 const notify = () => listeners.forEach((l) => l());
 const nowIso = () => new Date().toISOString();
 
-async function enqueue(db: TrainingDatabase, entity: EntityName, recordId: string) {
+async function enqueue(
+  db: TrainingDatabase,
+  entity: EntityName,
+  recordId: string,
+) {
   const existing = await db.outbox.get(recordId);
   if (existing) {
     // Nieuwe inhoud = nieuw changeId; de volgorde (seq) blijft, zodat een
@@ -55,7 +62,9 @@ async function enqueue(db: TrainingDatabase, entity: EntityName, recordId: strin
 export async function writeRecord<E extends EntityName>(
   db: TrainingDatabase,
   entity: E,
-  record: LocalRecord<E> | (Omit<LocalRecord<E>, "syncState"> & { syncState?: string }),
+  record:
+    | LocalRecord<E>
+    | (Omit<LocalRecord<E>, "syncState"> & { syncState?: string }),
   options: { seeded?: boolean; silent?: boolean } = {},
 ) {
   const table = db.entityTable(entity);
@@ -91,16 +100,31 @@ async function patch<E extends EntityName>(
 
 const base = (userId: string, id = newId()) => {
   const at = nowIso();
-  return { id, userId, createdAt: at, updatedAt: at, deletedAt: null, version: 0 };
+  return {
+    id,
+    userId,
+    createdAt: at,
+    updatedAt: at,
+    deletedAt: null,
+    version: 0,
+  };
 };
 
 // ── Profiel ───────────────────────────────────────────────────────────
 
-export async function ensureProfile(db: TrainingDatabase, userId: string): Promise<Profile> {
+export async function ensureProfile(
+  db: TrainingDatabase,
+  userId: string,
+): Promise<Profile> {
   const existing = await db.profiles.get(userId);
   if (existing) return normalizeProfile(existing);
   const profile = defaultProfile(userId, nowIso());
-  await writeRecord(db, "profile", { ...profile, syncState: "pending" }, { seeded: true });
+  await writeRecord(
+    db,
+    "profile",
+    { ...profile, syncState: "pending" },
+    { seeded: true },
+  );
   return profile;
 }
 
@@ -112,16 +136,34 @@ export async function updateProfile(
   await ensureProfile(db, userId);
   return patch(db, "profile", userId, (current) => {
     const next = change(normalizeProfile(current));
-    return { settings: next.settings, equipment: next.equipment, exercisePrefs: next.exercisePrefs, seeded: undefined };
+    return {
+      settings: next.settings,
+      equipment: next.equipment,
+      exercisePrefs: next.exercisePrefs,
+      seeded: undefined,
+    };
   });
 }
 
-export function setExercisePref(db: TrainingDatabase, userId: string, exerciseId: string, pref: ExercisePref) {
+export function setExercisePref(
+  db: TrainingDatabase,
+  userId: string,
+  exerciseId: string,
+  pref: ExercisePref,
+) {
   return updateProfile(db, userId, (p) => {
-    const merged: ExercisePref = { ...(p.exercisePrefs[exerciseId] ?? {}), ...pref };
+    const merged: ExercisePref = {
+      ...(p.exercisePrefs[exerciseId] ?? {}),
+      ...pref,
+    };
     // Lege waarden weglaten, zodat het profiel klein blijft.
     for (const key of Object.keys(merged) as (keyof ExercisePref)[]) {
-      if (merged[key] === undefined || merged[key] === "" || merged[key] === false) delete merged[key];
+      if (
+        merged[key] === undefined ||
+        merged[key] === "" ||
+        merged[key] === false
+      )
+        delete merged[key];
     }
     const prefs = { ...p.exercisePrefs };
     if (Object.keys(merged).length) prefs[exerciseId] = merged;
@@ -149,7 +191,11 @@ export async function createProgram(
   return program;
 }
 
-export function saveProgram(db: TrainingDatabase, id: string, input: { name: string; content: ProgramContent }) {
+export function saveProgram(
+  db: TrainingDatabase,
+  id: string,
+  input: { name: string; content: ProgramContent },
+) {
   return patch(db, "program", id, (p) => ({
     name: input.name.trim().slice(0, 80) || p.name,
     content: input.content,
@@ -157,7 +203,11 @@ export function saveProgram(db: TrainingDatabase, id: string, input: { name: str
   }));
 }
 
-export async function duplicateProgram(db: TrainingDatabase, userId: string, id: string) {
+export async function duplicateProgram(
+  db: TrainingDatabase,
+  userId: string,
+  id: string,
+) {
   const original = await db.programs.get(id);
   if (!original) throw new Error("Schema niet gevonden");
   return createProgram(db, userId, {
@@ -167,7 +217,11 @@ export async function duplicateProgram(db: TrainingDatabase, userId: string, id:
   });
 }
 
-export const archiveProgram = (db: TrainingDatabase, id: string, archived: boolean) =>
+export const archiveProgram = (
+  db: TrainingDatabase,
+  id: string,
+  archived: boolean,
+) =>
   patch(db, "program", id, () => ({ archivedAt: archived ? nowIso() : null }));
 
 export const deleteProgram = (db: TrainingDatabase, id: string) =>
@@ -183,7 +237,10 @@ export async function saveCustomExercise(
   const { id, name, custom: _custom, ...data } = exercise;
   const existing = id ? await db.exercises.get(id) : undefined;
   if (existing) {
-    await patch(db, "exercise", id, () => ({ name: name.trim().slice(0, 80), data }));
+    await patch(db, "exercise", id, () => ({
+      name: name.trim().slice(0, 80),
+      data,
+    }));
     return id;
   }
   const record: CustomExerciseRecord = {
@@ -196,7 +253,11 @@ export async function saveCustomExercise(
   return record.id;
 }
 
-export const archiveCustomExercise = (db: TrainingDatabase, id: string, archived: boolean) =>
+export const archiveCustomExercise = (
+  db: TrainingDatabase,
+  id: string,
+  archived: boolean,
+) =>
   patch(db, "exercise", id, () => ({ archivedAt: archived ? nowIso() : null }));
 
 // ── Sessies ───────────────────────────────────────────────────────────
@@ -238,7 +299,10 @@ export const updateSnapshot = (
   db: TrainingDatabase,
   id: string,
   change: (snapshot: SessionSnapshot) => SessionSnapshot,
-) => patch(db, "session", id, (s) => ({ snapshot: change(structuredClone(s.snapshot)) }));
+) =>
+  patch(db, "session", id, (s) => ({
+    snapshot: change(structuredClone(s.snapshot)),
+  }));
 
 export const updateSession = (
   db: TrainingDatabase,
@@ -256,9 +320,15 @@ export function setSessionStatus(
     const ends = status === "completed" || status === "cancelled";
     return {
       status,
-      endedAt: ends ? (s.endedAt ?? nowIso()) : status === "active" ? null : s.endedAt,
+      endedAt: ends
+        ? (s.endedAt ?? nowIso())
+        : status === "active"
+          ? null
+          : s.endedAt,
       snapshot:
-        options.endedEarly !== undefined ? { ...s.snapshot, endedEarly: options.endedEarly } : s.snapshot,
+        options.endedEarly !== undefined
+          ? { ...s.snapshot, endedEarly: options.endedEarly }
+          : s.snapshot,
     };
   });
 }
@@ -288,7 +358,12 @@ export async function completeSet(
   await db.transaction("rw", db.sets, db.outbox, async () => {
     const existing = await db.sets
       .where("[sessionId+slot+kind+setIndex]")
-      .equals([input.sessionId, input.position.slot, input.position.kind, input.position.index])
+      .equals([
+        input.sessionId,
+        input.position.slot,
+        input.position.kind,
+        input.position.index,
+      ])
       .first();
     if (existing && !existing.deletedAt) {
       result = { set: existing, created: false };
@@ -296,7 +371,14 @@ export async function completeSet(
     }
     const at = nowIso();
     const set: TrainingSet = existing
-      ? { ...existing, ...values, exerciseId: input.exerciseId, deletedAt: null, completedAt: at, updatedAt: at }
+      ? {
+          ...existing,
+          ...values,
+          exerciseId: input.exerciseId,
+          deletedAt: null,
+          completedAt: at,
+          updatedAt: at,
+        }
       : {
           ...base(userId),
           ...values,
@@ -310,7 +392,12 @@ export async function completeSet(
           notes: null,
           completedAt: at,
         };
-    await writeRecord(db, "set", { ...set, syncState: "pending" }, { silent: true });
+    await writeRecord(
+      db,
+      "set",
+      { ...set, syncState: "pending" },
+      { silent: true },
+    );
     result = { set, created: true };
   });
   notify();
@@ -321,7 +408,12 @@ export const undoSet = (db: TrainingDatabase, id: string) =>
   patch(db, "set", id, () => ({ deletedAt: nowIso() }));
 
 // Gecontroleerde correctie van een opgeslagen set (historie).
-export function editSet(db: TrainingDatabase, id: string, tracking: Tracking, values: SetValues) {
+export function editSet(
+  db: TrainingDatabase,
+  id: string,
+  tracking: Tracking,
+  values: SetValues,
+) {
   return patch(db, "set", id, () => cleanValues(tracking, values));
 }
 
@@ -330,7 +422,12 @@ export function editSet(db: TrainingDatabase, id: string, tracking: Tracking, va
 export async function saveBodyMetric(
   db: TrainingDatabase,
   userId: string,
-  input: { measuredOn: string; weightKg: number | null; measurements: Record<string, number>; notes: string | null },
+  input: {
+    measuredOn: string;
+    weightKg: number | null;
+    measurements: Record<string, number>;
+    notes: string | null;
+  },
 ): Promise<BodyMetric> {
   const id = await deterministicId(`${userId}:body:${input.measuredOn}`);
   const existing = await db.bodyMetrics.get(id);
@@ -354,7 +451,11 @@ export const deleteBodyMetric = (db: TrainingDatabase, id: string) =>
 
 // "local": eigen versie alsnog doorvoeren (bovenop de serverversie).
 // "server": serverversie houden, eigen versie vergeten.
-export async function resolveConflict(db: TrainingDatabase, id: string, choice: "local" | "server") {
+export async function resolveConflict(
+  db: TrainingDatabase,
+  id: string,
+  choice: "local" | "server",
+) {
   const conflict = await db.conflicts.get(id);
   if (!conflict) return;
   if (choice === "local") {

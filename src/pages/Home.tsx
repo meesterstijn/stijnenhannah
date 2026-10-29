@@ -26,6 +26,7 @@ import {
   Guitar,
   Dices,
   Target,
+  Dumbbell,
   ChevronRight,
   MoreHorizontal,
 } from "lucide-react";
@@ -212,6 +213,13 @@ export default function Home() {
               icon={Target}
               title="Schietsport"
               desc="Logboek en statistieken"
+              compact
+            />
+            <HomeTile
+              to="/training"
+              icon={Dumbbell}
+              title="Training"
+              desc="Schema, sets en voortgang"
               compact
             />
             <HomeTile

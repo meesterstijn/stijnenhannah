@@ -13,8 +13,15 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { ThemeSwitcher } from "@/features/theme/ThemeSwitcher";
-import { useSyncStatus, useTraining } from "@/features/training/hooks/TrainingProvider";
-import { useConflictCount, useOpenSession, usePendingCount } from "@/features/training/hooks/useTrainingData";
+import {
+  useSyncStatus,
+  useTraining,
+} from "@/features/training/hooks/TrainingProvider";
+import {
+  useConflictCount,
+  useOpenSession,
+  usePendingCount,
+} from "@/features/training/hooks/useTrainingData";
 import { formatClock } from "@/features/training/domain/units";
 
 export const NAV = [
@@ -25,12 +32,28 @@ export const NAV = [
   { to: "/training/meer", label: "Meer", icon: Menu },
 ] as const;
 
-const MORE_PATHS = ["/training/meer", "/training/historie", "/training/lichaam", "/training/schijven", "/training/instellingen", "/training/bibliotheek"];
+const MORE_PATHS = [
+  "/training/meer",
+  "/training/historie",
+  "/training/lichaam",
+  "/training/schijven",
+  "/training/instellingen",
+  "/training/bibliotheek",
+];
 
 function isActive(pathname: string, to: string, exact?: boolean) {
-  if (to === "/training/meer") return MORE_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
-  if (to === "/training/schemas" && pathname.startsWith("/training/bibliotheek")) return false;
-  return exact ? pathname === to : pathname === to || pathname.startsWith(`${to}/`);
+  if (to === "/training/meer")
+    return MORE_PATHS.some(
+      (p) => pathname === p || pathname.startsWith(`${p}/`),
+    );
+  if (
+    to === "/training/schemas" &&
+    pathname.startsWith("/training/bibliotheek")
+  )
+    return false;
+  return exact
+    ? pathname === to
+    : pathname === to || pathname.startsWith(`${to}/`);
 }
 
 export function SyncBadge() {
@@ -46,7 +69,10 @@ export function SyncBadge() {
   } else if (conflicts > 0) {
     icon = <TriangleAlert className="h-4 w-4" />;
     text = `${conflicts} conflict${conflicts === 1 ? "" : "en"}`;
-  } else if (status.lastOutcome === "offline" || status.lastOutcome === "auth") {
+  } else if (
+    status.lastOutcome === "offline" ||
+    status.lastOutcome === "auth"
+  ) {
     icon = <CloudOff className="h-4 w-4" />;
     text = pending ? `Offline · ${pending} wacht` : "Offline";
   } else if (status.lastOutcome === "error") {
@@ -58,7 +84,11 @@ export function SyncBadge() {
   return (
     <button
       type="button"
-      onClick={() => (conflicts > 0 ? (location.hash = "#/training/instellingen") : void engine.sync())}
+      onClick={() =>
+        conflicts > 0
+          ? (location.hash = "#/training/instellingen")
+          : void engine.sync()
+      }
       className="tr-chip"
       title={status.lastError ?? "Nu synchroniseren"}
       aria-live="polite"
@@ -74,7 +104,11 @@ export function TopBar() {
   return (
     <div className="flex items-center justify-between gap-3 py-3">
       <div className="flex min-w-0 items-center gap-2">
-        <Link to="/" className="tr-btn tr-btn-quiet -ml-2 px-2" aria-label="Terug naar Ons Huisje">
+        <Link
+          to="/"
+          className="tr-btn tr-btn-quiet -ml-2 px-2"
+          aria-label="Terug naar Ons Huisje"
+        >
           <Home className="h-5 w-5" />
           <span className="hidden text-sm sm:inline">Ons Huisje</span>
         </Link>
@@ -89,7 +123,9 @@ export function TopBar() {
             key={item.to}
             to={item.to}
             className="tr-nav-link"
-            aria-current={isActive(pathname, item.to, "exact" in item) ? "page" : undefined}
+            aria-current={
+              isActive(pathname, item.to, "exact" in item) ? "page" : undefined
+            }
           >
             {item.label}
           </Link>
@@ -110,7 +146,13 @@ export function BottomNav() {
       {NAV.map((item) => {
         const Icon = item.icon;
         return (
-          <Link key={item.to} to={item.to} aria-current={isActive(pathname, item.to, "exact" in item) ? "page" : undefined}>
+          <Link
+            key={item.to}
+            to={item.to}
+            aria-current={
+              isActive(pathname, item.to, "exact" in item) ? "page" : undefined
+            }
+          >
             <Icon className="h-5 w-5" strokeWidth={1.9} />
             {item.label}
           </Link>
@@ -131,11 +173,16 @@ export function OpenSessionBanner() {
   if (!session) return null;
   const elapsed = (now - Date.parse(session.startedAt)) / 1000;
   return (
-    <Link to="/training/workout" className="tr-banner tr-banner-info mb-4 items-center justify-between font-medium">
+    <Link
+      to="/training/workout"
+      className="tr-banner tr-banner-info mb-4 items-center justify-between font-medium"
+    >
       <span className="flex items-center gap-2">
         <Dumbbell className="h-4 w-4" />
         {session.status === "paused" ? "Onderbroken" : "Bezig"}: {session.name}
-        {session.status === "active" && <span className="tr-num tr-muted">· {formatClock(elapsed)}</span>}
+        {session.status === "active" && (
+          <span className="tr-num tr-muted">· {formatClock(elapsed)}</span>
+        )}
       </span>
       <span className="tr-aqua-text font-semibold">Hervatten →</span>
     </Link>
@@ -143,12 +190,21 @@ export function OpenSessionBanner() {
 }
 
 // Licht/donker: eigen keuze, of het sitebrede thema volgen.
-export function useTrainingScheme(appearance: "auto" | "light" | "dark"): "light" | "dark" {
-  const [siteScheme, setSiteScheme] = useState(() => document.documentElement.getAttribute("data-ht-scheme"));
+export function useTrainingScheme(
+  appearance: "auto" | "light" | "dark",
+): "light" | "dark" {
+  const [siteScheme, setSiteScheme] = useState(() =>
+    document.documentElement.getAttribute("data-ht-scheme"),
+  );
   useEffect(() => {
     const root = document.documentElement;
-    const observer = new MutationObserver(() => setSiteScheme(root.getAttribute("data-ht-scheme")));
-    observer.observe(root, { attributes: true, attributeFilter: ["data-ht-scheme"] });
+    const observer = new MutationObserver(() =>
+      setSiteScheme(root.getAttribute("data-ht-scheme")),
+    );
+    observer.observe(root, {
+      attributes: true,
+      attributeFilter: ["data-ht-scheme"],
+    });
     return () => observer.disconnect();
   }, []);
   if (appearance !== "auto") return appearance;
