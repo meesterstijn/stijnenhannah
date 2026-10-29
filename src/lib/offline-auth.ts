@@ -1,5 +1,5 @@
 import type { Session } from "@supabase/supabase-js";
-import { SUPABASE_AUTH_STORAGE_KEY } from "@/lib/supabase";
+import { SUPABASE_AUTH_STORAGE_KEY } from "@/lib/supabase-config";
 
 // Offline-ondersteuning voor AuthContext. Puur client-side UI-gating: alle
 // data blijft op databaseniveau door RLS beschermd, een gecachete rol geeft

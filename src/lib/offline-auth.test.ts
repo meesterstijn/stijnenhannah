@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { SUPABASE_AUTH_STORAGE_KEY } from "@/lib/supabase";
+import { SUPABASE_AUTH_STORAGE_KEY } from "@/lib/supabase-config";
 import {
   clearCachedProfiles,
   readCachedProfile,
