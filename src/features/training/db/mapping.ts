@@ -94,5 +94,5 @@ export function fromServerRow<E extends EntityName>(entity: E, row: Row): LocalR
   }
   record.syncState = "synced";
   record.syncError = null;
-  return record as LocalRecord<E>;
+  return record as unknown as LocalRecord<E>;
 }
