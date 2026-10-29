@@ -117,5 +117,8 @@ te passen.
     als de browser al weet dat er geen netwerk is).
 16. **CSV**: puntkomma als scheidingsteken en decimale komma (Nederlandse
     Excel). Foto's zitten niet in de JSON-back-up.
-17. **Live zetten**: zie het einde van de oplevering; de code staat op de
-    branch `feature/schietsport`.
+17. **Live gezet** op 29 oktober 2026 (main). CI draait vóór elke deploy de
+    typecheck en alle tests; faalt er één, dan blijft de oude site staan.
+18. **Node 20 in CI** (`deploy.yml`) wordt sinds april 2026 niet meer
+    ondersteund. Ongewijzigd gelaten om de bestaande deploy niet te raken;
+    overstappen op Node 22 of 24 is een kleine, aanbevolen vervolgstap.
