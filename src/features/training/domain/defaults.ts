@@ -12,7 +12,7 @@ export const DEFAULT_SETTINGS: TrainingSettings = {
   vibrate: true,
   notifications: false,
   keepAwake: true,
-  appearance: "auto",
+  appearance: "light",
   showE1rm: true,
 };
 

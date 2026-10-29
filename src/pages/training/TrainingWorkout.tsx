@@ -120,6 +120,8 @@ export default function TrainingWorkout() {
 }
 
 const restLabel = (sec: number) => formatClock(sec);
+const restAfter = (kind: Position["kind"], restSec: number) =>
+  kind === "warmup" ? Math.min(60, restSec) : restSec;
 
 function useElapsed(startedAt: string) {
   const [now, setNow] = useState(() => Date.now());
@@ -190,7 +192,9 @@ function Workout({
     | "cancel"
   >(null);
   const [editing, setEditing] = useState<Position | null>(null);
-  const busy = useRef(false);
+  // Positie van de set die nu wordt opgeslagen: een tweede tik op dezelfde
+  // set doet niets (de opslag is daarnaast idempotent per positie).
+  const busy = useRef<string | null>(null);
 
   useEffect(() => {
     if (session.status === "active" && profile.settings.keepAwake)
@@ -224,13 +228,14 @@ function Workout({
   };
 
   const complete = async () => {
-    if (!cursor || !current || !values || busy.current) return;
+    if (!cursor || !current || !values) return;
+    if (busy.current === positionKey(cursor)) return;
     const problem = validateSetValues(current.tracking, values);
     if (problem) {
       setError(problem);
       return;
     }
-    busy.current = true;
+    busy.current = positionKey(cursor);
     try {
       const { set } = await completeSet(db, userId, {
         sessionId: session.id,
@@ -250,18 +255,19 @@ function Workout({
       setCursor(next);
       void persist((s) => ({ ...s, cursor: next }));
       if (next) {
-        timer.start(current.restSec, current.name, current.slot);
+        // Na een opwarmset korter rusten dan na een werkset.
+        timer.start(
+          restAfter(cursor.kind, current.restSec),
+          current.name,
+          current.slot,
+        );
         setRestOpen(true);
       } else {
         timer.stop();
         setSheet("finish");
       }
     } finally {
-      // Korte vergrendeling tegen dubbel tikken; de opslag zelf is ook
-      // idempotent per positie.
-      setTimeout(() => {
-        busy.current = false;
-      }, 350);
+      busy.current = null;
     }
   };
 
@@ -598,7 +604,7 @@ function Workout({
                     <span className="tr-set-hint">
                       {isLast
                         ? "LAATSTE SET · DAARNA AFRONDEN"
-                        : `TIK OM ${restLabel(current.restSec)} RUST TE STARTEN`}
+                        : `TIK OM ${restLabel(restAfter(cursor!.kind, current.restSec))} RUST TE STARTEN`}
                     </span>
                   </>
                 )}

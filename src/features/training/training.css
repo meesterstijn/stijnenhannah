@@ -9,9 +9,9 @@
  * --tr-muted (Cool Steel donkerder gemaakt). Op Pearl Aqua staat altijd
  * donkere tekst, op Dusty Grape altijd witte.
  *
- * Thema's: licht is de standaard. Kiest iemand sitebreed een donker thema
- * (data-ht-scheme="dark" op <html>), of in Training zelf "Donker", dan
- * schakelt de module naar de donkere variant van hetzelfde palet. */
+ * Thema's: Training valt bewust buiten het sitebrede themasysteem
+ * (THEME_EXCLUDED_PREFIXES), zodat dit palet altijd hetzelfde blijft. Licht
+ * is de standaard; in Training zelf kun je "Donker" kiezen (data-tr-scheme). */
 
 .training-theme {
   --tr-carbon: #222222;
@@ -87,6 +87,11 @@
   --tr-chart-2: #a5a9d6;
   --tr-chart-3: #7f8a98;
   color-scheme: dark;
+}
+
+/* De site zet koppen in een serif (Fraunces); Training gebruikt overal Inter. */
+.training-theme :is(h1, h2, h3, h4, h5, h6, button, input, select, textarea) {
+  font-family: var(--tr-font);
 }
 
 .training-theme *:focus-visible {

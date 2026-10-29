@@ -12,7 +12,6 @@ import {
   RefreshCw,
   TriangleAlert,
 } from "lucide-react";
-import { ThemeSwitcher } from "@/features/theme/ThemeSwitcher";
 import {
   useSyncStatus,
   useTraining,
@@ -133,7 +132,6 @@ export function TopBar() {
       </nav>
       <div className="flex items-center gap-1">
         <SyncBadge />
-        <ThemeSwitcher className="tr-icon-btn" />
       </div>
     </div>
   );
@@ -189,24 +187,11 @@ export function OpenSessionBanner() {
   );
 }
 
-// Licht/donker: eigen keuze, of het sitebrede thema volgen.
+// Licht/donker: alleen de eigen instelling van Training. De module valt
+// bewust buiten het sitebrede themasysteem (THEME_EXCLUDED_PREFIXES), net
+// als Schietsport en Gitaar: haar eigen palet verandert niet mee.
 export function useTrainingScheme(
   appearance: "auto" | "light" | "dark",
 ): "light" | "dark" {
-  const [siteScheme, setSiteScheme] = useState(() =>
-    document.documentElement.getAttribute("data-ht-scheme"),
-  );
-  useEffect(() => {
-    const root = document.documentElement;
-    const observer = new MutationObserver(() =>
-      setSiteScheme(root.getAttribute("data-ht-scheme")),
-    );
-    observer.observe(root, {
-      attributes: true,
-      attributeFilter: ["data-ht-scheme"],
-    });
-    return () => observer.disconnect();
-  }, []);
-  if (appearance !== "auto") return appearance;
-  return siteScheme === "dark" ? "dark" : "light";
+  return appearance === "dark" ? "dark" : "light";
 }

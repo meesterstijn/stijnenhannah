@@ -250,10 +250,9 @@ export default function TrainingInstellingen() {
           <span className="block font-medium">Weergave</span>
           <Segment
             label="Weergave"
-            value={settings.appearance}
+            value={settings.appearance === "dark" ? "dark" : "light"}
             onChange={(appearance) => setSettings({ appearance })}
             options={[
-              { value: "auto", label: "Volg site-thema" },
               { value: "light", label: "Licht" },
               { value: "dark", label: "Donker" },
             ]}

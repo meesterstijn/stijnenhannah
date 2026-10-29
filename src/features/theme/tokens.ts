@@ -116,6 +116,7 @@ export const THEME_EXCLUDED_PREFIXES = [
   "/gitaar",
   "/game-night",
   "/schietsport",
+  "/training",
   "/tuinieren",
   "/tuingids",
 ] as const;

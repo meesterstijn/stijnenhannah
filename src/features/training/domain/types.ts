@@ -233,6 +233,7 @@ export type TrainingSettings = {
   vibrate: boolean;
   notifications: boolean;
   keepAwake: boolean;
+  // "auto" bestaat nog voor oudere profielen en betekent licht.
   appearance: "auto" | "light" | "dark";
   showE1rm: boolean;
 };
