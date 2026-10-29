@@ -1,0 +1,813 @@
+/*
+ * Ons Huisje-themasysteem — de enige plek waar de --ht-*-tokens (gezet door
+ * ThemeProvider op <html>, zie composer.ts/presets.ts) worden omgezet in
+ * echte stijlen.
+ *
+ * Spelregels:
+ * - Elke regel hangt aan een data-ht-*-attribuut op <html>. Staat alles op
+ *   "Origineel", dan heeft <html> geen enkel attribuut en doet dit bestand
+ *   niets: de bestaande styling in styles.css blijft exact zoals hij was.
+ * - Regels die door meerdere categorieën beïnvloed worden, vallen met
+ *   var(--ht-x, <oude waarde>) per token terug op de oorspronkelijke waarde.
+ *   Zo kun je bv. alleen Kaarten wijzigen zonder dat kleuren meeveranderen.
+ * - Presets leveren alleen bladwaarden (kleur, lengte, percentage). Alle
+ *   combinatieformules (randkleur = accent ↔ border, gloed, sluier) staan
+ *   hier, zodat elke categorie met elke andere te combineren is.
+ * - Modules met een eigen identiteit (R6, Cocktail Bar, Gitaar, Game Night,
+ *   Schietsport, Tuin) krijgen nooit attributen, zie THEME_EXCLUDED_PREFIXES.
+ */
+
+/* ------------------------------------------------------------------ */
+/* Basistokens als de kleuren op Origineel staan                       */
+/* ------------------------------------------------------------------ */
+
+/* Contentpagina's: afgeleid van de bestaande shadcn-tokens. */
+html[data-ht]:not([data-ht-colors]) {
+  --ht-page: var(--background);
+  --ht-surface: var(--card);
+  --ht-surface-hover: var(--card);
+  --ht-text: var(--foreground);
+  --ht-text-muted: var(--muted-foreground);
+  --ht-text-faint: var(--muted-foreground);
+  --ht-accent: var(--primary);
+  --ht-accent-2: var(--primary);
+  --ht-border: var(--border);
+  --ht-nav-bg: var(--background);
+  --ht-nav-fg: var(--muted-foreground);
+  --ht-nav-active: var(--foreground);
+}
+
+/* Homepage: de oorspronkelijke witte tekst op donker glas boven de foto. */
+html[data-ht]:not([data-ht-colors]) .home-dashboard {
+  --ht-page: #1c1712;
+  --ht-surface: rgb(20 20 20);
+  --ht-surface-hover: rgb(30 30 30);
+  --ht-text: #fff;
+  --ht-text-muted: rgb(255 255 255 / 0.68);
+  --ht-text-faint: rgb(255 255 255 / 0.55);
+  --ht-accent: #fff;
+  --ht-accent-2: #fff;
+  --ht-border: rgb(255 255 255 / 0.13);
+  --ht-nav-bg: rgb(15 15 15);
+  --ht-nav-fg: rgb(255 255 255 / 0.55);
+  --ht-nav-active: #fff;
+}
+
+html[data-ht-scheme="dark"] {
+  color-scheme: dark;
+}
+
+html[data-ht-scheme="light"] {
+  color-scheme: light;
+}
+
+/* De "Meer"-widgets op Home staan in een .dark-scope (styles.css
+   .home-glass-scope). Met een gekozen palette moeten ze juist die palette
+   volgen, niet de vaste donkere tokens. */
+html[data-ht-colors] .home-glass-scope.dark {
+  --background: inherit;
+  --foreground: inherit;
+  --card: inherit;
+  --card-foreground: inherit;
+  --popover: inherit;
+  --popover-foreground: inherit;
+  --primary: inherit;
+  --primary-foreground: inherit;
+  --secondary: inherit;
+  --secondary-foreground: inherit;
+  --muted: inherit;
+  --muted-foreground: inherit;
+  --accent: inherit;
+  --accent-foreground: inherit;
+  --destructive: inherit;
+  --destructive-foreground: inherit;
+  --border: inherit;
+  --input: inherit;
+  --ring: inherit;
+}
+
+/* ------------------------------------------------------------------ */
+/* Typografie                                                          */
+/* ------------------------------------------------------------------ */
+
+html[data-ht-type] body,
+html[data-ht-type] .home-dashboard,
+html[data-ht-type] .font-sans {
+  font-family: var(--ht-font-body);
+}
+
+html[data-ht-type] body {
+  font-weight: var(--ht-weight-body);
+}
+
+html[data-ht-type] :is(h1, h2, h3, h4, .font-serif, .tuin-font) {
+  font-family: var(--ht-font-heading);
+  letter-spacing: var(--ht-tracking-heading);
+}
+
+html[data-ht-type] :is(.home-greeting, .home-weather-temp) {
+  font-family: var(--ht-font-heading);
+  font-weight: var(--ht-weight-heading);
+  letter-spacing: var(--ht-tracking-heading);
+}
+
+html[data-ht-type]
+  :is(.home-card-title, .home-wide-card-title, .home-glass-scope .sv-heading) {
+  font-family: var(--ht-font-heading);
+  font-weight: var(--ht-weight-label);
+  letter-spacing: var(--ht-tracking-heading);
+}
+
+html[data-ht-type] .home-section-heading {
+  font-weight: var(--ht-weight-label);
+  letter-spacing: var(--ht-tracking-label);
+  text-transform: var(--ht-label-case);
+}
+
+/* ------------------------------------------------------------------ */
+/* Achtergrond                                                         */
+/* ------------------------------------------------------------------ */
+
+html[data-ht-bg] body {
+  background-color: var(--ht-bg-color);
+  background-image:
+    linear-gradient(var(--ht-veil-page), var(--ht-veil-page)),
+    var(--ht-bg-image);
+  background-size: var(--ht-bg-size);
+  background-position: var(--ht-bg-position);
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+/* Gekozen kleuren, originele achtergrond: dezelfde zachte lichtvlekken als
+   styles.css, maar in de accentkleuren van de palette i.p.v. vast perzik
+   (dat gaf vlekken achter tekst op donkere palettes). */
+html[data-ht-colors]:not([data-ht-bg]) body {
+  background-image:
+    radial-gradient(
+      circle at 15% 10%,
+      color-mix(in oklab, var(--ht-accent) 14%, transparent),
+      transparent 50%
+    ),
+    radial-gradient(
+      circle at 85% 90%,
+      color-mix(in oklab, var(--ht-accent-2) 12%, transparent),
+      transparent 55%
+    );
+}
+
+html[data-ht-bg] .home-bg {
+  background-color: var(--ht-bg-color);
+  background-image: var(--ht-bg-image);
+  background-size: var(--ht-bg-size);
+  background-position: var(--ht-bg-position);
+}
+
+html[data-ht] .home-bg::before,
+html[data-ht-fx] .home-bg::after,
+html[data-ht-fx] body::before {
+  content: "";
+  pointer-events: none;
+}
+
+html[data-ht] .home-bg::before {
+  position: absolute;
+  inset: 0;
+  background: var(--ht-veil-home, transparent);
+}
+
+html[data-ht-fx] .home-bg::after {
+  position: absolute;
+  inset: 0;
+  background-image: var(--ht-fx-texture);
+}
+
+html[data-ht-fx] body::before {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-image: var(--ht-fx-texture);
+}
+
+/* ------------------------------------------------------------------ */
+/* Homepage — tekst                                                    */
+/* ------------------------------------------------------------------ */
+
+html[data-ht-colors] .home-dashboard,
+html[data-ht-colors] :is(.home-card, .home-wide-card),
+html[data-ht-colors] .home-header :is(a, button),
+html[data-ht-colors] .home-glass-scope :is(.sv-panel, .sv-heading) {
+  color: var(--ht-text);
+}
+
+html[data-ht-colors] .home-header {
+  background: color-mix(in oklab, var(--ht-page) 12%, transparent);
+}
+
+html[data-ht-colors]
+  :is(
+    .home-date,
+    .home-weather-desc,
+    .home-card-desc,
+    .home-wide-card-desc,
+    .home-glass-scope .sv-muted
+  ) {
+  color: var(--ht-text-muted);
+}
+
+html[data-ht-colors] :is(.home-weather-city, .home-section-heading) {
+  color: var(--ht-text-faint);
+}
+
+html[data-ht-fx] :is(.home-greeting, .home-weather-temp) {
+  text-shadow: 0 0 18px
+    color-mix(in oklab, var(--ht-accent) var(--ht-fx-text-glow), transparent);
+}
+
+/* ------------------------------------------------------------------ */
+/* Kaarten                                                             */
+/* ------------------------------------------------------------------ */
+
+/* Homepage-kaarten. Fallbacks = de oorspronkelijke glasstijl uit
+   styles.css (.home-card / .home-glass-scope .sv-panel). */
+html[data-ht] :is(.home-card, .home-wide-card, .home-glass-scope .sv-panel) {
+  --_ht-edge-src: var(--ht-accent);
+  --_ht-fill: color-mix(
+    in oklab,
+    var(--ht-surface) var(--ht-card-alpha, 38%),
+    transparent
+  );
+  --_ht-edge: color-mix(
+    in oklab,
+    color-mix(
+        in oklab,
+        var(--_ht-edge-src) var(--ht-card-edge-accent, 0%),
+        var(--ht-border)
+      )
+      var(--ht-card-edge-alpha, 100%),
+    transparent
+  );
+  background-color: var(--_ht-fill);
+  background-image: var(--ht-card-sheen, none);
+  -webkit-backdrop-filter: var(--ht-card-backdrop, blur(16px));
+  backdrop-filter: var(--ht-card-backdrop, blur(16px));
+  border: var(--ht-card-border-width, 1px) solid var(--_ht-edge);
+  border-radius: var(--ht-card-radius, 18px);
+  box-shadow:
+    inset 0 0 0 var(--ht-card-inset, 0px) var(--_ht-fill),
+    inset 0 0 0
+      calc(var(--ht-card-inset, 0px) + min(var(--ht-card-inset, 0px), 1px))
+      color-mix(in oklab, var(--_ht-edge) 60%, transparent),
+    0 var(--ht-card-shadow-y, 8px) var(--ht-card-shadow-blur, 30px)
+      var(--ht-card-shadow-spread, 0px)
+      var(--ht-fx-shadow-color, rgb(0 0 0 / 0.15)),
+    0 0 var(--ht-card-glow-size, 0px)
+      color-mix(
+        in oklab,
+        var(--_ht-edge-src) var(--ht-card-glow, 0%),
+        transparent
+      );
+}
+
+/* Afwisselende randkleur (alleen zichtbaar bij stijlen met een
+   accentrand, zoals Cyber / Neon). */
+html[data-ht]
+  :is(.home-card, .home-wide-card, .home-glass-scope > *):nth-child(even) {
+  --_ht-edge-src: var(--ht-accent-2);
+}
+
+@media (hover: hover) {
+  html[data-ht]
+    :is(.home-card, .home-wide-card, .home-glass-scope .sv-panel):hover {
+    background-color: color-mix(
+      in oklab,
+      var(--ht-surface-hover) min(100%, calc(var(--ht-card-alpha, 38%) + 8%)),
+      transparent
+    );
+  }
+}
+
+html[data-ht-cards] .home-card {
+  padding: var(--ht-card-pad);
+}
+
+html[data-ht-cards] .home-wide-card {
+  padding: calc(var(--ht-card-pad) * 1.1) calc(var(--ht-card-pad) * 1.25);
+}
+
+/* Bijbeltekst en Snelle links (Meer-sectie) hebben een eigen kaart i.p.v.
+   sv-panel; die volgen alleen een gekozen kaart- of kleurstijl. */
+html:is([data-ht-cards], [data-ht-colors]) .home-glass-scope > .rounded-2xl {
+  background-color: color-mix(
+    in oklab,
+    var(--ht-surface) var(--ht-card-alpha, 38%),
+    transparent
+  );
+  background-image: var(--ht-card-sheen, none);
+  -webkit-backdrop-filter: var(--ht-card-backdrop, blur(16px));
+  backdrop-filter: var(--ht-card-backdrop, blur(16px));
+  border-radius: var(--ht-card-radius, 18px);
+  border-color: color-mix(in oklab, var(--ht-border) 100%, transparent);
+  color: var(--ht-text);
+}
+
+/* Contentpagina's: kaarten uit cardSurface() (modern-surfaces.tsx). */
+html[data-ht-cards] .ht-card {
+  --_ht-edge-src: var(--ht-accent);
+  --_ht-fill: color-mix(
+    in oklab,
+    var(--card) var(--ht-card-alpha),
+    transparent
+  );
+  --_ht-edge: color-mix(
+    in oklab,
+    color-mix(
+        in oklab,
+        var(--_ht-edge-src) var(--ht-card-edge-accent),
+        var(--border)
+      )
+      var(--ht-card-edge-alpha),
+    transparent
+  );
+  background-color: var(--_ht-fill);
+  background-image: var(--ht-card-sheen);
+  -webkit-backdrop-filter: var(--ht-card-backdrop);
+  backdrop-filter: var(--ht-card-backdrop);
+  border-width: var(--ht-card-border-width);
+  border-color: var(--_ht-edge);
+  border-radius: var(--ht-card-radius);
+  box-shadow:
+    inset 0 0 0 var(--ht-card-inset) var(--_ht-fill),
+    inset 0 0 0 calc(var(--ht-card-inset) + min(var(--ht-card-inset), 1px))
+      color-mix(in oklab, var(--_ht-edge) 60%, transparent),
+    0 var(--ht-card-shadow-y) var(--ht-card-shadow-blur)
+      var(--ht-card-shadow-spread)
+      var(--ht-fx-shadow-color, rgb(15 23 42 / 0.12)),
+    0 0 var(--ht-card-glow-size)
+      color-mix(in oklab, var(--_ht-edge-src) var(--ht-card-glow), transparent);
+}
+
+/* Boodschappen gebruikt bewust wit papier (bg-white, witte kassabontanden).
+   Met een gekozen palette wordt dat de kaartkleur van die palette — de
+   tanden via een masker, zodat ze dezelfde kleur krijgen. */
+html[data-ht-colors] .shopping-page .bg-white {
+  background-color: var(--card);
+}
+
+html[data-ht-colors] .shopping-page .receipt-zigzag {
+  background-image: none;
+  background-color: var(--card);
+  -webkit-mask-repeat: repeat-x;
+  mask-repeat: repeat-x;
+  -webkit-mask-size: 24px 12px;
+  mask-size: 24px 12px;
+}
+
+html[data-ht-colors] .shopping-page .receipt-zigzag--top {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='24'%20height='12'%20viewBox='0%200%2024%2012'%3E%3Cpolygon%20points='0,12%2024,12%2024,0%2012,12%200,0'%20fill='white'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='24'%20height='12'%20viewBox='0%200%2024%2012'%3E%3Cpolygon%20points='0,12%2024,12%2024,0%2012,12%200,0'%20fill='white'/%3E%3C/svg%3E");
+}
+
+html[data-ht-colors] .shopping-page .receipt-zigzag--bottom {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='24'%20height='12'%20viewBox='0%200%2024%2012'%3E%3Cpolygon%20points='0,0%2024,0%2024,12%2012,0%200,12'%20fill='white'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='24'%20height='12'%20viewBox='0%200%2024%2012'%3E%3Cpolygon%20points='0,0%2024,0%2024,12%2012,0%200,12'%20fill='white'/%3E%3C/svg%3E");
+}
+
+/* ------------------------------------------------------------------ */
+/* Iconen                                                              */
+/* ------------------------------------------------------------------ */
+
+html[data-ht-icons] svg.lucide {
+  stroke-width: var(--ht-icon-stroke);
+}
+
+/* Losse "feature"-iconen op Home. Fallbacks = geen tegel, geen gloed. */
+html:is([data-ht-icons], [data-ht-colors])
+  :is(.home-card-icon, .home-wide-card > svg:first-child) {
+  box-sizing: content-box;
+  color: color-mix(
+    in oklab,
+    var(--ht-accent) var(--ht-icon-accent, 0%),
+    var(--ht-text)
+  );
+  padding: var(--ht-icon-pad, 0px);
+  background-color: color-mix(
+    in oklab,
+    var(--ht-accent) var(--ht-icon-tile, 0%),
+    transparent
+  );
+  border: var(--ht-icon-tile-border, 0px) solid
+    color-mix(in oklab, var(--ht-accent) 45%, transparent);
+  border-radius: var(--ht-icon-radius, 10px);
+  filter: drop-shadow(
+    0 0 6px
+      color-mix(in oklab, var(--ht-accent) var(--ht-icon-glow, 0%), transparent)
+  );
+}
+
+/* Bestaande icoontegels: sv-icon-slot (Home, Meer) en ht-icon-slot
+   (ModernPageHeader / ModernEmptyState op contentpagina's). */
+html:is([data-ht-icons], [data-ht-colors]) .home-glass-scope .sv-icon-slot {
+  color: color-mix(
+    in oklab,
+    var(--ht-accent) var(--ht-icon-accent, 0%),
+    var(--ht-text)
+  );
+  background: color-mix(
+    in oklab,
+    var(--ht-accent) var(--ht-icon-tile, 0%),
+    color-mix(in oklab, var(--ht-text) 10%, transparent)
+  );
+  border: 1px solid color-mix(in oklab, var(--ht-text) 15%, transparent);
+  border-radius: var(--ht-icon-radius, 10px);
+}
+
+html[data-ht-icons] .ht-icon-slot {
+  color: color-mix(
+    in oklab,
+    var(--primary) var(--ht-icon-accent),
+    var(--foreground)
+  );
+  border-radius: var(--ht-icon-radius);
+  box-shadow: inset 0 0 0 var(--ht-icon-tile-border)
+    color-mix(in oklab, var(--primary) 45%, transparent);
+}
+
+html[data-ht-icons] :is(.home-glass-scope .sv-icon-slot, .ht-icon-slot) svg {
+  filter: drop-shadow(
+    0 0 5px
+      color-mix(in oklab, var(--ht-accent) var(--ht-icon-glow), transparent)
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Navigatie                                                           */
+/* ------------------------------------------------------------------ */
+
+html:is([data-ht-nav], [data-ht-colors]) .home-bottom-nav {
+  background: color-mix(
+    in oklab,
+    var(--ht-nav-bg) var(--ht-nav-alpha, 100%),
+    transparent
+  );
+  -webkit-backdrop-filter: blur(var(--ht-nav-blur, 20px));
+  backdrop-filter: blur(var(--ht-nav-blur, 20px));
+  border-top: var(--ht-nav-border-width, 1px) solid
+    color-mix(
+      in oklab,
+      var(--ht-accent) var(--ht-nav-border-accent, 0%),
+      var(--ht-border)
+    );
+  box-shadow: 0 -10px 28px -14px
+    color-mix(in oklab, var(--ht-accent) var(--ht-nav-glow, 0%), transparent);
+}
+
+html:is([data-ht-nav], [data-ht-colors]) .home-bottom-nav-item {
+  color: var(--ht-nav-fg);
+  border-radius: 12px;
+  font-weight: var(--ht-nav-label-weight, 400);
+}
+
+html:is([data-ht-nav], [data-ht-colors]) .home-bottom-nav-item.active {
+  color: var(--ht-nav-active);
+  background-color: color-mix(
+    in oklab,
+    var(--ht-nav-active) var(--ht-nav-pill, 0%),
+    transparent
+  );
+  text-shadow: 0 0 10px
+    color-mix(in oklab, var(--ht-accent) var(--ht-nav-glow, 0%), transparent);
+}
+
+html:is([data-ht-nav], [data-ht-colors]) .home-bottom-nav-item.active svg {
+  filter: drop-shadow(
+    0 0 6px
+      color-mix(in oklab, var(--ht-accent) var(--ht-nav-glow, 0%), transparent)
+  );
+}
+
+html:is([data-ht-nav], [data-ht-colors]) .home-bottom-nav-dot {
+  background: var(--ht-nav-active);
+}
+
+html:is([data-ht-nav], [data-ht-colors])
+  .home-bottom-nav-item.active
+  .home-bottom-nav-dot {
+  opacity: var(--ht-nav-dot, 1);
+}
+
+/* Algemene bovenbalk (site-layout.tsx) — zelfde materiaal als de
+   onderbalk, maar in de paginakleur zodat de bestaande knoppen erin
+   (bg-primary, text-muted-foreground) hun contrast houden. */
+html[data-ht-nav] .ht-topbar {
+  background-color: color-mix(
+    in oklab,
+    var(--background) var(--ht-nav-alpha),
+    transparent
+  );
+  -webkit-backdrop-filter: blur(var(--ht-nav-blur));
+  backdrop-filter: blur(var(--ht-nav-blur));
+  border-bottom: var(--ht-nav-border-width) solid
+    color-mix(
+      in oklab,
+      var(--ht-accent) var(--ht-nav-border-accent),
+      var(--border)
+    );
+  box-shadow: 0 10px 28px -16px
+    color-mix(in oklab, var(--ht-accent) var(--ht-nav-glow), transparent);
+}
+
+/* ------------------------------------------------------------------ */
+/* Effecten                                                            */
+/* ------------------------------------------------------------------ */
+
+html[data-ht-fx]
+  :is(
+    .home-card,
+    .home-wide-card,
+    .home-glass-scope .sv-panel,
+    .ht-card,
+    .home-bottom-nav-item
+  ) {
+  transition-property:
+    transform, translate, background-color, border-color, box-shadow, color;
+  transition-duration: var(--ht-fx-duration);
+  transition-timing-function: ease;
+}
+
+@media (hover: hover) {
+  html[data-ht-fx]
+    :is(
+      .home-card,
+      .home-wide-card,
+      .home-glass-scope .sv-panel,
+      .ht-card-interactive
+    ):hover {
+    translate: 0 var(--ht-fx-lift);
+  }
+}
+
+html[data-ht-fx] h1 {
+  text-shadow: 0 0 16px
+    color-mix(in oklab, var(--primary) var(--ht-fx-text-glow), transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-ht-fx]
+    :is(
+      .home-card,
+      .home-wide-card,
+      .home-glass-scope .sv-panel,
+      .ht-card,
+      .home-bottom-nav-item
+    ) {
+    transition: none;
+    translate: none;
+  }
+}
+
+/* Zonder backdrop-filter is een halfdoorzichtige kaart boven een foto
+   onleesbaar: dan worden kaarten en navigatie (vrijwel) dekkend. */
+@supports not (
+  (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
+) {
+  html[data-ht] :is(.home-card, .home-wide-card, .home-glass-scope .sv-panel) {
+    background-color: color-mix(in oklab, var(--ht-surface) 92%, transparent);
+  }
+  html[data-ht-cards] .ht-card {
+    background-color: var(--card);
+  }
+  html:is([data-ht-nav], [data-ht-colors]) .home-bottom-nav {
+    background: var(--ht-nav-bg);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Preview in de themawisselaar                                        */
+/* ------------------------------------------------------------------ */
+
+/* Eigen startwaarden voor álle tokens (= het oorspronkelijke dashboard),
+   zodat een preview nooit het thema van de pagina eromheen overneemt. De
+   inline style van <ThemePreview> overschrijft per gekozen categorie. */
+.ht-preview {
+  --ht-page: #1c1712;
+  --ht-surface: rgb(20 20 20);
+  --ht-text: #fff;
+  --ht-text-muted: rgb(255 255 255 / 0.68);
+  --ht-accent: #fff;
+  --ht-accent-2: #fff;
+  --ht-border: rgb(255 255 255 / 0.13);
+  --ht-nav-bg: rgb(15 15 15);
+  --ht-nav-fg: rgb(255 255 255 / 0.55);
+  --ht-nav-active: #fff;
+  --ht-font-heading: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --ht-weight-heading: 600;
+  --ht-tracking-heading: normal;
+  --ht-card-radius: 18px;
+  --ht-card-border-width: 1px;
+  --ht-card-alpha: 38%;
+  --ht-card-backdrop: blur(16px);
+  --ht-card-edge-accent: 0%;
+  --ht-card-edge-alpha: 100%;
+  --ht-card-sheen: none;
+  --ht-card-shadow-y: 8px;
+  --ht-card-shadow-blur: 30px;
+  --ht-card-shadow-spread: 0px;
+  --ht-card-glow: 0%;
+  --ht-card-glow-size: 0px;
+  --ht-card-inset: 0px;
+  --ht-bg-color: #1c1712;
+  --ht-bg-image:
+    linear-gradient(
+      to bottom,
+      rgba(10, 10, 10, 0.2) 0%,
+      rgba(10, 10, 10, 0.38) 55%,
+      rgba(10, 10, 10, 0.72) 100%
+    ),
+    url("/home-hero.jpg");
+  --ht-bg-size: cover;
+  --ht-bg-position: center;
+  --ht-veil-home: transparent;
+  --ht-icon-stroke: 1.6;
+  --ht-icon-accent: 0%;
+  --ht-icon-tile: 0%;
+  --ht-icon-tile-border: 0px;
+  --ht-icon-glow: 0%;
+  --ht-nav-alpha: 100%;
+  --ht-nav-border-width: 1px;
+  --ht-nav-border-accent: 0%;
+  --ht-nav-glow: 0%;
+  --ht-fx-shadow-color: rgb(0 0 0 / 0.15);
+  --ht-fx-texture: none;
+  --ht-fx-text-glow: 0%;
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  isolation: isolate;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 10px;
+  font-size: 10px;
+  color: var(--ht-text);
+  background-color: var(--ht-bg-color);
+  background-image: var(--ht-bg-image);
+  background-size: var(--ht-bg-size);
+  background-position: var(--ht-bg-position);
+}
+
+.ht-preview--large {
+  aspect-ratio: 16 / 9;
+  font-size: 14px;
+  border-radius: 14px;
+}
+
+.ht-preview--thumb {
+  width: 4.5rem;
+  flex-shrink: 0;
+  font-size: 5px;
+  border-radius: 6px;
+}
+
+.ht-preview::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: var(--ht-fx-texture);
+}
+
+.ht-preview-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: var(--ht-veil-home);
+}
+
+.ht-preview-body {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55em;
+  padding: 0.9em 0.9em 0.5em;
+}
+
+.ht-preview-title {
+  font-family: var(--ht-font-heading);
+  font-weight: var(--ht-weight-heading);
+  letter-spacing: var(--ht-tracking-heading);
+  font-size: 1.5em;
+  line-height: 1;
+  text-shadow: 0 0 8px
+    color-mix(in oklab, var(--ht-accent) var(--ht-fx-text-glow), transparent);
+}
+
+.ht-preview-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5em;
+}
+
+.ht-preview-card {
+  --_ht-edge-src: var(--ht-accent);
+  --_ht-fill: color-mix(
+    in oklab,
+    var(--ht-surface) var(--ht-card-alpha),
+    transparent
+  );
+  --_ht-edge: color-mix(
+    in oklab,
+    color-mix(
+        in oklab,
+        var(--_ht-edge-src) var(--ht-card-edge-accent),
+        var(--ht-border)
+      )
+      var(--ht-card-edge-alpha),
+    transparent
+  );
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  height: 2.6em;
+  padding: 0 0.6em;
+  background-color: var(--_ht-fill);
+  background-image: var(--ht-card-sheen);
+  -webkit-backdrop-filter: var(--ht-card-backdrop);
+  backdrop-filter: var(--ht-card-backdrop);
+  border: var(--ht-card-border-width) solid var(--_ht-edge);
+  border-radius: calc(var(--ht-card-radius) * 0.45);
+  box-shadow:
+    inset 0 0 0 calc(var(--ht-card-inset) * 0.6) var(--_ht-fill),
+    inset 0 0 0
+      calc(var(--ht-card-inset) * 0.6 + min(var(--ht-card-inset), 1px))
+      color-mix(in oklab, var(--_ht-edge) 60%, transparent),
+    0 calc(var(--ht-card-shadow-y) * 0.4) calc(var(--ht-card-shadow-blur) * 0.4)
+      calc(var(--ht-card-shadow-spread) * 0.4) var(--ht-fx-shadow-color),
+    0 0 calc(var(--ht-card-glow-size) * 0.5)
+      color-mix(in oklab, var(--_ht-edge-src) var(--ht-card-glow), transparent);
+}
+
+.ht-preview-card--alt {
+  --_ht-edge-src: var(--ht-accent-2);
+}
+
+.ht-preview-icon {
+  width: 0.95em;
+  height: 0.95em;
+  border-radius: 0.25em;
+  border: max(1px, calc(var(--ht-icon-stroke) * 0.09em)) solid
+    color-mix(in oklab, var(--ht-accent) var(--ht-icon-accent), var(--ht-text));
+  background-color: color-mix(
+    in oklab,
+    var(--ht-accent) var(--ht-icon-tile),
+    transparent
+  );
+  box-shadow: 0 0 0.5em
+    color-mix(in oklab, var(--ht-accent) var(--ht-icon-glow), transparent);
+}
+
+.ht-preview-line {
+  flex: 1;
+  height: 0.35em;
+  border-radius: 1em;
+  background: color-mix(in oklab, var(--ht-text) 55%, transparent);
+}
+
+.ht-preview-nav {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  height: 1.8em;
+  background: color-mix(
+    in oklab,
+    var(--ht-nav-bg) var(--ht-nav-alpha),
+    transparent
+  );
+  border-top: var(--ht-nav-border-width) solid
+    color-mix(
+      in oklab,
+      var(--ht-accent) var(--ht-nav-border-accent),
+      var(--ht-border)
+    );
+  box-shadow: 0 -0.4em 1em -0.5em
+    color-mix(in oklab, var(--ht-accent) var(--ht-nav-glow), transparent);
+}
+
+.ht-preview-nav i {
+  width: 0.7em;
+  height: 0.7em;
+  border-radius: 0.2em;
+  background: var(--ht-nav-fg);
+}
+
+.ht-preview-nav i.active {
+  background: var(--ht-nav-active);
+  box-shadow: 0 0 0.6em
+    color-mix(in oklab, var(--ht-accent) var(--ht-nav-glow), transparent);
+}

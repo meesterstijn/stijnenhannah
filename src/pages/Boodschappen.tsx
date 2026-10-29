@@ -26,6 +26,7 @@ import { useLocalStorage } from "@/hooks/use-local-storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { ThemeSwitcher } from "@/features/theme/ThemeSwitcher";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -550,13 +551,16 @@ export default function Boodschappen() {
           isBoodschappen) — deze "Ons Huisje"-terugknop staat op de plek waar
           de paginatitel stond en is de enige manier terug naar de homepage
           op deze pagina. */}
-      <Link
-        to="/"
-        className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <HomeIcon className="h-4 w-4" strokeWidth={1.8} />
-        Ons Huisje
-      </Link>
+      <div className="flex items-center justify-between gap-3">
+        <Link
+          to="/"
+          className="inline-flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <HomeIcon className="h-4 w-4" strokeWidth={1.8} />
+          Ons Huisje
+        </Link>
+        <ThemeSwitcher className="h-9 w-9 rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground" />
+      </div>
 
       <div className="rounded-2xl border border-border/70 bg-white px-4 py-3 flex items-center justify-between gap-3">
         <div className="min-w-0">

@@ -9,6 +9,7 @@ import { SchoonmaakWidget } from "@/components/schoonmaak-widget";
 import { VakantieWidget } from "@/components/vakantie-widget";
 import { SpotifyWidget } from "@/components/spotify-widget";
 import { WifiWidget } from "@/components/wifi-widget";
+import { ThemeSwitcher } from "@/features/theme/ThemeSwitcher";
 import {
   Home as HomeIcon,
   LogOut,
@@ -88,14 +89,17 @@ export default function Home() {
           <HomeIcon className="h-5 w-5" strokeWidth={1.8} />
           <span className="font-semibold text-[15px]">Ons Huisje</span>
         </Link>
-        <button
-          type="button"
-          onClick={() => supabase.auth.signOut()}
-          className="flex items-center justify-center h-9 w-9 rounded-full opacity-90 hover:opacity-100 transition-opacity"
-          aria-label="Uitloggen"
-        >
-          <LogOut className="h-5 w-5" />
-        </button>
+        <div className="flex items-center gap-1">
+          <ThemeSwitcher className="h-9 w-9 rounded-full opacity-90 hover:opacity-100 transition-opacity" />
+          <button
+            type="button"
+            onClick={() => supabase.auth.signOut()}
+            className="flex items-center justify-center h-9 w-9 rounded-full opacity-90 hover:opacity-100 transition-opacity"
+            aria-label="Uitloggen"
+          >
+            <LogOut className="h-5 w-5" />
+          </button>
+        </div>
       </header>
 
       <div className="home-content">

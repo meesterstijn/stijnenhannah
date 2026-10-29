@@ -4,6 +4,7 @@ import { ErrorBoundary } from "@/components/error-boundary";
 import { WeatherForecast } from "@/components/weather-forecast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
+import { ThemeSwitcher } from "@/features/theme/ThemeSwitcher";
 
 const nav = [
   { to: "/notities", label: "Notities", icon: NotebookPen },
@@ -169,7 +170,7 @@ export function SiteLayout() {
         !isGitaar &&
         !isGameNight &&
         !isSchietsport && (
-          <header className="border-b border-border/60 backdrop-blur-sm bg-background/70 sticky top-0 z-40">
+          <header className="ht-topbar border-b border-border/60 backdrop-blur-sm bg-background/70 sticky top-0 z-40">
             <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-4 md:grid md:grid-cols-[auto_1fr_auto]">
               <Link to="/" className="flex items-center gap-2 group">
                 {isTuinieren ? (
@@ -224,6 +225,7 @@ export function SiteLayout() {
                         </Link>
                       );
                     })}
+                    <ThemeSwitcher className="h-9 w-9 rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground" />
                   </nav>
                 )}
               </div>

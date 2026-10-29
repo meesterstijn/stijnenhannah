@@ -1,6 +1,8 @@
 import { lazy, Suspense, useEffect } from "react";
 import { HashRouter, Routes, Route, useLocation } from "react-router-dom";
 import "@/features/game-night/guest.css";
+import "@/features/theme/theme.css";
+import { ThemeProvider } from "@/features/theme/ThemeProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { RequireAppAccess } from "@/components/RequireAppAccess";
@@ -472,8 +474,10 @@ export default function App() {
       <AuthProvider>
         <SpotifyCallbackHandler />
         <HashRouter>
-          <ScrollToTop />
-          <AppRoutes />
+          <ThemeProvider>
+            <ScrollToTop />
+            <AppRoutes />
+          </ThemeProvider>
         </HashRouter>
       </AuthProvider>
     </QueryClientProvider>

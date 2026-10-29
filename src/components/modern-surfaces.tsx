@@ -31,9 +31,11 @@ export function cardSurface(
         : padding === "lg"
           ? "p-6 sm:p-7"
           : "p-5";
-  const base = `rounded-2xl border ${dashed ? "border-dashed" : ""} border-border/60 bg-card ${MODERN_CARD_SHADOW_CLASS}`;
+  // ht-card / ht-card-interactive: haakjes voor het themasysteem
+  // (features/theme/theme.css); zonder gekozen thema doen ze niets.
+  const base = `ht-card rounded-2xl border ${dashed ? "border-dashed" : ""} border-border/60 bg-card ${MODERN_CARD_SHADOW_CLASS}`;
   const interactiveClass = interactive
-    ? "transition-all hover:-translate-y-0.5 hover:border-border hover:shadow-[0_2px_4px_rgba(15,23,42,0.05),0_16px_36px_-14px_rgba(15,23,42,0.18)]"
+    ? "ht-card-interactive transition-all hover:-translate-y-0.5 hover:border-border hover:shadow-[0_2px_4px_rgba(15,23,42,0.05),0_16px_36px_-14px_rgba(15,23,42,0.18)]"
     : "";
   return [base, paddingClass, interactiveClass].filter(Boolean).join(" ");
 }
@@ -87,7 +89,7 @@ export function ModernEmptyState({
     <div
       className={`${cardSurface({ padding: "lg", dashed: true })} text-center`}
     >
-      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+      <div className="ht-icon-slot mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
         <Icon className="h-5 w-5" strokeWidth={1.6} />
       </div>
       <p className="font-serif text-lg font-semibold mt-4">{title}</p>

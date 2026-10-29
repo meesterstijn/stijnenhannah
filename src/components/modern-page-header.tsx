@@ -46,7 +46,7 @@ export function ModernPageHeader({
               <ArrowLeft className="h-5 w-5" />
             </button>
           ))}
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+        <div className="ht-icon-slot flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
           <Icon className="h-5 w-5" strokeWidth={1.7} />
         </div>
         <div className="min-w-0">
