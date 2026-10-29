@@ -51,6 +51,7 @@
   --tr-chart-1: #2f9c83;
   --tr-chart-2: var(--tr-grape-base);
   --tr-chart-3: #8a96a6;
+  --tr-glow: rgb(132 220 198 / 0.35);
 
   font-family: var(--tr-font);
   background: var(--tr-bg);
@@ -86,6 +87,7 @@
   --tr-chart-1: var(--tr-aqua-base);
   --tr-chart-2: #a5a9d6;
   --tr-chart-3: #7f8a98;
+  --tr-glow: transparent;
   color-scheme: dark;
 }
 
@@ -466,7 +468,7 @@ button.tr-chip {
   justify-content: center;
   gap: 0.15rem;
   padding: 0.9rem 1rem;
-  box-shadow: 0 6px 18px rgb(132 220 198 / 0.35);
+  box-shadow: 0 6px 18px var(--tr-glow);
   touch-action: manipulation;
 }
 .tr-set-button:active:not(:disabled) {

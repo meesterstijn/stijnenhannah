@@ -235,6 +235,13 @@ export type TrainingSettings = {
   keepAwake: boolean;
   // "auto" bestaat nog voor oudere profielen en betekent licht.
   appearance: "auto" | "light" | "dark";
+  // Eigen kleurenpaletten (alleen voor Training) en het actieve palet.
+  paletteId: string;
+  palettes: {
+    id: string;
+    name: string;
+    colors: [string, string, string, string, string];
+  }[];
   showE1rm: boolean;
 };
 

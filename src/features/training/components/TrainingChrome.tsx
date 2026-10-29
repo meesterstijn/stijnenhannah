@@ -21,6 +21,7 @@ import {
   useOpenSession,
   usePendingCount,
 } from "@/features/training/hooks/useTrainingData";
+import { PaletteSwitcher } from "./PaletteSwitcher";
 import { formatClock } from "@/features/training/domain/units";
 
 export const NAV = [
@@ -132,6 +133,7 @@ export function TopBar() {
       </nav>
       <div className="flex items-center gap-1">
         <SyncBadge />
+        <PaletteSwitcher />
       </div>
     </div>
   );

@@ -13,6 +13,8 @@ export const DEFAULT_SETTINGS: TrainingSettings = {
   notifications: false,
   keepAwake: true,
   appearance: "light",
+  paletteId: "standaard",
+  palettes: [],
   showE1rm: true,
 };
 

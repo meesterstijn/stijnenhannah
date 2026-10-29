@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { useEffect, type CSSProperties } from "react";
+import { useActivePalette } from "@/features/training/components/PaletteSwitcher";
 import { Outlet, useLocation } from "react-router-dom";
 import "@/features/training/training.css";
 import { TrainingProvider } from "@/features/training/hooks/TrainingProvider";
@@ -22,6 +23,9 @@ function Shell() {
   const { settings } = useProfile();
   const scheme = useTrainingScheme(settings.appearance);
   const inWorkout = pathname === "/training/workout";
+  const { vars } = useActivePalette(scheme);
+  const background =
+    vars?.["--tr-bg"] ?? (scheme === "dark" ? "#161617" : "#f5f6f8");
 
   useEffect(() => {
     if (document.head.querySelector(`link[data-tr-font]`)) return;
@@ -36,14 +40,18 @@ function Shell() {
   useEffect(() => {
     const html = document.documentElement;
     const previous = html.style.backgroundColor;
-    html.style.backgroundColor = scheme === "dark" ? "#161617" : "#f5f6f8";
+    html.style.backgroundColor = background;
     return () => {
       html.style.backgroundColor = previous;
     };
-  }, [scheme]);
+  }, [background]);
 
   return (
-    <div className="training-theme min-h-dvh" data-tr-scheme={scheme}>
+    <div
+      className="training-theme min-h-dvh"
+      data-tr-scheme={scheme}
+      style={vars as CSSProperties | undefined}
+    >
       <div
         className={`mx-auto max-w-5xl px-4 sm:px-6 ${inWorkout ? "pb-8" : "pb-28 md:pb-12"}`}
       >

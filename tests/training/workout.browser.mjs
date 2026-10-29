@@ -263,6 +263,44 @@ try {
   await page.getByRole("button", { name: "Licht", exact: true }).click();
   step("eigen donkere weergave in Training");
 
+  // Eigen kleurenpalet (alleen Training)
+  const themeStyle = () =>
+    page.evaluate(
+      () =>
+        document.querySelector(".training-theme")?.getAttribute("style") ?? "",
+    );
+  await page.goto(`${BASE}/#/training`);
+  await page.getByRole("button", { name: "Stijl van Training" }).click();
+  await page.getByRole("button", { name: /Nieuw palet/ }).click();
+  await page.getByLabel("Naam").fill("Testpalet");
+  await page.getByLabel("Hexcode kleur 3").fill("#E07A5F");
+  await page.screenshot({
+    path: join(output, "9-nieuw-palet.png"),
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: "Opslaan en gebruiken" }).click();
+  await page.waitForFunction(() =>
+    (
+      document.querySelector(".training-theme")?.getAttribute("style") ?? ""
+    ).includes("--tr-surface"),
+  );
+  await page.getByRole("button", { name: "Sluiten" }).click();
+  await page.screenshot({
+    path: join(output, "10-dashboard-testpalet.png"),
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: "Stijl van Training" }).click();
+  await page.getByRole("button", { name: /Standaard/ }).click();
+  await page.waitForFunction(
+    () =>
+      !(
+        document.querySelector(".training-theme")?.getAttribute("style") ?? ""
+      ).includes("--tr-surface"),
+  );
+  assert.ok(!(await themeStyle()).includes("--tr-surface"));
+  await page.getByRole("button", { name: "Sluiten" }).click();
+  step("eigen kleurenpalet maken, gebruiken en terug naar standaard");
+
   for (const path of [
     "voortgang",
     "oefeningen",
