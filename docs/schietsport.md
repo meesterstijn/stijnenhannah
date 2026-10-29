@@ -150,7 +150,9 @@ te passen.
     actie op het dashboard). Bestaande oefenwedstrijden blijven zichtbaar,
     bewerkbaar en tellen mee in de statistieken.
 21. **Standaardwapens Karabijn 6 t/m 9**: type karabijn, eigendom “geleend /
-    club”, kaliber leeg gelaten (niet bekend). Ook het tweede owner-account
+    club”, kaliber .22 LR. Een leeg kaliber van deze karabijnen wordt bij het
+    openen automatisch .22 LR (zolang de naam niet is aangepast); maak je het
+    kaliber bewust leeg, dan komt .22 LR terug. Ook het tweede owner-account
     krijgt ze in zijn eigen lijst.
 22. **Puntenbord-totaal**: de vereniging gaf niet aan hoe de periodes tot één
     eindstand worden gecombineerd; de app toont de som en het gemiddelde per

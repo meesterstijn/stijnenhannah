@@ -13,6 +13,8 @@ const SCHIETSPORT_MIGRATIONS = [
 export const OWNER_A = "a0000000-0000-4000-8000-00000000000a";
 export const OWNER_B = "b0000000-0000-4000-8000-00000000000b";
 export const R6_PLAYER = "c0000000-0000-4000-8000-00000000000c";
+// Derde owner, voor tests die een schone account nodig hebben.
+export const OWNER_C = "d0000000-0000-4000-8000-00000000000d";
 
 export async function createSchietsportTestDb(): Promise<PGlite> {
   const db = new PGlite();
@@ -35,9 +37,9 @@ export async function createSchietsportTestDb(): Promise<PGlite> {
     create table storage.objects (id uuid default gen_random_uuid(), bucket_id text, name text);
     alter table storage.objects enable row level security;
     grant select, insert, update, delete on storage.objects to authenticated;
-    insert into auth.users values ('${OWNER_A}'), ('${OWNER_B}'), ('${R6_PLAYER}');
+    insert into auth.users values ('${OWNER_A}'), ('${OWNER_B}'), ('${R6_PLAYER}'), ('${OWNER_C}');
     insert into public.profiles values
-      ('${OWNER_A}', 'owner'), ('${OWNER_B}', 'owner'), ('${R6_PLAYER}', 'r6_player');
+      ('${OWNER_A}', 'owner'), ('${OWNER_B}', 'owner'), ('${R6_PLAYER}', 'r6_player'), ('${OWNER_C}', 'owner');
   `);
   for (const file of SCHIETSPORT_MIGRATIONS) {
     await db.exec(

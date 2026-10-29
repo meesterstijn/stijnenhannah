@@ -30,7 +30,13 @@ import {
   classifyError,
   type SyncTransport,
 } from "@/features/schietsport/sync/transport";
-import { OWNER_A, OWNER_B, createSchietsportTestDb, runAs } from "./harness";
+import {
+  OWNER_A,
+  OWNER_B,
+  OWNER_C as R6_FREE_OWNER,
+  createSchietsportTestDb,
+  runAs,
+} from "./harness";
 
 // Synchronisatie van begin tot eind: IndexedDB (fake-indexeddb) ↔ de echte
 // SQL-functies in PGlite. Elk "apparaat" heeft een eigen lokale database.
@@ -478,5 +484,61 @@ describe("competitieregels synchroniseren", () => {
     expect(
       (await laptop.db.competitions.get(competition.id))!.rules!.frozen,
     ).toEqual(frozen);
+  });
+});
+
+describe("kaliber standaardkarabijnen", () => {
+  it("lege kalibers uit de eerste versie worden .22 LR, ook als de server de lege versie heeft; eigen invoer blijft", async () => {
+    const user = R6_FREE_OWNER;
+    const old = device(user);
+    // Eerste versie: karabijnen zonder kaliber, al op de server.
+    for (const n of [6, 7, 8, 9]) {
+      const id = await deterministicId(`${user}:weapon:karabijn-${n}`);
+      await writeRecord(
+        old.db,
+        "weapon",
+        {
+          id,
+          userId: user,
+          createdAt: "2026-10-29T10:00:00.000Z",
+          updatedAt: "2026-10-29T10:00:00.000Z",
+          deletedAt: null,
+          version: 0,
+          name: `Karabijn ${n}`,
+          brand: null,
+          model: null,
+          weaponType: "karabijn",
+          caliber: n === 9 ? ".22 Match" : null,
+          ownership: "geleend",
+          photoPath: null,
+          notes: null,
+          archivedAt: null,
+          syncState: "pending",
+        },
+        { seeded: true },
+      );
+    }
+    await setMeta(old.db, "seededWeapons", true);
+    await old.engine.sync();
+
+    // Nieuw apparaat: maakt bij start eigen (mét kaliber) aan, server wint stil.
+    const fresh = device(user);
+    await ensureDefaultWeapons(fresh.db, user);
+    await fresh.engine.sync();
+    // Volgende start: herstel van lege kalibers.
+    await ensureDefaultWeapons(fresh.db, user);
+    await fresh.engine.sync();
+    await old.engine.sync();
+    const calibers = Object.fromEntries(
+      (await old.db.weapons.toArray()).map((w) => [w.name, w.caliber]),
+    );
+    expect(calibers).toEqual({
+      "Karabijn 6": ".22 LR",
+      "Karabijn 7": ".22 LR",
+      "Karabijn 8": ".22 LR",
+      "Karabijn 9": ".22 Match",
+    });
+    expect(await fresh.db.conflicts.count()).toBe(0);
+    expect(await old.db.conflicts.count()).toBe(0);
   });
 });

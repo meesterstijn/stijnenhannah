@@ -151,33 +151,52 @@ export const DEFAULT_WEAPONS: { key: string; name: string }[] = [
   6, 7, 8, 9,
 ].map((n) => ({ key: `karabijn-${n}`, name: `Karabijn ${n}` }));
 
+const DEFAULT_WEAPON_CALIBER = ".22 LR";
+
 export async function ensureDefaultWeapons(
   db: SchietsportDatabase,
   userId: string,
 ) {
-  if (await getMeta<boolean>(db, "seededWeapons")) return;
+  const seeded = await getMeta<boolean>(db, "seededWeapons");
   const timestamp = new Date().toISOString();
   for (const weapon of DEFAULT_WEAPONS) {
     const id = await deterministicId(`${userId}:weapon:${weapon.key}`);
-    if (await db.weapons.get(id)) continue;
-    const record = {
-      id,
-      userId,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-      deletedAt: null,
-      version: 0,
-      name: weapon.name,
-      brand: null,
-      model: null,
-      weaponType: "karabijn",
-      caliber: null,
-      ownership: "geleend",
-      photoPath: null,
-      notes: null,
-      archivedAt: null,
-    } as LocalRecord<"weapon">;
-    await writeRecord(db, "weapon", record, { seeded: true, silent: true });
+    const existing = await db.weapons.get(id);
+    if (!existing) {
+      if (seeded) continue; // eerder aangemaakt en sindsdien weggehaald
+      const record = {
+        id,
+        userId,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        deletedAt: null,
+        version: 0,
+        name: weapon.name,
+        brand: null,
+        model: null,
+        weaponType: "karabijn",
+        caliber: DEFAULT_WEAPON_CALIBER,
+        ownership: "geleend",
+        photoPath: null,
+        notes: null,
+        archivedAt: null,
+      } as LocalRecord<"weapon">;
+      await writeRecord(db, "weapon", record, { seeded: true, silent: true });
+    } else if (
+      // Eerste versie had geen kaliber: aanvullen zolang het leeg is en de
+      // karabijn niet is hernoemd. Bij elke start, zodat het ook goedkomt
+      // als een ander apparaat de lege versie eerder naar de server stuurde.
+      existing.deletedAt === null &&
+      existing.caliber === null &&
+      existing.name === weapon.name
+    ) {
+      await writeRecord(
+        db,
+        "weapon",
+        { ...existing, caliber: DEFAULT_WEAPON_CALIBER, updatedAt: timestamp },
+        { seeded: existing.seeded, silent: true },
+      );
+    }
   }
   await setMeta(db, "seededWeapons", true);
 }
