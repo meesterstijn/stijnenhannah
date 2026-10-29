@@ -37,7 +37,7 @@ import {
   trendSeries,
 } from "@/features/schietsport/domain/insights";
 import {
-  useCompetitionEntries,
+  useCompetitionMembership,
   useDisciplines,
   useSessions,
   useWeapons,
@@ -54,7 +54,7 @@ export default function SchietsportStatistieken() {
   const sessions = useSessions();
   const weapons = useWeapons({ includeArchived: true }) ?? NONE;
   const disciplines = useDisciplines({ includeArchived: true }) ?? NONE;
-  const entries = useCompetitionEntries() ?? NONE;
+  const entries = useCompetitionMembership() ?? NONE;
   const { filter, setFilter, sessionFilter } = useUiFilter();
   const [scaleChoice, setScaleChoice] = useState<ScoreScale>(300);
   const [showMa5, setShowMa5] = useState(true);

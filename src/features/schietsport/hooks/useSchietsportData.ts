@@ -3,6 +3,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { useSchietsport } from "@/features/schietsport/hooks/SchietsportProvider";
 import type { LocalRecord } from "@/features/schietsport/db/database";
 import { sortChronological } from "@/features/schietsport/domain/stats";
+import { membershipEntries } from "@/features/schietsport/domain/competition";
 
 // Live gegevens uit IndexedDB: elk scherm werkt meteen bij na een lokale
 // wijziging of een binnengekomen sync, ook offline. `undefined` = nog aan
@@ -121,4 +122,19 @@ export function useWeaponPhotoUrl(weaponId: string | undefined) {
     return () => URL.revokeObjectURL(objectUrl);
   }, [photo]);
   return url;
+}
+
+// Koppelingen voor filters: handmatige plus de automatisch meetellende
+// schietbeurten van competities met regels.
+export function useCompetitionMembership() {
+  const competitions = useCompetitions({ includeArchived: true });
+  const entries = useCompetitionEntries();
+  const sessions = useSessions();
+  return useMemo(
+    () =>
+      competitions && entries && sessions
+        ? membershipEntries(competitions, sessions, entries)
+        : undefined,
+    [competitions, entries, sessions],
+  );
 }

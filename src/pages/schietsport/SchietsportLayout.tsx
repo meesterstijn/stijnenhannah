@@ -8,6 +8,7 @@ import {
 } from "@/features/schietsport/components/SchietsportMobileNav";
 import { SchietsportProvider } from "@/features/schietsport/hooks/SchietsportProvider";
 import { Toaster } from "@/components/ui/sonner";
+import { CompetitionFreezer } from "@/features/schietsport/components/CompetitionFreezer";
 
 // Geneste layout voor /schietsport, zelfde opzet als GitaarLayout: desktop
 // een linkerkolom, mobiel een bovenbalk + vaste onderbalk met plusknop.
@@ -27,6 +28,7 @@ export default function SchietsportLayout() {
 
   return (
     <SchietsportProvider>
+      <CompetitionFreezer />
       <div className="schietsport-theme min-h-dvh">
         <div className="mx-auto max-w-6xl px-4 pb-28 pt-4 sm:px-6 md:pb-12 md:pt-8">
           <div className="md:hidden">

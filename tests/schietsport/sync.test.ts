@@ -1,14 +1,20 @@
 import "fake-indexeddb/auto";
 import type { PGlite } from "@electric-sql/pglite";
 import { beforeAll, describe, expect, it } from "vitest";
-import { SchietsportDatabase } from "@/features/schietsport/db/database";
 import {
+  SchietsportDatabase,
+  setMeta,
+} from "@/features/schietsport/db/database";
+import { deterministicId } from "@/features/schietsport/lib/ids";
+import {
+  createCompetition,
   createDiscipline,
   createWeapon,
   deleteSession,
   resolveConflict,
   saveSession,
   setWeaponPhoto,
+  updateCompetition,
   updateWeapon,
   writeRecord,
 } from "@/features/schietsport/db/repository";
@@ -393,5 +399,84 @@ describe("standaardwapens", () => {
         )
       )[0].n,
     ).toBe(4);
+  });
+});
+
+describe("nieuwe standaarddisciplines", () => {
+  it("Klapschijfschieten verschijnt ook bij wie al geseed had, zonder verwijderde terug te halen", async () => {
+    const db = new SchietsportDatabase(`seed-upgrade-${++deviceCounter}`);
+    // Situatie van vóór seedversie 2: oude vlag gezet, één standaarddiscipline verwijderd.
+    await setMeta(db, "seeded", true);
+    const kkId = await deterministicId(`${OWNER_A}:discipline:kk-pistool`);
+    await db.disciplines.put({
+      id: kkId,
+      userId: OWNER_A,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-02T00:00:00.000Z",
+      deletedAt: "2026-01-02T00:00:00.000Z",
+      version: 1,
+      name: "Klein kaliber pistool",
+      description: null,
+      archivedAt: null,
+      syncState: "synced",
+    });
+    await ensureDefaultDisciplines(db, OWNER_A);
+    const all = await db.disciplines.toArray();
+    expect(all.map((d) => d.name)).toEqual(
+      expect.arrayContaining(["Klapschijfschieten"]),
+    );
+    expect(all).toHaveLength(2); // alleen Klapschijf erbij, niet alle andere opnieuw
+    expect((await db.disciplines.get(kkId))!.deletedAt).not.toBeNull();
+    await ensureDefaultDisciplines(db, OWNER_A); // nogmaals: niets nieuws
+    expect(await db.disciplines.count()).toBe(2);
+  });
+});
+
+describe("competitieregels synchroniseren", () => {
+  it("regels komen heen en weer; tegelijk vastzetten op twee apparaten geeft geen conflict", async () => {
+    const phone = device(OWNER_B);
+    const laptop = device(OWNER_B);
+    await phone.engine.sync();
+    const competition = await createCompetition(phone.db, OWNER_B, {
+      name: "Puntenbord 2026",
+      startDate: "2026-01-01",
+      endDate: "2026-12-31",
+      disciplineId: null,
+      notes: null,
+      ruleType: "periods",
+      rules: {
+        sessionType: "match",
+        distance: null,
+        periods: [{ start: "2026-01-01", end: "2026-03-31" }],
+        frozen: [],
+      },
+    });
+    await phone.engine.sync();
+    await laptop.engine.sync();
+    const pulled = await laptop.db.competitions.get(competition.id);
+    expect(pulled).toMatchObject({
+      ruleType: "periods",
+      rules: competition.rules,
+    });
+
+    // Beide apparaten zetten offline dezelfde afgelopen periode vast.
+    const frozen = [{ period: 0, sessionId: null, score: null }];
+    await updateCompetition(phone.db, competition.id, {
+      rules: { ...competition.rules, frozen },
+    });
+    await updateCompetition(laptop.db, competition.id, {
+      rules: {
+        frozen,
+        periods: competition.rules!.periods,
+        distance: null,
+        sessionType: "match",
+      },
+    });
+    await phone.engine.sync();
+    const report = await laptop.engine.sync();
+    expect(report.conflicts).toBe(0);
+    expect(
+      (await laptop.db.competitions.get(competition.id))!.rules!.frozen,
+    ).toEqual(frozen);
   });
 });

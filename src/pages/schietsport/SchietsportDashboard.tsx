@@ -29,7 +29,7 @@ import {
 } from "@/features/schietsport/domain/stats";
 import { headline, trendSeries } from "@/features/schietsport/domain/insights";
 import {
-  useCompetitionEntries,
+  useCompetitionMembership,
   useDisciplines,
   useSessions,
   useWeapons,
@@ -52,7 +52,7 @@ export default function SchietsportDashboard() {
   const weapons = useWeapons() ?? NONE;
   const allWeapons = useWeapons({ includeArchived: true }) ?? NONE;
   const disciplines = useDisciplines({ includeArchived: true }) ?? NONE;
-  const entries = useCompetitionEntries() ?? NONE;
+  const entries = useCompetitionMembership() ?? NONE;
   const { filter, setFilter, sessionFilter } = useUiFilter();
 
   const filtered = useMemo(

@@ -53,6 +53,24 @@ validatie in `shooting_push_session`) en bij het terugzetten van een back-up.
 - Offline openen: de laatst bekende rol en de opgeslagen sessie worden
   gebruikt bij netwerkfouten (`src/lib/offline-auth.ts`), voor de hele site.
 
+## Competities
+
+Drie soorten (`domain/competition.ts`):
+
+- **Puntenbord (periodes)**: het jaar in periodes (standaard 5, datums één
+  keer per jaar instellen). Een schietbeurt telt voor de periode waarin de
+  datum valt; de hoogste score per periode telt. Een afgelopen periode wordt
+  vastgezet (`rules.frozen`, gesynchroniseerd) zodra de module na afloop
+  open is; daarna veranderen invoer of bewerkingen die score niet meer.
+  Wat na het einde van een periode wordt ingevoerd, telt niet meer voor die
+  periode.
+- **Beste scores (bv. klapschijf)**: de eerste N (standaard 5) scores vullen
+  de plekken; daarna vervangt een nieuwe score de laagste als die hoger is.
+- **Handmatig**: zelf officiële wedstrijden koppelen.
+
+Per competitie stel je in wat meetelt: officiële wedstrijden óf vrije kaarten,
+en optioneel discipline en afstand.
+
 ## Privacy en beveiliging
 
 - Elke rij hoort bij één gebruiker; RLS laat alleen eigen rijen lezen, ook
@@ -134,3 +152,20 @@ te passen.
 21. **Standaardwapens Karabijn 6 t/m 9**: type karabijn, eigendom “geleend /
     club”, kaliber leeg gelaten (niet bekend). Ook het tweede owner-account
     krijgt ze in zijn eigen lijst.
+22. **Puntenbord-totaal**: de vereniging gaf niet aan hoe de periodes tot één
+    eindstand worden gecombineerd; de app toont de som en het gemiddelde per
+    periode met score.
+23. **Periodes die al voorbij waren bij het aanmaken** van een competitie zijn
+    “aan te vullen”: daar tellen ook later ingevoerde oude uitslagen en ze
+    worden niet vastgezet. Zo kun je dit jaar alsnog compleet maken.
+24. **Vastzetten** gebeurt zodra de module (op een van je apparaten) open is
+    na het einde van een periode. Een uitslag die pas ná het einde van de
+    periode is ingevoerd, telt niet meer voor die periode (ook zonder dat de
+    app open was).
+25. **Eén type per competitie** (wedstrijden óf vrije kaarten), omdat 50- en
+    300-scores niet te vergelijken zijn. Oefenwedstrijden tellen nooit mee.
+26. **Beste scores bij gelijke stand**: een score die gelijk is aan je laagste
+    vervangt die niet (alleen hoger telt).
+27. **Klapschijfschieten** is toegevoegd als standaarddiscipline (25 m,
+    karabijn, later ook pistool). Nieuwe standaarddisciplines verschijnen
+    vanzelf bij bestaande gebruikers, zonder verwijderde terug te halen.

@@ -43,6 +43,8 @@ const FIELDS: Record<EntityName, [string, string, FieldKind][]> = {
     ["disciplineId", "discipline_id", "plain"],
     ["notes", "notes", "plain"],
     ["archivedAt", "archived_at", "timestamp"],
+    ["ruleType", "rule_type", "plain"],
+    ["rules", "rules", "plain"],
   ],
   competition_entry: [
     ["competitionId", "competition_id", "plain"],
@@ -133,5 +135,18 @@ export function contentKey(entity: EntityName, row: Row): string {
   }
   // max_score volgt uit het type en wordt door de server bepaald.
   delete content.max_score;
-  return JSON.stringify(content);
+  return stableStringify(content);
+}
+
+// JSON met gesorteerde sleutels: PostgreSQL (jsonb) geeft objectsleutels in
+// een eigen volgorde terug, dat mag geen verschil in inhoud lijken.
+function stableStringify(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
+  if (value && typeof value === "object") {
+    const entries = Object.entries(value as Row)
+      .filter(([, v]) => v !== undefined)
+      .sort(([a], [b]) => a.localeCompare(b));
+    return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${stableStringify(v)}`).join(",")}}`;
+  }
+  return JSON.stringify(value ?? null);
 }

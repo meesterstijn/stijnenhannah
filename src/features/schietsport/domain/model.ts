@@ -69,6 +69,21 @@ export type ShootingSession = SyncFields & {
   cards: SessionCard[];
 };
 
+export const COMPETITION_RULE_TYPES = ["periods", "best_of", "manual"] as const;
+export type CompetitionRuleType = (typeof COMPETITION_RULE_TYPES)[number];
+
+export type CompetitionRules = {
+  // Welk type schietbeurt telt (één type: 50- en 300-scores nooit mengen).
+  sessionType?: SessionType;
+  distance?: Distance | null;
+  // Puntenbord: periodes binnen het jaar.
+  periods?: { start: string; end: string }[];
+  // Afgelopen periodes worden vastgezet; daarna verandert hun score niet meer.
+  frozen?: { period: number; sessionId: string | null; score: number | null }[];
+  // Beste N.
+  bestCount?: number;
+};
+
 export type CompetitionPeriod = SyncFields & {
   name: string;
   startDate: string; // YYYY-MM-DD
@@ -76,8 +91,9 @@ export type CompetitionPeriod = SyncFields & {
   disciplineId: string | null;
   notes: string | null;
   archivedAt: string | null;
-  // Eindstandregels van de vereniging zijn nog niet vastgesteld en worden
-  // hier bewust (nog) niet gemodelleerd.
+  // Ontbreekt bij competities van vóór de regels: dan "manual".
+  ruleType?: CompetitionRuleType;
+  rules?: CompetitionRules;
 };
 
 export type CompetitionEntry = SyncFields & {

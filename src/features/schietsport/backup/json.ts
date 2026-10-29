@@ -6,7 +6,10 @@ import {
   type SchietsportDatabase,
 } from "@/features/schietsport/db/database";
 import { writeRecord } from "@/features/schietsport/db/repository";
-import { WEAPON_TYPES } from "@/features/schietsport/domain/model";
+import {
+  COMPETITION_RULE_TYPES,
+  WEAPON_TYPES,
+} from "@/features/schietsport/domain/model";
 import { scoreSession } from "@/features/schietsport/domain/scoring";
 import { DISTANCES, SESSION_TYPES } from "@/features/schietsport/domain/rules";
 
@@ -129,6 +132,8 @@ const schemas: Record<EntityName, z.ZodTypeAny> = {
     disciplineId: id.nullable(),
     notes: text(2000).nullable(),
     archivedAt: iso.nullable(),
+    ruleType: z.enum(COMPETITION_RULE_TYPES).optional(),
+    rules: z.record(z.unknown()).optional(),
   }),
   competition_entry: z.object({
     ...sync,

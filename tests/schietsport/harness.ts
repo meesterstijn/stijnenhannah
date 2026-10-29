@@ -4,6 +4,12 @@ import { PGlite } from "@electric-sql/pglite";
 // Lokale PostgreSQL (PGlite/WASM) met de echte Schietsport-migratie en
 // alleen de omliggende Supabase-onderdelen gestubd. Nooit productie.
 
+// Alle Schietsport-migraties, in volgorde.
+const SCHIETSPORT_MIGRATIONS = [
+  "20261029000000_schietsport.sql",
+  "20261029010000_schietsport_competition_rules.sql",
+];
+
 export const OWNER_A = "a0000000-0000-4000-8000-00000000000a";
 export const OWNER_B = "b0000000-0000-4000-8000-00000000000b";
 export const R6_PLAYER = "c0000000-0000-4000-8000-00000000000c";
@@ -33,15 +39,14 @@ export async function createSchietsportTestDb(): Promise<PGlite> {
     insert into public.profiles values
       ('${OWNER_A}', 'owner'), ('${OWNER_B}', 'owner'), ('${R6_PLAYER}', 'r6_player');
   `);
-  await db.exec(
-    await readFile(
-      new URL(
-        "../../supabase/migrations/20261029000000_schietsport.sql",
-        import.meta.url,
+  for (const file of SCHIETSPORT_MIGRATIONS) {
+    await db.exec(
+      await readFile(
+        new URL(`../../supabase/migrations/${file}`, import.meta.url),
+        "utf8",
       ),
-      "utf8",
-    ),
-  );
+    );
+  }
   return db;
 }
 

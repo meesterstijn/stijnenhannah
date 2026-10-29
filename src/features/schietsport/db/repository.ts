@@ -266,7 +266,13 @@ export async function deleteSession(db: SchietsportDatabase, id: string) {
 
 export type CompetitionInput = Pick<
   CompetitionPeriod,
-  "name" | "startDate" | "endDate" | "disciplineId" | "notes"
+  | "name"
+  | "startDate"
+  | "endDate"
+  | "disciplineId"
+  | "notes"
+  | "ruleType"
+  | "rules"
 >;
 
 export async function createCompetition(
@@ -281,6 +287,8 @@ export async function createCompetition(
     endDate: input.endDate,
     disciplineId: input.disciplineId,
     notes: clean(input.notes),
+    ruleType: input.ruleType ?? "manual",
+    rules: input.rules ?? {},
     archivedAt: null,
   } as LocalRecord<"competition">;
   await writeRecord(db, "competition", record);

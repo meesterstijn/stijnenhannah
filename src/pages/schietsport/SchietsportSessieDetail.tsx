@@ -195,7 +195,7 @@ export default function SchietsportSessieDetail() {
         </Panel>
       )}
 
-      {session.type === "match" && <CompetitionLinks session={session} />}
+      <CompetitionLinks session={session} />
 
       {session.notes && (
         <Panel title="Opmerkingen">

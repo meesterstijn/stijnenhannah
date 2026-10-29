@@ -19,7 +19,7 @@ import {
 import { SESSION_TYPE_LABELS } from "@/features/schietsport/domain/rules";
 import { filterSessions } from "@/features/schietsport/domain/stats";
 import {
-  useCompetitionEntries,
+  useCompetitionMembership,
   useDisciplines,
   useSessions,
   useWeapons,
@@ -36,7 +36,7 @@ export default function SchietsportLogboek() {
   const sessions = useSessions();
   const weapons = useWeapons({ includeArchived: true }) ?? NONE;
   const disciplines = useDisciplines({ includeArchived: true }) ?? NONE;
-  const entries = useCompetitionEntries() ?? NONE;
+  const entries = useCompetitionMembership() ?? NONE;
   const { filter, setFilter, sessionFilter } = useUiFilter();
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<Sort>("date_desc");

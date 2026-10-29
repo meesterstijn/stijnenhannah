@@ -487,3 +487,39 @@ describe("wapenfoto's", () => {
     ).toBe(1);
   });
 });
+
+describe("competitieregels", () => {
+  it("bewaart regeltype en regels; ongeldig type wordt geweigerd", async () => {
+    const id = nextId();
+    const rules = {
+      sessionTypes: ["match"],
+      periods: [{ start: "2026-01-01", end: "2026-03-31" }],
+      frozen: [],
+    };
+    const result = await push(A, "competition", {
+      id,
+      name: "Puntenbord 2026",
+      start_date: "2026-01-01",
+      end_date: "2026-12-31",
+      rule_type: "periods",
+      rules,
+    });
+    expect(result.row).toMatchObject({ rule_type: "periods", rules });
+    await expect(
+      push(A, "competition", {
+        id: nextId(),
+        name: "X",
+        start_date: "2026-01-01",
+        end_date: "2026-12-31",
+        rule_type: "raar",
+      }),
+    ).rejects.toThrow();
+    const oldStyle = await push(A, "competition", {
+      id: nextId(),
+      name: "Oud",
+      start_date: "2026-01-01",
+      end_date: "2026-12-31",
+    });
+    expect(oldStyle.row).toMatchObject({ rule_type: "manual", rules: {} });
+  });
+});

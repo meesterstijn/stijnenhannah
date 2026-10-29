@@ -20,7 +20,7 @@ import {
 } from "@/features/schietsport/domain/stats";
 import type { GroupRow } from "@/features/schietsport/domain/insights";
 import {
-  useCompetitionEntries,
+  useCompetitionMembership,
   useSessions,
   useWeapons,
 } from "@/features/schietsport/hooks/useSchietsportData";
@@ -36,7 +36,7 @@ const FALLBACK = "oklch(0.7 0.01 85)";
 export default function SchietsportWapensVergelijken() {
   const allWeapons = useWeapons({ includeArchived: true });
   const sessions = useSessions() ?? NONE;
-  const entries = useCompetitionEntries() ?? NONE;
+  const entries = useCompetitionMembership() ?? NONE;
   const { filter, setFilter, sessionFilter } = useUiFilter();
   const [params, setParams] = useSearchParams();
   const [scale, setScale] = useState<ScoreScale>(300);

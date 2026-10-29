@@ -16,7 +16,14 @@ import {
   useSessions,
 } from "@/features/schietsport/hooks/useSchietsportData";
 import { formatDate, formatMean } from "@/features/schietsport/lib/format";
-import { competitionStatus } from "@/features/schietsport/lib/competition";
+import {
+  competitionFigures,
+  competitionStatus,
+} from "@/features/schietsport/lib/competition";
+import {
+  RULE_TYPE_LABELS,
+  ruleTypeOf,
+} from "@/features/schietsport/domain/competition";
 import { SCHIETSPORT_BASE } from "@/features/schietsport/nav";
 
 export default function SchietsportCompetities() {
@@ -51,13 +58,7 @@ export default function SchietsportCompetities() {
       ) : (
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
           {competitions?.map((competition) => {
-            const linkedIds = new Set(
-              entries
-                .filter((e) => e.competitionId === competition.id)
-                .map((e) => e.sessionId),
-            );
-            const linked = sessions.filter((s) => linkedIds.has(s.id));
-            const summary = summarize(linked);
+            const figures = competitionFigures(competition, sessions, entries);
             const status = competitionStatus(competition);
             return (
               <Link
@@ -74,6 +75,9 @@ export default function SchietsportCompetities() {
                       {competition.disciplineId &&
                         ` · ${disciplines.find((d) => d.id === competition.disciplineId)?.name ?? ""}`}
                     </p>
+                    <p className="mt-0.5 text-xs text-[var(--ss-copper)]">
+                      {RULE_TYPE_LABELS[ruleTypeOf(competition)]}
+                    </p>
                   </div>
                   <span className="shrink-0 rounded-full bg-white/5 px-2.5 py-1 text-[0.7rem] text-muted-foreground">
                     {competition.archivedAt ? "Gearchiveerd" : status.label}
@@ -89,24 +93,16 @@ export default function SchietsportCompetities() {
                   />
                 </div>
                 <div className="grid grid-cols-3 gap-2 text-xs">
-                  <div>
-                    <p className="text-muted-foreground">Wedstrijden</p>
-                    <p className="ss-number text-base font-semibold">
-                      {linked.length}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Gemiddelde</p>
-                    <p className="ss-number text-base font-semibold">
-                      {summary ? formatMean(summary.mean) : "—"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Hoogste</p>
-                    <p className="ss-number text-base font-semibold text-[var(--ss-copper)]">
-                      {summary ? summary.max : "—"}
-                    </p>
-                  </div>
+                  {figures.map((figure) => (
+                    <div key={figure.label}>
+                      <p className="text-muted-foreground">{figure.label}</p>
+                      <p
+                        className={`ss-number text-base font-semibold ${figure.accent ? "text-[var(--ss-copper)]" : ""}`}
+                      >
+                        {figure.value}
+                      </p>
+                    </div>
+                  ))}
                 </div>
               </Link>
             );

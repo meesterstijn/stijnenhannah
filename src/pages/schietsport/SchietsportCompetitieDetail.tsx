@@ -43,6 +43,16 @@ import {
 } from "@/features/schietsport/hooks/useSchietsportData";
 import { formatDate, formatMean } from "@/features/schietsport/lib/format";
 import { competitionStatus } from "@/features/schietsport/lib/competition";
+import {
+  RULE_TYPE_LABELS,
+  bestCountOf,
+  ruleTypeOf,
+  sessionTypeOf,
+} from "@/features/schietsport/domain/competition";
+import {
+  BestOfView,
+  PeriodsView,
+} from "@/features/schietsport/components/CompetitionViews";
 import { SCHIETSPORT_BASE } from "@/features/schietsport/nav";
 
 const NONE: never[] = [];
@@ -86,6 +96,7 @@ export default function SchietsportCompetitieDetail() {
   const summary = summarize(linked);
   const latest = latestSession(linked);
   const status = competitionStatus(competition);
+  const ruleType = ruleTypeOf(competition);
   // Voorstellen: officiële wedstrijden binnen de periode (en discipline),
   // nog niet gekoppeld. Nooit oefenwedstrijden of vrije kaarten.
   const suggestions = sessions
@@ -179,120 +190,159 @@ export default function SchietsportCompetitieDetail() {
         </div>
       </section>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard label="Wedstrijden" value={linked.length} />
-        <StatCard
-          label="Gemiddelde"
-          value={summary ? formatMean(summary.mean) : "—"}
-          suffix={summary ? "/300" : undefined}
-        />
-        <StatCard
-          label="Hoogste"
-          tone="copper"
-          value={summary ? summary.max : "—"}
-          suffix={summary ? "/300" : undefined}
-        />
-        <StatCard
-          label="Laatste"
-          value={latest ? latest.totalScore : "—"}
-          suffix={latest ? "/300" : undefined}
-          detail={latest ? formatDate(latest.sessionDate) : undefined}
-        />
-      </div>
-
-      <div className="ss-card flex items-start gap-3 p-4 text-sm text-muted-foreground">
-        <Info className="mt-0.5 h-4 w-4 shrink-0 text-[var(--ss-amber)]" />
-        <p>
-          De regels waarmee de vereniging de eindstand berekent zijn nog niet
-          vastgesteld. Hier zie je daarom je persoonlijke resultaten; een
-          officiële eindstand volgt zodra die regels bekend zijn.
-          {competition.notes && (
-            <span className="mt-2 block whitespace-pre-wrap text-foreground/80">
-              {competition.notes}
-            </span>
-          )}
-        </p>
-      </div>
-
-      {linked.length > 1 && (
-        <Panel title="Verloop in deze competitie">
-          <ScoreTrendChart points={trendSeries(linked)} scale={300} />
-        </Panel>
-      )}
-
-      <Panel title="Gekoppelde wedstrijden">
-        {linked.length === 0 ? (
+      {ruleType !== "manual" ? (
+        <>
           <p className="text-sm text-muted-foreground">
-            Nog geen wedstrijden gekoppeld.
+            {RULE_TYPE_LABELS[ruleType]} · telt mee:{" "}
+            {sessionTypeOf(competition) === "match"
+              ? "officiële wedstrijden"
+              : "vrije kaarten"}
+            {competition.rules?.distance
+              ? ` · ${competition.rules.distance} m`
+              : ""}
+            {ruleType === "best_of"
+              ? ` · beste ${bestCountOf(competition)}`
+              : ""}
           </p>
-        ) : (
-          <div className="-mx-2 divide-y divide-white/5">
-            {[...linked].reverse().map((session) => (
-              <div key={session.id} className="flex items-center">
-                <div className="min-w-0 flex-1">
-                  <SessionRow
-                    session={session}
-                    weapons={weapons}
-                    disciplines={disciplines}
-                  />
-                </div>
-                <button
-                  type="button"
-                  aria-label="Ontkoppelen"
-                  onClick={() =>
-                    void unlinkSessionFromCompetition(
-                      db,
-                      competition.id,
-                      session.id,
-                    )
-                  }
-                  className="p-3 text-muted-foreground hover:text-foreground"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            ))}
+          {ruleType === "periods" ? (
+            <PeriodsView
+              competition={competition}
+              sessions={sessions}
+              weapons={weapons}
+              disciplines={disciplines}
+            />
+          ) : (
+            <BestOfView
+              competition={competition}
+              sessions={sessions}
+              weapons={weapons}
+              disciplines={disciplines}
+            />
+          )}
+          {competition.notes && (
+            <Panel title="Opmerkingen">
+              <p className="whitespace-pre-wrap text-sm">{competition.notes}</p>
+            </Panel>
+          )}
+        </>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <StatCard label="Wedstrijden" value={linked.length} />
+            <StatCard
+              label="Gemiddelde"
+              value={summary ? formatMean(summary.mean) : "—"}
+              suffix={summary ? "/300" : undefined}
+            />
+            <StatCard
+              label="Hoogste"
+              tone="copper"
+              value={summary ? summary.max : "—"}
+              suffix={summary ? "/300" : undefined}
+            />
+            <StatCard
+              label="Laatste"
+              value={latest ? latest.totalScore : "—"}
+              suffix={latest ? "/300" : undefined}
+              detail={latest ? formatDate(latest.sessionDate) : undefined}
+            />
           </div>
-        )}
-      </Panel>
 
-      {suggestions.length > 0 && (
-        <Panel title="Voorstellen">
-          <div className="-mt-2 mb-3 flex items-center justify-between gap-3">
-            <p className="text-xs text-muted-foreground">
-              Officiële wedstrijden in deze periode die nog niet meetellen.
+          <div className="ss-card flex items-start gap-3 p-4 text-sm text-muted-foreground">
+            <Info className="mt-0.5 h-4 w-4 shrink-0 text-[var(--ss-amber)]" />
+            <p>
+              Handmatige competitie: je koppelt zelf officiële wedstrijden. Kies
+              bij Bewerken “Puntenbord” of “Beste scores” om de regels van de
+              vereniging automatisch te laten rekenen.
+              {competition.notes && (
+                <span className="mt-2 block whitespace-pre-wrap text-foreground/80">
+                  {competition.notes}
+                </span>
+              )}
             </p>
-            {suggestions.length > 1 && (
-              <button
-                type="button"
-                onClick={() => void link(suggestions.map((s) => s.id))}
-                className="shrink-0 text-xs text-[var(--ss-copper)] hover:underline"
-              >
-                Alles koppelen
-              </button>
-            )}
           </div>
-          <div className="-mx-2 divide-y divide-white/5">
-            {suggestions.map((session) => (
-              <div key={session.id} className="flex items-center">
-                <div className="min-w-0 flex-1">
-                  <SessionRow
-                    session={session}
-                    weapons={weapons}
-                    disciplines={disciplines}
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => void link([session.id])}
-                  className="inline-flex items-center gap-1 p-3 text-xs text-muted-foreground hover:text-foreground"
-                >
-                  <Link2 className="h-4 w-4" /> Koppel
-                </button>
+
+          {linked.length > 1 && (
+            <Panel title="Verloop in deze competitie">
+              <ScoreTrendChart points={trendSeries(linked)} scale={300} />
+            </Panel>
+          )}
+
+          <Panel title="Gekoppelde wedstrijden">
+            {linked.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Nog geen wedstrijden gekoppeld.
+              </p>
+            ) : (
+              <div className="-mx-2 divide-y divide-white/5">
+                {[...linked].reverse().map((session) => (
+                  <div key={session.id} className="flex items-center">
+                    <div className="min-w-0 flex-1">
+                      <SessionRow
+                        session={session}
+                        weapons={weapons}
+                        disciplines={disciplines}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      aria-label="Ontkoppelen"
+                      onClick={() =>
+                        void unlinkSessionFromCompetition(
+                          db,
+                          competition.id,
+                          session.id,
+                        )
+                      }
+                      className="p-3 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </Panel>
+            )}
+          </Panel>
+
+          {suggestions.length > 0 && (
+            <Panel title="Voorstellen">
+              <div className="-mt-2 mb-3 flex items-center justify-between gap-3">
+                <p className="text-xs text-muted-foreground">
+                  Officiële wedstrijden in deze periode die nog niet meetellen.
+                </p>
+                {suggestions.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => void link(suggestions.map((s) => s.id))}
+                    className="shrink-0 text-xs text-[var(--ss-copper)] hover:underline"
+                  >
+                    Alles koppelen
+                  </button>
+                )}
+              </div>
+              <div className="-mx-2 divide-y divide-white/5">
+                {suggestions.map((session) => (
+                  <div key={session.id} className="flex items-center">
+                    <div className="min-w-0 flex-1">
+                      <SessionRow
+                        session={session}
+                        weapons={weapons}
+                        disciplines={disciplines}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void link([session.id])}
+                      className="inline-flex items-center gap-1 p-3 text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      <Link2 className="h-4 w-4" /> Koppel
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </Panel>
+          )}
+        </>
       )}
 
       <FormSheet
