@@ -90,7 +90,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const goOffline = () => {
       if (settled) return;
       const stored = readStoredSession();
-      if (!stored) return;
+      // Zonder eerder opgehaalde rol heeft offline verder geen zin (dat zou
+      // "Geen toegang" tonen); dan gewoon op getSession blijven wachten.
+      if (!stored || !readCachedProfile(stored.user.id)) return;
       setSession(stored);
       setIsOfflineSession(true);
       setLoading(false);
