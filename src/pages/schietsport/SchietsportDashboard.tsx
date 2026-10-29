@@ -116,7 +116,7 @@ export default function SchietsportDashboard() {
         </div>
       </SchietsportHero>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-3 gap-3">
         <QuickAction
           to={`${SCHIETSPORT_NEW_PATH}?type=match`}
           icon={TYPE_STYLE.match.icon}
@@ -130,13 +130,6 @@ export default function SchietsportDashboard() {
           iconClassName={TYPE_STYLE.free_card.className}
           title="Vrije kaart"
           detail="5 schoten"
-        />
-        <QuickAction
-          to={`${SCHIETSPORT_NEW_PATH}?type=practice_match`}
-          icon={TYPE_STYLE.practice_match.icon}
-          iconClassName={TYPE_STYLE.practice_match.className}
-          title="Oefenwedstrijd"
-          detail="6 kaarten"
         />
         <QuickAction
           to={`${SCHIETSPORT_BASE}/logboek`}
@@ -240,7 +233,9 @@ export default function SchietsportDashboard() {
 
             <Panel title="Overzicht & records">
               <div className="space-y-2.5">
-                {TYPES.map((type) => {
+                {TYPES.filter(
+                  (type) => type !== "practice_match" || stats.counts[type] > 0,
+                ).map((type) => {
                   const record = stats.records[type];
                   return (
                     <div key={type} className="flex items-center gap-3">

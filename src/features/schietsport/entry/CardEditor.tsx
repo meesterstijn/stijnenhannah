@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Delete } from "lucide-react";
+import { Delete, X } from "lucide-react";
 import { SHOT_MAX } from "@/features/schietsport/domain/rules";
 import {
   cardMaxScore,
@@ -14,8 +14,64 @@ import { inputClass } from "@/features/schietsport/components/form";
 
 const KEYPAD = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0];
 
+// Eén druk op het cijferpad: overschrijft het geselecteerde schot of vult
+// het volgende lege schot. `completed` = de kaart is hiermee net vol.
+export function pressShot(
+  card: CardForm,
+  slot: number,
+  value: number,
+): { card: CardForm; nextSlot: number; completed: boolean } | null {
+  const shots = [...card.shots];
+  const overwrite = slot < shots.length;
+  if (overwrite) shots[slot] = value;
+  else if (shots.length < card.shotCount) shots.push(value);
+  else return null;
+  return {
+    card: { ...card, shots },
+    nextSlot: shots.length,
+    completed: !overwrite && shots.length === card.shotCount,
+  };
+}
+
+export function Keypad({
+  onPress,
+  onBackspace,
+}: {
+  onPress: (value: number) => void;
+  onBackspace: () => void;
+}) {
+  return (
+    <div className="grid grid-cols-6 gap-1.5">
+      {KEYPAD.map((value) => (
+        <button
+          key={value}
+          type="button"
+          onClick={() => onPress(value)}
+          className={`ss-number h-12 rounded-xl border border-white/10 text-lg font-semibold transition-colors active:scale-95 ${
+            value === SHOT_MAX
+              ? "bg-[oklch(0.82_0.13_78/0.14)] text-[var(--ss-amber)]"
+              : "bg-white/5 hover:bg-white/10"
+          }`}
+        >
+          {value}
+        </button>
+      ))}
+      <button
+        type="button"
+        onClick={onBackspace}
+        aria-label="Laatste schot wissen"
+        className="flex h-12 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-muted-foreground hover:bg-white/10 active:scale-95"
+      >
+        <Delete className="h-5 w-5" />
+      </button>
+    </div>
+  );
+}
+
 // Eén kaart: kaartscore óf losse schoten (0–10) via een groot cijferpad.
-// Alleen de actieve kaart toont het cijferpad, zodat het scherm rustig blijft.
+// Standaard toont alleen de actieve kaart het cijferpad (`hideKeypad`: het
+// cijferpad staat elders, bv. vast onderaan). De cursor (`slot`) kan van
+// buitenaf gestuurd worden als het cijferpad niet in de kaart staat.
 export function CardEditor({
   card,
   index,
@@ -24,6 +80,13 @@ export function CardEditor({
   onActivate,
   onChange,
   onComplete,
+  showModeToggle = true,
+  onModeChange,
+  hideKeypad = false,
+  slot: controlledSlot,
+  onSlotChange,
+  onRemove,
+  reserveRemoveSpace = false,
 }: {
   card: CardForm;
   index: number;
@@ -32,6 +95,15 @@ export function CardEditor({
   onActivate: () => void;
   onChange: (card: CardForm) => void;
   onComplete: () => void;
+  showModeToggle?: boolean;
+  onModeChange?: (mode: CardMode) => void;
+  hideKeypad?: boolean;
+  slot?: number;
+  onSlotChange?: (slot: number) => void;
+  onRemove?: () => void;
+  // Ruimte voor de verwijderknop altijd vasthouden, zodat de kaartkop niet
+  // van hoogte verandert als de knop verschijnt (geen verspringen).
+  reserveRemoveSpace?: boolean;
 }) {
   const max = cardMaxScore(card.shotCount);
   const resolved = resolveCardScore({
@@ -43,30 +115,33 @@ export function CardEditor({
   const rawScore = parseScore(card.score);
   const scoreTooHigh =
     card.mode === "score" && rawScore !== null && rawScore > max;
-  const [slot, setSlot] = useState(card.shots.length);
+  const [ownSlot, setOwnSlot] = useState(card.shots.length);
+  const slot = controlledSlot ?? ownSlot;
+  const setSlot = onSlotChange ?? setOwnSlot;
 
   // Na wisselen van kaart of modus: cursor op het eerste lege schot.
   useEffect(() => {
-    setSlot(card.shots.length);
-  }, [active, card.mode, card.shots.length]);
+    if (controlledSlot === undefined) setOwnSlot(card.shots.length);
+  }, [active, card.mode, card.shots.length, controlledSlot]);
 
   const setMode = (mode: CardMode) => {
     if (mode === card.mode) return;
-    // Bij overstappen naar schoten vervalt de losse kaartscore en andersom;
-    // gemengde invoer op één kaart zou tot tegenstrijdige totalen leiden.
-    onChange({ ...card, mode, score: "", shots: [] });
+    if (onModeChange) {
+      onModeChange(mode);
+    } else {
+      // Bij overstappen naar schoten vervalt de losse kaartscore en andersom;
+      // gemengde invoer op één kaart zou tot tegenstrijdige totalen leiden.
+      onChange({ ...card, mode, score: "", shots: [] });
+    }
     onActivate();
   };
 
   const press = (value: number) => {
-    const shots = [...card.shots];
-    if (slot < shots.length) shots[slot] = value;
-    else if (shots.length < card.shotCount) shots.push(value);
-    else return;
-    onChange({ ...card, shots });
-    if (slot < card.shots.length) setSlot(shots.length);
-    if (shots.length === card.shotCount && slot >= card.shots.length)
-      onComplete();
+    const result = pressShot(card, slot, value);
+    if (!result) return;
+    onChange(result.card);
+    setSlot(result.nextSlot);
+    if (result.completed) onComplete();
   };
 
   const backspace = () => {
@@ -90,28 +165,30 @@ export function CardEditor({
           <p className="text-sm font-semibold">
             {label ?? `Kaart ${index + 1}`}
           </p>
-          <p className="text-xs text-muted-foreground">
+          <p className="truncate whitespace-nowrap text-xs text-muted-foreground">
             {card.shotCount} {card.shotCount === 1 ? "schot" : "schoten"} · max{" "}
             {max}
           </p>
         </button>
-        <div className="flex rounded-lg border border-white/10 bg-black/25 p-0.5 text-xs">
-          {(["score", "shots"] as const).map((mode) => (
-            <button
-              key={mode}
-              type="button"
-              onClick={() => setMode(mode)}
-              aria-pressed={card.mode === mode}
-              className={`rounded-md px-2.5 py-1.5 transition-colors ${
-                card.mode === mode
-                  ? "bg-[oklch(0.7_0.115_58/0.2)] text-foreground shadow-[inset_0_0_0_1px_oklch(0.7_0.115_58/0.55)]"
-                  : "bg-transparent text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {mode === "score" ? "Score" : "Schoten"}
-            </button>
-          ))}
-        </div>
+        {showModeToggle && (
+          <div className="flex rounded-lg border border-white/10 bg-black/25 p-0.5 text-xs">
+            {(["score", "shots"] as const).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setMode(mode)}
+                aria-pressed={card.mode === mode}
+                className={`rounded-md px-2.5 py-1.5 transition-colors ${
+                  card.mode === mode
+                    ? "bg-[oklch(0.7_0.115_58/0.2)] text-foreground shadow-[inset_0_0_0_1px_oklch(0.7_0.115_58/0.55)]"
+                    : "bg-transparent text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {mode === "score" ? "Score" : "Schoten"}
+              </button>
+            ))}
+          </div>
+        )}
         <p className="ss-number w-16 text-right">
           <span
             className={`text-lg font-semibold ${resolved === null ? "text-muted-foreground" : ""}`}
@@ -120,6 +197,20 @@ export function CardEditor({
           </span>
           <span className="text-xs text-muted-foreground">/{max}</span>
         </p>
+        {onRemove ? (
+          <button
+            type="button"
+            onClick={onRemove}
+            aria-label={`${label ?? `Kaart ${index + 1}`} verwijderen`}
+            className="-mr-1 p-1 text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        ) : (
+          reserveRemoveSpace && (
+            <span className="-mr-1 w-6 shrink-0" aria-hidden />
+          )
+        )}
       </div>
 
       {card.mode === "score" ? (
@@ -133,6 +224,7 @@ export function CardEditor({
             placeholder={`0–${max}`}
             value={card.score}
             maxLength={3}
+            data-card-input={index}
             aria-label={`Score ${label ?? `kaart ${index + 1}`}`}
             onChange={(e) =>
               onChange({ ...card, score: e.target.value.replace(/\D/g, "") })
@@ -184,31 +276,8 @@ export function CardEditor({
               );
             })}
           </div>
-          {active && (
-            <div className="grid grid-cols-6 gap-1.5">
-              {KEYPAD.map((value) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => press(value)}
-                  className={`ss-number h-12 rounded-xl border border-white/10 text-lg font-semibold transition-colors active:scale-95 ${
-                    value === SHOT_MAX
-                      ? "bg-[oklch(0.82_0.13_78/0.14)] text-[var(--ss-amber)]"
-                      : "bg-white/5 hover:bg-white/10"
-                  }`}
-                >
-                  {value}
-                </button>
-              ))}
-              <button
-                type="button"
-                onClick={backspace}
-                aria-label="Laatste schot wissen"
-                className="flex h-12 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-muted-foreground hover:bg-white/10 active:scale-95"
-              >
-                <Delete className="h-5 w-5" />
-              </button>
-            </div>
+          {active && !hideKeypad && (
+            <Keypad onPress={press} onBackspace={backspace} />
           )}
         </div>
       )}

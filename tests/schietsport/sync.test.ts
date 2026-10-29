@@ -15,6 +15,7 @@ import {
 import {
   ensureDefaultDisciplines,
   DEFAULT_DISCIPLINES,
+  ensureDefaultWeapons,
 } from "@/features/schietsport/db/seed";
 import { scoreSession } from "@/features/schietsport/domain/scoring";
 import { SyncEngine } from "@/features/schietsport/sync/engine";
@@ -363,5 +364,34 @@ describe("wapenfoto's", () => {
     await laptop.engine.sync();
     const photo = await laptop.db.photos.get(weapon.id);
     expect(await photo!.blob.text()).toBe("foto");
+  });
+});
+
+describe("standaardwapens", () => {
+  it("Karabijn 6 t/m 9 staan klaar, zonder dubbelingen over apparaten", async () => {
+    const phone = device(OWNER_B);
+    const tablet = device(OWNER_B);
+    await ensureDefaultWeapons(phone.db, OWNER_B);
+    await ensureDefaultWeapons(phone.db, OWNER_B); // tweede keer: niets nieuws
+    await ensureDefaultWeapons(tablet.db, OWNER_B);
+    await phone.engine.sync();
+    const report = await tablet.engine.sync();
+    expect(report.conflicts).toBe(0);
+    const names = (await tablet.db.weapons.toArray()).map((w) => w.name).sort();
+    expect(names).toEqual([
+      "Karabijn 6",
+      "Karabijn 7",
+      "Karabijn 8",
+      "Karabijn 9",
+    ]);
+    expect(
+      (
+        await runAs<{ n: number }>(
+          pg,
+          OWNER_B,
+          "select count(*)::int as n from public.shooting_weapons",
+        )
+      )[0].n,
+    ).toBe(4);
   });
 });

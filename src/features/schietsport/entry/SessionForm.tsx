@@ -36,17 +36,26 @@ import {
 } from "@/features/schietsport/hooks/useSchietsportData";
 import {
   defaultsFromHistory,
+  freeCardInputs,
   fromSession,
   initialFormState,
+  isCardEmpty,
   layoutOf,
+  normalizeFreeCards,
   parseScore,
   toScoreInput,
+  withFreeCardsMode,
   withMatchLayout,
   withType,
+  type CardForm,
   type SessionFormState,
 } from "@/features/schietsport/entry/formState";
 import { findPossibleDuplicate } from "@/features/schietsport/entry/duplicates";
-import { CardEditor } from "@/features/schietsport/entry/CardEditor";
+import {
+  CardEditor,
+  Keypad,
+  pressShot,
+} from "@/features/schietsport/entry/CardEditor";
 import {
   Button,
   ConfirmDialog,
@@ -56,7 +65,11 @@ import {
   TextArea,
   inputClass,
 } from "@/features/schietsport/components/form";
-import { formatDate, todayYmd } from "@/features/schietsport/lib/format";
+import {
+  formatDate,
+  formatMean,
+  todayYmd,
+} from "@/features/schietsport/lib/format";
 import { SCHIETSPORT_BASE } from "@/features/schietsport/nav";
 
 const TYPE_TILES: {
@@ -68,6 +81,14 @@ const TYPE_TILES: {
   { type: "free_card", icon: Target, detail: "5 schoten · max 50" },
   { type: "practice_match", icon: Layers, detail: "6 kaarten × 5 · max 300" },
 ];
+
+// Oefenwedstrijd staat niet meer tussen de keuzes voor nieuwe invoer (vrije
+// kaarten vul je nu doorlopend in); bestaande oefenwedstrijden blijven
+// bewerkbaar.
+const visibleTiles = (current: SessionType) =>
+  TYPE_TILES.filter(
+    (tile) => tile.type !== "practice_match" || current === "practice_match",
+  );
 
 const DRAFT_NEW = "new";
 
@@ -97,6 +118,8 @@ export function SessionForm({
   const [showNotes, setShowNotes] = useState(false);
   const [contextOpen, setContextOpen] = useState(true);
   const [customLayout, setCustomLayout] = useState("");
+  // Cursor van het vaste cijferpad bij doorlopende vrije kaarten.
+  const [freeSlot, setFreeSlot] = useState(0);
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   const defaults = useMemo(
@@ -169,11 +192,70 @@ export function SessionForm({
     !state.distance && "Kies een afstand.",
     !state.sessionDate && "Kies een datum.",
   ].filter(Boolean) as string[];
-  const firstError =
-    contextErrors[0] ?? (!result.ok ? result.errors[0]?.message : null);
-  const canSave = result.ok && contextErrors.length === 0 && !saving;
   const maxScore = maxScoreFor(state.type);
   const usesCards = !(state.type === "match" && state.matchMode === "total");
+
+  // Nieuwe vrije kaarten: doorlopend invullen, elke kaart een eigen beurt.
+  const multiFree = state.type === "free_card" && !editing;
+  const freeResults = multiFree
+    ? freeCardInputs(state).map(({ position, input }) => ({
+        position,
+        result: scoreSession(input),
+      }))
+    : [];
+  const freeScored = freeResults.flatMap(({ result: r }) =>
+    r.ok ? [r.value] : [],
+  );
+  const freeError = !multiFree
+    ? null
+    : freeResults.length === 0
+      ? "Vul minstens één vrije kaart in."
+      : (() => {
+          const bad = freeResults.find(({ result: r }) => !r.ok);
+          if (!bad || bad.result.ok) return null;
+          const message = bad.result.errors[0]?.message ?? "Ongeldig";
+          return `Vrije kaart ${bad.position}: ${message.replace(/^Kaart \d+:\s*/, "")}`;
+        })();
+  const scoreError = multiFree
+    ? freeError
+    : !result.ok
+      ? result.errors[0]?.message
+      : null;
+  const firstError = contextErrors[0] ?? scoreError;
+  const canSave = !scoreError && contextErrors.length === 0 && !saving;
+  const freeTotal = freeScored.reduce((sum, s) => sum + s.totalScore, 0);
+  const freeKeypadDocked = multiFree && state.cards[0]?.mode === "shots";
+
+  const setFreeCards = (cards: CardForm[]) =>
+    setState((s) => (s ? { ...s, cards: normalizeFreeCards(cards) } : s));
+
+  // Cijferpad vast onderaan (vrije kaarten met losse schoten): er verandert
+  // niets boven de actieve kaart, dus het scherm verspringt niet.
+  const pressDocked = (value: number) => {
+    const card = state.cards[activeCard];
+    if (!card) return;
+    const outcome = pressShot(card, freeSlot, value);
+    if (!outcome) return;
+    setFreeCards(
+      state.cards.map((c, i) => (i === activeCard ? outcome.card : c)),
+    );
+    if (outcome.completed) {
+      setActiveCard(activeCard + 1);
+      setFreeSlot(0);
+    } else {
+      setFreeSlot(outcome.nextSlot);
+    }
+  };
+  const backspaceDocked = () => {
+    const card = state.cards[activeCard];
+    if (!card || card.shots.length === 0) return;
+    setFreeCards(
+      state.cards.map((c, i) =>
+        i === activeCard ? { ...c, shots: c.shots.slice(0, -1) } : c,
+      ),
+    );
+    setFreeSlot(card.shots.length - 1);
+  };
 
   const goToCard = (index: number) => {
     setActiveCard(index);
@@ -183,8 +265,66 @@ export function SessionForm({
     });
   };
 
+  async function saveFreeCards(force: boolean) {
+    if (!state || !canSave) return;
+    const base = {
+      sessionDate: state.sessionDate,
+      type: "free_card" as const,
+      disciplineId: state.disciplineId,
+      distance: state.distance!,
+      weaponId: state.weaponId || null,
+    };
+    if (!force && sessions) {
+      for (const scored of freeScored) {
+        const dup = findPossibleDuplicate(sessions, {
+          ...base,
+          totalScore: scored.totalScore,
+        });
+        if (dup) {
+          setDuplicate(dup);
+          return;
+        }
+      }
+    }
+    setSaving(true);
+    try {
+      const saved = [];
+      for (const scored of freeScored) {
+        saved.push(
+          await saveSession(db, userId, {
+            sessionDate: state.sessionDate,
+            weaponId: state.weaponId || null,
+            disciplineId: state.disciplineId,
+            distance: state.distance!,
+            notes: state.notes,
+            score: scored,
+          }),
+        );
+      }
+      await deleteDraft(db, draftId);
+      toast.success(
+        saved.length === 1
+          ? `Vrije kaart opgeslagen · ${saved[0].totalScore}/50`
+          : `${saved.length} vrije kaarten opgeslagen · totaal ${freeTotal}`,
+      );
+      navigate(
+        saved.length === 1
+          ? `${SCHIETSPORT_BASE}/logboek/${saved[0].id}`
+          : `${SCHIETSPORT_BASE}/logboek`,
+        { replace: true },
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Opslaan mislukt");
+      setSaving(false);
+    }
+  }
+
   async function save(force = false) {
     setAttempted(true);
+    if (multiFree) {
+      await saveFreeCards(force);
+      return;
+    }
     if (!state || !result.ok || contextErrors.length > 0 || saving) return;
     const candidate = {
       id: editing?.id,
@@ -252,9 +392,14 @@ export function SessionForm({
         </div>
       )}
 
-      {/* 1. Type */}
-      <div className="grid grid-cols-3 gap-2">
-        {TYPE_TILES.map(({ type, icon: Icon, detail }) => {
+      {/* 1. Type (oefenwedstrijd alleen bij het bewerken van een bestaande) */}
+      <div
+        className="grid gap-2"
+        style={{
+          gridTemplateColumns: `repeat(${visibleTiles(state.type).length}, minmax(0, 1fr))`,
+        }}
+      >
+        {visibleTiles(state.type).map(({ type, icon: Icon, detail }) => {
           const active = state.type === type;
           return (
             <button
@@ -510,7 +655,67 @@ export function SessionForm({
         </section>
       )}
 
-      {usesCards && (
+      {multiFree && (
+        <section className="space-y-3">
+          {state.cards.map((card, index) => {
+            const isTrailingEmpty =
+              index === state.cards.length - 1 && isCardEmpty(card);
+            return (
+              <CardEditor
+                key={index}
+                card={card}
+                index={index}
+                label={`Vrije kaart ${index + 1}`}
+                active={activeCard === index}
+                onActivate={() => {
+                  setActiveCard(index);
+                  setFreeSlot(card.shots.length);
+                }}
+                onChange={(next) =>
+                  setFreeCards(
+                    state.cards.map((c, i) => (i === index ? next : c)),
+                  )
+                }
+                onComplete={() => {
+                  // Volgende kaart klaarzetten zonder te scrollen.
+                  setActiveCard(index + 1);
+                  setFreeSlot(0);
+                  requestAnimationFrame(() =>
+                    document
+                      .querySelector<HTMLInputElement>(
+                        `[data-card-input="${index + 1}"]`,
+                      )
+                      ?.focus({ preventScroll: true }),
+                  );
+                }}
+                showModeToggle={index === 0}
+                onModeChange={(mode) => {
+                  setActiveCard(0);
+                  setFreeSlot(0);
+                  setState((s) =>
+                    s ? { ...s, cards: withFreeCardsMode(s.cards, mode) } : s,
+                  );
+                }}
+                hideKeypad
+                reserveRemoveSpace
+                slot={activeCard === index ? freeSlot : card.shots.length}
+                onSlotChange={setFreeSlot}
+                onRemove={
+                  state.cards.length > 1 && !isTrailingEmpty
+                    ? () => {
+                        setActiveCard(0);
+                        setFreeSlot(0);
+                        setFreeCards(state.cards.filter((_, i) => i !== index));
+                      }
+                    : undefined
+                }
+              />
+            );
+          })}
+        </section>
+      )}
+
+      {usesCards && !multiFree && (
         <section className="space-y-3">
           {state.cards.length > 1 && (
             <div className="flex items-center gap-2 overflow-x-auto pb-1">
@@ -594,27 +799,54 @@ export function SessionForm({
       </section>
 
       {/* 5. Totaal + opslaan */}
-      <div className="h-24 md:hidden" aria-hidden />
-      <div className="fixed inset-x-0 bottom-[calc(4.9rem+env(safe-area-inset-bottom))] z-30 px-4 md:static md:px-0">
+      <div
+        className={`md:hidden ${freeKeypadDocked ? "h-60" : "h-24"}`}
+        aria-hidden
+      />
+      <div className="fixed inset-x-0 bottom-[calc(4.9rem+env(safe-area-inset-bottom))] z-30 space-y-2 px-4 md:static md:px-0">
+        {freeKeypadDocked && state.cards[activeCard] && (
+          <div className="ss-card border-white/15 bg-[var(--ss-surface-strong)] p-2.5">
+            <p className="mb-2 px-1 text-xs text-muted-foreground">
+              Vrije kaart {activeCard + 1} · schot {Math.min(freeSlot, 4) + 1}{" "}
+              van 5
+            </p>
+            <Keypad onPress={pressDocked} onBackspace={backspaceDocked} />
+          </div>
+        )}
         <div className="ss-card flex items-center gap-4 border-white/15 bg-[var(--ss-surface-strong)] p-3 pl-4 sm:p-4 sm:pl-5">
           <div className="min-w-0 flex-1">
-            <p className="ss-number leading-none">
-              <span className="text-3xl font-semibold">
-                {progress.runningTotal}
-              </span>
-              <span className="text-sm text-muted-foreground">
-                {" "}
-                / {maxScore}
-              </span>
-            </p>
+            {multiFree ? (
+              <p className="ss-number leading-none">
+                <span className="text-3xl font-semibold">
+                  {freeScored.length > 1
+                    ? formatMean(freeTotal / freeScored.length)
+                    : freeTotal}
+                </span>
+                <span className="text-sm text-muted-foreground"> / 50</span>
+              </p>
+            ) : (
+              <p className="ss-number leading-none">
+                <span className="text-3xl font-semibold">
+                  {progress.runningTotal}
+                </span>
+                <span className="text-sm text-muted-foreground">
+                  {" "}
+                  / {maxScore}
+                </span>
+              </p>
+            )}
             <p
               className={`mt-1 truncate text-xs ${attempted && firstError ? "text-destructive" : "text-muted-foreground"}`}
             >
               {attempted && firstError
                 ? firstError
-                : usesCards && state.cards.length > 1
-                  ? `${progress.cardsFilled} van ${progress.cardsTotal} kaarten ingevuld`
-                  : SESSION_TYPE_LABELS[state.type]}
+                : multiFree
+                  ? freeScored.length > 1
+                    ? `Gemiddelde van ${freeScored.length} vrije kaarten · totaal ${freeTotal}`
+                    : "Vrije kaart"
+                  : usesCards && state.cards.length > 1
+                    ? `${progress.cardsFilled} van ${progress.cardsTotal} kaarten ingevuld`
+                    : SESSION_TYPE_LABELS[state.type]}
             </p>
           </div>
           <Button
@@ -623,7 +855,11 @@ export function SessionForm({
             disabled={saving || (attempted && !canSave)}
             onClick={() => void save()}
           >
-            {editing ? "Wijzigingen opslaan" : "Opslaan"}
+            {editing
+              ? "Wijzigingen opslaan"
+              : multiFree && freeScored.length > 1
+                ? `${freeScored.length} kaarten opslaan`
+                : "Opslaan"}
           </Button>
         </div>
       </div>

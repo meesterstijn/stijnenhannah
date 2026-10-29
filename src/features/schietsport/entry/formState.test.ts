@@ -3,10 +3,13 @@ import { scoreSession } from "@/features/schietsport/domain/scoring";
 import { makeSession } from "@/features/schietsport/domain/test-fixtures";
 import {
   defaultsFromHistory,
+  freeCardInputs,
   fromSession,
   initialFormState,
+  normalizeFreeCards,
   parseScore,
   toScoreInput,
+  withFreeCardsMode,
   withMatchLayout,
   withType,
   type FormDefaults,
@@ -161,5 +164,72 @@ describe("standaardwaarden uit de geschiedenis", () => {
       matchLayout: [],
       cardMode: "score",
     });
+  });
+});
+
+describe("doorlopende vrije kaarten", () => {
+  const card = (
+    patch: Partial<
+      import("@/features/schietsport/entry/formState").CardForm
+    > = {},
+  ) => ({
+    shotCount: 5,
+    mode: "score" as const,
+    score: "",
+    shots: [] as number[],
+    ...patch,
+  });
+
+  it("na het invullen van een kaart staat er precies één lege kaart onder", () => {
+    expect(
+      normalizeFreeCards([card({ score: "47" })]).map((c) => c.score),
+    ).toEqual(["47", ""]);
+    expect(
+      normalizeFreeCards([
+        card({ score: "47" }),
+        card({ score: "48" }),
+        card(),
+      ]).map((c) => c.score),
+    ).toEqual(["47", "48", ""]);
+    // Leegmaken van de laatste ingevulde kaart haalt de overtollige lege kaart weg.
+    expect(
+      normalizeFreeCards([card({ score: "47" }), card(), card()]),
+    ).toHaveLength(2);
+    expect(normalizeFreeCards([card()])).toHaveLength(1);
+  });
+
+  it("nieuwe kaarten volgen de modus van kaart 1", () => {
+    const cards = normalizeFreeCards([
+      card({ mode: "shots", shots: [10, 10, 9, 10, 8] }),
+    ]);
+    expect(cards[1].mode).toBe("shots");
+  });
+
+  it("modus wisselen op kaart 1 geldt voor alle kaarten", () => {
+    const cards = withFreeCardsMode(
+      [
+        card({ mode: "shots", shots: [10, 10, 9, 10, 8] }),
+        card({ mode: "shots", shots: [9, 9] }),
+        card({ mode: "shots" }),
+      ],
+      "score",
+    );
+    expect(cards.map((c) => [c.mode, c.score])).toEqual([
+      ["score", "47"],
+      ["score", ""],
+    ]);
+  });
+
+  it("elke ingevulde kaart wordt een eigen vrije kaart; lege kaarten tellen niet", () => {
+    const state = {
+      ...initialFormState("free_card", "2026-10-29", defaults),
+      cards: [card({ score: "47" }), card(), card({ score: "49" }), card()],
+    };
+    const inputs = freeCardInputs(state);
+    expect(inputs.map((i) => i.position)).toEqual([1, 3]);
+    expect(inputs.map((i) => scoreSession(i.input))).toMatchObject([
+      { ok: true, value: { totalScore: 47, maxScore: 50 } },
+      { ok: true, value: { totalScore: 49, maxScore: 50 } },
+    ]);
   });
 });

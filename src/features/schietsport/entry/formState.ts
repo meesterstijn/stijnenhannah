@@ -172,3 +172,78 @@ export function defaultsFromHistory(
     cardMode: (lastMatch ?? last)?.cards[0]?.shots ? "shots" : "score",
   };
 }
+
+// ── Doorlopende vrije kaarten ─────────────────────────────────────────
+// Bij een nieuwe vrije kaart kun je meerdere kaarten achter elkaar
+// invullen: er staat altijd precies één lege kaart onder de laatste
+// ingevulde, en alle kaarten volgen de invoermodus van kaart 1. Elke
+// ingevulde kaart wordt bij opslaan een eigen vrije kaart (schietbeurt).
+
+export function isCardEmpty(card: CardForm): boolean {
+  return card.mode === "score"
+    ? card.score.trim() === ""
+    : card.shots.length === 0;
+}
+
+function emptyFreeCard(mode: CardMode): CardForm {
+  return { shotCount: FREE_CARD_LAYOUT[0], mode, score: "", shots: [] };
+}
+
+// Lege kaarten aan het eind weghalen en er precies één terugzetten.
+export function normalizeFreeCards(cards: CardForm[]): CardForm[] {
+  const mode = cards[0]?.mode ?? "score";
+  const trimmed = [...cards];
+  while (trimmed.length > 0 && isCardEmpty(trimmed[trimmed.length - 1])) {
+    trimmed.pop();
+  }
+  return [...trimmed, emptyFreeCard(mode)];
+}
+
+// Modus van kaart 1 geldt voor alle kaarten. Volledig ingevulde schoten
+// blijven bewaard als kaartscore; verder gaat de invoer van een kaart bij
+// een moduswissel verloren (score en schoten zijn niet om te rekenen).
+export function withFreeCardsMode(
+  cards: CardForm[],
+  mode: CardMode,
+): CardForm[] {
+  return normalizeFreeCards(
+    cards.map((card) => {
+      if (card.mode === mode) return card;
+      const completeShots =
+        card.mode === "shots" && card.shots.length === card.shotCount;
+      return {
+        ...card,
+        mode,
+        score:
+          completeShots && mode === "score"
+            ? String(card.shots.reduce((sum, shot) => sum + shot, 0))
+            : "",
+        shots: [],
+      };
+    }),
+  );
+}
+
+// Eén score-invoer per niet-lege kaart, met het kaartnummer zoals getoond.
+export function freeCardInputs(
+  state: SessionFormState,
+): { position: number; input: SessionScoreInput }[] {
+  return state.cards
+    .map((card, index) => ({ card, position: index + 1 }))
+    .filter(({ card }) => !isCardEmpty(card))
+    .map(({ card, position }) => ({
+      position,
+      input: {
+        type: "free_card" as const,
+        totalScore: null,
+        cards: [
+          {
+            cardNumber: 1,
+            shotCount: card.shotCount,
+            score: card.mode === "score" ? parseScore(card.score) : null,
+            shots: card.mode === "shots" ? card.shots : null,
+          },
+        ],
+      },
+    }));
+}

@@ -14,7 +14,10 @@ import {
   databaseNameFor,
 } from "@/features/schietsport/db/database";
 import { onLocalChange } from "@/features/schietsport/db/repository";
-import { ensureDefaultDisciplines } from "@/features/schietsport/db/seed";
+import {
+  ensureDefaultDisciplines,
+  ensureDefaultWeapons,
+} from "@/features/schietsport/db/seed";
 import {
   SyncEngine,
   type SyncStatus,
@@ -78,7 +81,9 @@ export function SchietsportProvider({ children }: { children: ReactNode }) {
     // Standaarddisciplines meteen klaarzetten (ook offline bij het eerste
     // gebruik), daarna synchroniseren. Veilig op meerdere apparaten: de ids
     // zijn deterministisch en bij een conflict wint stil de server.
-    void ensureDefaultDisciplines(db, userId).then(run, run);
+    void ensureDefaultDisciplines(db, userId)
+      .then(() => ensureDefaultWeapons(db, userId))
+      .then(run, run);
 
     const onVisible = () => {
       if (document.visibilityState === "visible") run();

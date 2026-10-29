@@ -126,3 +126,42 @@ export async function ensureDefaultDisciplines(
   }
   await setMeta(db, "seeded", true);
 }
+
+// Standaardwapens: de verenigingskarabijnen. Zelfde aanpak als de
+// disciplines (deterministische ids, eenmalig per apparaat, server wint
+// stil zolang ze niet zijn aangepast). Eigen vlag, zodat ze ook verschijnen
+// voor wie de disciplines al had.
+export const DEFAULT_WEAPONS: { key: string; name: string }[] = [
+  6, 7, 8, 9,
+].map((n) => ({ key: `karabijn-${n}`, name: `Karabijn ${n}` }));
+
+export async function ensureDefaultWeapons(
+  db: SchietsportDatabase,
+  userId: string,
+) {
+  if (await getMeta<boolean>(db, "seededWeapons")) return;
+  const timestamp = new Date().toISOString();
+  for (const weapon of DEFAULT_WEAPONS) {
+    const id = await deterministicId(`${userId}:weapon:${weapon.key}`);
+    if (await db.weapons.get(id)) continue;
+    const record = {
+      id,
+      userId,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      deletedAt: null,
+      version: 0,
+      name: weapon.name,
+      brand: null,
+      model: null,
+      weaponType: "karabijn",
+      caliber: null,
+      ownership: "geleend",
+      photoPath: null,
+      notes: null,
+      archivedAt: null,
+    } as LocalRecord<"weapon">;
+    await writeRecord(db, "weapon", record, { seeded: true, silent: true });
+  }
+  await setMeta(db, "seededWeapons", true);
+}

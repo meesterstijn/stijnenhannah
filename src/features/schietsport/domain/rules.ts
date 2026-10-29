@@ -69,10 +69,11 @@ export function isValidShot(value: unknown): value is number {
 
 export type MatchLayout = number[]; // aantal schoten per kaart, som = 30
 
+// 6 × 5 eerst (standaard), dan 3 × 10. Andere indelingen (ook 1 × 30) via
+// "eigen indeling".
 export const MATCH_LAYOUT_PRESETS: { label: string; layout: MatchLayout }[] = [
-  { label: "1 × 30", layout: [30] },
-  { label: "3 × 10", layout: [10, 10, 10] },
   { label: "6 × 5", layout: [5, 5, 5, 5, 5, 5] },
+  { label: "3 × 10", layout: [10, 10, 10] },
 ];
 
 export const PRACTICE_LAYOUT: MatchLayout =

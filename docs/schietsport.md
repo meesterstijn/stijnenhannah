@@ -122,3 +122,15 @@ te passen.
 18. **Node 20 in CI** (`deploy.yml`) wordt sinds april 2026 niet meer
     ondersteund. Ongewijzigd gelaten om de bestaande deploy niet te raken;
     overstappen op Node 22 of 24 is een kleine, aanbevolen vervolgstap.
+19. **Doorlopende vrije kaarten**: bij een nieuwe vrije kaart staat na elke
+    ingevulde kaart een lege volgende klaar; kaart 1 bepaalt Score/Schoten voor
+    alle kaarten. Elke ingevulde kaart wordt een eigen vrije kaart in het
+    logboek. Wisselen van modus op kaart 1 bewaart volledig ingevulde schoten
+    als kaartscore; andere invoer vervalt. Bij losse schoten staat het
+    cijferpad vast onderaan, zodat het scherm niet verspringt.
+20. **Oefenwedstrijd** staat niet meer bij nieuwe invoer (ook niet als snelle
+    actie op het dashboard). Bestaande oefenwedstrijden blijven zichtbaar,
+    bewerkbaar en tellen mee in de statistieken.
+21. **Standaardwapens Karabijn 6 t/m 9**: type karabijn, eigendom “geleend /
+    club”, kaliber leeg gelaten (niet bekend). Ook het tweede owner-account
+    krijgt ze in zijn eigen lijst.
