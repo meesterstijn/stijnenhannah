@@ -1,6 +1,12 @@
-import { createContext, useContext, useEffect, useState } from "react";
-import type { Session } from "@supabase/supabase-js";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
+import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
+import {
+  clearCachedProfiles,
+  readCachedProfile,
+  readStoredSession,
+  writeCachedProfile,
+} from "@/lib/offline-auth";
 
 export type AppRole =
   | "owner"
@@ -29,10 +35,17 @@ type AuthContextType = {
   isCocktailGuest: boolean;
   isGameNightMember: boolean;
   isLoadingRole: boolean;
+  // true zolang de sessie alleen uit storage komt omdat het token offline
+  // niet ververst kon worden (zie lib/offline-auth.ts). Supabase-requests
+  // falen dan; offline-first modules (Schietsport) werken gewoon lokaal.
+  isOfflineSession: boolean;
 };
+
+const OFFLINE_GRACE_MS = 3000;
 
 const AuthContext = createContext<AuthContextType>({
   session: null,
+  isOfflineSession: false,
   loading: true,
   profile: null,
   appRole: null,
@@ -45,23 +58,61 @@ const AuthContext = createContext<AuthContextType>({
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
+  const [isOfflineSession, setIsOfflineSession] = useState(false);
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoadingRole, setIsLoadingRole] = useState(true);
 
   useEffect(() => {
+    // `null` van de client terwijl storage nog een sessie bevat = verlopen
+    // token zonder netwerk (zie lib/offline-auth.ts) — niet uitloggen, maar
+    // offline verder met de opgeslagen sessie. Een echte SIGNED_OUT heeft
+    // storage al leeggemaakt, de expliciete check is extra zekerheid.
+    const applySession = (next: Session | null, event?: AuthChangeEvent) => {
+      if (!next && event !== "SIGNED_OUT") {
+        const stored = readStoredSession();
+        if (stored) {
+          setSession(stored);
+          setIsOfflineSession(true);
+          return;
+        }
+      }
+      if (event === "SIGNED_OUT") clearCachedProfiles();
+      setSession(next);
+      setIsOfflineSession(false);
+    };
+
+    // Offline blijft getSession tot ~30 s hangen: auth-js herhaalt de
+    // tokenrefresh met backoff binnen AUTO_REFRESH_TICK_DURATION_MS. Met een
+    // opgeslagen sessie wachten we daarom maximaal OFFLINE_GRACE_MS en gaan
+    // dan offline verder; het latere antwoord van getSession wint alsnog.
+    let settled = false;
+    const graceTimer = setTimeout(() => {
+      if (settled) return;
+      const stored = readStoredSession();
+      if (!stored) return;
+      setSession(stored);
+      setIsOfflineSession(true);
+      setLoading(false);
+    }, OFFLINE_GRACE_MS);
+
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
+      settled = true;
+      clearTimeout(graceTimer);
+      applySession(session);
       setLoading(false);
     });
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      applySession(session, event);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      clearTimeout(graceTimer);
+      subscription.unsubscribe();
+    };
   }, []);
 
   // De rol komt UITSLUITEND uit public.profiles (database-brede bron van
@@ -85,29 +136,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // groeifoto-dialoog na het maken van een foto verdween. Bij hetzelfde
   // gebruikers-id is een refetch overbodig: de rol verandert niet door een
   // tokenrefresh.
+  //
+  // Offline (geen netwerk of alleen een opgeslagen sessie) valt de rol terug
+  // op de laatst succesvol opgehaalde rol van DIT account. Alleen bij een
+  // netwerkfout (status 0) — elke echte serverfout of ontbrekende rij blijft
+  // fail closed. Komt het netwerk terug (isOfflineSession -> false), dan
+  // wordt de rol stil opnieuw gevalideerd zonder laadspinner, om dezelfde
+  // reden als hierboven bij de tokenrefresh.
   const userId = session?.user.id ?? null;
+  const profileUserIdRef = useRef<string | null>(null);
   useEffect(() => {
     if (!userId) {
+      profileUserIdRef.current = null;
       setProfile(null);
       setIsLoadingRole(false);
       return;
     }
+    const applyProfile = (next: Profile | null) => {
+      profileUserIdRef.current = next ? userId : null;
+      setProfile(next);
+      setIsLoadingRole(false);
+    };
+    if (isOfflineSession) {
+      applyProfile(readCachedProfile<Profile>(userId));
+      return;
+    }
     let cancelled = false;
-    setIsLoadingRole(true);
+    if (profileUserIdRef.current !== userId) setIsLoadingRole(true);
     supabase
       .from("profiles")
       .select("id, display_name, app_role")
       .eq("id", userId)
       .single()
-      .then(({ data, error }) => {
+      .then(({ data, error, status }) => {
         if (cancelled) return;
-        setProfile(error ? null : (data as Profile));
-        setIsLoadingRole(false);
+        if (!error) {
+          writeCachedProfile(userId, data);
+          applyProfile(data as Profile);
+        } else {
+          applyProfile(
+            status === 0 ? readCachedProfile<Profile>(userId) : null,
+          );
+        }
       });
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [userId, isOfflineSession]);
 
   const appRole = profile?.app_role ?? null;
 
@@ -115,6 +190,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider
       value={{
         session,
+        isOfflineSession,
         loading,
         profile,
         appRole,

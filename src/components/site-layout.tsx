@@ -58,6 +58,10 @@ export function SiteLayout() {
     pathname === "/game-night" ||
     pathname === "/game-night/me/character" ||
     pathname === "/game-night/me/face";
+  // Schietsport heeft een eigen zijbalk (desktop) en boven-/onderbalk
+  // (mobiel) met de terug-naar-huis-link erin, dus geen generieke header;
+  // net als Game Night full-bleed, want het donkere thema vult de viewport.
+  const isSchietsport = pathname.startsWith("/schietsport");
   const isHome = pathname === "/";
   // Boodschappen rendert zelf een "Ons Huisje"-terugknop op de plek van de
   // paginatitel (zie Boodschappen.tsx) i.p.v. de gedeelde navbalk — dezelfde
@@ -163,7 +167,8 @@ export function SiteLayout() {
         !isHome &&
         !isBoodschappen &&
         !isGitaar &&
-        !isGameNight && (
+        !isGameNight &&
+        !isSchietsport && (
           <header className="border-b border-border/60 backdrop-blur-sm bg-background/70 sticky top-0 z-40">
             <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-4 md:grid md:grid-cols-[auto_1fr_auto]">
               <Link to="/" className="flex items-center gap-2 group">
@@ -231,7 +236,7 @@ export function SiteLayout() {
             ? "flex-1 w-full"
             : isGameNightFullBleedRoute
               ? "flex-1 w-full min-h-0 overflow-hidden"
-              : isGameNight
+              : isGameNight || isSchietsport
                 ? "flex-1 w-full"
                 : `flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 ${
                     isR6SessionDetail

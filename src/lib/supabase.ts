@@ -1,7 +1,13 @@
 import { createClient } from "@supabase/supabase-js";
 
+const SUPABASE_URL = "https://lrqivcfuiuskqkpmyxfo.supabase.co";
+
+// supabase-js' default storage key (`sb-<project-ref>-auth-token`). Only read
+// by lib/offline-auth.ts; the client itself keeps using its own default.
+export const SUPABASE_AUTH_STORAGE_KEY = `sb-${new URL(SUPABASE_URL).hostname.split(".")[0]}-auth-token`;
+
 export const supabase = createClient(
-  "https://lrqivcfuiuskqkpmyxfo.supabase.co",
+  SUPABASE_URL,
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxycWl2Y2Z1aXVza3FrcG15eGZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0MzQyMzEsImV4cCI6MjA5NDAxMDIzMX0.vG0Gm6ycQNV20QurnGMVPElsMhQ7bi60uDdimL6vIrM",
 );
 

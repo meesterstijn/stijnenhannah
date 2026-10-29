@@ -24,6 +24,7 @@ import {
   CloudSun,
   Guitar,
   Dices,
+  Target,
   ChevronRight,
   MoreHorizontal,
 } from "lucide-react";
@@ -200,6 +201,13 @@ export default function Home() {
               icon={Dices}
               title="Game Night"
               desc="Vanavond wordt er gespeeld"
+              compact
+            />
+            <HomeTile
+              to="/schietsport"
+              icon={Target}
+              title="Schietsport"
+              desc="Logboek en statistieken"
               compact
             />
             <HomeTile

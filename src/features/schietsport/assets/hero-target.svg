@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
+  <!-- Sfeerbeeld voor de Schietsport-hero: precisieschijf met een paar
+       treffers, warm belicht. Puur decoratief; ~2 KB i.p.v. een foto. -->
+  <defs>
+    <radialGradient id="paper" cx="42%" cy="38%" r="70%">
+      <stop offset="0" stop-color="#d9cdb5"/>
+      <stop offset="0.6" stop-color="#a99c84"/>
+      <stop offset="1" stop-color="#4a4234"/>
+    </radialGradient>
+    <radialGradient id="black" cx="42%" cy="38%" r="70%">
+      <stop offset="0" stop-color="#2a2620"/>
+      <stop offset="1" stop-color="#0d0c0a"/>
+    </radialGradient>
+    <radialGradient id="vignette" cx="50%" cy="50%" r="50%">
+      <stop offset="0.55" stop-color="#000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000" stop-opacity="0.7"/>
+    </radialGradient>
+    <filter id="soft"><feGaussianBlur stdDeviation="0.6"/></filter>
+  </defs>
+  <g filter="url(#soft)">
+    <circle cx="300" cy="300" r="290" fill="url(#paper)"/>
+    <g fill="none" stroke="#3a3328" stroke-opacity="0.55" stroke-width="2">
+      <circle cx="300" cy="300" r="261"/>
+      <circle cx="300" cy="300" r="232"/>
+      <circle cx="300" cy="300" r="203"/>
+      <circle cx="300" cy="300" r="174"/>
+    </g>
+    <circle cx="300" cy="300" r="145" fill="url(#black)"/>
+    <g fill="none" stroke="#cbbd9f" stroke-opacity="0.45" stroke-width="2">
+      <circle cx="300" cy="300" r="116"/>
+      <circle cx="300" cy="300" r="87"/>
+      <circle cx="300" cy="300" r="58"/>
+      <circle cx="300" cy="300" r="29"/>
+      <circle cx="300" cy="300" r="14"/>
+    </g>
+    <g fill="#050504" stroke="#d8c6a2" stroke-opacity="0.55" stroke-width="1.5">
+      <circle cx="292" cy="306" r="5.6"/>
+      <circle cx="309" cy="294" r="5.6"/>
+      <circle cx="301" cy="281" r="5.6"/>
+      <circle cx="318" cy="315" r="5.6"/>
+      <circle cx="270" cy="296" r="5.6"/>
+      <circle cx="338" cy="262" r="5.6"/>
+    </g>
+  </g>
+  <circle cx="300" cy="300" r="300" fill="url(#vignette)"/>
+</svg>

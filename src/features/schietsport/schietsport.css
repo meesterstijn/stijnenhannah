@@ -1,0 +1,220 @@
+/*
+ * Schietsport — "Stijlvol met Foto" (designconcept 6).
+ *
+ * Donker, warm thema dat alleen binnen .schietsport-theme geldt. De
+ * shadcn-tokens worden hier overschreven, zodat bestaande componenten
+ * (Sheet, Select, cardSurface, ...) vanzelf meekleuren. Wordt geïmporteerd
+ * door SchietsportLayout en zit daardoor in de lazy chunk van de module.
+ * Bewust NIET de .dark-klasse: die brengt de leisteenblauwe sitetokens mee.
+ */
+
+.schietsport-theme {
+  --background: oklch(0.155 0.006 85);
+  --foreground: oklch(0.95 0.012 85);
+  --card: oklch(0.21 0.008 85 / 0.72);
+  --card-foreground: oklch(0.95 0.012 85);
+  --popover: oklch(0.2 0.008 85);
+  --popover-foreground: oklch(0.95 0.012 85);
+  --primary: oklch(0.7 0.115 58);
+  --primary-foreground: oklch(0.17 0.01 60);
+  --secondary: oklch(1 0 0 / 0.06);
+  --secondary-foreground: oklch(0.95 0.012 85);
+  --muted: oklch(1 0 0 / 0.05);
+  --muted-foreground: oklch(0.72 0.015 85);
+  --accent: oklch(0.82 0.13 78);
+  --accent-foreground: oklch(0.17 0.01 60);
+  --destructive: oklch(0.65 0.18 28);
+  --destructive-foreground: oklch(0.97 0.01 85);
+  --border: oklch(1 0 0 / 0.08);
+  --input: oklch(1 0 0 / 0.12);
+  --ring: oklch(0.7 0.115 58);
+  --chart-1: oklch(0.7 0.115 58);
+  --chart-2: oklch(0.82 0.13 78);
+  --chart-3: oklch(0.66 0.09 118);
+  --chart-4: oklch(0.72 0.04 230);
+  --chart-5: oklch(0.85 0.04 85);
+
+  /* Eigen accenten */
+  --ss-copper: oklch(0.7 0.115 58);
+  --ss-amber: oklch(0.82 0.13 78);
+  --ss-olive: oklch(0.66 0.09 118);
+  --ss-surface-strong: oklch(0.19 0.007 85 / 0.88);
+  --ss-highlight: oklch(1 0 0 / 0.05);
+
+  color: var(--foreground);
+  background-color: var(--background);
+  background-image:
+    radial-gradient(
+      ellipse 60% 40% at 0% 0%,
+      oklch(0.7 0.115 58 / 0.1),
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 50% 40% at 100% 100%,
+      oklch(0.66 0.09 118 / 0.08),
+      transparent 70%
+    );
+  background-attachment: fixed;
+  color-scheme: dark;
+}
+
+/* De Sheet rendert in een portal buiten de layout; daar alleen de tokens. */
+.schietsport-theme[role="dialog"] {
+  background-image: none;
+  background-attachment: scroll;
+}
+
+/* ── Oppervlakken ─────────────────────────────────────────────── */
+
+.ss-card {
+  position: relative;
+  border-radius: 1.25rem;
+  border: 1px solid var(--border);
+  background: var(--card);
+  box-shadow:
+    inset 0 1px 0 var(--ss-highlight),
+    0 18px 40px -24px oklch(0 0 0 / 0.8);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.ss-card-interactive {
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    transform 160ms ease;
+}
+.ss-card-interactive:hover {
+  border-color: oklch(0.7 0.115 58 / 0.45);
+  background: var(--ss-surface-strong);
+}
+.ss-card-interactive:active {
+  transform: scale(0.985);
+}
+
+.ss-eyebrow {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.ss-number {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* ── Hero ─────────────────────────────────────────────────────── */
+
+.ss-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.5rem;
+  border: 1px solid var(--border);
+  background-color: oklch(0.17 0.008 80);
+  isolation: isolate;
+}
+
+/* Sfeerbeeld: schijf rechts, met een gradient die links de tekst leesbaar
+   houdt. Alleen decoratie (aria-hidden), dus nooit tekst eroverheen die van
+   het beeld afhangt. */
+.ss-hero-media {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image:
+    linear-gradient(
+      90deg,
+      oklch(0.155 0.006 85 / 0.97) 0%,
+      oklch(0.155 0.006 85 / 0.82) 42%,
+      oklch(0.155 0.006 85 / 0.35) 100%
+    ),
+    radial-gradient(
+      circle at 82% 45%,
+      oklch(0.7 0.115 58 / 0.32),
+      transparent 55%
+    ),
+    var(--ss-hero-image);
+  background-repeat: no-repeat;
+  background-size:
+    100% 100%,
+    100% 100%,
+    auto 150%;
+  background-position:
+    center,
+    center,
+    right -6rem center;
+}
+
+@media (max-width: 640px) {
+  .ss-hero-media {
+    background-image:
+      linear-gradient(
+        180deg,
+        oklch(0.155 0.006 85 / 0.55) 0%,
+        oklch(0.155 0.006 85 / 0.92) 60%
+      ),
+      radial-gradient(
+        circle at 85% 15%,
+        oklch(0.7 0.115 58 / 0.3),
+        transparent 55%
+      ),
+      var(--ss-hero-image);
+    background-size:
+      100% 100%,
+      100% 100%,
+      auto 95%;
+    background-position:
+      center,
+      center,
+      right -5rem top -2rem;
+  }
+}
+
+/* ── Navigatie ────────────────────────────────────────────────── */
+
+.ss-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-radius: 0.875rem;
+  padding: 0.625rem 0.75rem;
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+}
+.ss-nav-link:hover {
+  background: var(--secondary);
+  color: var(--foreground);
+}
+.ss-nav-link[aria-current="page"] {
+  background: oklch(0.7 0.115 58 / 0.14);
+  color: var(--foreground);
+  font-weight: 500;
+  box-shadow: inset 2px 0 0 var(--ss-copper);
+}
+.ss-nav-link[aria-current="page"] svg {
+  color: var(--ss-copper);
+}
+
+.ss-bottom-nav {
+  background: oklch(0.14 0.006 85 / 0.92);
+  border-top: 1px solid var(--border);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.ss-fab {
+  background: linear-gradient(
+    145deg,
+    oklch(0.78 0.12 70),
+    oklch(0.64 0.12 52)
+  );
+  color: var(--primary-foreground);
+  box-shadow:
+    0 10px 24px -8px oklch(0.7 0.115 58 / 0.7),
+    inset 0 1px 0 oklch(1 0 0 / 0.35);
+}

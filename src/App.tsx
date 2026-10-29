@@ -128,6 +128,30 @@ const GameNightFaceSetup = lazy(
 const CharacterAssetQaGrid = lazy(
   () => import("@/features/game-night/v2/CharacterAssetQaGrid"),
 );
+const SchietsportLayout = lazy(
+  () => import("@/pages/schietsport/SchietsportLayout"),
+);
+const SchietsportDashboard = lazy(
+  () => import("@/pages/schietsport/SchietsportDashboard"),
+);
+const SchietsportNieuw = lazy(
+  () => import("@/pages/schietsport/SchietsportNieuw"),
+);
+const SchietsportLogboek = lazy(
+  () => import("@/pages/schietsport/SchietsportLogboek"),
+);
+const SchietsportStatistieken = lazy(
+  () => import("@/pages/schietsport/SchietsportStatistieken"),
+);
+const SchietsportWapens = lazy(
+  () => import("@/pages/schietsport/SchietsportWapens"),
+);
+const SchietsportCompetities = lazy(
+  () => import("@/pages/schietsport/SchietsportCompetities"),
+);
+const SchietsportInstellingen = lazy(
+  () => import("@/pages/schietsport/SchietsportInstellingen"),
+);
 const GameNightJoin = lazy(() => import("@/pages/game-night/GameNightJoin"));
 const GameNightGuest = lazy(() => import("@/pages/game-night/GameNightGuest"));
 
@@ -291,6 +315,21 @@ function AppRoutes() {
               <Route
                 path="nummers/:id/bewerken"
                 element={<GitaarSongEditor />}
+              />
+            </Route>
+            <Route path="/schietsport" element={<SchietsportLayout />}>
+              <Route index element={<SchietsportDashboard />} />
+              <Route path="nieuw" element={<SchietsportNieuw />} />
+              <Route path="logboek" element={<SchietsportLogboek />} />
+              <Route
+                path="statistieken"
+                element={<SchietsportStatistieken />}
+              />
+              <Route path="wapens" element={<SchietsportWapens />} />
+              <Route path="competities" element={<SchietsportCompetities />} />
+              <Route
+                path="instellingen"
+                element={<SchietsportInstellingen />}
               />
             </Route>
             <Route path="/game-night" element={<GameNightLayout />}>

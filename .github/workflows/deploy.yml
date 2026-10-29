@@ -41,6 +41,14 @@ jobs:
       - name: Type-check
         run: npx tsc --noEmit
 
+      # Unit tests (vitest, src/**/*.test.ts) en de Game Night-databasetests
+      # (PGlite, draait de echte migraties lokaal — nooit tegen productie).
+      # Een falende test stopt de deploy, net als de type-check.
+      - name: Tests
+        run: |
+          npm test
+          npm run game-night:test-guests
+
       - name: Build
         run: npm run build
 
