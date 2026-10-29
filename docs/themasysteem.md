@@ -40,7 +40,7 @@ Een nieuw *token* voeg je toe in alle presets en gebruik je in `theme.css`, stee
 
 ## Openstaande keuzes
 
-- **Modules met een eigen identiteit blijven altijd origineel**: Rainbow Six Siege, Cocktail Bar, Gitaar, Game Night, Schietsport, Tuinieren en Tuingids. Ze hebben eigen scoped tokens en achtergronden, en een thema eroverheen zou hun vormgeving breken. Het gekozen thema blijft bewaard en geldt weer zodra je terug bent op een algemene pagina. Op die modules staat geen paletknop, omdat ze geen gedeelde bovenbalk hebben. Aanpassen kan via `THEME_EXCLUDED_PREFIXES`.
+- **Modules met een eigen identiteit blijven altijd origineel**: Rainbow Six Siege, Cocktail Bar, Gitaar, Game Night, Schietsport, Training (op verzoek, 29 okt 2026; heeft een eigen paletkiezer), Tuinieren en Tuingids. Ze hebben eigen scoped tokens en achtergronden, en een thema eroverheen zou hun vormgeving breken. Het gekozen thema blijft bewaard en geldt weer zodra je terug bent op een algemene pagina. Op die modules staat geen paletknop, omdat ze geen gedeelde bovenbalk hebben. Aanpassen kan via `THEME_EXCLUDED_PREFIXES`.
 - **Achtergronden zijn CSS/SVG en geen foto's**: avondlandschap (4), nachtbergen (2), neonraster (6), papierkorrel (5). Er zijn geen bruikbare stockfoto's in `public/`, en de persoonlijke `home-hero.jpg` hoort bij Origineel.
 - **Lettertypes**: 1 Plus Jakarta Sans, 2 Inter (al geladen), 4 Manrope, 5 Libre Baskerville + Lora, 6 Exo 2, 7 IBM Plex Sans. Ze komen van Google Fonts en worden alleen geladen als ze gekozen zijn. De previews tonen het lettertype pas als het geladen is.
 - **"Nostalgische iconen" (5)** zijn benaderd met een gestempelde icoontegel rond de bestaande lucide-iconen. Echte geïllustreerde iconen zouden nieuwe assets vragen.
