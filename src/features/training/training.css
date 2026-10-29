@@ -248,6 +248,13 @@
   border: 1px solid transparent;
   white-space: nowrap;
 }
+.tr-chip { max-width: 100%; }
+/* Lange labels mogen over meerdere regels. */
+.tr-chip-wrap { white-space: normal; text-align: left; }
+
+/* Rasterkolommen nooit breder dan het scherm door lange inhoud. */
+.training-theme .grid > * { min-width: 0; }
+
 button.tr-chip {
   min-height: 36px;
   padding: 0.35rem 0.85rem;

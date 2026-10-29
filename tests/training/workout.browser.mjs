@@ -91,11 +91,13 @@ try {
   globalThis.__page = page;
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));
+  // Met telefoonemulatie verbreedt de browser het layout-viewport als iets
+  // te breed is; daarom meten tegen de vaste schermbreedte (390 px).
   const noHorizontalScroll = async (label) => {
     const overflow = await page.evaluate(
-      () => document.documentElement.scrollWidth - window.innerWidth,
+      () => document.documentElement.scrollWidth - 390,
     );
-    assert.ok(overflow <= 1, `${label}: horizontale scroll (${overflow}px)`);
+    assert.ok(overflow <= 1, `${label}: ${overflow}px breder dan het scherm`);
   };
 
   await page.goto(`${BASE}/#/training`);
@@ -302,6 +304,7 @@ try {
   step("eigen kleurenpalet maken, gebruiken en terug naar standaard");
 
   for (const path of [
+    "schemas",
     "voortgang",
     "oefeningen",
     "historie",

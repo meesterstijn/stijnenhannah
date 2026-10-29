@@ -52,7 +52,7 @@ export function TemplateCard({
       <p className="tr-ink-2 text-sm">{template.description}</p>
       <div className="flex flex-wrap gap-1.5">
         <span className="tr-chip">{template.daysPerWeek} dagen per week</span>
-        <span className="tr-chip">{template.recommendedLevel}</span>
+        <span className="tr-chip tr-chip-wrap">{template.recommendedLevel}</span>
       </div>
       <p className="tr-muted text-xs">
         {template.days.map((d) => d.name).join(" · ")}
