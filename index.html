@@ -15,12 +15,42 @@
     <meta property="og:title" content="Ons Huisje" />
     <meta property="og:description" content="Onze gezellige plek om boodschappen, avondeten en recepten te organiseren." />
     <meta property="og:type" content="website" />
-    <script type="module" crossorigin src="/assets/index-GdjFtWqI.js"></script>
-    <link rel="modulepreload" crossorigin href="/assets/react-LN1S2Nfe.js">
-    <link rel="modulepreload" crossorigin href="/assets/query-KLUCu8UW.js">
+    <script>
+      // Themasysteem (src/features/theme): zet het laatst gekozen thema al
+      // vóór React laadt, zodat er geen flits van het standaardthema is.
+      // Leest alleen de kant-en-klare cache die ThemeProvider bijhoudt.
+      (function () {
+        try {
+          var t = JSON.parse(
+            localStorage.getItem("onshuisje.theme.applied.v1") || "null",
+          );
+          if (!t || t.v !== 1) return;
+          var path = (location.hash.replace(/^#/, "") || "/").split("?")[0];
+          for (var i = 0; i < t.excluded.length; i++) {
+            var p = t.excluded[i];
+            if (path === p || path.indexOf(p + "/") === 0) return;
+          }
+          var root = document.documentElement;
+          for (var k in t.vars) root.style.setProperty(k, t.vars[k]);
+          for (var a in t.attrs) root.setAttribute(a, t.attrs[a]);
+          for (var j = 0; j < t.fonts.length; j++) {
+            var l = document.createElement("link");
+            l.rel = "stylesheet";
+            l.href = t.fonts[j];
+            l.setAttribute("data-ht-font", t.fonts[j]);
+            document.head.appendChild(l);
+          }
+        } catch (e) {
+          // Kapotte cache: gewoon het originele uiterlijk.
+        }
+      })();
+    </script>
+    <script type="module" crossorigin src="/assets/index-Crrg5b4i.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/react-HB7iEliR.js">
+    <link rel="modulepreload" crossorigin href="/assets/query-BM5dWz6B.js">
     <link rel="modulepreload" crossorigin href="/assets/supabase-CIS1ha1V.js">
-    <link rel="modulepreload" crossorigin href="/assets/ui-BpdPIgMG.js">
-    <link rel="stylesheet" crossorigin href="/assets/index-BBpUi3jC.css">
+    <link rel="modulepreload" crossorigin href="/assets/ui-DQPHx93v.js">
+    <link rel="stylesheet" crossorigin href="/assets/index-CzQ1p7B6.css">
   <link rel="manifest" href="/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script></head>
   <body>
     <div id="root"></div>
