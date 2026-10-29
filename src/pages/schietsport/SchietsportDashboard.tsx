@@ -19,7 +19,6 @@ import {
   useUiFilter,
 } from "@/features/schietsport/filters/FilterBar";
 import {
-  SESSION_TYPE_LABELS,
   SESSION_TYPE_SHORT_LABELS,
   type SessionType,
 } from "@/features/schietsport/domain/rules";
@@ -249,7 +248,7 @@ export default function SchietsportDashboard() {
                       </span>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm">
-                          {SESSION_TYPE_LABELS[type]}
+                          {SESSION_TYPE_SHORT_LABELS[type]}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {stats.counts[type]}× geschoten

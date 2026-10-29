@@ -22,7 +22,7 @@ describe("dashboard-kerncijfers", () => {
   it("gemiddelde en record zijn van officiële wedstrijden; schalen niet gemengd", () => {
     const result = headline(sessions);
     expect(result.focus).toMatchObject({
-      label: "Officiële wedstrijd",
+      label: "Wedstrijd",
       scale: 300,
     });
     expect(result.focus.summary?.mean).toBe(285);

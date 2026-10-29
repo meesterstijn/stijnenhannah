@@ -1,6 +1,6 @@
 import type { ShootingSession } from "@/features/schietsport/domain/model";
 import {
-  SESSION_TYPE_LABELS,
+  SESSION_TYPE_SHORT_LABELS,
   scaleFor,
   type ScoreScale,
   type SessionType,
@@ -72,7 +72,7 @@ export function headline(
   return {
     latest: latestSession(sessions),
     focus: {
-      label: focusTypes.map((t) => SESSION_TYPE_LABELS[t]).join(" + "),
+      label: focusTypes.map((t) => SESSION_TYPE_SHORT_LABELS[t]).join(" + "),
       scale,
       summary: summarize(focusSessions),
       best: focusSessions.length > 0 ? personalBest(focusSessions) : null,
