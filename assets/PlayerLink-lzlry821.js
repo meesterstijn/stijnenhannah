@@ -1,0 +1,1 @@
+import{j as n}from"./query-KLUCu8UW.js";import{L as r}from"./react-LN1S2Nfe.js";function i({player:e}){return n.jsx(r,{to:`/game-night/spelers/${e.id}`,className:"underline decoration-dotted underline-offset-2 hover:text-[var(--gnv2-accent-warm-strong)]",children:e.name})}export{i as P};
