@@ -4,7 +4,7 @@ import type { TrainingGoal } from "./types";
 // schema's op basis van algemeen beschreven trainingsprincipes; geen kopie
 // van een betaald of exclusief programma, en niet naar een coach vernoemd.
 //
-// Een sjabloon is "basisvolume voor gemiddeld niveau". De generator
+// Een sjabloon is "basisvolume voor gevorderd niveau". De generator
 // (generator.ts) past sets, herhalingen, rust en duur aan op niveau, doel,
 // tijd en apparatuur.
 
@@ -153,7 +153,7 @@ export const PROGRAM_TEMPLATES: ProgramTemplate[] = [
     name: "Vijfdaagse split",
     category: "standard",
     daysPerWeek: 5,
-    recommendedLevel: "Gemiddeld tot gevorderd",
+    recommendedLevel: "Gevorderd tot expert",
     description:
       "Upper, Lower, Push, Pull, Legs. Standaard ma, di, do, vr, za met rust op woensdag en zondag. Elke spiergroep komt twee keer per week aan bod.",
     principles: [
@@ -245,7 +245,8 @@ export const PROGRAM_TEMPLATES: ProgramTemplate[] = [
     name: "Push / Pull / Legs — 6 dagen",
     category: "standard",
     daysPerWeek: 6,
-    recommendedLevel: "Gevorderd (veel trainingsdagen, goed herstel nodig)",
+    recommendedLevel:
+      "Gevorderd tot expert (veel trainingsdagen, goed herstel nodig)",
     description:
       "Push, Pull, Legs twee keer per week, zondag rust. A-dagen met nadruk op kracht (zwaarder, minder herhalingen), B-dagen op spiermassa (meer herhalingen).",
     principles: [
@@ -395,7 +396,7 @@ export const PROGRAM_TEMPLATES: ProgramTemplate[] = [
     name: "Upper/Lower — 4 dagen",
     category: "library",
     daysPerWeek: 4,
-    recommendedLevel: "Gemiddeld",
+    recommendedLevel: "Gevorderd",
     description:
       "Twee bovenlichaam- en twee onderlichaamtrainingen per week (ma, di, do, vr), voor kracht en spiergroei.",
     principles: [

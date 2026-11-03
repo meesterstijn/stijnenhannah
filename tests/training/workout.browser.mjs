@@ -112,6 +112,12 @@ try {
     .first()
     .click();
   await page.getByRole("button", { name: "Dit schema gebruiken" }).click();
+  // Overzicht van wat de trainer aanpaste (o.a. inspanning per niveau)
+  await page
+    .getByText(/Inspanning:/)
+    .first()
+    .waitFor();
+  await page.getByRole("button", { name: "Naar vandaag" }).click();
   await page.getByRole("button", { name: "Start training" }).waitFor();
   await page.screenshot({
     path: join(output, "1-dashboard.png"),
@@ -124,16 +130,34 @@ try {
   await page.waitForURL(/#\/training\/workout/);
   const setButton = page.locator(".tr-set-button");
   await setButton.waitFor();
-  assert.match(await setButton.innerText(), /Kies eerst een gewicht/);
-  assert.equal(await setButton.isDisabled(), true);
-  step("training starten (nieuwe oefening vraagt eerst een gewicht)");
+  // Nieuwe oefening: startgewicht van de trainer (gevorderd, goblet squat
+  // 22 kg), opwarmset 1 op ~50%.
+  const startBanner = await page
+    .getByText(/Startgewicht van de trainer/)
+    .innerText();
+  assert.match(startBanner, /22 kg/);
+  assert.match(await setButton.innerText(), /11 kg/);
+  step("training starten (startgewicht van de trainer staat klaar)");
 
-  // Gewicht handmatig verhogen
+  // Gewicht handmatig aanpassen
   const plus = page.getByRole("button", { name: /^Gewicht plus/ });
-  for (let i = 0; i < 6; i++) await plus.click();
-  await page.waitForFunction(() =>
-    /12 kg/.test(document.querySelector(".tr-set-button")?.textContent ?? ""),
-  );
+  const minus = page.getByRole("button", { name: /^Gewicht min/ });
+  const showsKg = (kg) =>
+    page.waitForFunction(
+      (text) =>
+        (document.querySelector(".tr-set-button")?.textContent ?? "").includes(
+          text,
+        ),
+      `VOLTOOID${kg} kg`,
+    );
+  for (const kg of [9, 7, 5]) {
+    await minus.click();
+    await showsKg(kg);
+  }
+  for (const kg of [7, 9, 11, 13]) {
+    await plus.click();
+    await showsKg(kg);
+  }
   assert.match(await setButton.innerText(), /OPWARMSET 1 VOLTOOID/);
   await page.screenshot({
     path: join(output, "2-workout.png"),
@@ -170,12 +194,12 @@ try {
     `volgende set klaar na rust (${progressText.split("\n").find((l) => l.includes("werksets"))})`,
   );
 
-  // Werksets van de eerste oefening: nog geen historie, dus eerst zelf een
-  // gewicht kiezen (de app verzint niets). Daarna gaat het vanzelf mee.
+  // Werksets: startgewicht van de trainer staat klaar (22 kg). Te zwaar?
+  // Eén keer lager zet alle volgende sets ook op 20 kg; dat wordt onthouden.
   await setButton.click(); // opwarmset 2
   await page.getByRole("button", { name: "Rust overslaan" }).click();
-  assert.match(await setButton.innerText(), /Kies eerst een gewicht/);
-  for (let i = 0; i < 10; i++) await plus.click();
+  assert.match(await setButton.innerText(), /22 kg/);
+  await minus.click();
   await page.waitForFunction(() =>
     /20 kg/.test(document.querySelector(".tr-set-button")?.textContent ?? ""),
   );
@@ -228,8 +252,21 @@ try {
     .first()
     .innerText();
   assert.match(previous, /20 kg × 6/);
-  assert.match(await setButton.innerText(), /12 kg × 8/); // opwarmset zoals vorige keer
+  assert.match(await setButton.innerText(), /13 kg × 8/); // opwarmset zoals vorige keer
   step("volgende training neemt vorige gewichten en reps over");
+
+  // Trainer: 3 van de 4 sets gedaan → nog niet verhogen.
+  const advice = await page
+    .getByText(/^Trainer:/)
+    .first()
+    .locator("..")
+    .innerText();
+  assert.match(advice, /3 van de 4 sets/);
+  await page.screenshot({
+    path: join(output, "4-trainer.png"),
+    fullPage: true,
+  });
+  step("trainer raadt verhogen af (niet alle sets gedaan)");
 
   await page.goto(`${BASE}/#/training/schijven`);
   await page.getByLabel("Doelgewicht totaal").fill("60");

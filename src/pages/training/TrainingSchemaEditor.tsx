@@ -28,8 +28,10 @@ import { adHocPlan } from "@/features/training/domain/workout";
 import { useTraining } from "@/features/training/hooks/TrainingProvider";
 import {
   useExercises,
+  useProfile,
   useProgram,
 } from "@/features/training/hooks/useTrainingData";
+import { trainerStartWeight } from "@/features/training/domain/start-weights";
 import { newId } from "@/features/training/lib/ids";
 
 const move = <T,>(list: T[], from: number, delta: number) => {
@@ -54,6 +56,7 @@ export default function TrainingSchemaEditor() {
   const program = useProgram(id);
   const { db } = useTraining();
   const { get } = useExercises();
+  const profile = useProfile();
   const navigate = useNavigate();
   const [name, setName] = useState("");
   const [content, setContent] = useState<ProgramContent | null>(null);
@@ -355,6 +358,16 @@ export default function TrainingSchemaEditor() {
                     <NumberField
                       label="Startgewicht (alleen zolang er nog geen historie is)"
                       value={pe.startWeightKg}
+                      placeholder={(() => {
+                        const kg = trainerStartWeight(
+                          exercise,
+                          content.level ?? profile.settings.level,
+                          profile.equipment,
+                        );
+                        return kg === null
+                          ? undefined
+                          : `Trainer: ${String(kg).replace(".", ",")}`;
+                      })()}
                       suffix="kg"
                       onChange={(v) =>
                         setExercise(di, ei, { startWeightKg: v })

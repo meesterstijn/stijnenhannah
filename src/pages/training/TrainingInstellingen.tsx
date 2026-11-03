@@ -197,12 +197,28 @@ export default function TrainingInstellingen() {
             ]}
           />
         </div>
-        <Switch
-          label="Progressiesuggesties"
-          description="Een zachte hint als je drie keer alle sets haalde. De app verhoogt nooit zelf gewicht of herhalingen."
-          checked={settings.progressionHints}
-          onChange={(progressionHints) => setSettings({ progressionHints })}
-        />
+        <div className="space-y-1.5 py-2">
+          <span className="block font-medium">Trainer</span>
+          <Segment
+            label="Trainer"
+            value={settings.coachMode}
+            onChange={(coachMode) =>
+              setSettings({ coachMode, progressionHints: coachMode !== "off" })
+            }
+            options={[
+              { value: "off", label: "Uit" },
+              { value: "suggest", label: "Stelt voor" },
+              { value: "auto", label: "Verhoogt zelf" },
+            ]}
+          />
+          <p className="tr-muted text-xs">
+            {settings.coachMode === "off"
+              ? "Geen advies: je doet wat je vorige keer deed en verhoogt zelf."
+              : settings.coachMode === "suggest"
+                ? "Haal je de bovenkant van het herhalingsbereik op alle sets, dan stelt de trainer een verhoging voor (één tik). Haal je de ondergrens niet, dan raadt hij verhogen af of stelt hij voor lichter te gaan."
+                : "Haal je de bovenkant van het herhalingsbereik op alle sets, dan staat het hogere gewicht bij de volgende training al klaar (terug te draaien). Lichter gaan blijft altijd een voorstel."}
+          </p>
+        </div>
         <Switch
           label="Geschatte 1RM tonen"
           description="Alleen als indicatie (Epley-formule)."

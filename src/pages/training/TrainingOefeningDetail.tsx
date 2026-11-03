@@ -15,6 +15,7 @@ import {
 } from "@/features/training/components/ui";
 import { setExercisePref } from "@/features/training/db/repository";
 import { performances } from "@/features/training/domain/performance";
+import { trainerStartWeight } from "@/features/training/domain/start-weights";
 import {
   exerciseRecords,
   exerciseSeries,
@@ -307,6 +308,16 @@ export default function TrainingOefeningDetail() {
               label="Startgewicht (zonder historie)"
               suffix="kg"
               value={pref.startWeightKg ?? null}
+              placeholder={(() => {
+                const kg = trainerStartWeight(
+                  exercise,
+                  profile.settings.level,
+                  profile.equipment,
+                );
+                return kg === null
+                  ? undefined
+                  : `Trainer: ${String(kg).replace(".", ",")}`;
+              })()}
               onChange={(v) =>
                 void setExercisePref(db, userId, id, {
                   startWeightKg: v ?? undefined,

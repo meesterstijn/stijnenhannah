@@ -8,6 +8,7 @@ export const DEFAULT_SETTINGS: TrainingSettings = {
   activeProgramId: null,
   historyScope: "any",
   progressionHints: true,
+  coachMode: "suggest",
   sound: true,
   vibrate: true,
   notifications: false,
@@ -53,7 +54,14 @@ export function normalizeProfile(profile: Profile): Profile {
   const equipment = profile.equipment ?? DEFAULT_EQUIPMENT;
   return {
     ...profile,
-    settings: { ...DEFAULT_SETTINGS, ...(profile.settings ?? {}) },
+    settings: {
+      ...DEFAULT_SETTINGS,
+      // Oudere profielen: hints uit = trainer uit.
+      ...(profile.settings?.progressionHints === false
+        ? { coachMode: "off" as const }
+        : {}),
+      ...(profile.settings ?? {}),
+    },
     equipment: {
       barbell: { ...DEFAULT_EQUIPMENT.barbell, ...(equipment.barbell ?? {}) },
       dumbbells: {

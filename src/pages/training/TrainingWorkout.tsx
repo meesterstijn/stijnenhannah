@@ -40,7 +40,9 @@ import {
 import {
   performances,
   progressionHint,
+  type CoachAdvice,
 } from "@/features/training/domain/performance";
+import { LEVEL_LABELS } from "@/features/training/components/ProgramSetup";
 import { smallestStep } from "@/features/training/domain/plates";
 import {
   addExercise,
@@ -49,7 +51,9 @@ import {
   patchExercise,
   removeExercise,
   removeSet,
+  applyCoachChange,
   replaceExercise,
+  revertCoachChange,
   setValuesForward,
 } from "@/features/training/domain/session-edit";
 import type {
@@ -68,6 +72,7 @@ import {
   LIMITS,
   activeExercises,
   adHocPlan,
+  coachFor,
   doneMap,
   nextOpenPosition,
   positionKey,
@@ -338,13 +343,29 @@ function Workout({
     session.programId,
     session.id,
   ]);
-  const hint =
-    profile.settings.progressionHints && previous && shownExercise
-      ? progressionHint(previous, shownExercise.tracking)
-      : null;
   const exerciseInfo = shownExercise
     ? get(shownExercise.exerciseId, shownExercise.name)
     : null;
+  const coachOn = profile.settings.coachMode !== "off";
+  // Gewicht × herhalingen: de trainer (verhogen, vasthouden, verlagen).
+  // Overige oefeningen: alleen de zachte hint na drie keer alles gehaald.
+  const advice =
+    coachOn && previous && shownExercise && exerciseInfo
+      ? coachFor(
+          exerciseInfo,
+          previous,
+          shownExercise,
+          profile.settings.level,
+          profile.equipment,
+        )
+      : null;
+  const hint =
+    coachOn &&
+    previous &&
+    shownExercise &&
+    shownExercise.tracking !== "weight_reps"
+      ? progressionHint(previous, shownExercise.tracking)
+      : null;
   const note = shownExercise
     ? profile.exercisePrefs[shownExercise.exerciseId]?.notes
     : undefined;
@@ -495,6 +516,21 @@ function Workout({
             {hint && (
               <div className="tr-banner tr-banner-info text-sm">{hint}</div>
             )}
+            <CoachBanner
+              exercise={shownExercise}
+              advice={advice}
+              done={done}
+              onApply={(change) =>
+                void persist((s) =>
+                  applyCoachChange(s, shownExercise.slot, change, done),
+                )
+              }
+              onRevert={() =>
+                void persist((s) =>
+                  revertCoachChange(s, shownExercise.slot, done),
+                )
+              }
+            />
             {note && (
               <p className="tr-card-flat px-3 py-2 text-sm">
                 <NotebookPen className="tr-muted mr-1.5 inline h-4 w-4" />
@@ -580,6 +616,22 @@ function Workout({
               {error && (
                 <div className="tr-banner tr-banner-danger">{error}</div>
               )}
+              <WeightWarning
+                kind={cursor!.kind}
+                weightKg={values.weightKg}
+                tracking={current.tracking}
+                advice={current.slot === shownExercise.slot ? advice : null}
+                previousTopKg={
+                  previous?.[0]
+                    ? Math.max(
+                        0,
+                        ...previous[0].work.map((s) => s.weightKg ?? 0),
+                      )
+                    : null
+                }
+                stepKg={step}
+                coached={!!current.coach}
+              />
               <button
                 type="button"
                 className="tr-set-button"
@@ -975,6 +1027,156 @@ function Workout({
   );
 }
 
+const kgText = (kg: number) => `${formatKg(kg)} kg`;
+
+// Advies van de trainer bij deze oefening: een al toegepaste verhoging
+// (terug te draaien) of een voorstel om te verhogen/verlagen.
+function CoachBanner({
+  exercise,
+  advice,
+  done,
+  onApply,
+  onRevert,
+}: {
+  exercise: SessionExercise;
+  advice: CoachAdvice | null;
+  done: Map<string, TrainingSet>;
+  onApply: (change: {
+    kind: "increase" | "decrease";
+    fromKg: number;
+    toKg: number;
+  }) => void;
+  onRevert: () => void;
+}) {
+  const open = (index: number) =>
+    !done.has(positionKey({ slot: exercise.slot, kind: "work", index }));
+  const coach = exercise.coach;
+  if (coach) {
+    const canRevert = exercise.work.some(
+      (v, i) => open(i) && v.weightKg === coach.toKg,
+    );
+    return (
+      <div className="tr-banner tr-banner-info flex-col text-sm">
+        <span>
+          <b>Trainer:</b>{" "}
+          {coach.kind === "increase"
+            ? `${coach.how === "auto" ? "verhoogd" : "verhoogd op jouw tik"} van ${kgText(coach.fromKg)} naar ${kgText(coach.toKg)}, omdat je vorige keer alle herhalingen haalde.`
+            : `verlaagd van ${kgText(coach.fromKg)} naar ${kgText(coach.toKg)}. Bouw de herhalingen weer op.`}
+        </span>
+        {canRevert && (
+          <button
+            type="button"
+            className="tr-btn tr-btn-quiet -ml-2 self-start"
+            onClick={onRevert}
+          >
+            <Undo2 className="h-4 w-4" /> Terug naar {kgText(coach.fromKg)}
+          </button>
+        )}
+      </div>
+    );
+  }
+  if (!advice) return null;
+  if (advice.kind === "increase" || advice.kind === "decrease") {
+    const applicable = exercise.work.some(
+      (v, i) => open(i) && v.weightKg === advice.fromKg,
+    );
+    return (
+      <div
+        className={`tr-banner flex-col text-sm ${advice.kind === "increase" ? "tr-banner-info" : "tr-banner-warn"}`}
+      >
+        <span>
+          <b>Trainer:</b> {advice.text}
+        </span>
+        {applicable && (
+          <button
+            type="button"
+            className="tr-btn tr-btn-primary self-start"
+            onClick={() =>
+              onApply({
+                kind: advice.kind,
+                fromKg: advice.fromKg,
+                toKg: advice.toKg,
+              })
+            }
+          >
+            {advice.kind === "increase" ? (
+              <ArrowUp className="h-4 w-4" />
+            ) : (
+              <ArrowDown className="h-4 w-4" />
+            )}
+            {advice.kind === "increase" ? "Verhoog" : "Verlaag"} naar{" "}
+            {kgText(advice.toKg)}
+          </button>
+        )}
+      </div>
+    );
+  }
+  return (
+    <div
+      className={`tr-banner text-sm ${advice.kind === "hold" ? "tr-banner-warn" : "tr-banner-info"}`}
+    >
+      <span>
+        <b>Trainer:</b> {advice.text}
+      </span>
+    </div>
+  );
+}
+
+// De trainer raadt af: zwaarder dan het advies, of een grote sprong ten
+// opzichte van vorige keer. Alleen een waarschuwing; je kunt gewoon door.
+function WeightWarning({
+  kind,
+  weightKg,
+  tracking,
+  advice,
+  previousTopKg,
+  stepKg,
+  coached,
+}: {
+  kind: Position["kind"];
+  weightKg: number | null;
+  tracking: SessionExercise["tracking"];
+  advice: CoachAdvice | null;
+  previousTopKg: number | null;
+  stepKg: number;
+  coached: boolean;
+}) {
+  if (kind !== "work" || tracking !== "weight_reps" || weightKg === null)
+    return null;
+  if (advice && (advice.kind === "hold" || advice.kind === "decrease")) {
+    const limit = advice.kind === "hold" ? advice.weightKg : advice.fromKg;
+    if (weightKg > limit) {
+      return (
+        <div className="tr-banner tr-banner-warn text-sm">
+          <span>
+            <b>Trainer raadt dit af.</b> Vorige keer haalde je de herhalingen op{" "}
+            {kgText(limit)} nog niet; eerst daar sterker worden.
+          </span>
+        </div>
+      );
+    }
+    return null;
+  }
+  if (
+    !coached &&
+    previousTopKg &&
+    weightKg > previousTopKg * 1.1 &&
+    weightKg - previousTopKg > stepKg
+  ) {
+    const pct = Math.round((weightKg / previousTopKg - 1) * 100);
+    return (
+      <div className="tr-banner tr-banner-warn text-sm">
+        <span>
+          <b>Grote sprong:</b> +{pct}% ten opzichte van vorige keer (
+          {kgText(previousTopKg)}). De trainer raadt stappen van hooguit 5–10%
+          aan.
+        </span>
+      </div>
+    );
+  }
+  return null;
+}
+
 function PreviousLine({
   exercise,
   previous,
@@ -994,10 +1196,30 @@ function PreviousLine({
         : exercise.repMin !== null
           ? `${exercise.repMin}${exercise.repMax && exercise.repMax !== exercise.repMin ? `–${exercise.repMax}` : ""} herh.`
           : "";
+    const trainerLevel =
+      exercise.source.kind === "plan"
+        ? exercise.source.trainerStart
+        : undefined;
+    const start = exercise.work[0]?.weightKg ?? null;
+    if (trainerLevel && start !== null) {
+      return (
+        <div className="tr-banner tr-banner-info text-sm">
+          <span>
+            <b>Nieuw voor jou.</b> Startgewicht van de trainer (
+            {LEVEL_LABELS[trainerLevel].toLowerCase()}):{" "}
+            <b className="tr-num">{kgText(start)}</b> × {target} Voelt het te
+            zwaar, ga dan gerust lager. Wat je vandaag doet, staat de volgende
+            keer weer klaar.
+          </span>
+        </div>
+      );
+    }
     return (
       <p className="tr-muted text-sm">
         Nieuw voor jou. Doel uit het schema: {exercise.work.length} × {target}
-        {exercise.tracking === "weight_reps" && " — kies zelf een gewicht."}
+        {exercise.tracking === "weight_reps" &&
+          start === null &&
+          " — kies zelf een gewicht."}
       </p>
     );
   }

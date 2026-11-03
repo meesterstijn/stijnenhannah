@@ -20,8 +20,8 @@ import { Segment, Sheet } from "./ui";
 
 export const LEVEL_LABELS: Record<TrainingLevel, string> = {
   beginner: "Beginner",
-  intermediate: "Gemiddeld",
-  advanced: "Gevorderd",
+  intermediate: "Gevorderd",
+  advanced: "Expert",
 };
 export const GOAL_LABELS: Record<TrainingGoal, string> = {
   strength: "Kracht",

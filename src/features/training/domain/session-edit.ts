@@ -4,6 +4,7 @@ import type {
   SetKind,
   SetValues,
 } from "./types";
+import { applyCoachWeight } from "./performance";
 import { positionKey, type DoneMap, type Position } from "./workout";
 
 // Bewerkingen op de momentopname van een lopende training. Puur: geven een
@@ -205,4 +206,43 @@ export function patchExercise(
       e.slot === slot ? { ...e, ...change } : e,
     ),
   };
+}
+
+// Trainervoorstel overnemen: werksets die nog open staan op het oude
+// gewicht krijgen het nieuwe gewicht (herhalingen weer onderaan het bereik).
+export function applyCoachChange(
+  snapshot: SessionSnapshot,
+  slot: number,
+  change: { kind: "increase" | "decrease"; fromKg: number; toKg: number },
+  done: DoneMap,
+): SessionSnapshot {
+  const exercise = snapshot.exercises.find((e) => e.slot === slot);
+  if (!exercise) return snapshot;
+  const work = applyCoachWeight(exercise.work, change, exercise.repMin, (i) =>
+    done.has(positionKey({ slot, kind: "work", index: i })),
+  );
+  return patchExercise(snapshot, slot, {
+    work,
+    coach: { ...change, how: "accepted", before: exercise.work },
+  });
+}
+
+// Trainerwijziging terugdraaien: open sets krijgen weer de waarden van
+// vóór de aanpassing. Al gedane sets blijven zoals ze zijn.
+export function revertCoachChange(
+  snapshot: SessionSnapshot,
+  slot: number,
+  done: DoneMap,
+): SessionSnapshot {
+  const exercise = snapshot.exercises.find((e) => e.slot === slot);
+  if (!exercise?.coach) return snapshot;
+  const { before, toKg } = exercise.coach;
+  const work = exercise.work.map((v, i) =>
+    !done.has(positionKey({ slot, kind: "work", index: i })) &&
+    v.weightKg === toKg &&
+    before[i]
+      ? { ...before[i] }
+      : v,
+  );
+  return patchExercise(snapshot, slot, { work, coach: null });
 }

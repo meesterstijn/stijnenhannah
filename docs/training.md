@@ -34,10 +34,49 @@ Centraal in `domain/performance.ts` (`buildHistoryIndex`, `previousPerformance`,
    deed, houdt het doel van toen.
 5. Aantal sets = wat je toen had staan (inclusief zelf toegevoegde/verwijderde sets);
    is het schema sindsdien aangepast, dan volgt het aantal het schema.
-6. **Nooit** automatisch zwaarder of meer herhalingen. Alleen een uitschakelbare hint
-   na drie keer alle sets op het bovenste herhalingsdoel.
+6. Zelf verhoogt de opdracht nooit; dat doet alleen de **trainer** (zie hieronder),
+   en alleen als je dat in Instellingen kiest.
 7. Correcties achteraf (historie → set aanpassen) werken direct door in records,
    statistiek en de volgende opdracht, omdat alles uit de opgeslagen sets wordt afgeleid.
+
+## Trainer: startgewichten en progressie
+
+- **Startgewicht** (`domain/start-weights.ts`): per oefening een voorzichtig
+  startgewicht voor beginner, gevorderd en expert (sets van ~8–12 herhalingen met
+  2–3 in reserve). Afgerond op wat je met je schijven exact kunt laden en nooit
+  zwaarder dan je voorraad toelaat. Volgorde: startgewicht in het schema → eigen
+  startgewicht bij de oefening → trainer. Zodra je de oefening één keer hebt gedaan
+  geldt alleen nog je eigen vorige prestatie, dus een verlaging blijft staan tot je
+  zelf (of de trainer) weer verhoogt.
+- **Advies** (`coachAdvice` in `domain/performance.ts`), dubbele progressie:
+  - *verhogen*: alle sets op de bovenkant van het bereik (beginner en gevorderd na
+    één keer, expert na twee keer op rij). Stap = 2 × kleinste schijf; beginners
+    dubbel bij grote beenoefeningen met de stang. Herhalingen weer onderaan.
+  - *afraden*: niet alle sets gedaan, of de ondergrens niet gehaald. Zet je het
+    gewicht toch hoger, dan verschijnt "Trainer raadt dit af".
+  - *verlagen*: twee keer op rij de meeste sets onder de ondergrens → ~10% lichter.
+  - *opbouwen*: zelfde gewicht, één herhaling meer per set.
+  - *maximum*: zwaarder kan niet met je schijven → extra set of langzamer zakken.
+  - Grote sprong (> 10% en meer dan één stap) t.o.v. vorige keer → waarschuwing.
+- **Stand** (Instellingen → Trainer): *Uit*, *Stelt voor* (standaard; één tik om
+  over te nemen) of *Verhoogt zelf* (verhoging staat bij de start al klaar, met
+  "Terug naar …"). Verlagen is altijd een voorstel.
+
+## Niveaus en trainingsduur (generator)
+
+| | Beginner | Gevorderd | Expert |
+|---|---|---|---|
+| Sets uit sjabloon | −1 (min. 2) | zoals sjabloon | +1 basis/tweede oefening |
+| Max sets per oefening (basis/isolatie) | 3 / 3 | 4 / 3 | 5 / 4 |
+| Max werksets per training | 16 | 22 | 26 |
+| Opwarmsets basisoefening | 1 | 2 | 2 |
+| Herhalingsbereik | nooit 5–8 (eerst techniek) | volgens doel/dag | volgens doel/dag |
+| Inspanning | 2–3 in reserve | 1–3 in reserve | 1–2, isolatie tot vlak bij falen |
+
+Te weinig tijd: eerst optionele oefeningen weg, dan isolatiesets, dan ook de kern
+(min. 2 sets). Tijd over: sets erbij (eerst basisoefeningen) tot de tijd vol is of
+het plafond van het niveau bereikt is. PPL 6 dagen, ongeveer: beginner ~30–40 min,
+gevorderd ~45–50 min, expert ~60–65 min; daarboven voegt extra tijd bewust niets toe.
 
 ## Synchronisatie en beveiliging
 
@@ -112,8 +151,9 @@ Beslissingen die ik zelfstandig heb genomen. Allemaal aan te passen.
 6. **Geen aparte programmaversietabel**: elke training bewaart een momentopname; het
    schema heeft een revisienummer. Oude trainingen veranderen daardoor nooit.
 7. **Records worden berekend**, niet opgeslagen, zodat correcties altijd kloppen.
-8. **Nieuwe oefening zonder historie**: de app vult geen gewicht in ("Kies eerst een
-   gewicht"), herhalingen = ondergrens van het bereik.
+8. **Nieuwe oefening zonder historie**: startgewicht van de trainer voor je niveau
+   (zie boven); bij lichaamsgewicht, tijd en eigen oefeningen geen gewicht.
+   Herhalingen = ondergrens van het bereik.
 9. **Opwarmsets** zonder historie: ~50% en ~75% van de eerste werkset (als die een
    gewicht heeft), 8 en 5 herhalingen. Rust na een opwarmset: maximaal 1 minuut.
 10. **Gewicht aanpassen** bij een set zet de wijziging door naar de volgende nog niet
@@ -123,8 +163,8 @@ Beslissingen die ik zelfstandig heb genomen. Allemaal aan te passen.
     dumbbell (niet × 2); bij lichaamsgewicht alleen het extra gewicht.
 13. **Geschatte 1RM**: Epley, alleen bij 1–12 herhalingen, uit te zetten.
 14. **Sets per spiergroep**: primair 1, secundair ½, opwarmsets tellen niet.
-15. **Progressiehint**: drie laatste trainingen alle sets ≥ bovenkant herhalingsbereik
-    op hetzelfde gewicht.
+15. **Progressie**: zie "Trainer". De oude hint (drie keer alles gehaald) geldt alleen
+    nog voor lichaamsgewicht- en tijdsoefeningen.
 16. **Overslaan** maakt een training met status "overgeslagen"; die telt als gedaan
     voor de planning, maar niet in statistiek of vorige prestaties.
 17. **Trainingsduur** loopt vanaf de start, ook tijdens een onderbreking.
@@ -137,3 +177,14 @@ Beslissingen die ik zelfstandig heb genomen. Allemaal aan te passen.
 21. **Een training starten terwijl er nog één open staat** opent de lopende training.
 22. **Live zetten**: migratie is toegepast. De code staat op branch `training-module`
     en is samengevoegd met `main` (zie commitgeschiedenis); CI deployt daarna.
+23. **Niveaunamen** Beginner / Gevorderd / Expert (was Beginner / Gemiddeld / Gevorderd);
+    intern nog `beginner` / `intermediate` / `advanced`.
+24. **Startgewichten** zijn vaste, voorzichtige waarden, niet afhankelijk van
+    lichaamsgewicht of geslacht. Is het stang-/handvatgewicht nog onbekend, dan wordt
+    afgerond op 2 kg en begrensd op wat de schijven alleen al kunnen.
+25. **Trainerstand standaard "Stelt voor"**, omdat je eerder zelf je progressie wilde
+    bepalen. Wie de hints had uitgezet krijgt "Uit".
+26. **Startgewicht volgt het niveau van het schema** (niet het profiel), zodat een
+    later gewijzigd profielniveau een bestaand schema niet verandert.
+27. **Na een schema altijd een overzicht** met wat er is aangepast en de
+    inspanningsrichtlijn van je niveau.

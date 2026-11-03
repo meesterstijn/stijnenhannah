@@ -33,6 +33,9 @@ export function useWorkoutActions() {
       index: buildHistoryIndex(sessions, sets),
       scope: profile.settings.historyScope,
       prefs: profile.exercisePrefs,
+      level: profile.settings.level,
+      equipment: profile.equipment,
+      coachMode: profile.settings.coachMode,
     };
   }, [db, lookup, profile]);
 

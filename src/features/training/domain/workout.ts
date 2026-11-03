@@ -1,10 +1,19 @@
+import { DEFAULT_EQUIPMENT } from "./defaults";
 import {
+  applyCoachWeight,
   buildPrescription,
-  previousPerformance,
+  coachAdvice,
+  performances,
+  type CoachAdvice,
   type HistoryIndex,
   type HistoryScope,
+  type Performance,
 } from "./performance";
+import { loadableWeight, smallestStep } from "./plates";
+import { trainerStartWeight } from "./start-weights";
 import type {
+  CoachMode,
+  EquipmentConfig,
   Exercise,
   ExercisePref,
   PlannedExercise,
@@ -15,6 +24,7 @@ import type {
   SetKind,
   SetValues,
   Tracking,
+  TrainingLevel,
   TrainingSet,
 } from "./types";
 
@@ -28,7 +38,38 @@ export type WorkoutContext = {
   index: HistoryIndex;
   scope: HistoryScope["scope"];
   prefs: Record<string, ExercisePref>;
+  // Trainer: niveau voor startgewichten, apparatuur om af te ronden op wat
+  // je kunt laden, en of een verhoging al klaar moet staan.
+  level?: TrainingLevel;
+  equipment?: EquipmentConfig;
+  coachMode?: CoachMode;
 };
+
+// Advies van de trainer voor deze oefening, op basis van de eerdere
+// uitvoeringen (nieuwste eerst).
+export function coachFor(
+  exercise: Pick<Exercise, "tracking" | "loadMode" | "type" | "primary">,
+  list: Performance[],
+  plan: { repMin: number | null; repMax: number | null },
+  level: TrainingLevel,
+  equipment: EquipmentConfig = DEFAULT_EQUIPMENT,
+): CoachAdvice | null {
+  return coachAdvice(list, {
+    tracking: exercise.tracking,
+    repMin: plan.repMin,
+    repMax: plan.repMax,
+    level,
+    stepKg: smallestStep(equipment.plates, exercise.loadMode),
+    bigLowerBody:
+      exercise.loadMode === "barbell" &&
+      exercise.type === "compound" &&
+      exercise.primary.some((m) =>
+        ["quads", "hamstrings", "glutes"].includes(m),
+      ),
+    fit: (kg, prefer) =>
+      loadableWeight(exercise.loadMode, kg, equipment, prefer),
+  });
+}
 
 export function sessionExercise(
   slot: number,
@@ -38,10 +79,16 @@ export function sessionExercise(
   programId: string | null,
 ): SessionExercise {
   const pref = ctx.prefs[exercise.id] ?? {};
-  const previous = previousPerformance(ctx.index, exercise.id, {
+  const history = performances(ctx.index, exercise.id, {
     scope: ctx.scope,
     programId,
   });
+  const previous = history[0] ?? null;
+  const ownStart = planned.startWeightKg ?? pref.startWeightKg ?? null;
+  const trainerStart =
+    ownStart === null && ctx.level
+      ? trainerStartWeight(exercise, ctx.level, ctx.equipment)
+      : null;
   const prescription = buildPrescription(
     {
       sets: planned.sets,
@@ -49,11 +96,46 @@ export function sessionExercise(
       repMin: planned.repMin,
       repMax: planned.repMax,
       durationSec: planned.durationSec,
-      startWeightKg: planned.startWeightKg ?? pref.startWeightKg ?? null,
+      startWeightKg: ownStart ?? trainerStart,
       tracking: exercise.tracking,
     },
     previous,
   );
+  if (
+    prescription.source.kind === "plan" &&
+    trainerStart !== null &&
+    ctx.level
+  ) {
+    prescription.source = { kind: "plan", trainerStart: ctx.level };
+  }
+
+  // Auto-stand: een verhoging staat meteen klaar (terug te draaien in de
+  // training). Verlagen blijft altijd een voorstel.
+  let coach: SessionExercise["coach"] = null;
+  if (ctx.coachMode === "auto" && ctx.level && previous) {
+    const advice = coachFor(
+      exercise,
+      history,
+      planned,
+      ctx.level,
+      ctx.equipment,
+    );
+    if (advice?.kind === "increase") {
+      const before = prescription.work;
+      prescription.work = applyCoachWeight(
+        prescription.work,
+        advice,
+        planned.repMin,
+      );
+      coach = {
+        kind: "increase",
+        fromKg: advice.fromKg,
+        toKg: advice.toKg,
+        how: "auto",
+        before,
+      };
+    }
+  }
   return {
     slot,
     plannedId: planned.id ?? null,
@@ -71,14 +153,19 @@ export function sessionExercise(
     work: prescription.work,
     source: prescription.source,
     notes: planned.notes,
+    ...(coach ? { coach } : {}),
   };
 }
 
 export function buildSnapshot(
   program: Program | null,
   day: ProgramDay,
-  ctx: WorkoutContext,
+  context: WorkoutContext,
 ): SessionSnapshot {
+  // Het niveau waarvoor het schema gemaakt is gaat voor het profielniveau.
+  const ctx = program?.content.level
+    ? { ...context, level: program.content.level }
+    : context;
   const exercises: SessionExercise[] = [];
   for (const planned of day.exercises) {
     const exercise = ctx.lookup(planned.exerciseId);

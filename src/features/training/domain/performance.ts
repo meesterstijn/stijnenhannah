@@ -301,3 +301,159 @@ export function progressionHint(
     ? `Je hebt de laatste drie trainingen alle sets met ${repGoal} herhalingen of meer voltooid. Misschien ben je klaar voor een verhoging.`
     : "Je hebt de laatste drie trainingen alle sets voltooid. Misschien ben je klaar voor een verhoging.";
 }
+
+// ── Trainer: verhogen, vasthouden of verlagen ─────────────────────────
+//
+// Dubbele progressie: eerst herhalingen opbouwen binnen het bereik, en pas
+// als alle sets de bovenkant halen gaat het gewicht omhoog (en begin je
+// weer onderaan het bereik).
+//   increase  alle sets op de bovenkant: beginner en gevorderd na één
+//             keer, expert na twee keer op rij (kleinere stappen houden).
+//   hold      vorige keer niet alle sets op de ondergrens: nog niet
+//             verhogen (de trainer raadt een verhoging af).
+//   decrease  twee keer op rij de meeste sets onder de ondergrens op
+//             hetzelfde gewicht: ~10% lichter.
+//   build     zelfde gewicht, probeer per set een herhaling meer.
+//   max       klaar om te verhogen, maar je schijven laten niet meer toe.
+// Alleen voor oefeningen met gewicht × herhalingen.
+
+export type CoachAdvice =
+  | { kind: "increase"; fromKg: number; toKg: number; text: string }
+  | { kind: "decrease"; fromKg: number; toKg: number; text: string }
+  | { kind: "hold"; weightKg: number; text: string }
+  | { kind: "build"; weightKg: number; text: string }
+  | { kind: "max"; weightKg: number; text: string };
+
+export type CoachInput = {
+  tracking: Tracking;
+  repMin: number | null;
+  repMax: number | null;
+  level: "beginner" | "intermediate" | "advanced";
+  stepKg: number;
+  // Grote oefening voor het onderlichaam met een halterstang: beginners
+  // mogen daar een dubbele stap zetten.
+  bigLowerBody?: boolean;
+  // Rondt een gewicht af op wat je kunt laden (zie loadableWeight).
+  fit?: (kg: number, prefer: "below" | "above") => number;
+};
+
+const fmt = (kg: number) => `${String(kg).replace(".", ",")} kg`;
+
+// Het werkgewicht van een training: het zwaarste gewicht waarmee sets zijn
+// gedaan, met alleen de sets op dat gewicht.
+function workingSets(p: Performance) {
+  const weight = topWeight(p);
+  return {
+    weight,
+    sets: p.work.filter((s) => (s.weightKg ?? 0) === weight),
+    complete: p.work.length >= (p.targets.length || p.plannedSets || 0),
+  };
+}
+
+export function coachAdvice(
+  list: Performance[],
+  input: CoachInput,
+): CoachAdvice | null {
+  if (input.tracking !== "weight_reps") return null;
+  const last = list[0];
+  if (!last || last.work.length === 0) return null;
+  const repMin = last.repMin ?? input.repMin;
+  const repMax = last.repMax ?? input.repMax ?? repMin;
+  if (repMin === null || repMax === null) return null;
+  const { weight, sets, complete } = workingSets(last);
+  if (weight <= 0) return null;
+  const reps = (s: SetValues) => s.reps ?? 0;
+
+  const allTop = (p: Performance) => {
+    const w = workingSets(p);
+    return (
+      w.weight === weight &&
+      w.complete &&
+      p.work.every((s) => (s.weightKg ?? 0) === weight) &&
+      w.sets.every((s) => reps(s) >= repMax)
+    );
+  };
+  const mostlyMissed = (p: Performance) => {
+    const w = workingSets(p);
+    const missed = w.sets.filter((s) => reps(s) < repMin).length;
+    return w.weight === weight && missed > w.sets.length / 2;
+  };
+
+  const needed = input.level === "advanced" ? 2 : 1;
+  if (list.length >= needed && list.slice(0, needed).every(allTop)) {
+    const steps = input.level === "beginner" && input.bigLowerBody ? 2 : 1;
+    const raw = weight + input.stepKg * steps;
+    const toKg = input.fit ? input.fit(raw, "above") : raw;
+    if (toKg <= weight) {
+      return {
+        kind: "max",
+        weightKg: weight,
+        text: `Je haalde ${repMax} herhalingen op alle sets, maar zwaarder dan ${fmt(weight)} kan niet met je schijven. Doe er een set bij of laat elke herhaling langzamer zakken (3 tellen).`,
+      };
+    }
+    return {
+      kind: "increase",
+      fromKg: weight,
+      toKg,
+      text:
+        needed === 1
+          ? `Vorige keer alle sets ${repMax} herhalingen of meer op ${fmt(weight)}. Tijd om te verhogen naar ${fmt(toKg)} en weer met ${repMin} herhalingen te beginnen.`
+          : `Twee keer op rij alle sets ${repMax} herhalingen of meer op ${fmt(weight)}. Tijd om te verhogen naar ${fmt(toKg)} en weer met ${repMin} herhalingen te beginnen.`,
+    };
+  }
+
+  if (list.length >= 2 && mostlyMissed(list[0]) && mostlyMissed(list[1])) {
+    const raw = Math.max(input.stepKg, weight * 0.9);
+    let toKg = input.fit ? input.fit(raw, "below") : raw;
+    if (toKg >= weight) toKg = Math.max(0, weight - input.stepKg);
+    if (toKg > 0 && toKg < weight) {
+      return {
+        kind: "decrease",
+        fromKg: weight,
+        toKg,
+        text: `Twee keer op rij haalde je de ${repMin} herhalingen bij de meeste sets niet op ${fmt(weight)}. De trainer raadt aan iets lichter te gaan (${fmt(toKg)}) en de herhalingen weer op te bouwen.`,
+      };
+    }
+  }
+
+  if (!complete) {
+    const planned = last.targets.length || last.plannedSets || 0;
+    return {
+      kind: "hold",
+      weightKg: weight,
+      text: `Nog niet verhogen: vorige keer deed je ${last.work.length} van de ${planned} sets. Doe eerst alle sets op ${fmt(weight)}.`,
+    };
+  }
+  if (sets.some((s) => reps(s) < repMin)) {
+    return {
+      kind: "hold",
+      weightKg: weight,
+      text: `Nog niet verhogen: haal eerst ${repMin} herhalingen op alle sets met ${fmt(weight)}.`,
+    };
+  }
+
+  return {
+    kind: "build",
+    weightKg: weight,
+    text: `Blijf op ${fmt(weight)} en probeer per set een herhaling meer dan vorige keer. Haal je ${repMax} op alle sets, dan gaat het gewicht omhoog.`,
+  };
+}
+
+// Past een verhoging of verlaging toe op de werksets die nog op het oude
+// gewicht staan; de herhalingen beginnen dan weer onderaan het bereik.
+export function applyCoachWeight(
+  work: SetValues[],
+  advice: { kind: "increase" | "decrease"; fromKg: number; toKg: number },
+  repMin: number | null,
+  skip: (index: number) => boolean = () => false,
+): SetValues[] {
+  return work.map((s, i) =>
+    !skip(i) && s.weightKg === advice.fromKg
+      ? {
+          ...s,
+          weightKg: advice.toKg,
+          reps: repMin ?? s.reps,
+        }
+      : s,
+  );
+}

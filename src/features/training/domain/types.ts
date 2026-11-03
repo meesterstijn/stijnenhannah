@@ -151,7 +151,18 @@ export type PrescriptionSource =
       programName: string | null;
       dayName: string | null;
     }
-  | { kind: "plan" };
+  // Uit het schema; trainerStart = startgewicht van de trainer voor dit
+  // niveau (geen historie en geen eigen startgewicht).
+  | { kind: "plan"; trainerStart?: TrainingLevel };
+
+export type CoachChange = {
+  kind: "increase" | "decrease";
+  fromKg: number;
+  toKg: number;
+  // auto = bij het starten al toegepast; accepted = voorstel overgenomen.
+  how: "auto" | "accepted";
+  before: SetValues[]; // werksets van vóór de aanpassing (terugdraaien)
+};
 
 export type SessionExercise = {
   slot: number; // positie in deze sessie, stabiel (ook na verwijderen)
@@ -172,6 +183,7 @@ export type SessionExercise = {
   notes?: string;
   removed?: boolean; // oefening tijdens de training weggehaald
   replacedFrom?: string | null; // oorspronkelijke oefening bij vervangen
+  coach?: CoachChange | null; // gewicht aangepast door de trainer
 };
 
 export type SessionSnapshot = {
@@ -218,6 +230,7 @@ export type TrainingSet = SyncMeta &
 
 export type TrainingLevel = "beginner" | "intermediate" | "advanced";
 export type TrainingGoal = "strength" | "hypertrophy" | "combined";
+export type CoachMode = "off" | "suggest" | "auto";
 
 export type TrainingSettings = {
   level: TrainingLevel;
@@ -228,7 +241,11 @@ export type TrainingSettings = {
   // Vorige prestatie: meest recente uitvoering ongeacht schema, of alleen
   // binnen het schema van de huidige training.
   historyScope: "any" | "program";
-  progressionHints: boolean;
+  progressionHints: boolean; // vervangen door coachMode (oudere profielen)
+  // Trainer: off = niets, suggest = voorstel met één tik over te nemen,
+  // auto = verhoging staat bij het starten al klaar (verlagen blijft altijd
+  // een voorstel).
+  coachMode: CoachMode;
   sound: boolean;
   vibrate: boolean;
   notifications: boolean;

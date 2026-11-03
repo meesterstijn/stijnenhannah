@@ -198,3 +198,57 @@ export function smallestStep(plates: PlateStock[], loadMode: LoadMode): number {
   const smallest = Math.min(...usable.map((p) => toGrams(p.weightKg)));
   return fromGrams(smallest * 2);
 }
+
+// Zwaarste belading die de schijvenvoorraad symmetrisch toelaat (alleen
+// de schijven, zonder stang of handvat).
+export function maxPlateLoadKg(
+  plates: PlateStock[],
+  loadMode: LoadMode,
+): number {
+  if (loadMode === "none") return 0;
+  const sides = loadMode === "dumbbell_pair" ? 4 : 2;
+  const perSide = plates.reduce(
+    (sum, p) =>
+      p.weightKg > 0
+        ? sum + toGrams(p.weightKg) * Math.floor(p.count / sides)
+        : sum,
+    0,
+  );
+  return fromGrams(perSide * 2);
+}
+
+// Dichtstbijzijnde gewicht dat je echt kunt laden. Zijn stang- of
+// handvatgewicht nog onbekend, dan afronden op de kleinste stap en niet
+// boven wat de schijven alleen al kunnen (het handvat komt er nog bij).
+export function loadableWeight(
+  loadMode: LoadMode,
+  targetKg: number,
+  equipment: EquipmentConfig,
+  prefer: "below" | "above" | "nearest" = "nearest",
+): number {
+  if (loadMode === "none") return targetKg;
+  const req = plateRequestFor(loadMode, targetKg, equipment);
+  if (!req) {
+    const step = smallestStep(equipment.plates, loadMode);
+    const round =
+      prefer === "below"
+        ? Math.floor
+        : prefer === "above"
+          ? Math.ceil
+          : Math.round;
+    const rounded = fromGrams(toGrams(step) * round(targetKg / step));
+    return Math.min(
+      rounded,
+      Math.max(step, maxPlateLoadKg(equipment.plates, loadMode)),
+    );
+  }
+  const result = calculatePlates(req);
+  if (result.exact) return targetKg;
+  const below = result.nearestBelow?.totalKg ?? null;
+  const above = result.nearestAbove?.totalKg ?? null;
+  if (prefer === "below") return below ?? above ?? targetKg;
+  if (prefer === "above") return above ?? below ?? targetKg;
+  if (below === null) return above ?? targetKg;
+  if (above === null) return below;
+  return targetKg - below <= above - targetKg ? below : above;
+}
