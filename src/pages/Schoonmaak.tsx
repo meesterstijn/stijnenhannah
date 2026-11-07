@@ -1,11 +1,8 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/contexts/AuthContext";
-import { enablePushNotifications, getPushPermissionState } from "@/lib/push";
 import {
   Check,
-  Bell,
   Loader2,
   Pencil,
   Plus,
@@ -60,35 +57,10 @@ function statusDot(days: number | null, interval: number): string {
 }
 
 export default function Schoonmaak() {
-  const { session } = useAuth();
   const queryClient = useQueryClient();
   const [editMode, setEditMode] = useState(false);
   const [newTaskName, setNewTaskName] = useState("");
   const [newTaskInterval, setNewTaskInterval] = useState(90);
-
-  const [pushState, setPushState] = useState<
-    NotificationPermission | "unsupported"
-  >("unsupported");
-  const [pushLoading, setPushLoading] = useState(false);
-  const [pushError, setPushError] = useState<string | null>(null);
-
-  useEffect(() => {
-    getPushPermissionState().then(setPushState);
-  }, []);
-
-  async function handleEnablePush() {
-    if (!session?.user.id) return;
-    setPushLoading(true);
-    setPushError(null);
-    try {
-      await enablePushNotifications(session.user.id);
-      setPushState("granted");
-    } catch (err) {
-      setPushError((err as Error).message);
-    } finally {
-      setPushLoading(false);
-    }
-  }
 
   const { data: tasks = [], isLoading } = useQuery({
     queryKey: ["cleaning_tasks"],
@@ -202,36 +174,6 @@ export default function Schoonmaak() {
           </Button>
         }
       />
-
-      {pushState !== "granted" && pushState !== "unsupported" && (
-        <div
-          className={`flex items-center gap-3 ${cardSurface({ padding: "sm" })}`}
-        >
-          <Bell className="h-4 w-4 text-muted-foreground shrink-0" />
-          <p className="flex-1 text-sm text-muted-foreground">
-            Zet meldingen aan om een seintje te krijgen zodra een taak weer aan
-            de beurt is.
-          </p>
-          <Button
-            size="sm"
-            variant="outline"
-            className="rounded-xl text-xs shrink-0"
-            onClick={handleEnablePush}
-            disabled={pushLoading}
-          >
-            {pushLoading ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              "Inschakelen"
-            )}
-          </Button>
-        </div>
-      )}
-      {pushError && (
-        <p className="text-sm text-destructive bg-destructive/10 rounded-xl px-4 py-3">
-          {pushError}
-        </p>
-      )}
 
       {!editMode && (
         <div
