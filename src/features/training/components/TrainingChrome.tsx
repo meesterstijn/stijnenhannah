@@ -8,6 +8,7 @@ import {
   Home,
   LineChart,
   Loader2,
+  LogOut,
   Menu,
   RefreshCw,
   TriangleAlert,
@@ -22,6 +23,8 @@ import {
   usePendingCount,
 } from "@/features/training/hooks/useTrainingData";
 import { PaletteSwitcher } from "./PaletteSwitcher";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
 import { formatClock } from "@/features/training/domain/units";
 
 export const NAV = [
@@ -101,18 +104,24 @@ export function SyncBadge() {
 
 export function TopBar() {
   const { pathname } = useLocation();
+  const { isTrainingUser } = useAuth();
   return (
     <div className="flex items-center justify-between gap-3 py-3">
       <div className="flex min-w-0 items-center gap-2">
-        <Link
-          to="/"
-          className="tr-btn tr-btn-quiet -ml-2 px-2"
-          aria-label="Terug naar Ons Huisje"
-        >
-          <Home className="h-5 w-5" />
-          <span className="hidden text-sm sm:inline">Ons Huisje</span>
-        </Link>
-        <span className="tr-muted hidden sm:inline">/</span>
+        {/* training_user mag nergens anders heen: geen link naar de site. */}
+        {!isTrainingUser && (
+          <>
+            <Link
+              to="/"
+              className="tr-btn tr-btn-quiet -ml-2 px-2"
+              aria-label="Terug naar Ons Huisje"
+            >
+              <Home className="h-5 w-5" />
+              <span className="hidden text-sm sm:inline">Ons Huisje</span>
+            </Link>
+            <span className="tr-muted hidden sm:inline">/</span>
+          </>
+        )}
         <Link to="/training" className="font-bold tracking-tight">
           Training
         </Link>
@@ -134,6 +143,16 @@ export function TopBar() {
       <div className="flex items-center gap-1">
         <SyncBadge />
         <PaletteSwitcher />
+        {isTrainingUser && (
+          <button
+            type="button"
+            className="tr-icon-btn -mr-2"
+            onClick={() => void supabase.auth.signOut()}
+            aria-label="Uitloggen"
+          >
+            <LogOut className="h-5 w-5" />
+          </button>
+        )}
       </div>
     </div>
   );

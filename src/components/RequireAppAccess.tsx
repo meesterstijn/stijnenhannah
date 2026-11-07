@@ -63,6 +63,16 @@ function isGameNightMemberPath(pathname: string): boolean {
 // fijnmazigere logica — deze guard hoeft alleen de deur open te zetten.
 const JOIN_PATH_PATTERN = /^\/game-night\/join\/[^/]+$/;
 
+// training_user mag uitsluitend /training en alles daaronder.
+const TRAINING_PATH_PREFIX = "/training";
+
+function isTrainingPath(pathname: string): boolean {
+  return (
+    pathname === TRAINING_PATH_PREFIX ||
+    pathname.startsWith(`${TRAINING_PATH_PREFIX}/`)
+  );
+}
+
 /**
  * Centrale route-/permissiebewaker — wrapt de VOLLEDIGE <Routes>-boom in
  * App.tsx (dus zowel de <SiteLayout>-routes als de drie losstaande R6-routes
@@ -87,6 +97,7 @@ export function RequireAppAccess({ children }: { children: ReactNode }) {
     isR6Player,
     isCocktailGuest,
     isGameNightMember,
+    isTrainingUser,
   } = useAuth();
   const location = useLocation();
 
@@ -170,6 +181,10 @@ export function RequireAppAccess({ children }: { children: ReactNode }) {
   // UI heen.
   if (isGameNightMember && !isGameNightMemberPath(location.pathname)) {
     return <Navigate to="/game-night/me" replace />;
+  }
+
+  if (isTrainingUser && !isTrainingPath(location.pathname)) {
+    return <Navigate to="/training" replace />;
   }
 
   return <>{children}</>;

@@ -88,12 +88,36 @@ gevorderd ~45–50 min, expert ~60–65 min; daarboven voegt extra tijd bewust n
   database: dubbel tikken of netwerkherhaling geeft nooit dubbele sets.
 - Conflict tussen apparaten: de andere versie wordt actief en jouw versie staat bij
   Instellingen → Synchronisatie om te kiezen.
-- RLS: alleen eigen rijen, alleen voor de rol `owner` (`private.can_use_training()`),
+- RLS: alleen eigen rijen, alleen voor de rollen `owner` en `training_user`
+  (`private.can_use_training()`),
   geen DELETE-recht (verwijderen = verwijdermarkering), geen security definer, geen
   service-role in de frontend. Systeemoefeningen en sjablonen staan in de app en zijn
   alleen-lezen.
 - Gecontroleerd in productie: RLS aan op alle 6 tabellen, 3 policies per tabel, geen
   anon-toegang, geen delete.
+
+## Account alleen voor Training (`training_user`)
+
+Voor iemand buiten het huishouden, bijvoorbeeld een tester. Sinds 7 nov 2026
+(`20261107000000_training_user_role.sql`).
+
+- Ziet alleen `/training` en alles daaronder; elke andere pagina stuurt terug naar
+  `/training` (`RequireAppAccess`). Geen "Ons Huisje"-link, wel een uitlogknop
+  rechtsboven.
+- Database: alleen de eigen trainingsrijen. Geen andere `is_*`/`can_*`-helper kent
+  deze rol, dus alle andere features blijven dicht. Rol wijzigen kan hij niet
+  (alleen owner via `set_profile_role`; kolomrechten staan alleen `display_name` toe).
+- Tegelijk gesloten (`20261107000100_close_legacy_open_policies.sql`): oude
+  policies die elk ingelogd account toegang gaven tot kalender, taken, boodschappen,
+  BBQ en producthistorie (`product_history_upfront` zelfs zonder login), plus het
+  inzien van alle profielen. Nu alleen owner.
+
+Account aanmaken:
+1. Supabase Dashboard → Authentication → Users → *Add user* (e-mail + wachtwoord,
+   of *Send invitation*). Het account begint als `no_access`.
+2. In de SQL-editor (als owner, met de uuid uit de gebruikerslijst):
+   `select public.set_profile_role('<uuid>', 'training_user');`
+3. Weer intrekken: dezelfde regel met `'no_access'`.
 
 ## Wat werkt
 
@@ -137,7 +161,8 @@ deloads/periodisering en import (nieuwe sjablonen/functies in `domain/`), extra 
 
 Beslissingen die ik zelfstandig heb genomen. Allemaal aan te passen.
 
-1. **Toegang**: alleen de rol `owner`; elk owner-account krijgt een eigen, leeg logboek.
+1. **Toegang**: de rollen `owner` en `training_user`; elk account krijgt een eigen,
+   leeg logboek. Rollen toekennen gaat (nog) via één regel SQL, er is geen beheerscherm.
 2. **Training valt buiten het sitebrede themasysteem** (op jouw verzoek), net als
    Schietsport. Eigen keuze Licht/Donker en eigen kleurenpaletten via de paletknop
    rechtsboven. Inter als lettertype, ook op koppen.

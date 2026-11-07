@@ -4,6 +4,7 @@ import {
   OWNER_A,
   OWNER_B,
   R6_PLAYER,
+  TRAINING_USER,
   createTrainingTestDb,
   runAs,
   upsertAs,
@@ -120,6 +121,57 @@ describe("RLS en scheiding van gebruikers", () => {
         }),
       ),
     ).rejects.toThrow(/row-level security/);
+  });
+
+  it("training_user gebruikt Training met alleen de eigen gegevens", async () => {
+    const own = "55555555-5555-4555-8555-555555555555";
+    await upsertAs(
+      pg,
+      TRAINING_USER,
+      "training_sessions",
+      sessionRow({ id: own, user_id: TRAINING_USER }),
+    );
+    const mine = await runAs<{ id: string }>(
+      pg,
+      TRAINING_USER,
+      "select id from public.training_sessions",
+    );
+    expect(mine.map((r) => r.id)).toEqual([own]);
+    // Ziet de sets van een owner niet, en de owner ziet die van hem niet.
+    expect(
+      await runAs(pg, TRAINING_USER, "select id from public.training_sets"),
+    ).toHaveLength(0);
+    const ownerSees = await runAs<{ id: string }>(
+      pg,
+      OWNER_A,
+      "select id from public.training_sessions",
+    );
+    expect(ownerSees.map((r) => r.id)).not.toContain(own);
+    // Kan geen rij op naam van een owner aanmaken.
+    await expect(
+      upsertAs(
+        pg,
+        TRAINING_USER,
+        "training_sessions",
+        sessionRow({
+          id: "66666666-6666-4666-8666-666666666666",
+          user_id: OWNER_A,
+        }),
+      ),
+    ).rejects.toThrow(/row-level security/);
+  });
+
+  it("alleen een owner kan rollen toekennen", async () => {
+    await expect(
+      runAs(pg, TRAINING_USER, "select public.set_profile_role($1, 'owner')", [
+        TRAINING_USER,
+      ]),
+    ).rejects.toThrow(/Alleen owner/);
+    await expect(
+      runAs(pg, OWNER_A, "select public.set_profile_role($1, 'baas')", [
+        TRAINING_USER,
+      ]),
+    ).rejects.toThrow(/Ongeldige rol/);
   });
 
   it("hard verwijderen kan niet", async () => {

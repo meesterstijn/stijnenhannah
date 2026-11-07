@@ -13,6 +13,8 @@ export type AppRole =
   | "r6_player"
   | "cocktail_guest"
   | "game_night_member"
+  // Alleen Training, met alleen de eigen gegevens (bijv. een testaccount).
+  | "training_user"
   // Game Night V2.3-correctie: veilige "geen toegang"-rol waar een account
   // naartoe gaat zodra een owner een Game Night-koppeling verbreekt (zie
   // game_night_unlink_player_account) — nooit automatisch een andere echte
@@ -34,6 +36,7 @@ type AuthContextType = {
   isR6Player: boolean;
   isCocktailGuest: boolean;
   isGameNightMember: boolean;
+  isTrainingUser: boolean;
   isLoadingRole: boolean;
   // true zolang de sessie alleen uit storage komt omdat het token offline
   // niet ververst kon worden (zie lib/offline-auth.ts). Supabase-requests
@@ -53,6 +56,7 @@ const AuthContext = createContext<AuthContextType>({
   isR6Player: false,
   isCocktailGuest: false,
   isGameNightMember: false,
+  isTrainingUser: false,
   isLoadingRole: true,
 });
 
@@ -205,6 +209,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isR6Player: appRole === "r6_player",
         isCocktailGuest: appRole === "cocktail_guest",
         isGameNightMember: appRole === "game_night_member",
+        isTrainingUser: appRole === "training_user",
         isLoadingRole: loading || isLoadingRole,
       }}
     >
