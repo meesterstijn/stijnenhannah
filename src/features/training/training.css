@@ -406,6 +406,26 @@ button.tr-chip {
   border-top: 1px solid var(--tr-border);
   padding-bottom: env(safe-area-inset-bottom);
 }
+/* Hier en niet via md:hidden: deze ongelaagde regel wint van Tailwind-utilities. */
+@media (min-width: 768px) {
+  .tr-bottom-nav {
+    display: none;
+  }
+}
+
+/* Vaste balk onderin (bijv. Opslaan): boven de onderbalk, ook met iPhone-veilige zone. */
+.tr-savebar {
+  position: fixed;
+  inset-inline: 0;
+  bottom: calc(4.5rem + env(safe-area-inset-bottom));
+  z-index: 45;
+  padding-inline: 1rem;
+}
+@media (min-width: 768px) {
+  .tr-savebar {
+    bottom: 1rem;
+  }
+}
 .tr-bottom-nav a {
   display: flex;
   flex-direction: column;

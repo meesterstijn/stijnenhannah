@@ -118,7 +118,7 @@ export default function TrainingSchemaEditor() {
   };
 
   return (
-    <div className="space-y-4 pb-24">
+    <div className="space-y-4 pb-28">
       <div className="flex items-center gap-2">
         <button
           type="button"
@@ -409,7 +409,7 @@ export default function TrainingSchemaEditor() {
         <Plus className="h-4 w-4" /> Trainingsdag toevoegen
       </button>
 
-      <div className="fixed inset-x-0 bottom-16 z-30 px-4 md:bottom-4">
+      <div className="tr-savebar">
         <div className="tr-card mx-auto flex max-w-xl items-center justify-between gap-3 px-4 py-3">
           <span className="tr-muted text-sm">
             {dirty

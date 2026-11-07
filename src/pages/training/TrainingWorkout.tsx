@@ -484,30 +484,107 @@ function Workout({
         </EmptyState>
       ) : (
         <div className="space-y-3">
-          <section className="tr-card space-y-3 p-4">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <div className="tr-label">
-                  Oefening {exerciseIndex + 1} van {exercises.length}
-                </div>
-                <h2 className="mt-0.5 text-xl font-bold leading-tight">
-                  {shownExercise.name}
-                </h2>
-                {exerciseInfo?.summary && (
-                  <p className="tr-muted mt-1 line-clamp-2 text-sm">
-                    {exerciseInfo.summary}
-                  </p>
-                )}
+          {/* Bovenaan: oefening + setknop, zodat je nooit hoeft te scrollen. */}
+          <div className="flex items-start justify-between gap-2 px-1">
+            <div className="min-w-0">
+              <div className="tr-label">
+                Oefening {exerciseIndex + 1} van {exercises.length}
               </div>
+              <h2 className="mt-0.5 text-xl font-bold leading-tight">
+                {shownExercise.name}
+              </h2>
+            </div>
+            <button
+              type="button"
+              className="tr-icon-btn -mr-1 shrink-0"
+              onClick={() => setSheet("info")}
+              aria-label="Uitleg oefening"
+            >
+              <Info className="h-5 w-5" />
+            </button>
+          </div>
+
+          {current && values ? (
+            <section className="space-y-3">
               <button
                 type="button"
-                className="tr-icon-btn -mr-2 shrink-0"
-                onClick={() => setSheet("info")}
-                aria-label="Uitleg oefening"
+                className="tr-set-button"
+                onClick={() => void complete()}
+                disabled={!!problem}
               >
-                <Info className="h-5 w-5" />
+                {problem ? (
+                  <span className="tr-set-title text-lg">{problem}</span>
+                ) : (
+                  <>
+                    <span className="tr-set-title">
+                      {cursor!.kind === "warmup" ? "OPWARMSET" : "SET"}{" "}
+                      {cursor!.index + 1} VOLTOOID
+                    </span>
+                    <span className="tr-set-values tr-num">
+                      {describeValues(
+                        current.tracking,
+                        values,
+                        current.perSide,
+                      )}
+                    </span>
+                    <span className="tr-set-hint">
+                      {isLast
+                        ? "LAATSTE SET · DAARNA AFRONDEN"
+                        : `TIK OM ${restLabel(restAfter(cursor!.kind, current.restSec))} RUST TE STARTEN`}
+                    </span>
+                  </>
+                )}
               </button>
-            </div>
+              {error && (
+                <div className="tr-banner tr-banner-danger">{error}</div>
+              )}
+              <WeightWarning
+                kind={cursor!.kind}
+                weightKg={values.weightKg}
+                tracking={current.tracking}
+                advice={current.slot === shownExercise.slot ? advice : null}
+                previousTopKg={
+                  previous?.[0]
+                    ? Math.max(
+                        0,
+                        ...previous[0].work.map((s) => s.weightKg ?? 0),
+                      )
+                    : null
+                }
+                stepKg={step}
+                coached={!!current.coach}
+              />
+              {lastDone && <UndoLine text={lastDone.text} onUndo={undo} />}
+              <ValueEditors
+                exercise={current}
+                values={values}
+                step={step}
+                onChange={setField}
+                onPlates={() => setSheet("plates")}
+              />
+            </section>
+          ) : (
+            <section className="space-y-3">
+              <div className="tr-card space-y-3 p-4 text-center">
+                <p className="tr-h2">Alle sets gedaan</p>
+                <button
+                  type="button"
+                  className="tr-btn tr-btn-primary tr-btn-lg tr-btn-block"
+                  onClick={() => void finish()}
+                >
+                  Training afronden
+                </button>
+              </div>
+              {lastDone && <UndoLine text={lastDone.text} onUndo={undo} />}
+            </section>
+          )}
+
+          <section className="tr-card space-y-3 p-4">
+            {exerciseInfo?.summary && (
+              <p className="tr-muted line-clamp-2 text-sm">
+                {exerciseInfo.summary}
+              </p>
+            )}
 
             <PreviousLine
               exercise={shownExercise}
@@ -603,96 +680,6 @@ function Workout({
               </button>
             </div>
           </section>
-
-          {current && values ? (
-            <section className="space-y-3">
-              <ValueEditors
-                exercise={current}
-                values={values}
-                step={step}
-                onChange={setField}
-                onPlates={() => setSheet("plates")}
-              />
-              {error && (
-                <div className="tr-banner tr-banner-danger">{error}</div>
-              )}
-              <WeightWarning
-                kind={cursor!.kind}
-                weightKg={values.weightKg}
-                tracking={current.tracking}
-                advice={current.slot === shownExercise.slot ? advice : null}
-                previousTopKg={
-                  previous?.[0]
-                    ? Math.max(
-                        0,
-                        ...previous[0].work.map((s) => s.weightKg ?? 0),
-                      )
-                    : null
-                }
-                stepKg={step}
-                coached={!!current.coach}
-              />
-              <button
-                type="button"
-                className="tr-set-button"
-                onClick={() => void complete()}
-                disabled={!!problem}
-              >
-                {problem ? (
-                  <span className="tr-set-title text-lg">{problem}</span>
-                ) : (
-                  <>
-                    <span className="tr-set-title">
-                      {cursor!.kind === "warmup" ? "OPWARMSET" : "SET"}{" "}
-                      {cursor!.index + 1} VOLTOOID
-                    </span>
-                    <span className="tr-set-values tr-num">
-                      {describeValues(
-                        current.tracking,
-                        values,
-                        current.perSide,
-                      )}
-                    </span>
-                    <span className="tr-set-hint">
-                      {isLast
-                        ? "LAATSTE SET · DAARNA AFRONDEN"
-                        : `TIK OM ${restLabel(restAfter(cursor!.kind, current.restSec))} RUST TE STARTEN`}
-                    </span>
-                  </>
-                )}
-              </button>
-            </section>
-          ) : (
-            <section className="tr-card space-y-3 p-4 text-center">
-              <p className="tr-h2">Alle sets gedaan</p>
-              <button
-                type="button"
-                className="tr-btn tr-btn-primary tr-btn-lg tr-btn-block"
-                onClick={() => void finish()}
-              >
-                Training afronden
-              </button>
-            </section>
-          )}
-
-          {lastDone && (
-            <div
-              className="tr-card flex items-center justify-between gap-2 px-3 py-2"
-              role="status"
-            >
-              <span className="text-sm">
-                <span className="tr-muted">Opgeslagen:</span>{" "}
-                <span className="tr-num font-semibold">{lastDone.text}</span>
-              </span>
-              <button
-                type="button"
-                className="tr-btn tr-btn-quiet"
-                onClick={() => void undo()}
-              >
-                <Undo2 className="h-4 w-4" /> Ongedaan maken
-              </button>
-            </div>
-          )}
 
           {nextExercise && (
             <p className="tr-muted px-1 text-sm">
@@ -1031,6 +1018,33 @@ const kgText = (kg: number) => `${formatKg(kg)} kg`;
 
 // Advies van de trainer bij deze oefening: een al toegepaste verhoging
 // (terug te draaien) of een voorstel om te verhogen/verlagen.
+function UndoLine({
+  text,
+  onUndo,
+}: {
+  text: string;
+  onUndo: () => Promise<unknown>;
+}) {
+  return (
+    <div
+      className="tr-card flex items-center justify-between gap-2 px-3 py-2"
+      role="status"
+    >
+      <span className="text-sm">
+        <span className="tr-muted">Opgeslagen:</span>{" "}
+        <span className="tr-num font-semibold">{text}</span>
+      </span>
+      <button
+        type="button"
+        className="tr-btn tr-btn-quiet"
+        onClick={() => void onUndo()}
+      >
+        <Undo2 className="h-4 w-4" /> Ongedaan maken
+      </button>
+    </div>
+  );
+}
+
 function CoachBanner({
   exercise,
   advice,

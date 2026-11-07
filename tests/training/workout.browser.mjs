@@ -130,6 +130,12 @@ try {
   await page.waitForURL(/#\/training\/workout/);
   const setButton = page.locator(".tr-set-button");
   await setButton.waitFor();
+  // Setknop bovenaan: volledig in beeld zonder te scrollen.
+  const setBox = await setButton.boundingBox();
+  assert.ok(
+    setBox && setBox.y + setBox.height <= 844 * 0.6,
+    `setknop staat te laag (${setBox?.y})`,
+  );
   // Nieuwe oefening: startgewicht van de trainer (gevorderd, goblet squat
   // 22 kg), opwarmset 1 op ~50%.
   const startBanner = await page
@@ -339,6 +345,31 @@ try {
   assert.ok(!(await themeStyle()).includes("--tr-surface"));
   await page.getByRole("button", { name: "Sluiten" }).click();
   step("eigen kleurenpalet maken, gebruiken en terug naar standaard");
+
+  // Opslaan-knop in de schema-editor mag nooit onder de onderbalk vallen.
+  await page.goto(`${BASE}/#/training/schemas`);
+  await page.getByRole("link", { name: "Bewerken" }).first().click();
+  const saveButton = page.getByRole("button", { name: "Opslaan" });
+  await saveButton.waitFor();
+  const saveOnTop = () =>
+    saveButton.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      const hit = document.elementFromPoint(
+        r.left + r.width / 2,
+        r.top + r.height / 2,
+      );
+      return r.bottom <= window.innerHeight && el.contains(hit);
+    });
+  assert.ok(await saveOnTop(), "Opslaan valt weg op telefoon");
+  await page.setViewportSize({ width: 1037, height: 628 });
+  assert.ok(
+    !(await page.locator(".tr-bottom-nav").isVisible()),
+    "onderbalk zichtbaar op breed scherm",
+  );
+  assert.ok(await saveOnTop(), "Opslaan valt weg op breed scherm");
+  await page.screenshot({ path: join(output, "6b-schema-editor-breed.png") });
+  await page.setViewportSize({ width: 390, height: 844 });
+  step("Opslaan in schema-editor altijd zichtbaar");
 
   for (const path of [
     "schemas",
