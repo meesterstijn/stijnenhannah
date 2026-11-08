@@ -1,12 +1,16 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   BookMarked,
   ChevronRight,
   Disc3,
   History,
+  MessageSquareText,
   Scale,
   Settings,
 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
 import { PlateCalculator } from "@/features/training/components/PlateCalculator";
 import { PageHeader } from "@/features/training/components/ui";
 
@@ -43,12 +47,48 @@ const LINKS = [
   },
 ];
 
+// Aantal open feedbackmeldingen voor de owner (null = onbekend/offline).
+function useOpenFeedbackCount(enabled: boolean) {
+  const [count, setCount] = useState<number | null>(null);
+  useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+    void supabase
+      .from("training_feedback")
+      .select("id", { count: "exact", head: true })
+      .is("resolved_at", null)
+      .then(({ count, error }) => {
+        if (!cancelled && !error) setCount(count ?? 0);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [enabled]);
+  return count;
+}
+
 export default function TrainingMeer() {
+  const { isOwner } = useAuth();
+  const openFeedback = useOpenFeedbackCount(isOwner);
+  const links = isOwner
+    ? [
+        ...LINKS,
+        {
+          to: "/training/feedback",
+          label:
+            openFeedback && openFeedback > 0
+              ? `Feedback (${openFeedback} open)`
+              : "Feedback",
+          desc: "Wat testers melden, met de pagina erbij",
+          icon: MessageSquareText,
+        },
+      ]
+    : LINKS;
   return (
     <div className="space-y-4">
       <PageHeader title="Meer" />
       <ul className="space-y-2">
-        {LINKS.map(({ to, label, desc, icon: Icon }) => (
+        {links.map(({ to, label, desc, icon: Icon }) => (
           <li key={to}>
             <Link to={to} className="tr-card flex items-center gap-3 p-4">
               <Icon className="tr-aqua-text h-6 w-6 shrink-0" />

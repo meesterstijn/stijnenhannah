@@ -6,6 +6,13 @@ import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
   base: "/",
+  // Korte commit (GitHub Actions) + bouwmoment, o.a. meegestuurd met
+  // Training-feedback zodat duidelijk is op welke versie die gegeven is.
+  define: {
+    __APP_BUILD__: JSON.stringify(
+      `${process.env.GITHUB_SHA?.slice(0, 7) ?? "lokaal"} ${new Date().toISOString().slice(0, 16)}`,
+    ),
+  },
   plugins: [
     react(),
     tailwindcss(),

@@ -19,12 +19,19 @@ export function Sheet({
 }) {
   const titleId = useId();
   const ref = useRef<HTMLDivElement>(null);
+  // Via een ref: ouders geven vaak een nieuwe onClose per render mee (de
+  // workout tekent elke seconde opnieuw). Als dependency zou dat de focus
+  // steeds terugzetten en een tekstveld in de sheet onbruikbaar maken.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
   useEffect(() => {
     if (!open) return;
     const previous = document.activeElement as HTMLElement | null;
     ref.current?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") onCloseRef.current();
     };
     document.addEventListener("keydown", onKey);
     const overflow = document.body.style.overflow;
@@ -34,7 +41,7 @@ export function Sheet({
       document.body.style.overflow = overflow;
       previous?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open]);
   if (!open) return null;
   return (
     <div

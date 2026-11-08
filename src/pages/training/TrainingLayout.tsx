@@ -11,6 +11,8 @@ import {
   TopBar,
   useTrainingScheme,
 } from "@/features/training/components/TrainingChrome";
+import { FeedbackButton } from "@/features/training/feedback/FeedbackButton";
+import { FEEDBACK_BUTTON_ENABLED } from "@/features/training/feedback/feedback";
 
 const INTER =
   "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap";
@@ -53,13 +55,14 @@ function Shell() {
       style={vars as CSSProperties | undefined}
     >
       <div
-        className={`mx-auto max-w-5xl px-4 sm:px-6 ${inWorkout ? "pb-8" : "pb-28 md:pb-12"}`}
+        className={`mx-auto max-w-5xl px-4 sm:px-6 ${inWorkout ? "pb-24" : "pb-28 md:pb-12"}`}
       >
         {!inWorkout && <TopBar />}
         {!inWorkout && <OpenSessionBanner />}
         <Outlet />
       </div>
       {!inWorkout && <BottomNav />}
+      {FEEDBACK_BUTTON_ENABLED && <FeedbackButton low={inWorkout} />}
     </div>
   );
 }

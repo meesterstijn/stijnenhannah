@@ -19,6 +19,7 @@ export const TRAINING_USER = "d0000000-0000-4000-8000-00000000000d";
 const MIGRATIONS = [
   "20261029020000_training.sql",
   "20261107000000_training_user_role.sql",
+  "20261108000000_training_feedback.sql",
 ];
 
 export async function createTrainingTestDb(): Promise<PGlite> {

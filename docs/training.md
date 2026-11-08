@@ -119,6 +119,31 @@ Account aanmaken:
    `select public.set_profile_role('<uuid>', 'training_user');`
 3. Weer intrekken: dezelfde regel met `'no_access'`.
 
+Uitgenodigd via e-mail? Na de link vraagt de site eerst om een wachtwoord
+(`src/pages/SetPassword.tsx`); op het inlogscherm staat ook "Wachtwoord vergeten?".
+Vereist dat in Supabase → Authentication → URL Configuration de Site URL
+`https://stijnenhannah.nl` is (niet localhost).
+
+## Feedback (testfase)
+
+Sinds 8 nov 2026 (`20261108000000_training_feedback.sql`).
+
+- Knop **Feedback** rechtsonder op elke trainingspagina, ook tijdens een training.
+  Optioneel een soort (Er gaat iets mis / Idee / Onduidelijk), dan een tekst.
+- Automatisch mee: de pagina (route + leesbare naam + paginakop, bijv.
+  "Oefening · Bankdrukken (halterstang)"), versie (commit + bouwmoment), scherm,
+  app-modus, browser, online-status, lopende training en het e-mailadres van de melder.
+- Offline: bewaard in een lokale wachtrij (`training:feedback-queue`) en verstuurd
+  zodra er weer verbinding is. Het id komt van de app, dus opnieuw versturen geeft
+  nooit dubbele meldingen.
+- Lezen: **Meer → Feedback** (alleen owner), met filter open/afgehandeld, link naar
+  de pagina, details, afvinken en verwijderen. Ook via de CLI:
+  `npx supabase db query --linked "select created_at, kind, page_label, message from training_feedback where resolved_at is null order by created_at desc"`
+- Uitzetten na de testfase: `FEEDBACK_BUTTON_ENABLED = false` in
+  `src/features/training/feedback/feedback.ts`. Het overzicht blijft werken.
+- RLS: toevoegen alleen als jezelf en met Training-toegang; lezen eigen meldingen,
+  owner alles; afhandelen/verwijderen alleen owner (`tests/training/feedback.test.ts`).
+
 ## Wat werkt
 
 - Schema's: Full Body 3×/week (A/B/C), vijfdaagse split (Upper/Lower/Push/Pull/Legs),
@@ -134,7 +159,9 @@ Account aanmaken:
 - Rusttimer op deadline: pauze, hervatten, overslaan, ±15 s, rust per oefening,
   geluid, trillen, optionele melding, scherm aan houden, correct na herladen.
 - Oefeningenbibliotheek (51 oefeningen) met techniek, fouten, veiligheid, filters,
-  favorieten, eigen oefeningen.
+  favorieten, eigen oefeningen. Een eigen oefening kan ook direct vanuit het
+  kiesvenster (schema of lopende training): zoek, en kies "… als eigen oefening
+  toevoegen" (naam, waarmee, spiergroep; de rest later via Oefeningen).
 - Historie met kalender, sessiedetail met correcties, opnieuw doen, verwijderen.
 - Voortgang: trainingen per week/maand, volume per week, sets per spiergroep, records,
   grafieken per oefening (gewicht, herhalingen, volume, geschatte 1RM).
@@ -213,3 +240,13 @@ Beslissingen die ik zelfstandig heb genomen. Allemaal aan te passen.
     later gewijzigd profielniveau een bestaand schema niet verandert.
 27. **Na een schema altijd een overzicht** met wat er is aangepast en de
     inspanningsrichtlijn van je niveau.
+28. **Feedback zonder melding naar de owner**: er is (nog) geen push of mail bij een
+    nieuwe melding; het aantal open meldingen staat bij Meer → Feedback. Een push via
+    de bestaande web-push-functies kan later.
+29. **Feedback zonder screenshot**: alleen tekst plus context. Een schermafbeelding
+    vraagt opslag (bucket) en is lastig betrouwbaar te maken op telefoons.
+30. **Snelle eigen oefening "Machine of kabel"** heeft geen apparatuureis, zodat hij
+    niet als "Apparatuur ontbreekt" onderaan komt; gewicht in kg zonder schijven.
+31. **Sheet-focus**: `Sheet` gebruikt `onClose` via een ref; voorheen sprong de
+    focus terug bij elke nieuwe `onClose` (de workout rendert elke seconde), wat
+    typen in een sheet tijdens een training onmogelijk maakte.

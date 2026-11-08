@@ -1,5 +1,12 @@
-import { useMemo, useState } from "react";
-import { Search, Star } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
+import { Plus, Search, Star } from "lucide-react";
+import { saveCustomExercise } from "@/features/training/db/repository";
+import {
+  QUICK_KIND_LABELS,
+  quickExercise,
+  type QuickKind,
+} from "@/features/training/domain/quick-exercise";
+import { useTraining } from "@/features/training/hooks/TrainingProvider";
 import { isAvailable } from "@/features/training/domain/exercises";
 import {
   MUSCLE_GROUPS,
@@ -45,6 +52,7 @@ export function ExercisePicker({
   const owned = useMemo(() => new Set(equipment.owned), [equipment.owned]);
   const [query, setQuery] = useState("");
   const [muscle, setMuscle] = useState<MuscleGroup | null>(null);
+  const [creating, setCreating] = useState(false);
 
   const list = useMemo(() => {
     const filtered = all.filter(
@@ -62,12 +70,35 @@ export function ExercisePicker({
     );
   }, [all, query, muscle, suggested, exercisePrefs, owned]);
 
+  const close = useCallback(() => {
+    setCreating(false);
+    onClose();
+  }, [onClose]);
+
+  if (creating) {
+    return (
+      <Sheet open={open} onClose={close} title="Eigen oefening">
+        <QuickExerciseForm
+          initialName={query}
+          initialMuscle={muscle}
+          onCancel={() => setCreating(false)}
+          onCreated={(exercise) => {
+            setCreating(false);
+            setQuery("");
+            onPick(exercise);
+            onClose();
+          }}
+        />
+      </Sheet>
+    );
+  }
+
   return (
-    <Sheet open={open} onClose={onClose} title={title}>
+    <Sheet open={open} onClose={close} title={title}>
       <label className="relative block">
         <Search className="tr-muted pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
         <input
-          className="tr-input pl-9"
+          className="tr-input tr-input-search"
           placeholder="Zoek oefening"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -134,7 +165,146 @@ export function ExercisePicker({
           );
         })}
       </ul>
+      {list.length === 0 && (
+        <p className="tr-muted py-2 text-center text-sm">
+          {query.trim()
+            ? `Geen oefening gevonden voor "${query.trim()}".`
+            : "Geen oefeningen in deze groep."}
+        </p>
+      )}
+      <button
+        type="button"
+        className={`tr-btn tr-btn-block tr-btn-wrap ${list.length === 0 ? "tr-btn-primary" : "tr-btn-ghost"}`}
+        onClick={() => setCreating(true)}
+      >
+        <Plus className="h-4 w-4" />
+        {query.trim()
+          ? `"${query.trim()}" als eigen oefening toevoegen`
+          : "Eigen oefening toevoegen"}
+      </button>
     </Sheet>
+  );
+}
+
+const QUICK_KINDS: QuickKind[] = [
+  "machine",
+  "dumbbell_pair",
+  "dumbbell_single",
+  "barbell",
+  "bodyweight",
+  "duration",
+];
+
+// Kort formulier in het kiesvenster: naam, hoe je het registreert en de
+// spiergroep. Uitleg, rusttijd en de rest kan later via Oefeningen.
+function QuickExerciseForm({
+  initialName,
+  initialMuscle,
+  onCancel,
+  onCreated,
+}: {
+  initialName: string;
+  initialMuscle: MuscleGroup | null;
+  onCancel: () => void;
+  onCreated: (exercise: Exercise) => void;
+}) {
+  const { db, userId } = useTraining();
+  const [name, setName] = useState(initialName.trim());
+  const [kind, setKind] = useState<QuickKind>("machine");
+  const [primary, setPrimary] = useState<MuscleGroup[]>(
+    initialMuscle ? [initialMuscle] : [],
+  );
+  const [saving, setSaving] = useState(false);
+  const valid = name.trim().length > 0 && primary.length > 0;
+
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!valid || saving) return;
+    setSaving(true);
+    const exercise = quickExercise({ name, kind, primary });
+    const id = await saveCustomExercise(db, userId, exercise);
+    onCreated({ ...exercise, id });
+  };
+
+  return (
+    <form onSubmit={save} className="space-y-4">
+      <label className="tr-field">
+        <span>Naam</span>
+        <input
+          className="tr-input"
+          value={name}
+          maxLength={80}
+          autoFocus
+          placeholder="Bijv. Leg press"
+          onChange={(e) => setName(e.target.value)}
+        />
+      </label>
+      <div className="space-y-1.5">
+        <span className="tr-label">Waarmee?</span>
+        <div
+          className="flex flex-wrap gap-1.5"
+          role="group"
+          aria-label="Waarmee"
+        >
+          {QUICK_KINDS.map((k) => (
+            <button
+              key={k}
+              type="button"
+              className="tr-chip"
+              aria-pressed={kind === k}
+              onClick={() => setKind(k)}
+            >
+              {QUICK_KIND_LABELS[k]}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="space-y-1.5">
+        <span className="tr-label">Spiergroep</span>
+        <div
+          className="flex flex-wrap gap-1.5"
+          role="group"
+          aria-label="Spiergroep"
+        >
+          {MUSCLE_GROUPS.map((m) => (
+            <button
+              key={m}
+              type="button"
+              className="tr-chip"
+              aria-pressed={primary.includes(m)}
+              onClick={() =>
+                setPrimary(
+                  primary.includes(m)
+                    ? primary.filter((x) => x !== m)
+                    : [...primary, m],
+                )
+              }
+            >
+              {MUSCLE_LABELS[m]}
+            </button>
+          ))}
+        </div>
+      </div>
+      <p className="tr-muted text-xs">
+        Uitleg, rusttijd en meer kun je later aanvullen bij Oefeningen.
+      </p>
+      <div className="flex flex-wrap justify-end gap-2">
+        <button
+          type="button"
+          className="tr-btn tr-btn-ghost"
+          onClick={onCancel}
+        >
+          Terug
+        </button>
+        <button
+          type="submit"
+          className="tr-btn tr-btn-primary"
+          disabled={!valid || saving}
+        >
+          Toevoegen
+        </button>
+      </div>
+    </form>
   );
 }
 

@@ -205,6 +205,9 @@ const TrainingInstellingen = lazy(
   () => import("@/pages/training/TrainingInstellingen"),
 );
 const TrainingMeer = lazy(() => import("@/pages/training/TrainingMeer"));
+const TrainingFeedback = lazy(
+  () => import("@/pages/training/TrainingFeedback"),
+);
 const TrainingSchijven = lazy(() =>
   import("@/pages/training/TrainingMeer").then((m) => ({
     default: m.TrainingSchijven,
@@ -446,6 +449,7 @@ function AppRoutes() {
               <Route path="schijven" element={<TrainingSchijven />} />
               <Route path="instellingen" element={<TrainingInstellingen />} />
               <Route path="meer" element={<TrainingMeer />} />
+              <Route path="feedback" element={<TrainingFeedback />} />
             </Route>
             <Route path="/game-night" element={<GameNightLayout />}>
               <Route index element={<GameNightHome />} />

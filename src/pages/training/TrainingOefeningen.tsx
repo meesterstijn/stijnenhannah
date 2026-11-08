@@ -81,7 +81,7 @@ export default function TrainingOefeningen() {
         <label className="relative block">
           <Search className="tr-muted pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" />
           <input
-            className="tr-input pl-9"
+            className="tr-input tr-input-search"
             placeholder="Zoeken"
             value={query}
             onChange={(e) => setQuery(e.target.value)}

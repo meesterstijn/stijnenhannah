@@ -292,6 +292,17 @@ button.tr-chip {
   min-height: 84px;
   resize: vertical;
 }
+/* Zoekveld met icoon links; hier en niet via pl-9: de ongelaagde padding
+   van .tr-input wint van Tailwind-utilities. */
+.tr-input-search {
+  padding-left: 2.25rem;
+}
+.tr-btn-wrap {
+  white-space: normal;
+  height: auto;
+  padding-block: 0.6rem;
+  text-align: center;
+}
 .tr-input::placeholder,
 .tr-textarea::placeholder {
   color: var(--tr-muted);
@@ -424,6 +435,41 @@ button.tr-chip {
 @media (min-width: 768px) {
   .tr-savebar {
     bottom: 1rem;
+  }
+}
+/* Feedbackknop (testfase): rechtsonder, boven de onderbalk en een eventuele
+   Opslaan-balk. Tijdens een training (geen onderbalk) gewoon onderin. */
+.tr-feedback-fab {
+  position: fixed;
+  right: 1rem;
+  bottom: calc(5.25rem + env(safe-area-inset-bottom));
+  z-index: 46;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 40px;
+  padding: 0 0.9rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: var(--tr-grape);
+  color: var(--tr-on-grape);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.22);
+  cursor: pointer;
+}
+.tr-feedback-fab[data-low] {
+  bottom: calc(1rem + env(safe-area-inset-bottom));
+}
+.training-theme:has(.tr-savebar) .tr-feedback-fab {
+  bottom: calc(9.75rem + env(safe-area-inset-bottom));
+}
+@media (min-width: 768px) {
+  .tr-feedback-fab,
+  .tr-feedback-fab[data-low] {
+    bottom: 1.25rem;
+  }
+  .training-theme:has(.tr-savebar) .tr-feedback-fab {
+    bottom: 6.5rem;
   }
 }
 .tr-bottom-nav a {

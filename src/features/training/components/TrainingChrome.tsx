@@ -42,6 +42,7 @@ const MORE_PATHS = [
   "/training/schijven",
   "/training/instellingen",
   "/training/bibliotheek",
+  "/training/feedback",
 ];
 
 function isActive(pathname: string, to: string, exact?: boolean) {
