@@ -45,6 +45,7 @@ export async function createGuestTestDb({ playerSelection = true } = {}) {
       ? [
           "20260927000000_game_night_player_selection.sql",
           "20260928000000_game_night_guest_faces.sql",
+          "20261108030000_game_night_guest_players_at_table.sql",
         ]
       : []),
   ];

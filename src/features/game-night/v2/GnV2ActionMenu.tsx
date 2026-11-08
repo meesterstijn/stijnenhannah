@@ -1,4 +1,10 @@
-import { useEffect, useRef, type ReactNode, type RefObject } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  type ReactNode,
+  type RefObject,
+} from "react";
 
 // Game Night V2.7D (sectie 2/10) — compact zwevend actiemenu, geanckerd
 // t.o.v. zijn eigen ouder (.gnv2-action-menu-anchor) i.p.v. een fullscreen
@@ -53,6 +59,23 @@ export function GnV2ActionMenu({
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [open, triggerRef]);
+
+  // Het menu hangt rechts uitgelijnd onder zijn knop. Staat die knop (op een
+  // telefoon) midden in het scherm, dan valt het menu links buiten beeld —
+  // schuif het dan precies terug binnen de schermrand. `translate` (los van
+  // `transform`) botst niet met de inschuif-animatie.
+  useLayoutEffect(() => {
+    const menu = menuRef.current;
+    if (!open || !menu) return;
+    menu.style.translate = "";
+    const margin = 8;
+    const rect = menu.getBoundingClientRect();
+    let shift = 0;
+    if (rect.left < margin) shift = margin - rect.left;
+    else if (rect.right > window.innerWidth - margin)
+      shift = window.innerWidth - margin - rect.right;
+    if (shift) menu.style.translate = `${Math.round(shift)}px 0`;
+  }, [open]);
 
   if (!open) return null;
 

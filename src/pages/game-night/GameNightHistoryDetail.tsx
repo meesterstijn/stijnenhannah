@@ -69,7 +69,11 @@ function GameSessionCard({ detail }: { detail: GameNightGameSessionDetail }) {
     ? getGameCoverUrl(detail.game.cover_storage_path)
     : null;
   const winner = detail.results.find((r) => r.isWinner);
-  const isScoreMode = detail.gameSession.result_mode === "score";
+  const winners = detail.results.filter((r) => r.isWinner);
+  const isWinEvents = detail.gameSession.win_source === "win_events";
+  // Een WIN-spel kent geen score-modus: de stand staat apart hieronder.
+  const isScoreMode =
+    !isWinEvents && detail.gameSession.result_mode === "score";
 
   return (
     <div className="gnv2-panel-elevated px-5 py-4">
@@ -148,7 +152,22 @@ function GameSessionCard({ detail }: { detail: GameNightGameSessionDetail }) {
 
       {!isScoreMode && winner && (
         <p className="mt-3 text-sm">
-          Winnaar · <PlayerLink player={winner.player} />
+          {winners.length > 1 ? "Winnaars · " : "Winnaar · "}
+          {winners.map((w, i) => (
+            <span key={w.player.id}>
+              {i > 0 && " & "}
+              <PlayerLink player={w.player} />
+            </span>
+          ))}
+        </p>
+      )}
+
+      {isWinEvents && detail.hasResult && (
+        <p className="gnv2-faint mt-1 text-xs">
+          {detail.results
+            .filter((r) => (r.score ?? 0) > 0)
+            .map((r) => `${r.player.name} ${r.score}×`)
+            .join(" · ")}
         </p>
       )}
 
@@ -264,8 +283,8 @@ export default function GameNightHistoryDetail() {
                 <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs">
                   {detail.sessionWinsByPlayer.map((w) => (
                     <span key={`sw-${w.player.id}`}>
-                      <PlayerLink player={w.player} /> · {w.wins} session{" "}
-                      {w.wins === 1 ? "win" : "wins"}
+                      <PlayerLink player={w.player} /> · {w.wins}{" "}
+                      {w.wins === 1 ? "spel gewonnen" : "spellen gewonnen"}
                     </span>
                   ))}
                 </div>
@@ -273,8 +292,8 @@ export default function GameNightHistoryDetail() {
                   <div className="gnv2-faint mt-1.5 flex flex-wrap gap-x-6 gap-y-1 text-xs">
                     {detail.roundWinsByPlayer.map((w) => (
                       <span key={`rw-${w.player.id}`}>
-                        <PlayerLink player={w.player} /> · {w.wins} round{" "}
-                        {w.wins === 1 ? "win" : "wins"}
+                        <PlayerLink player={w.player} /> · {w.wins}{" "}
+                        {w.wins === 1 ? "ronde gewonnen" : "rondes gewonnen"}
                       </span>
                     ))}
                   </div>

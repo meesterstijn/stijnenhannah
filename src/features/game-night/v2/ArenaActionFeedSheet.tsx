@@ -63,7 +63,7 @@ export function ArenaActionFeedSheet({
         <div className="gnv2-feed-list">
           {active.length === 0 ? (
             <p className="gnv2-lib-card-meta" style={{ padding: "1rem 0" }}>
-              Nog geen WINs geregistreerd.
+              Nog geen WINS geregistreerd.
             </p>
           ) : (
             active.map((event) => (

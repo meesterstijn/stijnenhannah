@@ -328,7 +328,7 @@ export default function GameNightMe() {
             <p className="gnv2-display text-lg font-semibold">
               {stats.canonicalWins}
             </p>
-            <p className="gnv2-faint text-xs">lifetime WINs</p>
+            <p className="gnv2-faint text-xs">WINS in totaal</p>
           </div>
           {stats.mostPlayed && (
             <div>

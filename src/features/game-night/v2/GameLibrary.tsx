@@ -8,6 +8,13 @@ function fits(game: GameNightGame, playerCount: number): boolean {
   return true;
 }
 
+// Meer mensen aan tafel dan het spel toestaat is geen blokkade: GameReveal
+// laat de host dan kiezen wie er meespelen. Alleen te weinig spelers is
+// echt "niet geschikt".
+function tooFewPlayers(game: GameNightGame, playerCount: number): boolean {
+  return game.min_players != null && playerCount < game.min_players;
+}
+
 function unsuitableReason(game: GameNightGame): string {
   if (game.min_players != null && game.max_players != null) {
     return `Voor ${game.min_players}–${game.max_players} spelers`;
@@ -19,10 +26,12 @@ function unsuitableReason(game: GameNightGame): string {
 function GameSelectCard({
   game,
   dimmed,
+  subset = false,
   onSelect,
 }: {
   game: GameNightGame;
   dimmed: boolean;
+  subset?: boolean;
   onSelect: () => void;
 }) {
   const coverUrl = game.cover_storage_path
@@ -52,14 +61,16 @@ function GameSelectCard({
       <p className="gnv2-lib-card-meta">
         {dimmed
           ? unsuitableReason(game)
-          : [
-              game.min_players && game.max_players
-                ? `${game.min_players}–${game.max_players} spelers`
-                : null,
-              game.duration_minutes ? `±${game.duration_minutes} min` : null,
-            ]
-              .filter(Boolean)
-              .join(" · ") || "Spellenkast"}
+          : subset
+            ? `Max. ${game.max_players} · jij kiest wie`
+            : [
+                game.min_players && game.max_players
+                  ? `${game.min_players}–${game.max_players} spelers`
+                  : null,
+                game.duration_minutes ? `±${game.duration_minutes} min` : null,
+              ]
+                .filter(Boolean)
+                .join(" · ") || "Spellenkast"}
       </p>
     </button>
   );
@@ -81,7 +92,10 @@ export function GameLibrary({
   onSelectGame: (game: GameNightGame) => void;
 }) {
   const suitable = games.filter((g) => fits(g, playerCount));
-  const unsuitable = games.filter((g) => !fits(g, playerCount));
+  const subset = games.filter(
+    (g) => !fits(g, playerCount) && !tooFewPlayers(g, playerCount),
+  );
+  const unsuitable = games.filter((g) => tooFewPlayers(g, playerCount));
 
   if (games.length === 0) {
     return <p className="gnv2-lib-empty">Nog geen spellen in de kast.</p>;
@@ -100,11 +114,26 @@ export function GameLibrary({
         ))}
       </div>
 
+      {subset.length > 0 && (
+        <div className="gnv2-lib-unsuitable">
+          <p className="gnv2-lib-unsuitable-label">Met een deel van de tafel</p>
+          <div className="gnv2-lib-grid">
+            {subset.map((game) => (
+              <GameSelectCard
+                key={game.id}
+                game={game}
+                dimmed={false}
+                subset
+                onSelect={() => onSelectGame(game)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       {unsuitable.length > 0 && (
         <div className="gnv2-lib-unsuitable">
-          <p className="gnv2-lib-unsuitable-label">
-            Niet geschikt voor vanavond
-          </p>
+          <p className="gnv2-lib-unsuitable-label">Te weinig spelers</p>
           <div className="gnv2-lib-grid">
             {unsuitable.map((game) => (
               <GameSelectCard

@@ -32,8 +32,9 @@ export function GamePreview({
     ? getGameCoverUrl(game.cover_storage_path)
     : null;
   const tooFew = game.min_players != null && playerCount < game.min_players;
+  // Te veel spelers is geen blokkade: GameReveal laat dan kiezen wie er
+  // meespelen. Alleen te weinig spelers blokkeert.
   const tooMany = game.max_players != null && playerCount > game.max_players;
-  const unsuitable = tooFew || tooMany;
 
   return (
     <div className="gnv2-preview gnv2-view-enter">
@@ -85,21 +86,25 @@ export function GamePreview({
             <p className="gnv2-preview-description">{game.description}</p>
           )}
 
-          {unsuitable && (
+          {tooFew && (
             <p className="gnv2-preview-warning">
-              {tooFew
-                ? `Dit spel heeft minimaal ${game.min_players} spelers nodig`
-                : `Dit spel ondersteunt maximaal ${game.max_players} spelers`}
+              Dit spel heeft minimaal {game.min_players} spelers nodig
+            </p>
+          )}
+          {tooMany && (
+            <p className="gnv2-preview-warning">
+              Er zitten {playerCount} mensen aan tafel en dit spel kan met
+              maximaal {game.max_players}. Je kiest zo wie er meespelen.
             </p>
           )}
 
           <button
             type="button"
             onClick={onConfirm}
-            disabled={unsuitable}
+            disabled={tooFew}
             className="gnv2-btn gnv2-btn-primary"
           >
-            Dit spelen we
+            {tooMany ? "Kies wie er meespelen" : "Dit spelen we"}
           </button>
         </div>
       </div>

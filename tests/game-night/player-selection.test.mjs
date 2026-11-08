@@ -57,10 +57,24 @@ test("only a valid invitation lists saved players, without private fields", asyn
     await rpc(db, "game_night_guest_players", { p_join_token: "wrong" }),
     { valid: false },
   );
+  await db.exec(
+    await readFile(
+      new URL(
+        "../../supabase/migrations/20261108030000_game_night_guest_players_at_table.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
   const listed = await rpc(db, "game_night_guest_players", {
     p_join_token: "invite-two",
   });
-  assert.deepEqual(listed.players, [saved]);
+  // Seated at the first night only, so not "at the table" for invite-two.
+  assert.deepEqual(listed.players, [{ ...saved, at_table: false }]);
+  const tonight = await rpc(db, "game_night_guest_players", {
+    p_join_token: "invite-one",
+  });
+  assert.equal(tonight.players[0].at_table, true);
   assert.equal(JSON.stringify(listed).includes("auth_user_id"), false);
   assert.equal(JSON.stringify(listed).includes("token_hash"), false);
   assert.equal(JSON.stringify(listed).includes(TOKEN_A), false);

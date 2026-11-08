@@ -380,6 +380,7 @@ export function GameNightV2Arena({
               className="gnv2-nav-btn"
             >
               <Camera className="h-[18px] w-[18px]" />
+              <span className="gnv2-nav-label">Foto</span>
             </button>
             <button
               type="button"
@@ -389,6 +390,7 @@ export function GameNightV2Arena({
               className="gnv2-nav-btn"
             >
               <Music className="h-[18px] w-[18px]" />
+              <span className="gnv2-nav-label">Muziek</span>
             </button>
             {isMarioKart && (
               <button
@@ -402,6 +404,7 @@ export function GameNightV2Arena({
                 className="gnv2-nav-btn"
               >
                 <Undo2 className="h-[18px] w-[18px]" />
+                <span className="gnv2-nav-label">Herstel</span>
               </button>
             )}
             <div className="gnv2-action-menu-anchor">
@@ -416,6 +419,7 @@ export function GameNightV2Arena({
                 className="gnv2-nav-btn"
               >
                 <MoreHorizontal className="h-[18px] w-[18px]" />
+                <span className="gnv2-nav-label">Meer</span>
               </button>
               <ArenaMoreMenuSheet
                 open={moreMenuOpen}
@@ -447,6 +451,7 @@ export function GameNightV2Arena({
                   met aria-label/title hierboven als vaste toegankelijke
                   naam, dus dit is puur visueel, geen functieverlies. */}
               <span className="gnv2-arena-end-btn-label">Spel afsluiten</span>
+              <span className="gnv2-arena-end-btn-short">Klaar</span>
             </button>
           </div>
         </header>

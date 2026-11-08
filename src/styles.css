@@ -3506,7 +3506,8 @@ a.gn-plaque-mini:hover {
   font-size: clamp(1.3rem, 5vw, 1.6rem);
   font-weight: 600;
   letter-spacing: -0.01em;
-  text-transform: capitalize;
+  /* Geen text-transform: capitalize — dat maakte "8 November" en
+     "Hall Of Fame" (Nederlands schrijft maanden met een kleine letter). */
 }
 
 .gnv2-nav {
@@ -3534,6 +3535,38 @@ a.gn-plaque-mini:hover {
 .gnv2-nav-btn:hover {
   color: var(--gnv2-text);
   border-color: var(--gnv2-accent-cool);
+}
+
+/* Navigatie- en toolbarknoppen met een zichtbaar label (icoon + woord):
+   zonder tekst was niet te raden wat elk rond icoon deed. */
+.gnv2-nav-btn:has(> .gnv2-nav-label) {
+  flex-direction: column;
+  gap: 0.2rem;
+  width: auto;
+  min-width: 3.6rem;
+  height: auto;
+  min-height: 2.75rem;
+  padding: 0.4rem 0.55rem 0.35rem;
+  border-radius: 0.9rem;
+}
+
+.gnv2-nav-label {
+  font-size: 0.66rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+/* "Game Night afsluiten" staat los van de navigatie: andere functie, dus
+   een eigen plek en een terughoudender kleur. */
+.gnv2-nav-btn-end {
+  margin-left: 0.5rem;
+  color: var(--gnv2-text-faint);
+}
+
+.gnv2-arena-end-btn-short {
+  display: none;
 }
 
 /* ── Realtime join-toast (sectie 11) ── */
@@ -4397,13 +4430,25 @@ a.gn-plaque-mini:hover {
       calc((100dvh - var(--gnv2-stage-overhead-2row)) / 2)
     );
   }
+  /* Vanaf 7 spelers drie naast elkaar (was twee bij 118px): met 10 man aan
+     tafel zie je zo vrijwel iedereen zonder te scrollen. */
+  .gnv2-stage-grid[data-count="7"],
+  .gnv2-stage-grid[data-count="8"] {
+    --gnv2-party-char-size: min(
+      100px,
+      calc((100dvh - var(--gnv2-stage-overhead-3row)) / 3)
+    );
+  }
+  .gnv2-stage-grid[data-count="9-plus"] {
+    --gnv2-party-char-size: min(
+      92px,
+      calc((100dvh - var(--gnv2-stage-overhead-3row)) / 3)
+    );
+  }
   .gnv2-stage-grid[data-count="7"],
   .gnv2-stage-grid[data-count="8"],
   .gnv2-stage-grid[data-count="9-plus"] {
-    --gnv2-party-char-size: min(
-      118px,
-      calc((100dvh - var(--gnv2-stage-overhead-3row)) / 3)
-    );
+    gap: 0.75rem 0.6rem;
   }
   .gnv2-party-character-name {
     font-size: clamp(
@@ -4411,6 +4456,13 @@ a.gn-plaque-mini:hover {
       calc(var(--gnv2-party-char-size, 300px) * 0.11),
       1.15rem
     );
+  }
+  /* Kleiner verwijderkruisje: overlapt niet meer met de buurman. */
+  .gnv2-card-remove {
+    top: -0.15rem;
+    right: -0.15rem;
+    width: 2rem;
+    height: 2rem;
   }
 }
 
@@ -5516,6 +5568,10 @@ a.gn-plaque-mini:hover {
   width: 6.5rem;
   height: 6.5rem;
   font-size: 2.5rem;
+}
+
+.gnv2-recap-winner-character {
+  --gnv2-party-char-size: clamp(7.5rem, 22vh, 11rem);
 }
 
 /* ── Arena-topbar-variant: 3 toolbar-knoppen i.p.v. 1 spacer ── */
@@ -6753,13 +6809,26 @@ button.gnv2-arena-character:disabled {
   .gnv2-arena-toolbar {
     gap: 0.35rem;
   }
+  /* Op telefoons dezelfde vorm als de andere toolbarknoppen: icoon met
+     een kort woord eronder. */
   .gnv2-arena-end-btn {
-    width: 44px;
-    padding: 0;
-    gap: 0;
+    flex-direction: column;
+    width: auto;
+    min-width: 3.6rem;
+    height: auto;
+    min-height: 2.75rem;
+    padding: 0.4rem 0.55rem 0.35rem;
+    gap: 0.2rem;
+    border-radius: 0.9rem;
   }
   .gnv2-arena-end-btn-label {
     display: none;
+  }
+  .gnv2-arena-end-btn-short {
+    display: block;
+    font-size: 0.66rem;
+    font-weight: 600;
+    line-height: 1;
   }
 }
 
@@ -7244,20 +7313,57 @@ button.gnv2-arena-character:disabled {
   margin-bottom: 0.5rem;
 }
 
+/* Compact raster: met 10 spelers moet iedereen in één oogopslag (zonder
+   scrollen) aan te tikken zijn — dit is de vaakst gebruikte handeling. */
 .gnv2-win-picker-grid {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: center;
-  gap: 1.25rem 1.5rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(82px, 1fr));
+  gap: 0.5rem;
   width: 100%;
-  padding: 0.5rem 0;
+  padding: 0.25rem 0;
+}
+
+@media (max-width: 639px) {
+  .gnv2-win-picker-card {
+    padding: 1.1rem 0.9rem 1.2rem;
+  }
+  .gnv2-win-picker-option .gnv2-party-character-name {
+    font-size: 0.82rem;
+  }
+}
+
+@media (min-width: 640px) {
+  .gnv2-win-picker-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 0.8rem;
+  }
 }
 
 .gnv2-win-picker-option {
   display: flex;
+  justify-content: center;
+  min-width: 0;
+  padding: 0.4rem 0.35rem 0.55rem;
   border-radius: var(--gnv2-radius-lg);
-  transition: transform 0.12s ease;
+  border: 1px solid var(--gnv2-border);
+  background: oklch(1 0 0 / 0.03);
+  transition:
+    transform 0.12s ease,
+    border-color 0.12s ease;
+}
+
+.gnv2-win-picker-option:hover:not(:disabled) {
+  border-color: var(--gnv2-accent-warm);
+}
+
+.gnv2-win-picker-option .gnv2-party-character {
+  --gnv2-party-char-size: 100%;
+  width: 100%;
+  max-width: none;
+}
+
+.gnv2-win-picker-option .gnv2-party-character-name {
+  font-size: 0.95rem;
 }
 
 .gnv2-win-picker-option:active:not(:disabled) {

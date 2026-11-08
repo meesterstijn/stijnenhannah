@@ -365,7 +365,7 @@ export function buildRecapHighlights(
   const top = topPlayerIds(counts);
   if (top.ids.length === 1 && top.max >= 2) {
     const winner = participantsById.get(top.ids[0]);
-    highlights.push(`${displayName(winner)} pakt vandaag ${top.max} WINs.`);
+    highlights.push(`${displayName(winner)} wint vandaag ${top.max} keer.`);
   }
 
   let bestStreak = { playerId: "", length: 0 };

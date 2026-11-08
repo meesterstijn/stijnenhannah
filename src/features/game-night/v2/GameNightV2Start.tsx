@@ -61,6 +61,7 @@ export function GameNightV2Start({
             title="Spelers"
           >
             <Users className="h-[18px] w-[18px]" />
+            <span className="gnv2-nav-label">Spelers</span>
           </Link>
           <Link
             to="/game-night/hall-of-fame"
@@ -69,6 +70,7 @@ export function GameNightV2Start({
             title="Hall of Fame"
           >
             <Trophy className="h-[18px] w-[18px]" />
+            <span className="gnv2-nav-label">Ranglijst</span>
           </Link>
           <Link
             to="/game-night/geschiedenis"
@@ -77,6 +79,7 @@ export function GameNightV2Start({
             title="Geschiedenis"
           >
             <History className="h-[18px] w-[18px]" />
+            <span className="gnv2-nav-label">Historie</span>
           </Link>
           <Link
             to="/game-night/spellen"
@@ -85,6 +88,7 @@ export function GameNightV2Start({
             title="Spellenkast"
           >
             <LayoutGrid className="h-[18px] w-[18px]" />
+            <span className="gnv2-nav-label">Spellen</span>
           </Link>
         </nav>
       </header>

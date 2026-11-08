@@ -149,3 +149,27 @@ Voorbeelden:
 - `recap-landscape-wheel-667x375.png`: uitslag na een echte scrollpoging.
 - `creator-preview-no-padding-375x812.png`: alleen in de testbrowser gecontroleerd effect van het weghalen van de buitenpadding.
 - `results.json`, `results-extra.json`, `results-scroll.json` en `scroll.log`: geometrie, rol, schermtoestand en scrollgedrag.
+
+## Gebruiksgemak-ronde 8 november 2026 (avond met 10 personen)
+
+Kritische doorloop van alle schermen op telefoon, tablet en laptop met 10 spelers aan tafel. Opgelost:
+
+1. **Spelen met een deel van de tafel.** Een spel met minder plaatsen dan er mensen aan tafel zitten (bv. Catan met 10 aanwezig) staat nu onder "Met een deel van de tafel" en is kiesbaar. De preview zegt "Kies wie er meespelen"; de selectie begint leeg en telt mee ("2/4 gekozen"). Alleen "Te weinig spelers" blijft geblokkeerd. Voorheen was de bestaande deelnemerskeuze onbereikbaar.
+2. **"Wie won er?"** is een compact raster: 10 spelers passen zonder scrollen (3 kolommen op een telefoon, 5 op een tablet). Escape sluit het venster.
+3. **Gastkiezer:** "Eerste keer? Maak je speler" staat bovenaan in plaats van onder alle spelers. Spelers die al aan tafel zitten krijgen "Zit al aan tafel", worden gedimd en staan onderaan (nieuwe migratie `20261108030000_game_night_guest_players_at_table.sql`, voegt alleen een `at_table`-veld toe). Compacter raster (3 per rij).
+4. **Geschiedenis toonde bij elk spel "Geen eindwinnaar geregistreerd".** De geschiedenis las alleen het oude resultaatmodel. Nu: winnaar = meeste actieve WINS (gelijke stand = gedeelde winnaars), plus de stand ("Stijn 3× · Hannah 2×"). Geldt ook voor de finale, "Winnaars van de avond" en "Recent gespeeld" bij een spel.
+5. **Menu "Meer opties"** viel op telefoons links buiten beeld; het schuift zich nu binnen de schermrand.
+6. Lobby, startscherm en arena: icoonknoppen hebben een zichtbaar label (Spelers, Ranglijst, Historie, Spellen, Foto, Muziek, Meer, Klaar). "Afsluiten" staat los van de navigatie.
+7. Lobby op telefoon: vanaf 7 spelers drie per rij, kleiner verwijderkruisje dat niet meer overlapt.
+8. Outfitkeuze voor gasten: geen bestandsnamen ("Man 2") meer zichtbaar; op telefoons een veegbare rij in plaats van een scrollvak binnen de pagina.
+9. Teksten: "8 november" en "Hall of Fame" zonder geforceerde hoofdletters, "Aanschuiven via QR", "Nog een potje", "Stijn wint vandaag 3 keer.", "spel(len) gewonnen".
+10. De uitslag na een spel toont het poppetje van de winnaar in plaats van een beginletter.
+
+Gecontroleerd met TypeScript, ESLint, 312 unit tests, de gastdatabasetests, de gastbrowsertest en de layouttest (235 controles).
+
+### Openstaande keuzes
+
+- **"WIN/WINS" blijft als vaste spelterm** (knop "Win registreren", badges "3 WINS"). Alternatief "winst/zeges" klonk minder natuurlijk. Wel aangepast waar het in een zin stond.
+- **"session wins" / "round wins"** op de statistiekpagina's (Hall of Fame, spelerprofiel, speldetail) zijn nog Engels; niet aangepast omdat dat een bredere terminologiekeuze is.
+- **De spelpreview op telefoons** zet cover en info naast elkaar en is daardoor krap; niet aangepast.
+- Roulette en "Kies voor ons" stellen nog alleen spellen voor die precies bij het aantal aanwezigen passen.

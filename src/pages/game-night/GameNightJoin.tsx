@@ -107,7 +107,7 @@ export default function GameNightJoin() {
               <p>
                 {showCreate
                   ? "Maak je speler één keer aan. Je naam en avatar bewaren we voor de volgende avond."
-                  : "Welkom terug! Kies je speler en schuif aan."}
+                  : "Schuif aan in een paar tikken. Geen account nodig."}
               </p>
             )}
           </header>

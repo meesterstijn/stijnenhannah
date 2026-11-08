@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import type { GameNightPlayer } from "@/lib/supabase";
 import { getPlayerDisplayName } from "@/features/game-night/lib/playerIdentity";
@@ -32,6 +33,16 @@ export function ArenaWinPickerSheet({
   onPick: (playerId: string) => void;
   onClose: () => void;
 }) {
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCloseRef.current();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   return (
     <div
       className="gnv2-sheet-backdrop"

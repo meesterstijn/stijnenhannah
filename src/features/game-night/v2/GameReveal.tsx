@@ -35,16 +35,17 @@ export function GameReveal({
   onBack: () => void;
 }) {
   const startSession = useStartGameSession();
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(
-    () => new Set(party.map((p) => p.id)),
-  );
-  const [error, setError] = useState<string | null>(null);
-
   // Sectie 14: alleen een deelnemerskeuze tonen als het spel daadwerkelijk
   // minder spelers toestaat dan er aan tafel zitten — de normale avond
   // (party past altijd) toont dit blok gewoon niet, geen extra tik nodig.
   const needsParticipantPicker =
     game.max_players != null && party.length > game.max_players;
+  // Bij een deelnemerskeuze begint de selectie leeg: 4 van 10 aantikken is
+  // sneller en duidelijker dan er 6 uitvinken.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(
+    () => new Set(needsParticipantPicker ? [] : party.map((p) => p.id)),
+  );
+  const [error, setError] = useState<string | null>(null);
 
   const count = selectedIds.size;
   const tooFew = game.min_players != null && count < game.min_players;
@@ -52,8 +53,12 @@ export function GameReveal({
   const canStart = count > 0 && !tooFew && !tooMany && !startSession.isPending;
 
   let helperText: string | null = null;
-  if (tooFew) helperText = `Minimaal ${game.min_players} spelers nodig`;
-  else if (tooMany) helperText = `Maximaal ${game.max_players} spelers`;
+  if (tooFew) {
+    const missing = (game.min_players ?? 0) - count;
+    helperText = needsParticipantPicker
+      ? `Kies nog minstens ${missing} ${missing === 1 ? "speler" : "spelers"}`
+      : `Minimaal ${game.min_players} spelers nodig`;
+  } else if (tooMany) helperText = `Maximaal ${game.max_players} spelers`;
 
   function toggle(playerId: string) {
     setSelectedIds((prev) => {
@@ -133,7 +138,7 @@ export function GameReveal({
         {needsParticipantPicker && (
           <div className="gnv2-reveal-picker">
             <p className="gnv2-reveal-picker-label">
-              {game.max_players} spelers voor deze ronde
+              Wie spelen er mee? {count}/{game.max_players} gekozen
             </p>
             <div className="gnv2-reveal-picker-grid">
               {party.map((player) => {

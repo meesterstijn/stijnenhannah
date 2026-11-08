@@ -567,7 +567,7 @@ try {
     await open("", "recap");
     await frame();
     await wheelToBottom(".gnv2-recap-root");
-    for (const name of ["Rematch", "Ander spel", "Game Night afsluiten"])
+    for (const name of ["Nog een potje", "Ander spel", "Game Night afsluiten"])
       await reachable(page.getByRole("button", { name, exact: true }));
     page.once("dialog", (dialog) => dialog.accept());
     await page

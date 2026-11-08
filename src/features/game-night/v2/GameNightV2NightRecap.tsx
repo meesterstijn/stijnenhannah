@@ -106,8 +106,8 @@ export function GameNightV2NightRecap({
 
         {mvp && (
           <p className="gnv2-nightrecap-mvp">
-            {getPlayerDisplayName(mvp.player)} pakte vanavond de meeste WINs ·{" "}
-            {mvp.wins}
+            {getPlayerDisplayName(mvp.player)} won vanavond het vaakst (
+            {mvp.wins}×)
           </p>
         )}
 

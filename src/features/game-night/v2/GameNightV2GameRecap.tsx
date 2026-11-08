@@ -10,6 +10,15 @@ import {
 } from "@/features/game-night/lib/playerIdentity";
 import { buildRecapHighlights } from "@/features/game-night/lib/gameNightCompetitiveMoments";
 import { GnV2Scene } from "@/features/game-night/v2/GnV2Scene";
+import {
+  useCharacterEquipmentForPlayers,
+  useCharacterParts,
+} from "@/features/game-night/hooks/useCharacterCatalog";
+import {
+  characterVisualPropsFor,
+  resolvePlayerCharacter,
+} from "@/features/game-night/lib/gameNightCharacter";
+import { CharacterVisual } from "@/features/game-night/v2/CharacterVisual";
 
 // Game Night V2.7B (sectie 30-32) — vervangt GameSessionCompletedPanel
 // volledig voor win_events-sessies. GEEN apart "session winner"-record:
@@ -36,6 +45,12 @@ export function GameNightV2GameRecap({
   const { data: events = [] } = useGameSessionWinEvents(gameSession.id);
   const { data: palette = [] } = useGameNightColorPalette();
   const { data: analyticsData } = useGameNightAnalytics();
+  // Zelfde gebatchte character-data als de arena, zodat de winnaar hier met
+  // zijn eigen poppetje verschijnt i.p.v. alleen een beginletter.
+  const { data: characterParts = [] } = useCharacterParts();
+  const { data: characterEquipment = [] } = useCharacterEquipmentForPlayers(
+    participants.map((p) => p.id),
+  );
 
   const participantsById = useMemo(
     () => new Map(participants.map((p) => [p.id, p])),
@@ -72,6 +87,13 @@ export function GameNightV2GameRecap({
   );
 
   const top = standings[0];
+  const topVisual = useMemo(() => {
+    if (!top) return null;
+    const partsById = new Map(characterParts.map((p) => [p.id, p]));
+    return characterVisualPropsFor(
+      resolvePlayerCharacter(top.player, characterEquipment, partsById),
+    );
+  }, [top, characterParts, characterEquipment]);
 
   return (
     <GnV2Scene className="gnv2-recap-scene">
@@ -82,14 +104,23 @@ export function GameNightV2GameRecap({
         {top && top.wins > 0 && (
           <div className="gnv2-recap-winner">
             <span
-              className="gnv2-avatar gnv2-avatar-lg"
+              className="gnv2-party-character gnv2-recap-winner-character"
               style={{
                 ["--gnv2-ring" as string]:
                   resolvePlayerColorHex(top.player, palette) ??
                   "var(--gnv2-border-strong)",
               }}
             >
-              {getPlayerDisplayName(top.player).charAt(0).toUpperCase()}
+              <span className="gnv2-party-character-art">
+                {topVisual && (
+                  <CharacterVisual
+                    player={top.player}
+                    characterId={topVisual.characterId}
+                    layers={topVisual.layers}
+                    loading="eager"
+                  />
+                )}
+              </span>
             </span>
             <p className="gnv2-recap-winner-name">
               {getPlayerDisplayName(top.player)}
@@ -128,7 +159,7 @@ export function GameNightV2GameRecap({
             disabled={rematchPending}
             className="gnv2-btn gnv2-btn-primary gnv2-recap-action"
           >
-            {rematchPending ? "Bezig..." : "Rematch"}
+            {rematchPending ? "Bezig..." : "Nog een potje"}
           </button>
           <button
             type="button"

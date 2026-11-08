@@ -15,6 +15,8 @@ export type GuestPlayer = {
   color_id: string | null;
   color: string | null;
   body: GameNightCharacterPart | null;
+  /** Alleen in de spelerkiezer: zit deze speler vanavond al aan tafel? */
+  at_table?: boolean;
 };
 
 export type GuestOptions = {

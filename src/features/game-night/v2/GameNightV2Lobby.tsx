@@ -209,6 +209,7 @@ export function GameNightV2Lobby({
             title="Spelers"
           >
             <Users className="h-[18px] w-[18px]" />
+            <span className="gnv2-nav-label">Spelers</span>
           </Link>
           <Link
             to="/game-night/hall-of-fame"
@@ -217,6 +218,7 @@ export function GameNightV2Lobby({
             title="Hall of Fame"
           >
             <Trophy className="h-[18px] w-[18px]" />
+            <span className="gnv2-nav-label">Ranglijst</span>
           </Link>
           <Link
             to="/game-night/geschiedenis"
@@ -225,15 +227,17 @@ export function GameNightV2Lobby({
             title="Geschiedenis"
           >
             <History className="h-[18px] w-[18px]" />
+            <span className="gnv2-nav-label">Historie</span>
           </Link>
           <button
             type="button"
             onClick={onCloseGameNight}
-            className="gnv2-nav-btn"
+            className="gnv2-nav-btn gnv2-nav-btn-end"
             aria-label="Game Night afsluiten"
             title="Game Night afsluiten"
           >
             <LogOut className="h-[18px] w-[18px]" />
+            <span className="gnv2-nav-label">Afsluiten</span>
           </button>
         </nav>
       </header>
@@ -279,7 +283,7 @@ export function GameNightV2Lobby({
               className="gnv2-btn gnv2-btn-ghost"
             >
               <QrCode className="h-4 w-4" />
-              Join met telefoon
+              Aanschuiven via QR
             </button>
             <button
               type="button"

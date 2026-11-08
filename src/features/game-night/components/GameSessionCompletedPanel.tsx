@@ -110,7 +110,7 @@ export function GameSessionCompletedPanel({
           className="gn-plaque-action gn-plaque-action-primary w-full px-6 py-3.5"
         >
           <span className="gn-display text-lg font-semibold tracking-wide">
-            {rematchPending ? "Bezig..." : "Rematch"}
+            {rematchPending ? "Bezig..." : "Nog een potje"}
           </span>
           <span className="gn-muted mt-1 text-xs">
             Nog een keer {gameSession.game.name}

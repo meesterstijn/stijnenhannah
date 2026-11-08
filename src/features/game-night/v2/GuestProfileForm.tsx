@@ -206,7 +206,7 @@ export function GuestProfileForm({
           <fieldset className="gnv2-guest-outfits-field">
             <legend className="gnv2-guest-label">Kies je outfit</legend>
             <div className="gnv2-guest-outfits">
-              {options.bodies.map((part) => (
+              {options.bodies.map((part, index) => (
                 <label key={part.id} className="gnv2-guest-outfit-choice">
                   <input
                     type="radio"
@@ -216,7 +216,9 @@ export function GuestProfileForm({
                     onChange={() => setBodyId(part.id)}
                   />
                   <img src={part.asset_path} alt="" loading="lazy" />
-                  <span>{part.label}</span>
+                  {/* Catalogusnamen zijn bestandsnamen ("Man 2"): alleen
+                      voor schermlezers, visueel spreekt het plaatje. */}
+                  <span className="sr-only">Outfit {index + 1}</span>
                 </label>
               ))}
             </div>

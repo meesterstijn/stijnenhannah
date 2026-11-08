@@ -268,7 +268,7 @@ try {
   const second = await newPhone();
   await second.page.goto(`${base}/#/game-night/join/invite-one`);
   await second.page
-    .getByRole("button", { name: "Nieuwe speler maken" })
+    .getByRole("button", { name: "Eerste keer? Maak je speler" })
     .click();
   await second.page.getByLabel("Hoe heet je?").fill("Hannah");
   await addPhoto(second.page);
@@ -303,7 +303,7 @@ try {
   const recovery = await newPhone();
   await recovery.page.goto(`${base}/#/game-night/join/invite-one`);
   await recovery.page
-    .getByRole("heading", { name: "Wie speelt er mee?" })
+    .getByRole("heading", { name: "Al eens gespeeld? Kies jezelf" })
     .waitFor();
   for (const [width, height] of [
     [320, 568],
@@ -392,7 +392,9 @@ try {
   );
   failOptions = false;
   await third.page.getByRole("button", { name: "Opnieuw proberen" }).click();
-  await third.page.getByRole("button", { name: "Nieuwe speler maken" }).click();
+  await third.page
+    .getByRole("button", { name: "Eerste keer? Maak je speler" })
+    .click();
   await third.page.getByLabel("Hoe heet je?").waitFor();
   // Denied storage must block joining before sending a create request.
   await third.page.evaluate(() => {

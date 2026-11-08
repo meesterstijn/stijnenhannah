@@ -306,6 +306,31 @@ export function hasRegisteredResult(
   );
 }
 
+// ── WIN-stand per spelsessie (win_source='win_events') ────────────────
+// Een win_events-spel heeft geen game_session_results-rijen: de uitslag is
+// "wie heeft de meeste actieve WINs". Gelijke stand = gedeelde winnaars.
+// Leeg resultaat (hasResult=false) zolang er geen enkele WIN telt.
+export function winEventResults(
+  data: AnalyticsData,
+  gs: GameNightGameSession,
+  participants: GameNightPlayer[],
+): { player: GameNightPlayer; wins: number; isWinner: boolean }[] {
+  const counts = new Map<string, number>();
+  for (const record of data.index.winRecordsByGameSession.get(gs.id) ?? []) {
+    counts.set(record.player_id, (counts.get(record.player_id) ?? 0) + 1);
+  }
+  const max = Math.max(0, ...counts.values());
+  if (max === 0) return [];
+  return participants
+    .map((player) => {
+      const wins = counts.get(player.id) ?? 0;
+      return { player, wins, isWinner: wins === max };
+    })
+    .sort(
+      (a, b) => b.wins - a.wins || a.player.name.localeCompare(b.player.name),
+    );
+}
+
 function playerNameCollator(a: GameNightPlayer, b: GameNightPlayer) {
   return a.name.localeCompare(b.name, "nl");
 }
@@ -460,6 +485,32 @@ export function buildGameNightDetail(
         }
         return { round, winner };
       });
+
+      if (gs.win_source === "win_events") {
+        const standings = winEventResults(data, gs, participants);
+        for (const s of standings) {
+          if (s.isWinner) {
+            sessionWinCounts.set(
+              s.player.id,
+              (sessionWinCounts.get(s.player.id) ?? 0) + 1,
+            );
+          }
+        }
+        return {
+          gameSession: gs,
+          game,
+          participants,
+          durationSeconds: gameSessionActiveDurationSeconds(gs),
+          rounds,
+          hasResult: standings.length > 0,
+          results: standings.map((s) => ({
+            player: s.player,
+            isWinner: s.isWinner,
+            score: s.wins,
+            rank: null,
+          })),
+        };
+      }
 
       const resultRows =
         data.index.sessionResultsByGameSession.get(gs.id) ?? [];
@@ -1477,9 +1528,16 @@ export function getRecentGameSessions(
 
       const results = data.index.sessionResultsByGameSession.get(gs.id) ?? [];
       const winnerResult = results.find((r) => r.is_winner);
-      const winner = winnerResult
-        ? (data.index.playersById.get(winnerResult.player_id) ?? null)
-        : null;
+      const standings =
+        gs.win_source === "win_events"
+          ? winEventResults(data, gs, participants)
+          : [];
+      const winner =
+        gs.win_source === "win_events"
+          ? (standings.find((s) => s.isWinner)?.player ?? null)
+          : winnerResult
+            ? (data.index.playersById.get(winnerResult.player_id) ?? null)
+            : null;
 
       const roundCount = (
         data.index.roundsByGameSession.get(gs.id) ?? []
@@ -1491,7 +1549,7 @@ export function getRecentGameSessions(
         participants,
         durationSeconds: gameSessionActiveDurationSeconds(gs),
         winner,
-        hasResult: results.length > 0,
+        hasResult: results.length > 0 || standings.length > 0,
         roundCount,
       };
     })

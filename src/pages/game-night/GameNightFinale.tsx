@@ -44,7 +44,9 @@ function GameLink({ game }: { game: GameNightGameSessionDetail["game"] }) {
 
 function ResultLine({ detail }: { detail: GameNightGameSessionDetail }) {
   const winner = detail.results.find((r) => r.isWinner);
-  const isScoreMode = detail.gameSession.result_mode === "score";
+  const isScoreMode =
+    detail.gameSession.win_source !== "win_events" &&
+    detail.gameSession.result_mode === "score";
 
   return (
     <div className="gnv2-panel-elevated px-4 py-3">
