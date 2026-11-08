@@ -275,6 +275,10 @@ export type TrainingSettings = {
     colors: [string, string, string, string, string];
   }[];
   showE1rm: boolean;
+  // "Wat is er nieuw": laatst geziene update (id uit updates/updates.ts) en
+  // het tijdstip van de laatst geziene reactie op eigen feedback.
+  lastSeenUpdate?: string | null;
+  lastSeenReplyAt?: string | null;
 };
 
 export type PlateStock = { weightKg: number; count: number };

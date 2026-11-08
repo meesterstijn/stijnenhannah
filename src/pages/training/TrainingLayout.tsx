@@ -12,6 +12,7 @@ import {
   useTrainingScheme,
 } from "@/features/training/components/TrainingChrome";
 import { FeedbackButton } from "@/features/training/feedback/FeedbackButton";
+import { WhatsNew } from "@/features/training/updates/WhatsNew";
 import { FEEDBACK_BUTTON_ENABLED } from "@/features/training/feedback/feedback";
 
 const INTER =
@@ -63,6 +64,8 @@ function Shell() {
       </div>
       {!inWorkout && <BottomNav />}
       {FEEDBACK_BUTTON_ENABLED && <FeedbackButton low={inWorkout} />}
+      {/* Niet midden in een training. */}
+      <WhatsNew suppressed={inWorkout} />
     </div>
   );
 }

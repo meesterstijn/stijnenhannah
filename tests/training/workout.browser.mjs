@@ -126,6 +126,21 @@ try {
   await noHorizontalScroll("dashboard");
   step("programma selecteren");
 
+  // "Wat is er nieuw": niet tijdens de eerste keer instellen, wel bij het
+  // volgende bezoek, en daarna nooit meer voor dezelfde update.
+  const whatsNew = page.getByRole("dialog", { name: "Wat is er nieuw" });
+  assert.equal(await whatsNew.count(), 0, "venster tijdens instellen");
+  await page.reload();
+  await whatsNew.waitFor({ timeout: 15000 });
+  await page.screenshot({ path: join(output, "1b-wat-is-er-nieuw.png") });
+  await whatsNew.getByRole("button", { name: "Begrepen" }).click();
+  await whatsNew.waitFor({ state: "detached" });
+  await page.reload();
+  await page.getByRole("button", { name: "Start training" }).waitFor();
+  await page.waitForTimeout(1500);
+  assert.equal(await whatsNew.count(), 0, "venster kwam terug");
+  step("wat is er nieuw: één keer");
+
   await page.getByRole("button", { name: "Start training" }).click();
   await page.waitForURL(/#\/training\/workout/);
   const setButton = page.locator(".tr-set-button");

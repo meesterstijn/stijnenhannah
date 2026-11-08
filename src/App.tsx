@@ -205,6 +205,9 @@ const TrainingInstellingen = lazy(
   () => import("@/pages/training/TrainingInstellingen"),
 );
 const TrainingMeer = lazy(() => import("@/pages/training/TrainingMeer"));
+const TrainingUpdates = lazy(
+  () => import("@/pages/training/TrainingUpdates"),
+);
 const TrainingOefeningReview = lazy(
   () => import("@/pages/training/TrainingOefeningReview"),
 );
@@ -453,6 +456,7 @@ function AppRoutes() {
               <Route path="instellingen" element={<TrainingInstellingen />} />
               <Route path="meer" element={<TrainingMeer />} />
               <Route path="feedback" element={<TrainingFeedback />} />
+              <Route path="updates" element={<TrainingUpdates />} />
               <Route
                 path="oefeningen-beoordelen"
                 element={<TrainingOefeningReview />}

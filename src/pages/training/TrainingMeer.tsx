@@ -6,6 +6,7 @@ import {
   Disc3,
   History,
   ListChecks,
+  Megaphone,
   MessageSquareText,
   Scale,
   Settings,
@@ -40,6 +41,12 @@ const LINKS = [
     label: "Trainingsbibliotheek",
     desc: "Schema's met uitgangspunten en bronnen",
     icon: BookMarked,
+  },
+  {
+    to: "/training/updates",
+    label: "Updates",
+    desc: "Wat er nieuw is, en reacties op je feedback",
+    icon: Megaphone,
   },
   {
     to: "/training/instellingen",

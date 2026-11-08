@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Check, RefreshCw, RotateCcw, Trash2 } from "lucide-react";
+import { Check, RefreshCw, RotateCcw, Send, Trash2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { withTimeout } from "@/lib/with-timeout";
@@ -25,6 +25,8 @@ type Item = {
   context: Record<string, unknown>;
   created_at: string;
   resolved_at: string | null;
+  reply: string | null;
+  replied_at: string | null;
 };
 
 type Filter = "open" | "done" | "all";
@@ -72,7 +74,7 @@ export default function TrainingFeedback() {
       supabase
         .from("training_feedback")
         .select(
-          "id, user_id, kind, message, page_path, page_label, context, created_at, resolved_at",
+          "id, user_id, kind, message, page_path, page_label, context, created_at, resolved_at, reply, replied_at",
         )
         .order("created_at", { ascending: false })
         .limit(300),
@@ -108,6 +110,25 @@ export default function TrainingFeedback() {
     if (error) return setError("Opslaan lukte niet.");
     setItems((list) =>
       (list ?? []).map((i) => (i.id === item.id ? { ...i, resolved_at } : i)),
+    );
+  };
+
+  // Reactie aan de melder: die ziet hem één keer in "Wat is er nieuw" en
+  // altijd onder Meer → Updates. Versturen handelt de melding ook af.
+  const sendReply = async (item: Item, reply: string) => {
+    const now = new Date().toISOString();
+    const patch = {
+      reply: reply.trim(),
+      replied_at: now,
+      resolved_at: item.resolved_at ?? now,
+    };
+    const { error } = await supabase
+      .from("training_feedback")
+      .update(patch)
+      .eq("id", item.id);
+    if (error) return setError("Reactie opslaan lukte niet.");
+    setItems((list) =>
+      (list ?? []).map((i) => (i.id === item.id ? { ...i, ...patch } : i)),
     );
   };
 
@@ -198,6 +219,10 @@ export default function TrainingFeedback() {
                   {reporter} · {dateFormat.format(new Date(item.created_at))}
                   {item.resolved_at && " · afgehandeld"}
                 </p>
+                <ReplyBox
+                  item={item}
+                  onSend={(text) => sendReply(item, text)}
+                />
                 <details className="text-xs">
                   <summary className="tr-muted cursor-pointer">
                     Details · <code>{item.page_path}</code>
@@ -245,6 +270,61 @@ export default function TrainingFeedback() {
           })}
         </ul>
       )}
+    </div>
+  );
+}
+
+function ReplyBox({
+  item,
+  onSend,
+}: {
+  item: Item;
+  onSend: (text: string) => Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(item.reply ?? "");
+  const [sending, setSending] = useState(false);
+
+  if (item.reply && !editing) {
+    return (
+      <div className="tr-card-flat space-y-1 p-3 text-sm">
+        <p className="tr-label">Jouw reactie</p>
+        <p className="whitespace-pre-wrap break-words">{item.reply}</p>
+        <button
+          type="button"
+          className="tr-muted text-xs underline-offset-4 hover:underline"
+          onClick={() => setEditing(true)}
+        >
+          Wijzigen
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-2">
+      <textarea
+        className="tr-textarea"
+        rows={3}
+        maxLength={2000}
+        value={text}
+        placeholder="Reactie aan de melder (ziet die bij Updates)"
+        aria-label="Reactie aan de melder"
+        onChange={(e) => setText(e.target.value)}
+      />
+      <button
+        type="button"
+        className="tr-btn tr-btn-primary"
+        disabled={!text.trim() || sending}
+        onClick={async () => {
+          setSending(true);
+          await onSend(text);
+          setSending(false);
+          setEditing(false);
+        }}
+      >
+        <Send className="h-4 w-4" />
+        {item.reply ? "Reactie bijwerken" : "Reactie sturen"}
+      </button>
     </div>
   );
 }

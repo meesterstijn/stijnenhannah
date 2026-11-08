@@ -43,6 +43,7 @@ const MORE_PATHS = [
   "/training/instellingen",
   "/training/bibliotheek",
   "/training/feedback",
+  "/training/updates",
   "/training/oefeningen-beoordelen",
 ];
 

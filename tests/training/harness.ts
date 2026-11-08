@@ -21,6 +21,7 @@ const MIGRATIONS = [
   "20261107000000_training_user_role.sql",
   "20261108000000_training_feedback.sql",
   "20261108010000_training_shared_exercises.sql",
+  "20261108020000_training_feedback_reply.sql",
 ];
 
 export async function createTrainingTestDb(): Promise<PGlite> {

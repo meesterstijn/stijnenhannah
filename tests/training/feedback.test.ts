@@ -136,6 +136,34 @@ describe("training_feedback", () => {
     ).toHaveLength(1);
   });
 
+  it("melder leest de reactie van de owner, kan zelf geen reactie zetten", async () => {
+    await expect(
+      insert(TRAINING_USER, { reply: "zelf beantwoord" }),
+    ).rejects.toThrow(/row-level security/);
+    const [row] = await insert(TRAINING_USER, { message: "Per set graag" });
+    const own = await runAs(
+      pg,
+      TRAINING_USER,
+      "update public.training_feedback set reply = $2 where id = $1 returning id",
+      [row.id, "zelf"],
+    );
+    expect(own).toHaveLength(0);
+    await runAs(
+      pg,
+      OWNER_A,
+      "update public.training_feedback set reply = $2, replied_at = now(), resolved_at = now() where id = $1",
+      [row.id, "Staat erin!"],
+    );
+    const [seen] = await runAs<{ reply: string; replied_at: string | null }>(
+      pg,
+      TRAINING_USER,
+      "select reply, replied_at from public.training_feedback where id = $1",
+      [row.id],
+    );
+    expect(seen.reply).toBe("Staat erin!");
+    expect(seen.replied_at).not.toBeNull();
+  });
+
   it("anon kan niets", async () => {
     await expect(
       runAs(pg, null, "select id from public.training_feedback"),

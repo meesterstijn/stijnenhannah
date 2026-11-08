@@ -54,6 +54,7 @@ const PAGE_LABELS: [RegExp, string][] = [
   [/^\/training\/schijven/, "Schijvencalculator"],
   [/^\/training\/instellingen/, "Instellingen"],
   [/^\/training\/oefeningen-beoordelen/, "Nieuwe oefeningen beoordelen"],
+  [/^\/training\/updates/, "Updates"],
   [/^\/training\/feedback/, "Feedback"],
   [/^\/training\/meer/, "Meer"],
 ];

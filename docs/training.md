@@ -149,6 +149,24 @@ Sinds 8 nov 2026 (`20261108000000_training_feedback.sql`).
 - RLS: toevoegen alleen als jezelf en met Training-toegang; lezen eigen meldingen,
   owner alles; afhandelen/verwijderen alleen owner (`tests/training/feedback.test.ts`).
 
+## Updates ("Wat is er nieuw") en reacties op feedback
+
+Sinds 8 nov 2026.
+
+- Updates staan in de code: `src/features/training/updates/updates.ts`, nieuwste
+  bovenaan. **Bij elke release voor gebruikers een update bovenaan toevoegen** met een
+  nieuw, uniek id (ids nooit wijzigen). Geschreven voor de gebruiker: wat je nu kunt
+  en waar je het vindt.
+- Venster "Wat is er nieuw": één keer per update per gebruiker, bij het openen van
+  Training (niet tijdens een training, en niet in de sessie waarin het profiel net
+  is aangemaakt). Laatst gezien staat in de instellingen (`lastSeenUpdate`,
+  `lastSeenReplyAt`) en synchroniseert dus mee naar andere toestellen. Wie nog nooit
+  iets zag, krijgt alleen de nieuwste update.
+- **Meer → Updates**: de laatste 10 updates, plus "Jouw feedback" met de reactie.
+- Reageren op feedback: Meer → Feedback → reactie schrijven (kolommen `reply`,
+  `replied_at`, migratie `20261108020000_training_feedback_reply.sql`). De melder
+  ziet een nieuwe reactie één keer in het venster en altijd onder Updates.
+
 ## Eigen oefeningen delen (na goedkeuring)
 
 Sinds 8 nov 2026 (`20261108010000_training_shared_exercises.sql`).
@@ -286,3 +304,7 @@ Beslissingen die ik zelfstandig heb genomen. Allemaal aan te passen.
     gewijzigde piramide in het schema gaat voor op de vorige prestatie, net als een
     gewijzigd aantal sets. Trainer zwijgt bij deze oefeningen, omdat dubbele
     progressie gelijke sets veronderstelt.
+37. **Updates in de code, niet in de database**: horen bij een release, dus bij de
+    commit. Nadeel: een update toevoegen vraagt een deploy.
+38. **Nieuwe gebruiker ziet alleen de nieuwste update**, niet de hele geschiedenis;
+    alles staat wel onder Meer → Updates.
