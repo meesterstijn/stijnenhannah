@@ -144,7 +144,24 @@ Sinds 8 nov 2026 (`20261108000000_training_feedback.sql`).
 - RLS: toevoegen alleen als jezelf en met Training-toegang; lezen eigen meldingen,
   owner alles; afhandelen/verwijderen alleen owner (`tests/training/feedback.test.ts`).
 
-## Wat werkt
+## Eigen oefeningen delen (na goedkeuring)
+
+Sinds 8 nov 2026 (`20261108010000_training_shared_exercises.sql`).
+
+- Een eigen oefening is **privé**: alleen de maker ziet hem (RLS op
+  `training_exercises`, ook voor de owner). Bij het aanmaken staat dat erbij.
+- De owner ziet ze onder **Meer → Nieuwe oefeningen** (via de functie
+  `training_exercise_submissions()`, niet via de tabel, zodat de sync van de owner
+  geen oefeningen van anderen binnenhaalt). Daar: naam aanpassen, **Goedkeuren voor
+  iedereen** of **Afwijzen**; later **Niet meer delen** of opnieuw delen.
+- Goedkeuren maakt een kopie in `training_shared_exercises` (naam en gegevens op
+  dat moment, zelfde id). Iedereen met Training laadt die bij het openen (gecachet in
+  localStorage, dus ook offline) en ziet ze tussen de gewone oefeningen; niet
+  bewerkbaar. De maker blijft zijn eigen versie zien.
+- Past de maker de oefening na goedkeuring aan, dan meldt de beoordelingspagina dat
+  en kun je die versie opnieuw delen.
+- Tests: `tests/training/shared-exercises.test.ts`.
+
 
 - Schema's: Full Body 3×/week (A/B/C), vijfdaagse split (Upper/Lower/Push/Pull/Legs),
   PPL 6×/week (A kracht, B spiermassa), plus in de bibliotheek Full Body beginners 2×
@@ -250,3 +267,13 @@ Beslissingen die ik zelfstandig heb genomen. Allemaal aan te passen.
 31. **Sheet-focus**: `Sheet` gebruikt `onClose` via een ref; voorheen sprong de
     focus terug bij elke nieuwe `onClose` (de workout rendert elke seconde), wat
     typen in een sheet tijdens een training onmogelijk maakte.
+32. **Eigen oefeningen van de owner** staan niet in de beoordelingslijst (alleen die
+    van anderen). Wil je er zelf één delen, dan kan dat nu nog niet via de app.
+33. **Geen melding aan de maker** over goedkeuring of afwijzing; na goedkeuring
+    verandert er voor de maker niets zichtbaars (hij houdt zijn eigen versie).
+34. **Goedgekeurd = kopie**: latere wijzigingen van de maker gaan pas mee als je ze
+    opnieuw deelt. Na intrekken blijven gelogde sets bewaard, maar de oefening is
+    voor anderen niet meer te kiezen (niet uitgebreid getest hoe oude trainingen
+    hem dan tonen).
+35. **Knop "Eigen oefening toevoegen" bovenaan** in het kiesvenster (onder zoeken),
+    omdat hij onderaan een lijst van 50+ oefeningen niet te vinden was.

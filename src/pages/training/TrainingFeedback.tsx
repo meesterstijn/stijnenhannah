@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Check, RefreshCw, RotateCcw, Trash2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
+import { withTimeout } from "@/lib/with-timeout";
 import {
   EmptyState,
   Loading,
@@ -11,7 +12,6 @@ import {
 } from "@/features/training/components/ui";
 import {
   KIND_LABELS,
-  withTimeout,
   type FeedbackKind,
 } from "@/features/training/feedback/feedback";
 

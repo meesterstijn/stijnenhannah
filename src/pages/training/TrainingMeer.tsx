@@ -5,12 +5,14 @@ import {
   ChevronRight,
   Disc3,
   History,
+  ListChecks,
   MessageSquareText,
   Scale,
   Settings,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
+import { withTimeout } from "@/lib/with-timeout";
 import { PlateCalculator } from "@/features/training/components/PlateCalculator";
 import { PageHeader } from "@/features/training/components/ui";
 
@@ -47,38 +49,62 @@ const LINKS = [
   },
 ];
 
-// Aantal open feedbackmeldingen voor de owner (null = onbekend/offline).
-function useOpenFeedbackCount(enabled: boolean) {
-  const [count, setCount] = useState<number | null>(null);
+// Tellers voor de owner: open feedback en oefeningen die op beoordeling
+// wachten (null = onbekend/offline).
+function useOwnerCounts(enabled: boolean) {
+  const [counts, setCounts] = useState<{
+    feedback: number | null;
+    exercises: number | null;
+  }>({ feedback: null, exercises: null });
   useEffect(() => {
     if (!enabled) return;
     let cancelled = false;
-    void supabase
-      .from("training_feedback")
-      .select("id", { count: "exact", head: true })
-      .is("resolved_at", null)
-      .then(({ count, error }) => {
-        if (!cancelled && !error) setCount(count ?? 0);
-      });
+    void withTimeout(
+      supabase
+        .from("training_feedback")
+        .select("id", { count: "exact", head: true })
+        .is("resolved_at", null),
+    ).then((r) => {
+      if (!cancelled && r && !r.error)
+        setCounts((c) => ({ ...c, feedback: r.count ?? 0 }));
+    });
+    void withTimeout(supabase.rpc("training_exercise_submissions")).then(
+      (r) => {
+        if (!cancelled && r && !r.error && Array.isArray(r.data))
+          setCounts((c) => ({
+            ...c,
+            exercises: (r.data as { status: string | null }[]).filter(
+              (s) => !s.status,
+            ).length,
+          }));
+      },
+    );
     return () => {
       cancelled = true;
     };
   }, [enabled]);
-  return count;
+  return counts;
 }
 
 export default function TrainingMeer() {
   const { isOwner } = useAuth();
-  const openFeedback = useOpenFeedbackCount(isOwner);
+  const counts = useOwnerCounts(isOwner);
   const links = isOwner
     ? [
         ...LINKS,
         {
+          to: "/training/oefeningen-beoordelen",
+          label: counts.exercises
+            ? `Nieuwe oefeningen (${counts.exercises} wachten)`
+            : "Nieuwe oefeningen",
+          desc: "Eigen oefeningen van anderen goedkeuren voor iedereen",
+          icon: ListChecks,
+        },
+        {
           to: "/training/feedback",
-          label:
-            openFeedback && openFeedback > 0
-              ? `Feedback (${openFeedback} open)`
-              : "Feedback",
+          label: counts.feedback
+            ? `Feedback (${counts.feedback} open)`
+            : "Feedback",
           desc: "Wat testers melden, met de pagina erbij",
           icon: MessageSquareText,
         },

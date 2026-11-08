@@ -19,16 +19,17 @@ import {
   MUSCLE_LABELS,
 } from "@/features/training/domain/units";
 import { useTraining } from "@/features/training/hooks/TrainingProvider";
+import { useAuth } from "@/contexts/AuthContext";
 import { useExercises } from "@/features/training/hooks/useTrainingData";
 import { TYPE_LABELS } from "./TrainingOefeningen";
 
-const TRACKING_LABELS: Record<Tracking, string> = {
+export const TRACKING_LABELS: Record<Tracking, string> = {
   weight_reps: "Gewicht × herhalingen",
   bodyweight_reps: "Herhalingen (optioneel extra gewicht)",
   duration: "Tijd",
   jump_rope: "Tijd + aantal sprongen",
 };
-const LOAD_LABELS: Record<LoadMode, string> = {
+export const LOAD_LABELS: Record<LoadMode, string> = {
   barbell: "Lange stang (totaalgewicht)",
   dumbbell_pair: "Twee dumbbells (gewicht per dumbbell)",
   dumbbell_single: "Eén dumbbell",
@@ -62,6 +63,7 @@ export default function TrainingOefeningForm() {
   const { id } = useParams();
   const { get, loaded } = useExercises();
   const { db, userId } = useTraining();
+  const { isOwner } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState<Exercise | null>(id ? null : empty());
   const [steps, setSteps] = useState("");
@@ -279,6 +281,7 @@ export default function TrainingOefeningForm() {
       </div>
       <p className="tr-muted text-xs">
         Archiveren verbergt de oefening; je historie ermee blijft bewaard.
+        {!isOwner && !id && " Alleen jij ziet deze oefening, tot de beheerder hem goedkeurt voor iedereen."}
       </p>
     </div>
   );

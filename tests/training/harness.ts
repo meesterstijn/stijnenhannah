@@ -20,6 +20,7 @@ const MIGRATIONS = [
   "20261029020000_training.sql",
   "20261107000000_training_user_role.sql",
   "20261108000000_training_feedback.sql",
+  "20261108010000_training_shared_exercises.sql",
 ];
 
 export async function createTrainingTestDb(): Promise<PGlite> {
@@ -28,7 +29,7 @@ export async function createTrainingTestDb(): Promise<PGlite> {
     create role anon; create role authenticated; create role service_role;
     create schema auth; create schema private;
     grant usage on schema public, auth, private to anon, authenticated;
-    create table auth.users (id uuid primary key);
+    create table auth.users (id uuid primary key, email text);
     create table public.profiles (
       id uuid primary key, app_role text,
       constraint profiles_app_role_check check (app_role in ('owner', 'r6_player'))

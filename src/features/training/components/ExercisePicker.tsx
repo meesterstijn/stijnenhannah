@@ -7,6 +7,7 @@ import {
   type QuickKind,
 } from "@/features/training/domain/quick-exercise";
 import { useTraining } from "@/features/training/hooks/TrainingProvider";
+import { useAuth } from "@/contexts/AuthContext";
 import { isAvailable } from "@/features/training/domain/exercises";
 import {
   MUSCLE_GROUPS,
@@ -125,6 +126,24 @@ export function ExercisePicker({
           </button>
         ))}
       </div>
+      {/* Bovenaan, niet onder de lijst: met 50+ oefeningen zag je hem daar niet. */}
+      {list.length === 0 && (
+        <p className="tr-muted py-2 text-center text-sm">
+          {query.trim()
+            ? `Geen oefening gevonden voor "${query.trim()}".`
+            : "Geen oefeningen in deze groep."}
+        </p>
+      )}
+      <button
+        type="button"
+        className={`tr-btn tr-btn-block tr-btn-wrap ${list.length === 0 ? "tr-btn-primary" : "tr-btn-ghost"}`}
+        onClick={() => setCreating(true)}
+      >
+        <Plus className="h-4 w-4" />
+        {query.trim()
+          ? `"${query.trim()}" als eigen oefening toevoegen`
+          : "Eigen oefening toevoegen"}
+      </button>
       <ul className="divide-y" style={{ borderColor: "var(--tr-border)" }}>
         {list.map((e) => {
           const available = isAvailable(e, owned);
@@ -165,23 +184,6 @@ export function ExercisePicker({
           );
         })}
       </ul>
-      {list.length === 0 && (
-        <p className="tr-muted py-2 text-center text-sm">
-          {query.trim()
-            ? `Geen oefening gevonden voor "${query.trim()}".`
-            : "Geen oefeningen in deze groep."}
-        </p>
-      )}
-      <button
-        type="button"
-        className={`tr-btn tr-btn-block tr-btn-wrap ${list.length === 0 ? "tr-btn-primary" : "tr-btn-ghost"}`}
-        onClick={() => setCreating(true)}
-      >
-        <Plus className="h-4 w-4" />
-        {query.trim()
-          ? `"${query.trim()}" als eigen oefening toevoegen`
-          : "Eigen oefening toevoegen"}
-      </button>
     </Sheet>
   );
 }
@@ -209,6 +211,7 @@ function QuickExerciseForm({
   onCreated: (exercise: Exercise) => void;
 }) {
   const { db, userId } = useTraining();
+  const { isOwner } = useAuth();
   const [name, setName] = useState(initialName.trim());
   const [kind, setKind] = useState<QuickKind>("machine");
   const [primary, setPrimary] = useState<MuscleGroup[]>(
@@ -287,6 +290,8 @@ function QuickExerciseForm({
       </div>
       <p className="tr-muted text-xs">
         Uitleg, rusttijd en meer kun je later aanvullen bij Oefeningen.
+        {!isOwner &&
+          " Alleen jij ziet deze oefening, tot de beheerder hem goedkeurt voor iedereen."}
       </p>
       <div className="flex flex-wrap justify-end gap-2">
         <button

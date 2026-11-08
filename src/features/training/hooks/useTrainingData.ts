@@ -22,6 +22,7 @@ import type {
 } from "@/features/training/domain/types";
 import { updateProfile } from "@/features/training/db/repository";
 import { useTraining } from "./TrainingProvider";
+import { sharedToExercise, useSharedExercises } from "./useSharedExercises";
 
 // Leeshooks op de lokale database. useLiveQuery werkt automatisch bij na
 // elke lokale schrijfactie of binnengekomen sync.
@@ -144,21 +145,27 @@ export const customToExercise = (r: CustomExerciseRecord): Exercise => ({
 // Alle oefeningen (systeem + eigen) en een opzoekfunctie die nooit faalt.
 export function useExercises() {
   const custom = useCustomExercises();
+  const sharedRows = useSharedExercises();
   return useMemo(() => {
     const own = (custom ?? EMPTY).map(customToExercise);
-    const byId = new Map<string, Exercise>(
-      [...SYSTEM_EXERCISES, ...own].map((e) => [e.id, e]),
-    );
+    // Goedgekeurde oefeningen van anderen; de eigen versie gaat voor (de
+    // maker ziet zijn eigen oefening, niet de gedeelde kopie).
+    const ownIds = new Set(own.map((e) => e.id));
+    const shared = sharedRows
+      .filter((r) => !ownIds.has(r.id))
+      .map(sharedToExercise);
+    const all = [...SYSTEM_EXERCISES, ...shared, ...own];
+    const byId = new Map<string, Exercise>(all.map((e) => [e.id, e]));
     const lookup = (id: string) => byId.get(id) ?? systemExercise(id);
     const get = (id: string, fallbackName?: string) =>
       lookup(id) ?? unknownExercise(id, fallbackName);
     return {
-      all: [...SYSTEM_EXERCISES, ...own],
+      all,
       lookup,
       get,
       loaded: custom !== undefined,
     };
-  }, [custom]);
+  }, [custom, sharedRows]);
 }
 
 export function useHistoryIndex() {

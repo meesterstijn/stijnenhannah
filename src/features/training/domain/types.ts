@@ -64,6 +64,8 @@ export type Exercise = {
   alternatives: string[]; // ids van vergelijkbare oefeningen
   link?: string;
   custom?: boolean;
+  // Eigen oefening van een ander, door de owner goedgekeurd voor iedereen.
+  shared?: boolean;
   archived?: boolean;
 };
 

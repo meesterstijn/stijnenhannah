@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { withTimeout } from "@/lib/with-timeout";
 import { classifyError } from "@/features/training/sync/transport";
 
 // Feedback tijdens de testfase (zie docs/training.md). Zet op false om de
@@ -52,6 +53,7 @@ const PAGE_LABELS: [RegExp, string][] = [
   [/^\/training\/lichaam/, "Lichaamsgewicht"],
   [/^\/training\/schijven/, "Schijvencalculator"],
   [/^\/training\/instellingen/, "Instellingen"],
+  [/^\/training\/oefeningen-beoordelen/, "Nieuwe oefeningen beoordelen"],
   [/^\/training\/feedback/, "Feedback"],
   [/^\/training\/meer/, "Meer"],
 ];
@@ -106,26 +108,8 @@ function writeQueue(rows: FeedbackRow[], store = storage()) {
 export type InsertResult = "sent" | "retry" | "rejected";
 export type Inserter = (row: FeedbackRow) => Promise<InsertResult>;
 
-// Offline met een verlopen token blijft supabase-js tot ~30 s proberen het
-// token te verversen voordat het verzoek faalt. Niet zo lang laten wachten:
-// na deze tijd blijft de rij in de wachtrij. Komt het verzoek later alsnog
+// Na de time-out blijft de rij in de wachtrij. Komt het verzoek later alsnog
 // aan, dan geeft de volgende poging 23505 en verdwijnt de rij.
-export const REQUEST_TIMEOUT_MS = 8000;
-
-/** null als er binnen `ms` geen antwoord is. */
-export function withTimeout<T>(
-  request: PromiseLike<T>,
-  ms = REQUEST_TIMEOUT_MS,
-): Promise<T | null> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const timeout = new Promise<null>((resolve) => {
-    timer = setTimeout(() => resolve(null), ms);
-  });
-  return Promise.race([Promise.resolve(request), timeout]).finally(() =>
-    clearTimeout(timer),
-  );
-}
-
 export const insertFeedback: Inserter = async (row) => {
   if (typeof navigator !== "undefined" && navigator.onLine === false)
     return "retry";
