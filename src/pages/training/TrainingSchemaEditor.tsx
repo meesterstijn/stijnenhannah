@@ -9,6 +9,11 @@ import {
   Trash2,
 } from "lucide-react";
 import { ExercisePicker } from "@/features/training/components/ExercisePicker";
+import { SetTargetsEditor } from "@/features/training/components/SetTargetsEditor";
+import {
+  resizeTargets,
+  withTargets,
+} from "@/features/training/domain/set-targets";
 import {
   EmptyState,
   Loading,
@@ -108,6 +113,14 @@ export default function TrainingSchemaEditor() {
       exercises: day.exercises.map((e, i) =>
         i === ei ? { ...e, ...patch } : e,
       ),
+    });
+  };
+
+  const putExercise = (di: number, ei: number, next: PlannedExercise) => {
+    const day = content.days[di];
+    setDay(di, {
+      ...day,
+      exercises: day.exercises.map((e, i) => (i === ei ? next : e)),
     });
   };
 
@@ -303,9 +316,18 @@ export default function TrainingSchemaEditor() {
                       integer
                       value={pe.sets}
                       onChange={(v) =>
-                        setExercise(di, ei, {
-                          sets: Math.max(1, Math.min(20, v ?? 1)),
-                        })
+                        pe.setTargets?.length
+                          ? putExercise(
+                              di,
+                              ei,
+                              withTargets(
+                                pe,
+                                resizeTargets(pe.setTargets, v ?? 1),
+                              ),
+                            )
+                          : setExercise(di, ei, {
+                              sets: Math.max(1, Math.min(20, v ?? 1)),
+                            })
                       }
                     />
                     <NumberField
@@ -354,26 +376,43 @@ export default function TrainingSchemaEditor() {
                       }
                     />
                   </div>
-                  {exercise.tracking === "weight_reps" && (
-                    <NumberField
-                      label="Startgewicht (alleen zolang er nog geen historie is)"
-                      value={pe.startWeightKg}
-                      placeholder={(() => {
-                        const kg = trainerStartWeight(
-                          exercise,
-                          content.level ?? profile.settings.level,
-                          profile.equipment,
-                        );
-                        return kg === null
-                          ? undefined
-                          : `Trainer: ${String(kg).replace(".", ",")}`;
-                      })()}
-                      suffix="kg"
-                      onChange={(v) =>
-                        setExercise(di, ei, { startWeightKg: v })
-                      }
-                    />
-                  )}
+                  <SetTargetsEditor
+                    planned={pe}
+                    exercise={exercise}
+                    trainerKg={
+                      exercise.tracking === "weight_reps"
+                        ? trainerStartWeight(
+                            exercise,
+                            content.level ?? profile.settings.level,
+                            profile.equipment,
+                          )
+                        : null
+                    }
+                    onChange={(targets) =>
+                      putExercise(di, ei, withTargets(pe, targets))
+                    }
+                  />
+                  {exercise.tracking === "weight_reps" &&
+                    !pe.setTargets?.length && (
+                      <NumberField
+                        label="Startgewicht (alleen zolang er nog geen historie is)"
+                        value={pe.startWeightKg}
+                        placeholder={(() => {
+                          const kg = trainerStartWeight(
+                            exercise,
+                            content.level ?? profile.settings.level,
+                            profile.equipment,
+                          );
+                          return kg === null
+                            ? undefined
+                            : `Trainer: ${String(kg).replace(".", ",")}`;
+                        })()}
+                        suffix="kg"
+                        onChange={(v) =>
+                          setExercise(di, ei, { startWeightKg: v })
+                        }
+                      />
+                    )}
                 </li>
               );
             })}

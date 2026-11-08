@@ -98,6 +98,7 @@ export function sessionExercise(
       durationSec: planned.durationSec,
       startWeightKg: ownStart ?? trainerStart,
       tracking: exercise.tracking,
+      setTargets: planned.setTargets ?? null,
     },
     previous,
   );
@@ -149,6 +150,9 @@ export function sessionExercise(
     repMax: planned.repMax,
     durationSec: planned.durationSec,
     plannedSets: planned.sets,
+    ...(planned.setTargets?.length
+      ? { plannedTargets: planned.setTargets }
+      : {}),
     warmup: prescription.warmup,
     work: prescription.work,
     source: prescription.source,

@@ -1,4 +1,6 @@
+import { isTimed, sameTargets } from "./set-targets";
 import type {
+  PlannedSetTarget,
   PrescriptionSource,
   SetValues,
   Tracking,
@@ -21,6 +23,8 @@ import type {
 //   5. Per set: de waarden die je toen echt deed. Een set die je toen niet
 //      afrondde, houdt het doel van toen (wordt niet "verlaagd").
 //   6. Nooit automatisch zwaarder of meer herhalingen: dat beslis jij.
+//   7. Doelen per set in het schema (piramide) gelden de eerste keer, en
+//      opnieuw zodra ze in het schema anders zijn dan bij de vorige training.
 
 export type Performance = {
   sessionId: string;
@@ -30,6 +34,7 @@ export type Performance = {
   programName: string | null;
   dayName: string | null;
   plannedSets: number | null; // schema-aantal op dat moment
+  plannedTargets: PlannedSetTarget[] | null; // schema-doelen per set toen
   repMin: number | null;
   repMax: number | null;
   durationSec: number | null;
@@ -97,6 +102,7 @@ export function buildHistoryIndex(
         programName: session.snapshot?.programName ?? null,
         dayName: session.snapshot?.dayName ?? session.name,
         plannedSets: planned?.plannedSets ?? null,
+        plannedTargets: planned?.plannedTargets ?? null,
         repMin: planned?.repMin ?? null,
         repMax: planned?.repMax ?? null,
         durationSec: planned?.durationSec ?? null,
@@ -156,6 +162,7 @@ export type PrescriptionInput = {
   durationSec: number | null;
   startWeightKg: number | null;
   tracking: Tracking;
+  setTargets?: PlannedSetTarget[] | null;
 };
 
 export type Prescription = {
@@ -173,6 +180,23 @@ export function defaultSet(input: PrescriptionInput): SetValues {
         : null,
     reps: timed ? null : (input.repMin ?? input.repMax ?? null),
     durationSec: timed ? (input.durationSec ?? 30) : null,
+    jumps: null,
+  };
+}
+
+// Doel per set uit het schema; lege velden vallen terug op het gewone
+// voorschrift.
+function targetValues(
+  t: PlannedSetTarget,
+  filler: SetValues,
+  tracking: Tracking,
+): SetValues {
+  const timed = isTimed(tracking);
+  const weighted = tracking === "weight_reps" || tracking === "bodyweight_reps";
+  return {
+    weightKg: weighted ? (t.weightKg ?? filler.weightKg) : null,
+    reps: timed ? null : (t.reps ?? filler.reps),
+    durationSec: timed ? (t.durationSec ?? filler.durationSec) : null,
     jumps: null,
   };
 }
@@ -229,15 +253,28 @@ export function buildPrescription(
   previous: Performance | null,
 ): Prescription {
   const filler = defaultSet(input);
+  const targets = input.setTargets?.length ? input.setTargets : null;
+  const planWork = () =>
+    targets
+      ? targets.map((t) => targetValues(t, filler, input.tracking))
+      : Array.from({ length: Math.max(1, input.sets) }, () => ({
+          ...filler,
+        }));
   if (!previous || previous.work.length === 0) {
-    const work = Array.from({ length: Math.max(1, input.sets) }, () => ({
-      ...filler,
-    }));
+    const work = planWork();
     return {
       work,
       warmup: defaultWarmups(input.warmupSets, work[0]),
       source: { kind: "plan" },
     };
+  }
+  if (targets && !sameTargets(targets, previous.plannedTargets)) {
+    // Doelen per set in het schema gewijzigd sinds die training: het
+    // schema gaat voor (zoals bij een gewijzigd aantal sets).
+    const work = planWork();
+    let warmup = performedList(previous.warmupTargets, previous.warmup);
+    if (warmup.length === 0) warmup = defaultWarmups(input.warmupSets, work[0]);
+    return { work, warmup, source: { kind: "plan" } };
   }
 
   let work = performedList(previous.targets, previous.work);
@@ -357,6 +394,9 @@ export function coachAdvice(
   if (input.tracking !== "weight_reps") return null;
   const last = list[0];
   if (!last || last.work.length === 0) return null;
+  // Doelen per set (piramide e.d.): dubbele progressie gaat uit van gelijke
+  // sets, dus geen advies; opbouwen gaat dan via het schema.
+  if (last.plannedTargets?.length) return null;
   const repMin = last.repMin ?? input.repMin;
   const repMax = last.repMax ?? input.repMax ?? repMin;
   if (repMin === null || repMax === null) return null;

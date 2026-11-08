@@ -73,6 +73,14 @@ export type Exercise = {
 
 export type ScheduleMode = "weekly" | "sequence";
 
+// Doel voor één werkset in het schema. null valt terug op het gewone
+// voorschrift (startgewicht, ondergrens herhalingen, doelduur).
+export type PlannedSetTarget = {
+  weightKg: number | null;
+  reps: number | null;
+  durationSec: number | null;
+};
+
 export type PlannedExercise = {
   id: string; // uniek binnen het schema
   exerciseId: string;
@@ -83,6 +91,10 @@ export type PlannedExercise = {
   durationSec: number | null; // doel bij tijd/touwspringen
   restSec: number;
   startWeightKg: number | null; // beginwaarde zolang er geen historie is
+  // Optioneel per werkset (piramide e.d.); lengte = sets. Geldt de eerste
+  // keer en opnieuw zodra je deze doelen in het schema wijzigt; daartussen
+  // wint je vorige prestatie per set (zie domain/performance.ts).
+  setTargets?: PlannedSetTarget[] | null;
   notes?: string;
   // 1 = kern, 2 = belangrijk, 3 = optioneel (valt als eerste af bij korte
   // trainingen). Alleen gebruikt door de schemagenerator.
@@ -179,6 +191,7 @@ export type SessionExercise = {
   repMax: number | null;
   durationSec: number | null;
   plannedSets: number; // aantal werksets in het schema op dat moment
+  plannedTargets?: PlannedSetTarget[] | null; // schema-doelen per set op dat moment
   warmup: SetValues[]; // voorgeschreven/aangepaste waarden per set
   work: SetValues[];
   source: PrescriptionSource;

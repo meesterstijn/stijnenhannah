@@ -38,6 +38,11 @@ Centraal in `domain/performance.ts` (`buildHistoryIndex`, `previousPerformance`,
    en alleen als je dat in Instellingen kiest.
 7. Correcties achteraf (historie → set aanpassen) werken direct door in records,
    statistiek en de volgende opdracht, omdat alles uit de opgeslagen sets wordt afgeleid.
+8. **Doelen per set** (schema-editor → "Per set instellen", bijv. 10 × 20, 10 × 25,
+   8 × 30 kg): gelden de eerste keer, en opnieuw zodra je ze in het schema wijzigt
+   (vergeleken met de doelen die bij de vorige training in het schema stonden,
+   `plannedTargets` in de momentopname). Daartussen geldt regel 4: per set wat je
+   echt deed. De trainer geeft bij zulke oefeningen geen advies.
 
 ## Trainer: startgewichten en progressie
 
@@ -277,3 +282,7 @@ Beslissingen die ik zelfstandig heb genomen. Allemaal aan te passen.
     hem dan tonen).
 35. **Knop "Eigen oefening toevoegen" bovenaan** in het kiesvenster (onder zoeken),
     omdat hij onderaan een lijst van 50+ oefeningen niet te vinden was.
+36. **Doelen per set**: aanleiding was feedback van de eerste tester (8 nov). Een
+    gewijzigde piramide in het schema gaat voor op de vorige prestatie, net als een
+    gewijzigd aantal sets. Trainer zwijgt bij deze oefeningen, omdat dubbele
+    progressie gelijke sets veronderstelt.
