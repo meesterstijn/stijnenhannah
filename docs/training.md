@@ -192,6 +192,10 @@ Sinds 8 nov 2026 (`20261108010000_training_shared_exercises.sql`).
 - Vaste weekplanning of doorlopende volgorde; gemist = inhalen, overslaan, andere dag kiezen.
 - Schema-editor: dagen, weekdagen, oefeningen (toevoegen/vervangen/volgorde), sets,
   opwarmsets, herhalingsbereik of duur, rust, startgewicht; dupliceren, archiveren.
+- Na elke werkset, ook tijdens de rust: "Hoeveel herhalingen deed je?" met een rij
+  getallen rond het doel (4 lager tot 2 hoger). Eén tik past de set aan, het doel met
+  vinkje bevestigt, "Anders…" opent de set (ook gewicht), plus ongedaan maken.
+  Eenmalige uitleg "Zo werkt een training" bij de eerste training (`workoutIntroSeen`).
 - Actieve training: grote setknop (opslaan + rust starten in één tik), ongedaan maken,
   plus/min en exact typen, schijvenknop, set toevoegen/verwijderen, opwarmsets,
   oefening vervangen/toevoegen/overslaan/verplaatsen, notities, onderbreken/hervatten,
@@ -308,3 +312,8 @@ Beslissingen die ik zelfstandig heb genomen. Allemaal aan te passen.
     commit. Nadeel: een update toevoegen vraagt een deploy.
 38. **Nieuwe gebruiker ziet alleen de nieuwste update**, niet de hele geschiedenis;
     alles staat wel onder Meer → Updates.
+39. **Herhalingen bevestigen is optioneel**: niets tikken = het doel geldt als gehaald
+    (zoals voorheen). Bewust geen verplichte vraag na elke set, om het tempo erin te
+    houden.
+40. **Wie nog nooit een update zag**, krijgt alle updates van de nieuwste dag (niet
+    alleen de allernieuwste), zodat een release met meerdere updates compleet is.

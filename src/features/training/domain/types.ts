@@ -279,6 +279,8 @@ export type TrainingSettings = {
   // het tijdstip van de laatst geziene reactie op eigen feedback.
   lastSeenUpdate?: string | null;
   lastSeenReplyAt?: string | null;
+  // Uitleg "Zo werkt het" in de training gezien.
+  workoutIntroSeen?: boolean;
 };
 
 export type PlateStock = { weightKg: number; count: number };

@@ -145,6 +145,13 @@ try {
   await page.waitForURL(/#\/training\/workout/);
   const setButton = page.locator(".tr-set-button");
   await setButton.waitFor();
+  // Eerste training: eenmalige uitleg (komt bij de volgende niet terug).
+  const intro = page.getByRole("dialog", { name: "Zo werkt een training" });
+  await intro.waitFor();
+  await page.screenshot({ path: join(output, "2a-uitleg.png") });
+  await intro.getByRole("button", { name: "Begrepen" }).click();
+  await intro.waitFor({ state: "detached" });
+  step("uitleg bij de eerste training");
   // Setknop bovenaan: volledig in beeld zonder te scrollen.
   const setBox = await setButton.boundingBox();
   assert.ok(
@@ -227,6 +234,27 @@ try {
   for (let i = 0; i < 3; i++) {
     assert.match(await setButton.innerText(), /20 kg/);
     await setButton.click();
+    if (i === 2) {
+      // Tijdens de rust: in één tik aangeven dat je minder deed.
+      const check = page.getByRole("region", {
+        name: /Hoeveel herhalingen deed je/,
+      });
+      await check.waitFor();
+      const target = Number(
+        (
+          await check.getByRole("button", { name: /(gehaald)/ }).innerText()
+        ).trim(),
+      );
+      await page.screenshot({ path: join(output, "3b-hoeveel.png") });
+      await check
+        .getByRole("button", { name: `${target - 1} herhalingen`, exact: true })
+        .click();
+      await page
+        .getByRole("status")
+        .filter({ hasText: `20 kg × ${target - 1}` })
+        .waitFor();
+      step(`minder gedaan in één tik (${target} → ${target - 1})`);
+    }
     const skip = page.getByRole("button", { name: "Rust overslaan" });
     await skip.waitFor();
     await skip.click();

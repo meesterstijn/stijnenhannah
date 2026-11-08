@@ -10,7 +10,7 @@ type Feedback = Parameters<typeof newReplies>[0][number];
 
 const update = (id: string): Update => ({
   id,
-  date: "2026-11-08",
+  date: id,
   title: id,
   items: [],
 });
@@ -31,7 +31,16 @@ describe("updates", () => {
     expect(unseenUpdates("u5", list)).toEqual([]);
   });
 
-  it("nog nooit gezien of onbekend id: alleen de nieuwste", () => {
+  it("nog nooit gezien of onbekend id: alleen de nieuwste dag", () => {
+    const sameDay = [
+      { ...update("b"), date: "2026-11-09" },
+      { ...update("a"), date: "2026-11-09" },
+      { ...update("old"), date: "2026-11-01" },
+    ];
+    expect(unseenUpdates(null, sameDay).map((u) => u.id)).toEqual(["b", "a"]);
+  });
+
+  it("nog nooit gezien of onbekend id: één update op de nieuwste dag", () => {
     expect(unseenUpdates(null, list).map((u) => u.id)).toEqual(["u5"]);
     expect(unseenUpdates("weg", list).map((u) => u.id)).toEqual(["u5"]);
     expect(unseenUpdates(null, [])).toEqual([]);

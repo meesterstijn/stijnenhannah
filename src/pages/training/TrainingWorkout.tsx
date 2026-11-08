@@ -34,9 +34,11 @@ import {
   setExercisePref,
   setSessionStatus,
   undoSet,
+  updateProfile,
   updateSession,
   updateSnapshot,
 } from "@/features/training/db/repository";
+import { WorkoutIntro } from "@/features/training/workout/WorkoutIntro";
 import {
   performances,
   progressionHint,
@@ -93,6 +95,7 @@ import {
 } from "@/features/training/hooks/useTrainingData";
 import { useWorkoutActions } from "@/features/training/hooks/useWorkoutActions";
 import { RestPanel } from "@/features/training/workout/RestPanel";
+import { SetCheck, type LastDone } from "@/features/training/workout/SetCheck";
 import {
   SetList,
   SetValueFields,
@@ -176,11 +179,10 @@ function Workout({
   }, [snapshot, done]);
 
   const [restOpen, setRestOpen] = useState(() => timer.state.status !== "idle");
-  const [lastDone, setLastDone] = useState<{
-    id: string;
-    position: Position;
-    text: string;
-  } | null>(null);
+  // Laatst opgeslagen set: controle "hoeveel deed je echt?" (SetCheck).
+  const [lastDone, setLastDone] = useState<
+    (Omit<LastDone, "values"> & { position: Position }) | null
+  >(null);
   const [error, setError] = useState<string | null>(null);
   const [sheet, setSheet] = useState<
     | null
@@ -255,7 +257,12 @@ function Workout({
       setLastDone({
         id: set.id,
         position: cursor,
-        text: `${cursor.kind === "warmup" ? "Opwarmset" : "Set"} ${cursor.index + 1} · ${describeValues(current.tracking, values, current.perSide)}`,
+        label: `${cursor.kind === "warmup" ? "Opwarmset" : "Set"} ${cursor.index + 1}`,
+        warmup: cursor.kind === "warmup",
+        tracking: current.tracking,
+        perSide: current.perSide,
+        target: values,
+        confirmed: false,
       });
       setCursor(next);
       void persist((s) => ({ ...s, cursor: next }));
@@ -285,6 +292,35 @@ function Workout({
     void persist((s) => ({ ...s, cursor: lastDone.position }));
     setLastDone(null);
   };
+
+  // Actuele waarden uit de opgeslagen set (ook na "Anders…"/historie).
+  const lastSet = lastDone ? done.get(positionKey(lastDone.position)) : undefined;
+  const setCheck =
+    lastDone && lastSet ? (
+      <SetCheck
+        last={{
+          ...lastDone,
+          values: {
+            weightKg: lastSet.weightKg,
+            reps: lastSet.reps,
+            durationSec: lastSet.durationSec,
+            jumps: lastSet.jumps,
+          },
+        }}
+        onConfirm={() => setLastDone({ ...lastDone, confirmed: true })}
+        onReps={(reps) => {
+          setLastDone({ ...lastDone, confirmed: true });
+          void editSet(db, lastSet.id, lastDone.tracking, {
+            weightKg: lastSet.weightKg,
+            reps,
+            durationSec: lastSet.durationSec,
+            jumps: lastSet.jumps,
+          });
+        }}
+        onOther={() => setEditing(lastDone.position)}
+        onUndo={() => void undo()}
+      />
+    ) : null;
 
   const makeExercise = async (
     exercise: Exercise,
@@ -466,7 +502,10 @@ function Workout({
       )}
 
       {restOpen && timer.state.status !== "idle" ? (
-        <RestPanel nextLabel={nextLabel} onBack={() => setRestOpen(false)} />
+        <div className="space-y-3">
+          {setCheck}
+          <RestPanel nextLabel={nextLabel} onBack={() => setRestOpen(false)} />
+        </div>
       ) : !shownExercise ? (
         <EmptyState
           title="Geen oefeningen"
@@ -554,7 +593,7 @@ function Workout({
                 stepKg={step}
                 coached={!!current.coach}
               />
-              {lastDone && <UndoLine text={lastDone.text} onUndo={undo} />}
+              {setCheck}
               <ValueEditors
                 exercise={current}
                 values={values}
@@ -575,7 +614,7 @@ function Workout({
                   Training afronden
                 </button>
               </div>
-              {lastDone && <UndoLine text={lastDone.text} onUndo={undo} />}
+              {setCheck}
             </section>
           )}
 
@@ -991,6 +1030,16 @@ function Workout({
         </button>
       </Sheet>
 
+      <WorkoutIntro
+        open={!profile.settings.workoutIntroSeen && !!current && !sheet}
+        onClose={() =>
+          void updateProfile(db, userId, (p) => ({
+            ...p,
+            settings: { ...p.settings, workoutIntroSeen: true },
+          }))
+        }
+      />
+
       {editing && (
         <EditDoneSheet
           set={done.get(positionKey(editing))!}
@@ -1000,6 +1049,11 @@ function Workout({
             const set = done.get(positionKey(editing));
             const e = snapshot.exercises.find((x) => x.slot === editing.slot);
             if (set && e) await editSet(db, set.id, e.tracking, v);
+            if (
+              lastDone &&
+              positionKey(lastDone.position) === positionKey(editing)
+            )
+              setLastDone({ ...lastDone, confirmed: true });
             setEditing(null);
           }}
           onUndo={async () => {
@@ -1018,33 +1072,6 @@ const kgText = (kg: number) => `${formatKg(kg)} kg`;
 
 // Advies van de trainer bij deze oefening: een al toegepaste verhoging
 // (terug te draaien) of een voorstel om te verhogen/verlagen.
-function UndoLine({
-  text,
-  onUndo,
-}: {
-  text: string;
-  onUndo: () => Promise<unknown>;
-}) {
-  return (
-    <div
-      className="tr-card flex items-center justify-between gap-2 px-3 py-2"
-      role="status"
-    >
-      <span className="text-sm">
-        <span className="tr-muted">Opgeslagen:</span>{" "}
-        <span className="tr-num font-semibold">{text}</span>
-      </span>
-      <button
-        type="button"
-        className="tr-btn tr-btn-quiet"
-        onClick={() => void onUndo()}
-      >
-        <Undo2 className="h-4 w-4" /> Ongedaan maken
-      </button>
-    </div>
-  );
-}
-
 function CoachBanner({
   exercise,
   advice,
