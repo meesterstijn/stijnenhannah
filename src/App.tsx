@@ -13,6 +13,7 @@ import { Loader2 } from "lucide-react";
 
 // Lazy-loaded pages — each becomes its own chunk
 const Login = lazy(() => import("@/pages/Login"));
+const SetPassword = lazy(() => import("@/pages/SetPassword"));
 const Home = lazy(() => import("@/pages/Home"));
 const Boodschappen = lazy(() => import("@/pages/Boodschappen"));
 const Recepten = lazy(() => import("@/pages/Recepten"));
@@ -255,7 +256,7 @@ function ScrollToTop() {
 }
 
 function AppRoutes() {
-  const { session, loading } = useAuth();
+  const { session, loading, needsPassword } = useAuth();
   const { pathname } = useLocation();
 
   // These routes validate a separate guest credential, regardless of the
@@ -291,6 +292,16 @@ function AppRoutes() {
         <Routes>
           <Route path="*" element={<Login />} />
         </Routes>
+      </Suspense>
+    );
+  }
+
+  // Binnengekomen via een uitnodigings- of herstellink: eerst een
+  // wachtwoord kiezen (zie lib/auth-link.ts).
+  if (needsPassword) {
+    return (
+      <Suspense fallback={<PageLoader />}>
+        <SetPassword />
       </Suspense>
     );
   }

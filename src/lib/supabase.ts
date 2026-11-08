@@ -1,5 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL } from "@/lib/supabase-config";
+import { captureAuthLink } from "@/lib/auth-link";
+
+// Moet vóór createClient: leest de hash van een maillink uit voordat
+// supabase-js die wist.
+captureAuthLink();
 
 export const supabase = createClient(
   SUPABASE_URL,

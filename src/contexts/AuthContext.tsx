@@ -7,6 +7,12 @@ import {
   readStoredSession,
   writeCachedProfile,
 } from "@/lib/offline-auth";
+import {
+  getInitialAuthLink,
+  PASSWORD_LINK_TYPES,
+  readNeedsPassword,
+  writeNeedsPassword,
+} from "@/lib/auth-link";
 
 export type AppRole =
   | "owner"
@@ -42,6 +48,10 @@ type AuthContextType = {
   // niet ververst kon worden (zie lib/offline-auth.ts). Supabase-requests
   // falen dan; offline-first modules (Schietsport) werken gewoon lokaal.
   isOfflineSession: boolean;
+  // Ingelogd via een uitnodigings- of herstellink: eerst een (nieuw)
+  // wachtwoord kiezen, anders kan het account daarna niet meer inloggen.
+  needsPassword: boolean;
+  finishPasswordSetup: () => void;
 };
 
 const OFFLINE_GRACE_MS = 3000;
@@ -49,6 +59,8 @@ const OFFLINE_GRACE_MS = 3000;
 const AuthContext = createContext<AuthContextType>({
   session: null,
   isOfflineSession: false,
+  needsPassword: false,
+  finishPasswordSetup: () => {},
   loading: true,
   profile: null,
   appRole: null,
@@ -66,6 +78,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoadingRole, setIsLoadingRole] = useState(true);
+  const [needsPassword, setNeedsPassword] = useState(() => {
+    const linkType = getInitialAuthLink().type;
+    if (linkType && PASSWORD_LINK_TYPES.has(linkType)) {
+      writeNeedsPassword(true);
+      return true;
+    }
+    return readNeedsPassword();
+  });
+  const finishPasswordSetup = () => {
+    writeNeedsPassword(false);
+    setNeedsPassword(false);
+  };
 
   useEffect(() => {
     // `null` van de client terwijl storage nog een sessie bevat = verlopen
@@ -81,7 +105,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
       }
-      if (event === "SIGNED_OUT") clearCachedProfiles();
+      if (event === "SIGNED_OUT") {
+        clearCachedProfiles();
+        writeNeedsPassword(false);
+        setNeedsPassword(false);
+      }
+      if (event === "PASSWORD_RECOVERY") {
+        writeNeedsPassword(true);
+        setNeedsPassword(true);
+      }
       setSession(next);
       setIsOfflineSession(false);
     };
@@ -202,6 +234,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         session,
         isOfflineSession,
+        needsPassword,
+        finishPasswordSetup,
         loading,
         profile,
         appRole,
