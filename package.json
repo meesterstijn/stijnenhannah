@@ -18,6 +18,8 @@
     "game-night:test-guests": "node tests/game-night/guests.test.mjs && node tests/game-night/player-selection.test.mjs && node tests/game-night/guest-faces.test.mjs",
     "game-night:test-guests-browser": "node tests/game-night/guests.browser.mjs",
     "game-night:test-layout-browser": "node tests/game-night/layout.browser.mjs",
+    "game-night:test-secret-hitler": "node tests/game-night/secret-hitler.test.mjs",
+    "game-night:test-secret-hitler-browser": "node tests/game-night/secret-hitler.browser.mjs",
     "training:test-browser": "node tests/training/workout.browser.mjs"
   },
   "dependencies": {

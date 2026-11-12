@@ -19,6 +19,11 @@ import {
   resolvePlayerCharacter,
 } from "@/features/game-night/lib/gameNightCharacter";
 import { CharacterVisual } from "@/features/game-night/v2/CharacterVisual";
+import { SecretHitlerRecap } from "@/features/game-night/v2/secretHitler/SecretHitlerRecap";
+import {
+  useSecretHitlerEvents,
+  useSecretHitlerSuspicions,
+} from "@/features/game-night/hooks/useSecretHitler";
 
 // Game Night V2.7B (sectie 30-32) — vervangt GameSessionCompletedPanel
 // volledig voor win_events-sessies. GEEN apart "session winner"-record:
@@ -86,6 +91,28 @@ export function GameNightV2GameRecap({
     ],
   );
 
+  // Secret Hitler: team-uitslag, rollen, awards en "achteraf bekeken" i.p.v.
+  // de gewone winnaar/stand (de WINs zelf staan gewoon in win_events).
+  const isSecretHitler = gameSession.game.slug === "secret-hitler";
+  const { data: shEvents = [] } = useSecretHitlerEvents(
+    isSecretHitler ? gameSession.id : undefined,
+  );
+  const { data: shSuspicions = [] } = useSecretHitlerSuspicions(
+    isSecretHitler ? gameSession.id : undefined,
+    false,
+  );
+  const partsByIdForSh = useMemo(
+    () => new Map(characterParts.map((p) => [p.id, p])),
+    [characterParts],
+  );
+  const shNameOf = useMemo(
+    () => (id: string | null | undefined) => {
+      const p = id ? participantsById.get(id) : undefined;
+      return p ? getPlayerDisplayName(p) : "Iemand";
+    },
+    [participantsById],
+  );
+
   const top = standings[0];
   const topVisual = useMemo(() => {
     if (!top) return null;
@@ -101,7 +128,33 @@ export function GameNightV2GameRecap({
         <p className="gnv2-recap-eyebrow">Spel afgelopen</p>
         <p className="gnv2-recap-game">{gameSession.game.name}</p>
 
-        {top && top.wins > 0 && (
+        {isSecretHitler && shEvents.length > 0 && (
+          <SecretHitlerRecap
+            seats={participants.map((p) => p.id)}
+            events={shEvents}
+            nameOf={shNameOf}
+            suspicions={shSuspicions}
+            ringColor={(id) => {
+              const p = participantsById.get(id);
+              return p ? resolvePlayerColorHex(p, palette) : null;
+            }}
+            renderAvatar={(id) => {
+              const p = participantsById.get(id);
+              if (!p) return null;
+              return (
+                <CharacterVisual
+                  player={p}
+                  {...characterVisualPropsFor(
+                    resolvePlayerCharacter(p, characterEquipment, partsByIdForSh),
+                  )}
+                  loading="eager"
+                />
+              );
+            }}
+          />
+        )}
+
+        {!(isSecretHitler && shEvents.length > 0) && top && top.wins > 0 && (
           <div className="gnv2-recap-winner">
             <span
               className="gnv2-party-character gnv2-recap-winner-character"
@@ -131,7 +184,7 @@ export function GameNightV2GameRecap({
           </div>
         )}
 
-        {standings.length > 1 && (
+        {!(isSecretHitler && shEvents.length > 0) && standings.length > 1 && (
           <div className="gnv2-recap-standings">
             {standings.slice(1).map(({ player, wins }) => (
               <p key={player.id} className="gnv2-recap-standing-row">
@@ -142,7 +195,7 @@ export function GameNightV2GameRecap({
           </div>
         )}
 
-        {highlights.length > 0 && (
+        {!isSecretHitler && highlights.length > 0 && (
           <div className="gnv2-recap-highlights">
             {highlights.map((h) => (
               <p key={h} className="gnv2-recap-highlight">

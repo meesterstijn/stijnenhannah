@@ -23,6 +23,7 @@ import {
   saveGuestFace,
 } from "@/features/game-night/lib/guestFaceStorage";
 import type { PreparedFacePhoto } from "@/features/game-night/components/FacePhotoEditor";
+import { SecretHitlerGuestPanel } from "@/features/game-night/v2/secretHitler/SecretHitlerGuestPanel";
 
 export default function GameNightGuest() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -192,6 +193,13 @@ export default function GameNightGuest() {
                         : "De host kiest het spel. Je hoeft verder niets te doen."}
                 </p>
               </section>
+              {data.at_table && (
+                <SecretHitlerGuestPanel
+                  guestToken={guestToken}
+                  sessionId={sessionId}
+                  players={data.players}
+                />
+              )}
               {data.at_table && (
                 <section className="gnv2-guest-panel">
                   <h2 className="flex items-center gap-2">

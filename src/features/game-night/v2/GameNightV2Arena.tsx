@@ -65,6 +65,7 @@ import { ArenaMoreMenuSheet } from "@/features/game-night/v2/ArenaMoreMenuSheet"
 import { ArenaCheckpointOverlay } from "@/features/game-night/v2/ArenaCheckpointOverlay";
 import { ArenaSpotifyPanel } from "@/features/game-night/v2/ArenaSpotifyPanel";
 import { MarioKartLeaderboard } from "@/features/game-night/components/MarioKartLeaderboard";
+import { SecretHitlerTable } from "@/features/game-night/v2/secretHitler/SecretHitlerTable";
 
 const INTRO_MS = 4000;
 const TOAST_MS = 3200;
@@ -120,6 +121,14 @@ export function GameNightV2Arena({
   // bij de hele Game Night, niet bij deze ene spelsessie (reset per Game
   // Night, niet per rematch — zie de migratie voor de reden).
   const isMarioKart = gameSession.game.slug === "mario-kart";
+  // Secret Hitler (20261112000000) krijgt een volledige spelleider i.p.v.
+  // de character-ring + "Win registreren": bord, verkiezingen, stemmen,
+  // claims, machten en aan het eind een WIN per winnend teamlid. Zie
+  // SecretHitlerTable.
+  const isSecretHitler = gameSession.game.slug === "secret-hitler";
+  const [shEndOpen, setShEndOpen] = useState(false);
+  // Eén scène, zoals bij Mario Kart.
+  const singleScene = isMarioKart || isSecretHitler;
   // Los van MarioKartLeaderboard.tsx se eigen instantie van dezelfde hooks
   // (React Query dedupt op queryKey, dus geen dubbele fetch) — nodig omdat
   // de "Laatste ongedaan maken"-knop hier in de topbar staat (naast
@@ -304,7 +313,7 @@ export function GameNightV2Arena({
     // Mario Kart heeft geen win_events, dus nooit bruikbare data voor
     // vanavond/rivaliteit/historisch/record — de tafelscène (hier het
     // puntenklassement, zie hieronder) blijft daarom altijd de enige scène.
-    if (isMarioKart) return ["tafel"] as const;
+    if (singleScene) return ["tafel"] as const;
     const extra: ("vanavond" | "rivaliteit" | "historisch" | "record")[] = [];
     if (arenaScenes.vanavond) extra.push("vanavond");
     if (arenaScenes.rivaliteit) extra.push("rivaliteit");
@@ -313,7 +322,7 @@ export function GameNightV2Arena({
     if (extra.length === 0) return ["tafel"] as const;
     // TAFEL na elke aanvullende scène terug — zie bestandscommentaar.
     return extra.flatMap((id) => ["tafel", id] as const);
-  }, [isMarioKart, arenaScenes]);
+  }, [singleScene, arenaScenes]);
   const activeScene = useArenaSceneRotation(sceneSequence, {
     intervalMs: SCENE_ROTATION_MS,
     paused: winPickerOpen || spotlight !== null,
@@ -434,7 +443,9 @@ export function GameNightV2Arena({
             </div>
             <button
               type="button"
-              onClick={() => setConfirmFinishOpen(true)}
+              onClick={() =>
+                isSecretHitler ? setShEndOpen(true) : setConfirmFinishOpen(true)
+              }
               aria-label="Spel afsluiten"
               title="Spel afsluiten"
               className="gnv2-btn-danger-ghost gnv2-arena-end-btn"
@@ -485,7 +496,7 @@ export function GameNightV2Arena({
         <main className="gnv2-arena-main">
           <div
             key={activeScene}
-            className={`gnv2-arena-scene-stage${isMarioKart ? " gnv2-arena-scene-stage-fill" : ""}`}
+            className={`gnv2-arena-scene-stage${singleScene ? " gnv2-arena-scene-stage-fill" : ""}${isSecretHitler ? " sh-stage-host" : ""}`}
           >
             {activeScene === "tafel" && isMarioKart && (
               <MarioKartLeaderboard
@@ -495,7 +506,22 @@ export function GameNightV2Arena({
                 colorHex={colorHex}
               />
             )}
-            {activeScene === "tafel" && !isMarioKart && (
+            {activeScene === "tafel" && isSecretHitler && (
+              <SecretHitlerTable
+                gameSessionId={gameSession.id}
+                participants={participants}
+                characterFor={characterFor}
+                colorHex={colorHex}
+                soundEnabled={sound.enabled}
+                endSheetOpen={shEndOpen}
+                onCloseEndSheet={() => setShEndOpen(false)}
+                onStopWithoutResult={() => {
+                  void handleFinishSession().then(() => setShEndOpen(false));
+                }}
+                stopPending={completeWinSession.isPending}
+              />
+            )}
+            {activeScene === "tafel" && !isMarioKart && !isSecretHitler && (
               <ArenaPlayerLayout
                 participants={participants}
                 center={
@@ -553,7 +579,7 @@ export function GameNightV2Arena({
             het klassement hierboven heeft al een invoerveld + knop per
             speler, dus een extra footer-actie zou dezelfde handeling
             dubbel aanbieden. */}
-        {!isMarioKart && (
+        {!isMarioKart && !isSecretHitler && (
           <footer className="gnv2-footer gnv2-arena-footer">
             <button
               type="button"

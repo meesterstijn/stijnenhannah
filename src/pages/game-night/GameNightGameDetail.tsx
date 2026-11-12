@@ -37,6 +37,7 @@ import { placeholderCoverGradient } from "@/features/game-night/lib/gameCoverPla
 import { PlayerLink } from "@/features/game-night/components/PlayerLink";
 import { GameParticipantSheet } from "@/features/game-night/components/GameParticipantSheet";
 import { MarioKartLeaderboard } from "@/features/game-night/components/MarioKartLeaderboard";
+import { SecretHitlerStats } from "@/features/game-night/v2/secretHitler/SecretHitlerStats";
 import { GameFlowSettingsSheet } from "@/features/game-night/components/GameFlowSettingsSheet";
 import { GnV2Scene } from "@/features/game-night/v2/GnV2Scene";
 import { GnV2Loading } from "@/features/game-night/v2/GnV2Loading";
@@ -525,6 +526,10 @@ export default function GameNightGameDetail() {
                 players={gameNightSessionPlayers}
               />
             )}
+
+            {/* Secret Hitler: rollen, teamwinst en records over alle
+                potjes (alleen potjes met onthulde rollen). */}
+            {game.slug === "secret-hitler" && <SecretHitlerStats gameId={game.id} />}
 
             {stats.sessionsPlayed === 0 ? (
               <div className="gnv2-panel-elevated px-6 py-10 text-center">

@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect } from "react";
 import { HashRouter, Routes, Route, useLocation } from "react-router-dom";
 import "@/features/game-night/guest.css";
+import "@/features/game-night/secret-hitler.css";
 import "@/features/theme/theme.css";
 import { ThemeProvider } from "@/features/theme/ThemeProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";

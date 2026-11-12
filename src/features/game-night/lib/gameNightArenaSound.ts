@@ -103,3 +103,129 @@ export function playUndoSound(): void {
     gain: 0.07,
   });
 }
+
+// ── Secret Hitler ────────────────────────────────────────────────────────
+// Zelfde aanpak: korte, zelf gegenereerde tonen, geen audiobestanden.
+
+export type SecretHitlerSound =
+  | "liberal"
+  | "fascist"
+  | "shot"
+  | "drama"
+  | "win"
+  | "tick";
+
+function playNoiseBurst(ctx: AudioContext, durationMs: number, gain: number) {
+  const length = Math.floor((ctx.sampleRate * durationMs) / 1000);
+  const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < length; i++) {
+    data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 3);
+  }
+  const source = ctx.createBufferSource();
+  source.buffer = buffer;
+  const gainNode = ctx.createGain();
+  gainNode.gain.value = gain;
+  source.connect(gainNode);
+  gainNode.connect(ctx.destination);
+  source.start();
+}
+
+export function playSecretHitlerSound(kind: SecretHitlerSound): void {
+  const ctx = getContext();
+  if (!ctx) return;
+  switch (kind) {
+    case "liberal":
+      // Heldere majeur-arpeggio.
+      playTone(ctx, { freqStart: 523.25, durationMs: 140, gain: 0.07 });
+      playTone(ctx, {
+        freqStart: 659.25,
+        durationMs: 140,
+        gain: 0.07,
+        delayMs: 90,
+      });
+      playTone(ctx, {
+        freqStart: 783.99,
+        durationMs: 260,
+        gain: 0.08,
+        delayMs: 180,
+      });
+      return;
+    case "fascist":
+      // Lage, dreigende mineur-stap.
+      playTone(ctx, {
+        freqStart: 146.83,
+        durationMs: 380,
+        type: "sawtooth",
+        gain: 0.045,
+      });
+      playTone(ctx, {
+        freqStart: 138.59,
+        durationMs: 520,
+        type: "sawtooth",
+        gain: 0.05,
+        delayMs: 260,
+      });
+      return;
+    case "shot":
+      playNoiseBurst(ctx, 260, 0.35);
+      playTone(ctx, {
+        freqStart: 120,
+        freqEnd: 40,
+        durationMs: 220,
+        gain: 0.12,
+      });
+      return;
+    case "drama":
+      playTone(ctx, {
+        freqStart: 220,
+        durationMs: 160,
+        type: "triangle",
+        gain: 0.07,
+      });
+      playTone(ctx, {
+        freqStart: 207.65,
+        durationMs: 160,
+        type: "triangle",
+        gain: 0.07,
+        delayMs: 170,
+      });
+      playTone(ctx, {
+        freqStart: 196,
+        durationMs: 420,
+        type: "triangle",
+        gain: 0.08,
+        delayMs: 340,
+      });
+      return;
+    case "win":
+      playTone(ctx, { freqStart: 523.25, durationMs: 120, gain: 0.07 });
+      playTone(ctx, {
+        freqStart: 659.25,
+        durationMs: 120,
+        gain: 0.07,
+        delayMs: 110,
+      });
+      playTone(ctx, {
+        freqStart: 783.99,
+        durationMs: 120,
+        gain: 0.07,
+        delayMs: 220,
+      });
+      playTone(ctx, {
+        freqStart: 1046.5,
+        durationMs: 420,
+        gain: 0.09,
+        delayMs: 330,
+      });
+      return;
+    case "tick":
+      playTone(ctx, {
+        freqStart: 880,
+        durationMs: 50,
+        type: "square",
+        gain: 0.025,
+      });
+      return;
+  }
+}
